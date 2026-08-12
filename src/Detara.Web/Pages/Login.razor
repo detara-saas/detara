@@ -1,0 +1,84 @@
+@page "/login"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@using Detara.Contracts.Autenticacao
+@inject AutenticacaoServico Autenticacao
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Entrar | Detara</PageTitle>
+
+<div class="login-brand-panel">
+    <div class="brand brand-login"><span class="brand-mark">D</span><span class="brand-name">Detara</span></div>
+    <div class="login-message">
+        <MudText Typo="Typo.h3">Sua operação, sob controle.</MudText>
+        <MudText Typo="Typo.body1">Gestão clara para empresas que cuidam de cada detalhe.</MudText>
+    </div>
+</div>
+
+<div class="login-form-panel">
+    <MudPaper Elevation="0" Class="login-card">
+        <MudText Typo="Typo.h4">Acesse sua conta</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="login-subtitle">
+            Informe os dados da sua empresa para continuar.
+        </MudText>
+        <MudForm @ref="_form">
+            <MudTextField T="string" @bind-Value="_slugEmpresa" Label="Empresa" Placeholder="ex.: premium-detail"
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe a empresa." Class="login-field" />
+            <MudTextField T="string" @bind-Value="_email" Label="E-mail" InputType="InputType.Email"
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe o e-mail." Class="login-field" />
+            <MudTextField T="string" @bind-Value="_senha" Label="Senha" InputType="InputType.Password"
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe a senha." Class="login-field" />
+            <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                       Disabled="@_processando" OnClick="EntrarAsync" Class="login-button">
+                @if (_processando)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Entrar
+            </MudButton>
+        </MudForm>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="login-help">
+            Problemas para acessar? Fale com o administrador da sua empresa.
+        </MudText>
+    </MudPaper>
+</div>
+
+@code {
+    private MudForm _form = null!;
+    private string _slugEmpresa = string.Empty;
+    private string _email = string.Empty;
+    private string _senha = string.Empty;
+    private bool _processando;
+
+    [SupplyParameterFromQuery]
+    public string? Retorno { get; set; }
+
+    private async Task EntrarAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid || _processando)
+        {
+            return;
+        }
+
+        _processando = true;
+        try
+        {
+            var resultado = await Autenticacao.EntrarAsync(new LoginRequest(_slugEmpresa, _email, _senha));
+            Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+            if (resultado.Sucesso)
+            {
+                Navigation.NavigateTo(Retorno is { Length: > 0 } ? Retorno : "/dashboard");
+            }
+        }
+        catch (HttpRequestException)
+        {
+            Mensagens.Mostrar("A API não está disponível no momento.", true);
+        }
+        finally
+        {
+            _processando = false;
+        }
+    }
+}
