@@ -11,6 +11,8 @@ Use variáveis de ambiente, user-secrets ou um `.env` local ignorado pelo Git:
 
 O seed é opcional e recusado fora do ambiente `Development`. Quando habilitado, aplica migrations e cria uma empresa/administrador demo de forma idempotente.
 
+O Web mantém o JWT somente em `sessionStorage`. Antes de produção, avaliar um BFF com cookie HttpOnly para reduzir ainda mais a exposição do token a código executado no navegador.
+
 ## Fluxo
 
 ```powershell

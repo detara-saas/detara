@@ -7,11 +7,11 @@ public sealed class TokenStorage(IJSRuntime jsRuntime)
     private const string Chave = "detara.token";
 
     public ValueTask<string?> ObterAsync() =>
-        jsRuntime.InvokeAsync<string?>("localStorage.getItem", Chave);
+        jsRuntime.InvokeAsync<string?>("sessionStorage.getItem", Chave);
 
     public ValueTask SalvarAsync(string token) =>
-        jsRuntime.InvokeVoidAsync("localStorage.setItem", Chave, token);
+        jsRuntime.InvokeVoidAsync("sessionStorage.setItem", Chave, token);
 
     public ValueTask RemoverAsync() =>
-        jsRuntime.InvokeVoidAsync("localStorage.removeItem", Chave);
+        jsRuntime.InvokeVoidAsync("sessionStorage.removeItem", Chave);
 }
