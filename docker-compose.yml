@@ -1,0 +1,43 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${DETARA_SQL_PASSWORD:?Defina DETARA_SQL_PASSWORD no arquivo .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - detara-sql-data:/var/opt/mssql
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Detara.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=Detara;User Id=sa;Password=${DETARA_SQL_PASSWORD};TrustServerCertificate=True;Encrypt=True
+      Jwt__ChaveAssinatura: ${DETARA_JWT_KEY:?Defina DETARA_JWT_KEY no arquivo .env}
+      Cors__OrigensPermitidas__0: http://localhost:5080
+      Seed__Enabled: ${DETARA_SEED_ENABLED:-false}
+      Seed__SenhaAdministrador: ${DETARA_SEED_PASSWORD:-}
+    ports:
+      - "5090:8080"
+    depends_on:
+      - sqlserver
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: src/Detara.Web/Dockerfile
+    ports:
+      - "5080:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  detara-sql-data:
