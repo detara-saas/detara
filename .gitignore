@@ -1,0 +1,31 @@
+# Build
+**/bin/
+**/obj/
+artifacts/
+
+# IDEs e sistema operacional
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Cobertura e testes
+TestResults/
+coverage/
+*.trx
+
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+appsettings.Production.json
+secrets.json
+*.pfx
+*.pem
+
+# Containers e logs
+docker-compose.override.yml
+*.log
