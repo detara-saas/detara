@@ -1,0 +1,79 @@
+@page "/"
+@page "/dashboard"
+@attribute [Authorize]
+
+<PageTitle>Dashboard | Detara</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <MudText Typo="Typo.h4">Bom dia</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Secondary">Acompanhe a operação da sua empresa.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">
+        Novo atendimento
+    </MudButton>
+</section>
+
+<MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mock-notice">
+    Os indicadores abaixo são demonstrativos. Dados reais serão conectados aos módulos do MVP.
+</MudAlert>
+
+<MudGrid Spacing="3" Class="metric-grid">
+    @foreach (var indicador in _indicadores)
+    {
+        <MudItem xs="12" sm="6" lg="3">
+            <MudPaper Elevation="0" Class="metric-card">
+                <div class="metric-icon"><MudIcon Icon="@indicador.Icone" /></div>
+                <MudText Typo="Typo.caption" Class="metric-label">@indicador.Titulo</MudText>
+                <MudText Typo="Typo.h4" Class="metric-value">@indicador.Valor</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@indicador.Apoio</MudText>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudPaper Elevation="0" Class="activity-panel">
+    <div class="panel-header">
+        <div>
+            <MudText Typo="Typo.h6">Próximos atendimentos</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Agenda demonstrativa de hoje</MudText>
+        </div>
+        <MudButton Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton>
+    </div>
+    <MudTable T="Atividade" Items="@_atividades" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Horário</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Veículo</MudTh>
+            <MudTh>Serviço</MudTh>
+            <MudTh>Status</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Horário">@context.Horario</MudTd>
+            <MudTd DataLabel="Cliente"><strong>@context.Cliente</strong></MudTd>
+            <MudTd DataLabel="Veículo">@context.Veiculo</MudTd>
+            <MudTd DataLabel="Serviço">@context.Servico</MudTd>
+            <MudTd DataLabel="Status"><MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@context.Status</MudChip></MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private sealed record Indicador(string Titulo, string Valor, string Apoio, string Icone);
+    private sealed record Atividade(string Horario, string Cliente, string Veiculo, string Servico, string Status);
+
+    private readonly Indicador[] _indicadores =
+    [
+        new("Atendimentos hoje", "8", "3 concluídos", Icons.Material.Outlined.CalendarToday),
+        new("Em execução", "3", "2 dentro do prazo", Icons.Material.Outlined.BuildCircle),
+        new("Aguardando aprovação", "4", "R$ 6.480 em orçamentos", Icons.Material.Outlined.PendingActions),
+        new("Receita no mês", "R$ 28,4 mil", "+8,2% versus mês anterior", Icons.Material.Outlined.TrendingUp)
+    ];
+
+    private readonly Atividade[] _atividades =
+    [
+        new("09:00", "Marina Alves", "Jeep Compass · ABC1D23", "Vitrificação", "Confirmado"),
+        new("10:30", "Rafael Costa", "BMW 320i · DEF4G56", "Higienização", "Em execução"),
+        new("14:00", "Lucas Martins", "Porsche Macan · HIJ7K89", "PPF frontal", "Confirmado")
+    ];
+}

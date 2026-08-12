@@ -1,0 +1,54 @@
+@page "/agenda"
+@page "/orcamentos"
+@page "/ordens-servico"
+@page "/clientes"
+@page "/veiculos"
+@page "/servicos"
+@page "/pacotes"
+@page "/pagamentos"
+@page "/usuarios"
+@page "/perfis"
+@page "/empresa"
+@attribute [Authorize]
+@inject NavigationManager Navigation
+
+<PageTitle>@Titulo | Detara</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <MudText Typo="Typo.h4">@Titulo</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Secondary">@Descricao</MudText>
+    </div>
+</section>
+
+<MudPaper Elevation="0" Class="empty-state">
+    <div class="empty-icon"><MudIcon Icon="@Icons.Material.Outlined.Construction" Size="Size.Large" /></div>
+    <MudText Typo="Typo.h6">Módulo preparado para a próxima etapa</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        A navegação e o espaço visual já estão definidos. As regras e operações serão implementadas após a revisão da fundação.
+    </MudText>
+</MudPaper>
+
+@code {
+    private static readonly IReadOnlyDictionary<string, (string Titulo, string Descricao)> Conteudo =
+        new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["agenda"] = ("Agenda", "Organize os atendimentos e a capacidade da equipe."),
+            ["orcamentos"] = ("Orçamentos", "Acompanhe propostas e aprovações de clientes."),
+            ["ordens-servico"] = ("Ordens de Serviço", "Gerencie a execução dos serviços contratados."),
+            ["clientes"] = ("Clientes", "Centralize relacionamento e histórico de atendimento."),
+            ["veiculos"] = ("Veículos", "Consulte o histórico individual de cada veículo."),
+            ["servicos"] = ("Serviços", "Configure o catálogo de serviços da empresa."),
+            ["pacotes"] = ("Pacotes", "Combine serviços em ofertas comerciais."),
+            ["pagamentos"] = ("Pagamentos", "Acompanhe recebimentos da operação."),
+            ["usuarios"] = ("Usuários", "Administre o acesso da equipe."),
+            ["perfis"] = ("Perfis", "Organize responsabilidades e permissões."),
+            ["empresa"] = ("Empresa", "Mantenha os dados e preferências do negócio.")
+        };
+
+    private string Segmento => new Uri(Navigation.Uri).AbsolutePath.Trim('/');
+    private string Titulo => Conteudo.TryGetValue(Segmento, out var conteudo) ? conteudo.Titulo : "Módulo";
+    private string Descricao => Conteudo.TryGetValue(Segmento, out var conteudo)
+        ? conteudo.Descricao
+        : "Funcionalidade em preparação.";
+}

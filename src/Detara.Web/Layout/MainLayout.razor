@@ -1,0 +1,52 @@
+@inherits LayoutComponentBase
+@inject AutenticacaoServico Autenticacao
+@inject NavigationManager Navigation
+
+<MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Class="detara-topbar">
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu" OnClick="AlternarMenu" Edge="Edge.Start" />
+        <MudText Typo="Typo.subtitle1" Class="topbar-context">Visão geral</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Outlined.NotificationsNone" />
+        <MudMenu Icon="@Icons.Material.Outlined.AccountCircle" AnchorOrigin="Origin.BottomRight">
+            <MudMenuItem Icon="@Icons.Material.Outlined.Logout" OnClick="SairAsync">Sair</MudMenuItem>
+        </MudMenu>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_menuAberto"
+               Variant="DrawerVariant.Responsive"
+               Breakpoint="Breakpoint.Md"
+               Elevation="0"
+               Class="detara-sidebar">
+        <div class="brand">
+            <span class="brand-mark">D</span>
+            <span class="brand-name">Detara</span>
+        </div>
+        <NavMenu />
+        <div class="sidebar-footer">
+            <MudText Typo="Typo.caption">AMBIENTE</MudText>
+            <div class="environment-row"><span class="status-dot"></span> Desenvolvimento</div>
+        </div>
+    </MudDrawer>
+
+    <MudMainContent Class="detara-content">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _menuAberto = true;
+
+    private void AlternarMenu() => _menuAberto = !_menuAberto;
+
+    private async Task SairAsync()
+    {
+        await Autenticacao.SairAsync();
+        Navigation.NavigateTo("/login", replace: true);
+    }
+}
