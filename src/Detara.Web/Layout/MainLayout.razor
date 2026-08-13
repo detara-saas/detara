@@ -1,19 +1,51 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject AutenticacaoServico Autenticacao
+@inject PreferenciasInterfaceServico Preferencias
 @inject NavigationManager Navigation
 
-<MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" />
+<MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
+<MudLayout Class="detara-shell">
     <MudAppBar Elevation="0" Class="detara-topbar">
-        <MudIconButton Icon="@Icons.Material.Outlined.Menu" OnClick="AlternarMenu" Edge="Edge.Start" />
-        <MudText Typo="Typo.subtitle1" Class="topbar-context">Visão geral</MudText>
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu"
+                       OnClick="AlternarSidebar"
+                       Edge="Edge.Start"
+                       Class="desktop-menu-button"
+                       aria-label="Alternar menu" />
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu"
+                       OnClick="AlternarDrawer"
+                       Edge="Edge.Start"
+                       Class="mobile-menu-button"
+                       aria-label="Abrir menu" />
+        <div class="topbar-title">
+            <MudText Typo="Typo.caption" Class="topbar-eyebrow">OPERAÇÃO</MudText>
+            <MudText Typo="Typo.subtitle1" Class="topbar-context">Visão geral</MudText>
+        </div>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Outlined.NotificationsNone" />
-        <MudMenu Icon="@Icons.Material.Outlined.AccountCircle" AnchorOrigin="Origin.BottomRight">
+        <div class="company-context">
+            <span class="company-dot"></span>
+            <span>Empresa Demo</span>
+        </div>
+        <MudMenu Icon="@IconeTema" AnchorOrigin="Origin.BottomRight" aria-label="Escolher aparência">
+            <MudMenuItem Icon="@Icons.Material.Outlined.SettingsBrightness" OnClick="@(() => DefinirTemaAsync("Sistema"))">
+                Sistema
+            </MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.LightMode" OnClick="@(() => DefinirTemaAsync("Claro"))">
+                Claro
+            </MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.DarkMode" OnClick="@(() => DefinirTemaAsync("Escuro"))">
+                Escuro
+            </MudMenuItem>
+        </MudMenu>
+        <MudIconButton Icon="@Icons.Material.Outlined.NotificationsNone"
+                       Disabled="true"
+                       aria-label="Notificações — em breve" />
+        <MudMenu Icon="@Icons.Material.Outlined.AccountCircle" AnchorOrigin="Origin.BottomRight" aria-label="Menu da conta">
+            <MudMenuItem Icon="@Icons.Material.Outlined.PersonOutline" Disabled="true">Minha conta — em breve</MudMenuItem>
             <MudMenuItem Icon="@Icons.Material.Outlined.Logout" OnClick="SairAsync">Sair</MudMenuItem>
         </MudMenu>
     </MudAppBar>
@@ -22,15 +54,21 @@
                Variant="DrawerVariant.Responsive"
                Breakpoint="Breakpoint.Md"
                Elevation="0"
-               Class="detara-sidebar">
-        <div class="brand">
-            <span class="brand-mark">D</span>
-            <span class="brand-name">Detara</span>
+               Class="@SidebarClass">
+        <div class="brand-shell">
+            @if (Preferencias.Atual.SidebarRecolhida)
+            {
+                <img src="brand/detara-icon.png" alt="Detara" class="brand-icon" />
+            }
+            else
+            {
+                <img src="brand/detara-logo-on-dark.png" alt="Detara — Gestão para estéticas automotivas" class="brand-logo" />
+            }
         </div>
-        <NavMenu />
+        <NavMenu Recolhida="@Preferencias.Atual.SidebarRecolhida" />
         <div class="sidebar-footer">
-            <MudText Typo="Typo.caption">AMBIENTE</MudText>
-            <div class="environment-row"><span class="status-dot"></span> Desenvolvimento</div>
+            <span class="status-dot"></span>
+            <span class="sidebar-label">Ambiente de desenvolvimento</span>
         </div>
     </MudDrawer>
 
@@ -41,12 +79,40 @@
 
 @code {
     private bool _menuAberto = true;
+    private string SidebarClass => Preferencias.Atual.SidebarRecolhida
+        ? "detara-sidebar sidebar-collapsed"
+        : "detara-sidebar";
+    private string IconeTema => Preferencias.Atual.Tema switch
+    {
+        "Claro" => Icons.Material.Outlined.LightMode,
+        "Escuro" => Icons.Material.Outlined.DarkMode,
+        _ => Icons.Material.Outlined.SettingsBrightness
+    };
 
-    private void AlternarMenu() => _menuAberto = !_menuAberto;
+    protected override void OnInitialized() => Preferencias.Alterado += Atualizar;
+
+    private async Task AlternarSidebar()
+    {
+        if (Preferencias.Atual.SidebarRecolhida)
+        {
+            await Preferencias.DefinirSidebarAsync(false);
+        }
+        else
+        {
+            await Preferencias.DefinirSidebarAsync(true);
+        }
+    }
+
+    private void AlternarDrawer() => _menuAberto = !_menuAberto;
+
+    private Task DefinirTemaAsync(string tema) => Preferencias.DefinirTemaAsync(tema);
 
     private async Task SairAsync()
     {
         await Autenticacao.SairAsync();
         Navigation.NavigateTo("/login", replace: true);
     }
+
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Preferencias.Alterado -= Atualizar;
 }

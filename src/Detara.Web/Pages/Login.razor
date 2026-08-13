@@ -3,32 +3,52 @@
 @attribute [AllowAnonymous]
 @using Detara.Contracts.Autenticacao
 @inject AutenticacaoServico Autenticacao
+@inject PreferenciasInterfaceServico Preferencias
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navigation
 
 <PageTitle>Entrar | Detara</PageTitle>
 
-<div class="login-brand-panel">
-    <div class="brand brand-login"><span class="brand-mark">D</span><span class="brand-name">Detara</span></div>
+<section class="login-brand-panel" aria-label="Detara">
+    <img src="brand/detara-logo-on-dark.png"
+         alt="Detara — Gestão para estéticas automotivas"
+         class="login-brand-logo" />
     <div class="login-message">
-        <MudText Typo="Typo.h3">Sua operação, sob controle.</MudText>
-        <MudText Typo="Typo.body1">Gestão clara para empresas que cuidam de cada detalhe.</MudText>
+        <span class="login-eyebrow">GESTÃO AUTOMOTIVA, SEM RUÍDO</span>
+        <MudText Typo="Typo.h1">Sua operação,<br />sob controle.</MudText>
+        <MudText Typo="Typo.body1">
+            Clareza para organizar a agenda, acompanhar cada veículo e entregar uma experiência à altura do seu trabalho.
+        </MudText>
     </div>
-</div>
+    <MudText Typo="Typo.caption" Class="login-signature">ORGANIZE · ATENDA · EVOLUA</MudText>
+</section>
 
-<div class="login-form-panel">
+<section class="login-form-panel">
+    <div class="login-theme-picker">
+        <MudMenu Icon="@IconeTema" AnchorOrigin="Origin.BottomRight" aria-label="Escolher aparência">
+            <MudMenuItem Icon="@Icons.Material.Outlined.SettingsBrightness" OnClick="@(() => Preferencias.DefinirTemaAsync("Sistema"))">Sistema</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.LightMode" OnClick="@(() => Preferencias.DefinirTemaAsync("Claro"))">Claro</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.DarkMode" OnClick="@(() => Preferencias.DefinirTemaAsync("Escuro"))">Escuro</MudMenuItem>
+        </MudMenu>
+    </div>
     <MudPaper Elevation="0" Class="login-card">
-        <MudText Typo="Typo.h4">Acesse sua conta</MudText>
+        <div class="login-mobile-brand">
+            <img src="brand/detara-logo-on-light.png" alt="Detara" />
+        </div>
+        <MudText Typo="Typo.h2">Acesse sua conta</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="login-subtitle">
-            Informe os dados da sua empresa para continuar.
+            Informe sua empresa e suas credenciais para continuar.
         </MudText>
         <MudForm @ref="_form">
             <MudTextField T="string" @bind-Value="_slugEmpresa" Label="Empresa" Placeholder="ex.: premium-detail"
-                          Variant="Variant.Outlined" Required="true" RequiredError="Informe a empresa." Class="login-field" />
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe a empresa."
+                          Class="login-field" autocomplete="organization" />
             <MudTextField T="string" @bind-Value="_email" Label="E-mail" InputType="InputType.Email"
-                          Variant="Variant.Outlined" Required="true" RequiredError="Informe o e-mail." Class="login-field" />
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe o e-mail."
+                          Class="login-field" autocomplete="username" />
             <MudTextField T="string" @bind-Value="_senha" Label="Senha" InputType="InputType.Password"
-                          Variant="Variant.Outlined" Required="true" RequiredError="Informe a senha." Class="login-field" />
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe a senha."
+                          Class="login-field" autocomplete="current-password" />
             <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
                        Disabled="@_processando" OnClick="EntrarAsync" Class="login-button">
                 @if (_processando)
@@ -38,11 +58,15 @@
                 Entrar
             </MudButton>
         </MudForm>
+        <div class="login-security-note">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" />
+            <MudText Typo="Typo.caption">Ambiente seguro e isolado para sua empresa.</MudText>
+        </div>
         <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="login-help">
             Problemas para acessar? Fale com o administrador da sua empresa.
         </MudText>
     </MudPaper>
-</div>
+</section>
 
 @code {
     private MudForm _form = null!;
@@ -50,6 +74,12 @@
     private string _email = string.Empty;
     private string _senha = string.Empty;
     private bool _processando;
+    private string IconeTema => Preferencias.Atual.Tema switch
+    {
+        "Claro" => Icons.Material.Outlined.LightMode,
+        "Escuro" => Icons.Material.Outlined.DarkMode,
+        _ => Icons.Material.Outlined.SettingsBrightness
+    };
 
     [SupplyParameterFromQuery]
     public string? Retorno { get; set; }
@@ -69,7 +99,7 @@
             Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
             if (resultado.Sucesso)
             {
-                Navigation.NavigateTo(Retorno is { Length: > 0 } ? Retorno : "/dashboard");
+                Navigation.NavigateTo(ObterDestinoSeguro());
             }
         }
         catch (HttpRequestException)
@@ -80,5 +110,19 @@
         {
             _processando = false;
         }
+    }
+
+    private string ObterDestinoSeguro()
+    {
+        if (Retorno is not { Length: > 0 } ||
+            !Uri.TryCreate(Retorno, UriKind.Relative, out _) ||
+            !Retorno.StartsWith('/') ||
+            Retorno.StartsWith("//", StringComparison.Ordinal) ||
+            Retorno.Contains('\\'))
+        {
+            return "/dashboard";
+        }
+
+        return Retorno;
     }
 }
