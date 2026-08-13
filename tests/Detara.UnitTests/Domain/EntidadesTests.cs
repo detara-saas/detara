@@ -38,4 +38,22 @@ public sealed class EntidadesTests
 
         Assert.Equal("ana@exemplo.com", usuario.Email);
     }
+
+    [Fact]
+    public void PreferenciaUsuario_IniciaComPadroesSeguros()
+    {
+        var preferencia = new UsuarioPreferencia(Guid.NewGuid(), Guid.NewGuid());
+
+        Assert.Equal("Sistema", preferencia.Tema);
+        Assert.Equal("pt-BR", preferencia.Idioma);
+        Assert.Equal("dashboard", preferencia.PaginaInicial);
+        Assert.False(preferencia.SidebarRecolhida);
+    }
+
+    [Fact]
+    public void Favorito_ExigePaginaConhecidaPeloChamador()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new UsuarioPaginaFavorita(Guid.NewGuid(), Guid.NewGuid(), " ", 0));
+    }
 }

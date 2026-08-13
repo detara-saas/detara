@@ -2,6 +2,7 @@ using Detara.Application.Abstracoes;
 using Detara.Domain.Entidades;
 using Detara.Infrastructure.Autenticacao;
 using Detara.Infrastructure.Persistencia;
+using Detara.Infrastructure.Preferencias;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddDbContext<DetaraDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<IUsuarioAutenticacaoRepositorio, UsuarioAutenticacaoRepositorio>();
         services.AddScoped<ISenhaServico, SenhaServico>();
+        services.AddScoped<IPreferenciasUsuarioRepositorio, PreferenciasUsuarioRepositorio>();
         services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
         return services;

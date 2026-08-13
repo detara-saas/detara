@@ -13,6 +13,8 @@ public sealed class DetaraDbContext(
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Perfil> Perfis => Set<Perfil>();
     public DbSet<Permissao> Permissoes => Set<Permissao>();
+    public DbSet<UsuarioPreferencia> UsuariosPreferencias => Set<UsuarioPreferencia>();
+    public DbSet<UsuarioPaginaFavorita> UsuariosPaginasFavoritas => Set<UsuarioPaginaFavorita>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +24,10 @@ public sealed class DetaraDbContext(
             .HasQueryFilter(usuario => usuario.EmpresaId == usuarioContexto.EmpresaId);
         modelBuilder.Entity<Perfil>()
             .HasQueryFilter(perfil => perfil.EmpresaId == usuarioContexto.EmpresaId);
+        modelBuilder.Entity<UsuarioPreferencia>()
+            .HasQueryFilter(preferencia => preferencia.EmpresaId == usuarioContexto.EmpresaId);
+        modelBuilder.Entity<UsuarioPaginaFavorita>()
+            .HasQueryFilter(favorito => favorito.EmpresaId == usuarioContexto.EmpresaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

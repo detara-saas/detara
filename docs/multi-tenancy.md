@@ -22,3 +22,5 @@ Os filtros não são considerados uma barreira suficiente: a validação de escr
 O login é a única consulta que ignora filtros. Antes da autenticação, ela resolve uma empresa ativa pelo slug e limita explicitamente a consulta de usuário ao `EmpresaId` obtido. Isso permite e-mails iguais em empresas diferentes sem aceitar `EmpresaId` do cliente.
 
 Testes relacionais SQLite validam consulta, criação, edição e exclusão entre empresas.
+
+Preferências e favoritos derivam de `EntidadeEmpresaBase`, recebem filtros globais e passam pela mesma validação de escrita. Os endpoints `/api/preferencias/me` resolvem usuário e empresa exclusivamente pelos claims autenticados; IDs de usuário/tenant não fazem parte dos contratos públicos.

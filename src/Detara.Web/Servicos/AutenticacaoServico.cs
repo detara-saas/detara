@@ -8,7 +8,8 @@ namespace Detara.Web.Servicos;
 public sealed class AutenticacaoServico(
     HttpClient httpClient,
     TokenStorage tokenStorage,
-    JwtAuthenticationStateProvider authenticationStateProvider)
+    JwtAuthenticationStateProvider authenticationStateProvider,
+    PreferenciasInterfaceServico preferencias)
 {
     public async Task<(bool Sucesso, string Mensagem)> EntrarAsync(
         LoginRequest request,
@@ -24,6 +25,7 @@ public sealed class AutenticacaoServico(
 
         await tokenStorage.SalvarAsync(resposta.Resultado.Token);
         authenticationStateProvider.NotificarLogin();
+        await preferencias.SincronizarAsync(cancellationToken);
         return (true, resposta.Info);
     }
 

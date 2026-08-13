@@ -10,6 +10,7 @@ internal sealed class UsuarioConfiguracao : IEntityTypeConfiguration<Usuario>
     {
         builder.ToTable("Usuarios");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.EmpresaId, x.Id });
         builder.Property(x => x.Nome).HasMaxLength(160).IsRequired();
         builder.Property(x => x.Email).HasMaxLength(200).IsRequired();
         builder.Property(x => x.SenhaHash).HasMaxLength(500).IsRequired();
