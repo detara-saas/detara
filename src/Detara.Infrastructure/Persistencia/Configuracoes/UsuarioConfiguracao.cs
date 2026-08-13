@@ -15,6 +15,10 @@ internal sealed class UsuarioConfiguracao : IEntityTypeConfiguration<Usuario>
         builder.Property(x => x.SenhaHash).HasMaxLength(500).IsRequired();
         builder.HasIndex(x => new { x.EmpresaId, x.Email }).IsUnique();
         builder.HasIndex(x => new { x.EmpresaId, x.PerfilId });
+        builder.HasOne<Empresa>()
+            .WithMany()
+            .HasForeignKey(x => x.EmpresaId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.Perfil)
             .WithMany()
             .HasForeignKey(x => new { x.EmpresaId, x.PerfilId })
