@@ -42,3 +42,5 @@ dotnet test --no-build --no-restore
 ```
 
 Decisões importantes estão resumidas em [docs/architecture.md](docs/architecture.md) e [docs/multi-tenancy.md](docs/multi-tenancy.md).
+
+As regras visuais oficiais estão em [docs/design-system.md](docs/design-system.md), com referências em `docs/design/` e assets consumíveis em `src/Detara.Web/wwwroot/brand/`.
