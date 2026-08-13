@@ -26,10 +26,10 @@ builder.Services.AddScoped<AuthenticationStateProvider>(provider =>
 builder.Services.AddScoped<TokenAuthorizationHandler>();
 builder.Services.AddScoped(provider =>
 {
-    var handler = provider.GetRequiredService<TokenAuthorizationHandler>();
-    handler.ApiBaseAddress = apiBaseAddress;
-    handler.InnerHandler = new HttpClientHandler();
-    return new HttpClient(handler) { BaseAddress = apiBaseAddress };
+    var authorizationHandler = provider.GetRequiredService<TokenAuthorizationHandler>();
+    authorizationHandler.ApiBaseAddress = apiBaseAddress;
+    authorizationHandler.InnerHandler = new HttpClientHandler();
+    return new HttpClient(authorizationHandler) { BaseAddress = apiBaseAddress };
 });
 builder.Services.AddScoped<AutenticacaoServico>();
 builder.Services.AddScoped<IMensagemServico, MensagemServico>();

@@ -18,6 +18,20 @@ public sealed class EntidadesTests
         Assert.NotEqual(Guid.Empty, empresa.Id);
     }
 
+    [Theory]
+    [InlineData("slug com espaco")]
+    [InlineData("-slug")]
+    [InlineData("slug-")]
+    [InlineData("slug_com_underscore")]
+    public void Empresa_RejeitaSlugInvalido(string slug)
+    {
+        Assert.Throws<ArgumentException>(() => new Empresa(
+            "Premium Detail",
+            "Premium Detail Ltda",
+            "12345678000190",
+            slug));
+    }
+
     [Fact]
     public void Perfil_ExigeEmpresaValida()
     {

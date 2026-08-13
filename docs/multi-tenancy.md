@@ -4,7 +4,7 @@ O modelo atual compartilha aplicação e banco, isolando dados por `EmpresaId`.
 
 ## Leitura
 
-`DetaraDbContext` aplica Global Query Filters em todas as entidades tenant existentes (`Usuario` e `Perfil`). O identificador vem de `IUsuarioContexto`, preenchido exclusivamente pelos claims validados do JWT. Requisições anônimas recebem `Guid.Empty` e não enxergam dados tenant.
+`DetaraDbContext` aplica automaticamente um Global Query Filter a todo tipo derivado de `EntidadeEmpresaBase`. Assim, novas entidades tenant entram protegidas sem depender de uma chamada manual a `HasQueryFilter`. O identificador vem de `IUsuarioContexto`, preenchido exclusivamente pelos claims `sub` e `empresa_id` de um JWT validado. Identidade sem ambos os GUIDs válidos é tratada como anônima e não enxerga dados tenant.
 
 ## Escrita
 
@@ -15,7 +15,7 @@ Antes de qualquer `SaveChanges`, o contexto inspeciona inclusões, alterações 
 - o `EmpresaId` atual difere do claim;
 - houve tentativa de trocar o tenant da entidade.
 
-Os filtros não são considerados uma barreira suficiente: a validação de escrita e constraints relacionais compõem a defesa em profundidade.
+Os filtros não são considerados uma barreira suficiente: a validação de escrita, FKs para `Empresa`, FK composta de `Usuario` para `Perfil` e `EmpresaId` como token de concorrência compõem a defesa em profundidade. O token de concorrência inclui o tenant no `WHERE` de updates e deletes, impedindo que uma entidade desconectada com `EmpresaId` forjado altere uma linha de outra empresa.
 
 ## Exceção controlada
 
@@ -24,3 +24,9 @@ O login é a única consulta que ignora filtros. Antes da autenticação, ela re
 Testes relacionais SQLite validam consulta, criação, edição e exclusão entre empresas.
 
 Preferências e favoritos derivam de `EntidadeEmpresaBase`, recebem filtros globais e passam pela mesma validação de escrita. Os endpoints `/api/preferencias/me` resolvem usuário e empresa exclusivamente pelos claims autenticados; IDs de usuário/tenant não fazem parte dos contratos públicos.
+
+## Operações que exigem revisão explícita
+
+`IgnoreQueryFilters`, `ExecuteUpdate`, `ExecuteDelete` e SQL bruto podem contornar parte das proteções do `SaveChanges`. Não são usados nos módulos atuais, exceto o `IgnoreQueryFilters` limitado do login. Qualquer uso futuro deve filtrar `EmpresaId` explicitamente, permanecer encapsulado em infraestrutura e receber teste de isolamento.
+
+Operações administrativas da plataforma e provisionamento de produção ainda não possuem bypass genérico. Devem usar um fluxo separado, explícito e inacessível a usuários comuns quando forem implementadas.

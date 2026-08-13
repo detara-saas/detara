@@ -22,7 +22,9 @@ public sealed class TokenAuthorizationHandler(
         }
 
         var response = await base.SendAsync(request, cancellationToken);
-        if (response.StatusCode == HttpStatusCode.Unauthorized && destinoDaApi)
+        if (response.StatusCode == HttpStatusCode.Unauthorized &&
+            !string.IsNullOrWhiteSpace(token) &&
+            destinoDaApi)
         {
             await tokenStorage.RemoverAsync();
             authenticationStateProvider.NotificarLogout();

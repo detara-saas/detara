@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Detara.Application.Abstracoes;
 using Detara.Domain.Entidades;
 using Microsoft.EntityFrameworkCore;
@@ -19,15 +20,7 @@ public sealed class DetaraDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DetaraDbContext).Assembly);
-
-        modelBuilder.Entity<Usuario>()
-            .HasQueryFilter(usuario => usuario.EmpresaId == usuarioContexto.EmpresaId);
-        modelBuilder.Entity<Perfil>()
-            .HasQueryFilter(perfil => perfil.EmpresaId == usuarioContexto.EmpresaId);
-        modelBuilder.Entity<UsuarioPreferencia>()
-            .HasQueryFilter(preferencia => preferencia.EmpresaId == usuarioContexto.EmpresaId);
-        modelBuilder.Entity<UsuarioPaginaFavorita>()
-            .HasQueryFilter(favorito => favorito.EmpresaId == usuarioContexto.EmpresaId);
+        AplicarProtecaoTenant(modelBuilder);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -72,6 +65,32 @@ public sealed class DetaraDbContext(
         }
     }
 
+    private void AplicarProtecaoTenant(ModelBuilder modelBuilder)
+    {
+        var tiposTenant = modelBuilder.Model.GetEntityTypes()
+            .Where(tipo => typeof(EntidadeEmpresaBase).IsAssignableFrom(tipo.ClrType));
+
+        foreach (var tipo in tiposTenant)
+        {
+            var entidade = Expression.Parameter(tipo.ClrType, "entidade");
+            var empresaDaEntidade = Expression.Property(
+                entidade,
+                nameof(EntidadeEmpresaBase.EmpresaId));
+            var empresaDoContexto = Expression.Property(
+                Expression.Constant(this),
+                nameof(EmpresaIdAtual));
+            var filtro = Expression.Lambda(
+                Expression.Equal(empresaDaEntidade, empresaDoContexto),
+                entidade);
+
+            tipo.SetQueryFilter(filtro);
+            tipo.FindProperty(nameof(EntidadeEmpresaBase.EmpresaId))!.IsConcurrencyToken = true;
+        }
+    }
+
+    private Guid EmpresaIdAtual =>
+        usuarioContexto.EstaAutenticado ? usuarioContexto.EmpresaId : Guid.Empty;
+
     private void AtualizarAuditoria()
     {
         var agora = DateTime.UtcNow;
@@ -81,6 +100,7 @@ public sealed class DetaraDbContext(
             if (entry.State == EntityState.Added)
             {
                 entry.Property(nameof(EntidadeBase.CriadoEmUtc)).CurrentValue = agora;
+                entry.Property(nameof(EntidadeBase.AtualizadoEmUtc)).CurrentValue = null;
             }
             else if (entry.State == EntityState.Modified)
             {

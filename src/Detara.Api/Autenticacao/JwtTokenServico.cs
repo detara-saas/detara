@@ -25,7 +25,7 @@ internal sealed class JwtTokenServico(IOptions<JwtOptions> options) : ITokenServ
             new("perfil", usuario.Perfil.Nome)
         };
 
-        claims.AddRange(usuario.Perfil.Permissoes.Select(
+        claims.AddRange(usuario.Perfil.Permissoes.Where(permissao => permissao.EhAtivo).Select(
             permissao => new Claim("permissao", permissao.Codigo)));
 
         var credenciais = new SigningCredentials(

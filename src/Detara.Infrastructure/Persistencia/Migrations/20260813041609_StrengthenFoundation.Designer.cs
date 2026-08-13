@@ -4,6 +4,7 @@ using Detara.Infrastructure.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Detara.Infrastructure.Persistencia.Migrations
 {
     [DbContext(typeof(DetaraDbContext))]
-    partial class DetaraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813041609_StrengthenFoundation")]
+    partial class StrengthenFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -188,92 +191,6 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.ToTable("Usuarios", (string)null);
                 });
 
-            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPaginaFavorita", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("AtualizadoEmUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CriadoEmUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("EhAtivo")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("EmpresaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Ordem")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Pagina")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<Guid>("UsuarioPreferenciaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmpresaId", "UsuarioPreferenciaId", "Ordem");
-
-                    b.HasIndex("EmpresaId", "UsuarioPreferenciaId", "Pagina")
-                        .IsUnique();
-
-                    b.ToTable("UsuariosPaginasFavoritas", (string)null);
-                });
-
-            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPreferencia", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("AtualizadoEmUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CriadoEmUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("EhAtivo")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("EmpresaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Idioma")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("PaginaInicial")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<bool>("SidebarRecolhida")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Tema")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmpresaId", "UsuarioId")
-                        .IsUnique();
-
-                    b.ToTable("UsuariosPreferencias", (string)null);
-                });
-
             modelBuilder.Entity("PerfilPermissao", b =>
                 {
                     b.Property<Guid>("PerfilId")
@@ -314,26 +231,6 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .IsRequired();
 
                     b.Navigation("Perfil");
-                });
-
-            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPaginaFavorita", b =>
-                {
-                    b.HasOne("Detara.Domain.Entidades.UsuarioPreferencia", null)
-                        .WithMany()
-                        .HasForeignKey("EmpresaId", "UsuarioPreferenciaId")
-                        .HasPrincipalKey("EmpresaId", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPreferencia", b =>
-                {
-                    b.HasOne("Detara.Domain.Entidades.Usuario", null)
-                        .WithOne()
-                        .HasForeignKey("Detara.Domain.Entidades.UsuarioPreferencia", "EmpresaId", "UsuarioId")
-                        .HasPrincipalKey("Detara.Domain.Entidades.Usuario", "EmpresaId", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("PerfilPermissao", b =>

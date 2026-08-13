@@ -13,6 +13,10 @@ internal sealed class PerfilConfiguracao : IEntityTypeConfiguration<Perfil>
         builder.HasAlternateKey(x => new { x.EmpresaId, x.Id });
         builder.Property(x => x.Nome).HasMaxLength(100).IsRequired();
         builder.HasIndex(x => new { x.EmpresaId, x.Nome }).IsUnique();
+        builder.HasOne<Empresa>()
+            .WithMany()
+            .HasForeignKey(x => x.EmpresaId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.Permissoes)
             .WithMany()

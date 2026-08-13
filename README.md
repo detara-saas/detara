@@ -28,7 +28,7 @@ Configure `ConnectionStrings__DefaultConnection` e `Jwt__ChaveAssinatura` por va
 
 ```powershell
 dotnet tool restore
-dotnet tool run dotnet-ef database update --project src/Detara.Infrastructure --startup-project src/Detara.Api
+dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj --startup-project src/Detara.Api/Detara.Api.csproj
 dotnet run --project src/Detara.Api
 dotnet run --project src/Detara.Web
 ```
