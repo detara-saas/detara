@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Detara.Api.Autenticacao;
 using Detara.Api.Erros;
 using Detara.Application;
@@ -6,6 +7,8 @@ using Detara.Application.Abstracoes;
 using Detara.Infrastructure;
 using Detara.Infrastructure.Persistencia;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
@@ -20,6 +23,14 @@ if (Encoding.UTF8.GetByteCount(jwtOptions.ChaveAssinatura) < 32)
         "Jwt__ChaveAssinatura deve possuir pelo menos 32 bytes e vir de secret ou variável de ambiente.");
 }
 
+if (string.IsNullOrWhiteSpace(jwtOptions.Emissor) ||
+    string.IsNullOrWhiteSpace(jwtOptions.Audiencia) ||
+    jwtOptions.ExpiracaoMinutos is <= 0 or > 1440)
+{
+    throw new InvalidOperationException(
+        "Emissor, audiência e expiração JWT (entre 1 e 1440 minutos) devem ser configurados.");
+}
+
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Secao));
 builder.Services.AdicionarApplication();
 builder.Services.AdicionarInfrastructure(builder.Configuration);
@@ -29,11 +40,32 @@ builder.Services.AddScoped<ITokenServico, JwtTokenServico>();
 builder.Services.AddExceptionHandler<TratadorGlobalExcecoes>();
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<DetaraDbContext>("database");
 builder.Services.AddCors(options => options.AddPolicy("Web", policy => policy
     .WithOrigins(builder.Configuration.GetSection("Cors:OrigensPermitidas").Get<string[]>() ?? [])
     .AllowAnyHeader()
     .AllowAnyMethod()));
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "origem-desconhecida",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            Detara.Contracts.Comum.RespostaApi<object>.Falha(
+                "Muitas tentativas. Aguarde um minuto e tente novamente.",
+                "limite_tentativas"),
+            cancellationToken);
+    };
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -52,7 +84,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = "name"
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -89,10 +126,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("Web");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
 

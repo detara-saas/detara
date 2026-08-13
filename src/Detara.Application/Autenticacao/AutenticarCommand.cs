@@ -30,13 +30,17 @@ internal sealed class AutenticarCommandHandler(
             request.Email.Trim().ToLowerInvariant(),
             cancellationToken);
 
-        if (usuario is null || !usuario.EhAtivo ||
+        if (usuario is null || !usuario.EhAtivo || !usuario.Perfil.EhAtivo ||
             !senhaServico.Verificar(usuario, usuario.SenhaHash, request.Senha))
         {
             throw new CredenciaisInvalidasException();
         }
 
         var token = tokenServico.Gerar(usuario);
+        var permissoesAtivas = usuario.Perfil.Permissoes
+            .Where(permissao => permissao.EhAtivo)
+            .Select(permissao => permissao.Codigo)
+            .ToArray();
 
         return new ResultadoAutenticacao(
             token.Valor,
@@ -45,6 +49,6 @@ internal sealed class AutenticarCommandHandler(
             usuario.EmpresaId,
             usuario.Nome,
             usuario.Perfil.Nome,
-            usuario.Perfil.Permissoes.Select(permissao => permissao.Codigo).ToArray());
+            permissoesAtivas);
     }
 }

@@ -69,7 +69,7 @@
             Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
             if (resultado.Sucesso)
             {
-                Navigation.NavigateTo(Retorno is { Length: > 0 } ? Retorno : "/dashboard");
+                Navigation.NavigateTo(ObterDestinoSeguro());
             }
         }
         catch (HttpRequestException)
@@ -80,5 +80,19 @@
         {
             _processando = false;
         }
+    }
+
+    private string ObterDestinoSeguro()
+    {
+        if (Retorno is not { Length: > 0 } ||
+            !Uri.TryCreate(Retorno, UriKind.Relative, out _) ||
+            !Retorno.StartsWith('/') ||
+            Retorno.StartsWith("//", StringComparison.Ordinal) ||
+            Retorno.Contains('\\'))
+        {
+            return "/dashboard";
+        }
+
+        return Retorno;
     }
 }
