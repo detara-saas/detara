@@ -1,0 +1,26 @@
+@inject CatalogoServico Catalogo
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<MudForm @ref="_form"><div class="form-grid">
+    <MudTextField T="string" @bind-Value="_nome" Label="Nome" Required="true" Variant="Variant.Outlined" />
+    <MudSelect T="Guid" @bind-Value="_categoriaId" Label="Categoria *" Required="true" Variant="Variant.Outlined">
+        @foreach (var categoria in CategoriasDisponiveis)
+        {
+            <MudSelectItem Value="@categoria.Id">@categoria.Nome@(!categoria.EhAtivo ? " (inativa)" : "")</MudSelectItem>
+        }
+    </MudSelect>
+    <MudNumericField T="decimal?" @bind-Value="_preco" Label="Preço base" Min="0" Format="N2" Variant="Variant.Outlined" HelperText="Deixe vazio para Sob consulta." />
+    <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração estimada (minutos)" Min="1" Max="43200" Variant="Variant.Outlined" />
+    <MudNumericField T="int" @bind-Value="_ordem" Label="Ordem" Min="0" Variant="Variant.Outlined" />
+    <MudTextField T="string" @bind-Value="_descricao" Label="Descrição" Variant="Variant.Outlined" Lines="4" Class="form-full" />
+</div><div class="form-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvando" OnClick="SalvarAsync">@(_salvando ? "Salvando..." : "Salvar serviço")</MudButton></div></MudForm>
+
+@code {
+    [Parameter] public Guid? ServicoId { get; set; }
+    private MudForm? _form; private IReadOnlyCollection<CategoriaServicoResponse> _categorias = []; private string _nome = string.Empty; private string? _descricao; private Guid _categoriaId; private decimal? _preco; private int? _duracao; private int _ordem; private bool _salvando;
+    private IEnumerable<CategoriaServicoResponse> CategoriasDisponiveis => _categorias.Where(x => x.EhAtivo || x.Id == _categoriaId).OrderBy(x => x.Ordem).ThenBy(x => x.Nome);
+    protected override async Task OnParametersSetAsync() { var cr = await Catalogo.ListarCategoriasAsync(); _categorias = cr.Resultado ?? []; if (ServicoId.HasValue) { var r = await Catalogo.ObterServicoAsync(ServicoId.Value); if (r.Resultado is not { } s) { Mensagens.Mostrar(r.Mensagem, true); return; } _nome=s.Nome; _descricao=s.Descricao; _categoriaId=s.CategoriaServicoId; _preco=s.PrecoBase; _duracao=s.DuracaoEstimadaMinutos; _ordem=s.Ordem; } else if (_categoriaId == Guid.Empty) _categoriaId = _categorias.FirstOrDefault(x => x.EhAtivo)?.Id ?? Guid.Empty; }
+    private async Task SalvarAsync() { if (_form is null) return; await _form.ValidateAsync(); if (!_form.IsValid || _categoriaId == Guid.Empty) { Mensagens.Mostrar("Selecione uma categoria ativa.", true); return; } _salvando=true; var req=new SalvarServicoRequest(_categoriaId,_nome,_descricao,_preco,_duracao,_ordem); var r=ServicoId.HasValue?await Catalogo.AtualizarServicoAsync(ServicoId.Value,req):await Catalogo.CriarServicoAsync(req); _salvando=false; Mensagens.Mostrar(r.Mensagem,!r.Sucesso); if(r.Resultado is { } s) Navigation.NavigateTo($"/servicos/{s.Id}"); }
+    private void Cancelar()=>Navigation.NavigateTo(ServicoId.HasValue?$"/servicos/{ServicoId}":"/servicos");
+}

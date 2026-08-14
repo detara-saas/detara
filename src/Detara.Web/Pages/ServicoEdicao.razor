@@ -1,0 +1,11 @@
+@page "/servicos/novo"
+@page "/servicos/{Id:guid}/editar"
+@attribute [Authorize]
+
+<PageTitle>@(Id.HasValue ? "Editar serviço" : "Novo serviço") | Detara</PageTitle>
+<AuthorizeView Policy="@Politica">
+    <Authorized><CabecalhoPagina Titulo="@(Id.HasValue ? "Editar serviço" : "Novo serviço")" Descricao="Defina categoria, preço e duração estimada." Sobretitulo="CATÁLOGO" /><section class="module-panel form-panel"><ServicoFormulario ServicoId="Id" /></section></Authorized>
+    <NotAuthorized><EstadoVazio Titulo="Acesso não autorizado" Descricao="Seu perfil não possui permissão para esta operação." Icone="@Icons.Material.Outlined.Lock" /></NotAuthorized>
+</AuthorizeView>
+
+@code { [Parameter] public Guid? Id { get; set; } private string Politica => Id.HasValue ? Permissoes.ServicosEditar : Permissoes.ServicosCriar; }

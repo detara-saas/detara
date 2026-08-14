@@ -1,0 +1,33 @@
+@inject CatalogoServico Catalogo
+@inject IMensagemServico Mensagens
+
+<section class="module-panel catalog-category-panel">
+    <div class="section-heading"><div><span class="section-eyebrow">ORGANIZAÇÃO DO CATÁLOGO</span><h2>Categorias de serviço</h2></div><AuthorizeView Policy="@Permissoes.ServicosCriar"><Authorized><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="Nova">Nova categoria</MudButton></Authorized></AuthorizeView></div>
+    @if (_editando)
+    {
+        <MudForm @ref="_form" Class="category-inline-form">
+            <MudTextField T="string" @bind-Value="_nome" Label="Nome" Required="true" Variant="Variant.Outlined" />
+            <MudNumericField T="int" @bind-Value="_ordem" Label="Ordem" Min="0" Variant="Variant.Outlined" />
+            <MudTextField T="string" @bind-Value="_descricao" Label="Descrição" Variant="Variant.Outlined" Lines="2" />
+            <div class="category-inline-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SalvarAsync">Salvar</MudButton></div>
+        </MudForm>
+    }
+    <div class="category-list">
+        @foreach (var categoria in _categorias)
+        {
+            <article class="category-row"><div><strong>@categoria.Nome</strong><span>@categoria.QuantidadeServicos serviço(s) · ordem @categoria.Ordem</span></div><span class="status-badge @(categoria.EhAtivo ? "status-running" : "status-neutral")">@(categoria.EhAtivo ? "Ativa" : "Inativa")</span><AuthorizeView Policy="@Permissoes.ServicosEditar"><Authorized><div class="category-actions"><MudIconButton Icon="@Icons.Material.Outlined.Edit" OnClick="@(() => Editar(categoria))" aria-label="Editar categoria" /><MudIconButton Icon="@(categoria.EhAtivo ? Icons.Material.Outlined.ToggleOff : Icons.Material.Outlined.ToggleOn)" OnClick="@(() => AlterarStatusAsync(categoria))" aria-label="Alterar status da categoria" /></div></Authorized></AuthorizeView></article>
+        }
+    </div>
+</section>
+
+@code {
+    private IReadOnlyCollection<CategoriaServicoResponse> _categorias = [];
+    private MudForm? _form; private Guid? _id; private string _nome = string.Empty; private string? _descricao; private int _ordem; private bool _editando;
+    protected override async Task OnInitializedAsync() => await CarregarAsync();
+    private async Task CarregarAsync() { var r = await Catalogo.ListarCategoriasAsync(); _categorias = r.Resultado ?? []; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); }
+    private void Nova() { _id = null; _nome = string.Empty; _descricao = null; _ordem = _categorias.Count; _editando = true; }
+    private void Editar(CategoriaServicoResponse c) { _id = c.Id; _nome = c.Nome; _descricao = c.Descricao; _ordem = c.Ordem; _editando = true; }
+    private void Cancelar() => _editando = false;
+    private async Task SalvarAsync() { if (_form is null) return; await _form.ValidateAsync(); if (!_form.IsValid) return; var req = new SalvarCategoriaServicoRequest(_nome, _descricao, _ordem); var r = _id.HasValue ? await Catalogo.AtualizarCategoriaAsync(_id.Value, req) : await Catalogo.CriarCategoriaAsync(req); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) { _editando = false; await CarregarAsync(); } }
+    private async Task AlterarStatusAsync(CategoriaServicoResponse c) { var r = await Catalogo.AlterarStatusCategoriaAsync(c.Id, !c.EhAtivo); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
+}

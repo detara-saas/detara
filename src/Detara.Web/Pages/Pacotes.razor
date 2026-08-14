@@ -1,0 +1,53 @@
+@page "/pacotes"
+@attribute [Authorize(Policy = Permissoes.PacotesVisualizar)]
+@inject CatalogoServico Catalogo
+@inject IMensagemServico Mensagens
+
+<PageTitle>Pacotes | Detara</PageTitle>
+<CabecalhoPagina Titulo="Pacotes" Descricao="Combine serviços em ofertas comerciais claras e rentáveis." Sobretitulo="CATÁLOGO"><Acoes><AuthorizeView Policy="@Permissoes.PacotesCriar"><Authorized><MudButton Href="/pacotes/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo pacote</MudButton></Authorized></AuthorizeView></Acoes></CabecalhoPagina>
+
+<section class="module-toolbar" aria-label="Filtros de pacotes">
+    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Nome ou descrição" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" />
+    <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense"><MudSelectItem Value="@("todos")">Todos</MudSelectItem><MudSelectItem Value="@("ativos")">Ativos</MudSelectItem><MudSelectItem Value="@("inativos")">Inativos</MudSelectItem></MudSelect>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="PesquisarAsync" StartIcon="@Icons.Material.Outlined.FilterAlt">Aplicar</MudButton>
+</section>
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else if (_pagina is null || _pagina.Itens.Count == 0)
+{
+    <EstadoVazio Titulo="Nenhum pacote encontrado" Descricao="Crie uma oferta combinando os serviços do catálogo." Icone="@Icons.Material.Outlined.Inventory2"><Acao><AuthorizeView Policy="@Permissoes.PacotesCriar"><Authorized><MudButton Href="/pacotes/novo" Variant="Variant.Filled" Color="Color.Primary">Criar pacote</MudButton></Authorized></AuthorizeView></Acao></EstadoVazio>
+}
+else
+{
+    <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Pacote</th><th>Serviços</th><th>Preço</th><th>Valor individual</th><th>Economia</th><th>Status</th><th class="actions-column">Ações</th></tr></thead><tbody>
+    @foreach (var pacote in _pagina.Itens)
+    {
+        <tr><td><a class="primary-link" href="@($"/pacotes/{pacote.Id}")">@pacote.Nome</a><span class="cell-caption">@FormatarDuracao(pacote.DuracaoEstimadaMinutos)</span></td><td>@pacote.QuantidadeServicos</td><td>@FormatarPreco(pacote.Preco)</td><td>@FormatarPreco(pacote.SomaServicos)</td><td><span class="@(pacote.Economia.HasValue ? "saving-value" : "cell-caption")">@(pacote.Economia.HasValue ? FormatarPreco(pacote.Economia) : "—")</span></td><td><span class="status-badge @(pacote.EhAtivo ? "status-running" : "status-neutral")">@(pacote.EhAtivo ? "Ativo" : "Inativo")</span></td><td class="table-actions"><MudIconButton Href="@($"/pacotes/{pacote.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir pacote" /><AuthorizeView Policy="@Permissoes.PacotesEditar"><Authorized><MudIconButton Href="@($"/pacotes/{pacote.Id}/editar")" Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Editar pacote" /></Authorized></AuthorizeView></td></tr>
+    }
+    </tbody></table></section>
+    <section class="mobile-list">
+    @foreach (var pacote in _pagina.Itens)
+    {
+        <a class="mobile-record" href="@($"/pacotes/{pacote.Id}")"><div class="mobile-record-main"><strong>@pacote.Nome</strong><span>@pacote.QuantidadeServicos serviço(s) · @FormatarDuracao(pacote.DuracaoEstimadaMinutos)</span><span>@FormatarPreco(pacote.Preco)@(pacote.Economia.HasValue ? $" · economia {FormatarPreco(pacote.Economia)}" : string.Empty)</span></div><span class="status-badge @(pacote.EhAtivo ? "status-running" : "status-neutral")">@(pacote.EhAtivo ? "Ativo" : "Inativo")</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+    }
+    </section>
+    <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" aria-label="Próxima página" /></div></div>
+}
+
+@code {
+    private PaginaResponse<PacoteListaResponse>? _pagina;
+    private bool _carregando = true;
+    private string? _pesquisa;
+    private string _status = "todos";
+    private int _paginaAtual = 1;
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var resultado = await Catalogo.ListarPacotesAsync(_paginaAtual, _pesquisa, _status == "todos" ? null : _status == "ativos"); _pagina = resultado.Resultado; if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true); _carregando = false; }
+    private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
+    private async Task PaginaAnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
+    private async Task ProximaPaginaAsync() { _paginaAtual++; await CarregarAsync(); }
+    private static string FormatarPreco(decimal? valor) => valor?.ToString("C2") ?? "Sob consulta";
+    private static string FormatarDuracao(int? minutos) => minutos.HasValue ? $"{minutos.Value} min" : "Duração variável";
+}
