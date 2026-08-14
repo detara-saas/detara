@@ -43,13 +43,31 @@ Clientes e veículos herdam `EntidadeEmpresaBase`, portanto recebem automaticame
 A migration `AddServicosCategoriasEPacotes` adiciona:
 
 - `CategoriasServico`, com nome único por `(EmpresaId, Nome)` e ordenação própria;
-- `Servicos`, com nome único por `(EmpresaId, CategoriaServicoId, Nome)`, preço base e duração opcionais;
-- `Pacotes`, com nome único por `(EmpresaId, Nome)` e preço comercial independente;
+- `Servicos`, com nome único por `(EmpresaId, CategoriaServicoId, Nome)`, tipo/preço de referência e duração opcional;
+- `Pacotes`, com nome único por `(EmpresaId, Nome)` e tipo/preço de referência independente;
 - `PacotesServicos`, com composição ordenada e vínculo único por `(EmpresaId, PacoteId, ServicoId)`;
 - FKs compostas para categoria, pacote e serviço, impedindo associações entre tenants no banco;
 - FKs para empresa e exclusões restritivas em todos os relacionamentos.
 
 Categorias, serviços e pacotes usam inativação lógica independente. A soma dos serviços, a duração total e a economia do pacote são calculadas nas consultas e não são persistidas. A economia só é apresentada quando todos os serviços possuem preço e o preço do pacote é menor que a soma individual.
+
+`AddCatalogPricingType` adiciona `TipoPrecificacao` a Serviços e Pacotes. O backfill classifica registros com preço como `Fixo` e sem preço como `SobConsulta`; nenhum dado existente é inferido como `APartirDe`.
+
+## Timezone da empresa
+
+`AddCompanyTimeZone` adiciona `Empresa.FusoHorario`, usando identificador IANA e `America/Sao_Paulo` como default para dados existentes. Agenda persiste instantes em UTC e converte entradas/saídas pelo fuso da empresa.
+
+## Agenda
+
+`AddAgenda` adiciona:
+
+- `Agendamentos`, com snapshots de Cliente e Veículo, início UTC, duração planejada, status e observações separadas;
+- `AgendamentosItens`, com snapshots de nome, descrição, tipo/preço e duração de referência de Serviço/Pacote;
+- FK composta `(EmpresaId, AgendamentoId)` interna à Agenda, com cascade apenas para a composição do agregado;
+- índices por tenant/início, tenant/status/início, cliente, veículo e recuperação de itens do catálogo;
+- unicidade tenant-safe da ordem e do item dentro do Agendamento.
+
+Não existem FKs cross-module de Agenda para Clientes ou Catálogo. Os vínculos são validados por contratos internos antes da gravação e preservados por ID + snapshot. O Agendamento não possui preço acordado ou total comercial.
 
 Aplicação de migration:
 
@@ -58,4 +76,4 @@ dotnet tool restore
 dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj --startup-project src/Detara.Api/Detara.Api.csproj
 ```
 
-As migrations das Tasks 02 e 03 devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco.
+As migrations devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco. A Task 04 gera as migrations, mas não executa `database update`.

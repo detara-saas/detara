@@ -5,7 +5,8 @@
 - Fundação, autenticação, empresa e usuários
 - Clientes e veículos — concluído na Task 02
 - Categorias de serviço, serviços e pacotes — concluído na Task 03
-- Agenda e orçamentos
+- Agenda e agendamentos — concluído na Task 04
+- Orçamentos, valor negociado e PDF profissional
 - Ordens de serviço, checklist e fotos
 - Pagamento básico e dashboard com dados reais
 
@@ -21,10 +22,12 @@
 ## Futuro
 
 - CRM, campanhas e fidelidade
-- Assinaturas e portal do cliente
+- Autoatendimento / Portal do Cliente como add-on comercial: catálogo público, agendar/reagendar/cancelar, aprovar orçamento e acompanhar atendimento
 - Link público da OS e avaliações
 - Google Calendar e financeiro avançado
 - Avaliar Estoque e CRM como módulos adicionais independentes do produto base
+- Definir publicação do Catálogo dentro do futuro módulo Autoatendimento, sem `DisponivelNoPortal` no Core
+- Projetar API pública, segurança e entitlement somente quando Autoatendimento for efetivamente implementado
 - Reavaliar extração de microserviço apenas pelos critérios operacionais do ADR 001
 
 Cada item exige validação de produto antes de introduzir infraestrutura externa.
