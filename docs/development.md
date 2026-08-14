@@ -9,6 +9,8 @@ Use variáveis de ambiente, user-secrets ou um `.env` local ignorado pelo Git:
 - `Seed__Enabled`
 - `Seed__SenhaAdministrador`
 
+O arquivo `.env` da raiz é consumido pelo Docker Compose. O Visual Studio e `dotnet run` não carregam esse arquivo automaticamente; para esses fluxos, configure os mesmos valores em User Secrets (`Jwt:ChaveAssinatura`, por exemplo). Nunca copie a chave real para `appsettings*.json`.
+
 O seed é opcional e recusado fora do ambiente `Development`. Quando habilitado, aplica migrations e cria uma empresa/administrador demo de forma idempotente.
 
 Para habilitar localmente sem versionar senha:
