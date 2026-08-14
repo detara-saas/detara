@@ -18,6 +18,10 @@ public sealed class DetaraDbContext(
     public DbSet<UsuarioPaginaFavorita> UsuariosPaginasFavoritas => Set<UsuarioPaginaFavorita>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Veiculo> Veiculos => Set<Veiculo>();
+    public DbSet<CategoriaServico> CategoriasServico => Set<CategoriaServico>();
+    public DbSet<Servico> Servicos => Set<Servico>();
+    public DbSet<Pacote> Pacotes => Set<Pacote>();
+    public DbSet<PacoteServico> PacotesServicos => Set<PacoteServico>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,7 +67,10 @@ public sealed class DetaraDbContext(
                 throw new ViolacaoIsolamentoTenantException();
             }
 
-            entry.Property(nameof(EntidadeEmpresaBase.EmpresaId)).IsModified = false;
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Property(nameof(EntidadeEmpresaBase.EmpresaId)).IsModified = false;
+            }
         }
     }
 

@@ -4,7 +4,8 @@
 
 - Fundação, autenticação, empresa e usuários
 - Clientes e veículos — concluído na Task 02
-- Serviços, agenda e orçamentos
+- Categorias de serviço, serviços e pacotes — concluído na Task 03
+- Agenda e orçamentos
 - Ordens de serviço, checklist e fotos
 - Pagamento básico e dashboard com dados reais
 

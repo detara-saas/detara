@@ -19,7 +19,7 @@ var apiBaseAddress = new Uri(
     builder.Configuration["Api:BaseUrl"] ?? builder.HostEnvironment.BaseAddress);
 builder.Services.AddAuthorizationCore(options =>
 {
-    foreach (var permissao in Permissoes.ModulosClientesVeiculos)
+    foreach (var permissao in Permissoes.Todas)
     {
         options.AddPolicy(permissao, policy => policy.RequireClaim("permissao", permissao));
     }
@@ -43,6 +43,7 @@ builder.Services.AddScoped<IMensagemServico, MensagemServico>();
 builder.Services.AddScoped<PreferenciasInterfaceServico>();
 builder.Services.AddScoped<ClientesServico>();
 builder.Services.AddScoped<VeiculosServico>();
+builder.Services.AddScoped<CatalogoServico>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<PreferenciasInterfaceServico>().InicializarAsync();

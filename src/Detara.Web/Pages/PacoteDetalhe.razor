@@ -1,0 +1,34 @@
+@page "/pacotes/{Id:guid}"
+@attribute [Authorize(Policy = Permissoes.PacotesVisualizar)]
+@inject CatalogoServico Catalogo
+@inject IMensagemServico Mensagens
+
+<PageTitle>@(_pacote?.Nome ?? "Pacote") | Detara</PageTitle>
+@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+else if (_pacote is null) { <EstadoVazio Titulo="Pacote não encontrado" Descricao="O pacote não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.Inventory2" /> }
+else
+{
+    <CabecalhoPagina Titulo="@_pacote.Nome" Descricao="@(string.IsNullOrWhiteSpace(_pacote.Descricao) ? "Oferta de serviços combinados" : _pacote.Descricao)" Sobretitulo="PACOTE"><Acoes><span class="status-badge @(_pacote.EhAtivo ? "status-running" : "status-neutral")">@(_pacote.EhAtivo ? "Ativo" : "Inativo")</span><AuthorizeView Policy="@Permissoes.PacotesEditar"><Authorized><MudButton Href="@($"/pacotes/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Variant="Variant.Text" Color="@(_pacote.EhAtivo ? Color.Error : Color.Success)" OnClick="SolicitarStatus">@(_pacote.EhAtivo ? "Inativar" : "Ativar")</MudButton></Authorized></AuthorizeView></Acoes></CabecalhoPagina>
+    @if (_confirmando) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip"><div><strong>Confirmar @(_pacote.EhAtivo ? "inativação" : "ativação")?</strong><span>A composição e o histórico serão preservados.</span></div><div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert> }
+    <section class="catalog-metrics"><article class="catalog-metric"><span>Preço do pacote</span><strong>@FormatarPreco(_pacote.Preco)</strong></article><article class="catalog-metric"><span>Valor individual</span><strong>@FormatarPreco(_pacote.SomaServicos)</strong></article><article class="catalog-metric saving"><span>Economia</span><strong>@(_pacote.Economia.HasValue ? FormatarPreco(_pacote.Economia) : "—")</strong></article><article class="catalog-metric"><span>Duração estimada</span><strong>@FormatarDuracao(_pacote.DuracaoEstimadaMinutos)</strong></article></section>
+    <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">COMPOSIÇÃO</span><h2>@_pacote.Servicos.Count serviço(s)</h2></div></div><div class="package-services">
+    @foreach (var servico in _pacote.Servicos.OrderBy(item => item.Ordem))
+    {
+        <article><span class="package-order">@servico.Ordem</span><div><strong>@servico.Nome</strong><span>@servico.CategoriaNome · @FormatarPreco(servico.PrecoBase) · @FormatarDuracao(servico.DuracaoEstimadaMinutos)</span></div><span class="status-badge @(servico.EhAtivo ? "status-running" : "status-neutral")">@(servico.EhAtivo ? "Ativo" : "Inativo")</span></article>
+    }
+    </div></section>
+    <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Aplicações do pacote</h2></div></div><div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhuma aplicação registrada</strong><span>O histórico aparecerá quando este pacote entrar em atendimentos.</span></div></div></section>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private PacoteDetalheResponse? _pacote;
+    private bool _carregando = true;
+    private bool _confirmando;
+    protected override async Task OnParametersSetAsync() { _carregando = true; var resultado = await Catalogo.ObterPacoteAsync(Id); _pacote = resultado.Resultado; if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true); _carregando = false; }
+    private void SolicitarStatus() => _confirmando = true;
+    private void CancelarStatus() => _confirmando = false;
+    private async Task ConfirmarStatusAsync() { if (_pacote is null) return; var resultado = await Catalogo.AlterarStatusPacoteAsync(Id, !_pacote.EhAtivo); Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); _confirmando = false; if (resultado.Sucesso) await OnParametersSetAsync(); }
+    private static string FormatarPreco(decimal? valor) => valor?.ToString("C2") ?? "Sob consulta";
+    private static string FormatarDuracao(int? minutos) => minutos.HasValue ? $"{minutos.Value} min" : "Duração variável";
+}

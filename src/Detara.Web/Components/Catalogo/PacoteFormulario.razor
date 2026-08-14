@@ -1,0 +1,23 @@
+@inject CatalogoServico Catalogo
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<MudForm @ref="_form"><div class="form-grid"><MudTextField T="string" @bind-Value="_nome" Label="Nome" Required="true" Variant="Variant.Outlined" /><MudNumericField T="decimal?" @bind-Value="_preco" Label="Preço do pacote" Min="0" Format="N2" Variant="Variant.Outlined" HelperText="Valor comercial independente da soma." /><MudTextField T="string" @bind-Value="_descricao" Label="Descrição" Variant="Variant.Outlined" Lines="3" Class="form-full" /></div>
+<section class="package-builder"><div class="section-heading"><div><span class="section-eyebrow">COMPOSIÇÃO</span><h2>Serviços do pacote</h2></div><div class="package-total"><span>Valor individual</span><strong>@FormatarPreco(TotalIndividual)</strong></div></div><MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Buscar serviço ou categoria" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+<div class="service-picker">@foreach(var s in ServicosFiltrados){<label class="service-picker-row"><MudCheckBox T="bool" Value="@_selecionados.Contains(s.Id)" ValueChanged="@(v => Selecionar(s.Id,v))" /><div><strong>@s.Nome</strong><span>@s.CategoriaNome · @FormatarPreco(s.PrecoBase) · @FormatarDuracao(s.DuracaoEstimadaMinutos)@(!s.EhAtivo?" · Inativo":"")</span></div></label>}</div></section>
+<div class="form-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_salvando" StartIcon="@Icons.Material.Outlined.Save" OnClick="SalvarAsync">@(_salvando?"Salvando...":"Salvar pacote")</MudButton></div></MudForm>
+
+@code {
+    [Parameter] public Guid? PacoteId { get; set; }
+    private MudForm? _form; private IReadOnlyCollection<ServicoSelecaoResponse> _servicos=[]; private readonly HashSet<Guid> _selecionados=[]; private string _nome=string.Empty; private string? _descricao; private decimal? _preco; private string? _pesquisa; private bool _salvando;
+    private IEnumerable<ServicoSelecaoResponse> ServicosFiltrados => _servicos.Where(x=>string.IsNullOrWhiteSpace(_pesquisa)||x.Nome.Contains(_pesquisa,StringComparison.OrdinalIgnoreCase)||x.CategoriaNome.Contains(_pesquisa,StringComparison.OrdinalIgnoreCase));
+    private decimal? TotalIndividual => _selecionados.Count > 0 && _selecionados.All(id => _servicos.First(x => x.Id == id).PrecoBase.HasValue)
+        ? _selecionados.Sum(id => _servicos.First(x => x.Id == id).PrecoBase!.Value)
+        : null;
+    protected override async Task OnParametersSetAsync(){var sr=await Catalogo.ListarServicosSelecaoAsync(PacoteId.HasValue);_servicos=sr.Resultado??[];if(PacoteId.HasValue){var r=await Catalogo.ObterPacoteAsync(PacoteId.Value);if(r.Resultado is not{}p){Mensagens.Mostrar(r.Mensagem,true);return;}_nome=p.Nome;_descricao=p.Descricao;_preco=p.Preco;_selecionados.Clear();foreach(var s in p.Servicos)_selecionados.Add(s.ServicoId);}}
+    private void Selecionar(Guid id,bool valor){if(valor)_selecionados.Add(id);else _selecionados.Remove(id);}
+    private async Task SalvarAsync(){if(_form is null)return;await _form.ValidateAsync();if(!_form.IsValid||_selecionados.Count==0){Mensagens.Mostrar("Selecione ao menos um serviço.",true);return;}_salvando=true;var req=new SalvarPacoteRequest(_nome,_descricao,_preco,_selecionados.ToArray());var r=PacoteId.HasValue?await Catalogo.AtualizarPacoteAsync(PacoteId.Value,req):await Catalogo.CriarPacoteAsync(req);_salvando=false;Mensagens.Mostrar(r.Mensagem,!r.Sucesso);if(r.Resultado is{}p)Navigation.NavigateTo($"/pacotes/{p.Id}");}
+    private void Cancelar()=>Navigation.NavigateTo(PacoteId.HasValue?$"/pacotes/{PacoteId}":"/pacotes");
+    private static string FormatarPreco(decimal? v)=>v.HasValue?v.Value.ToString("C2"):"Sob consulta";
+    private static string FormatarDuracao(int? m)=>m.HasValue?m.Value>=60?$"{m/60}h{(m%60>0?$" {m%60}min":"")}":$"{m} min":"Sem duração";
+}
