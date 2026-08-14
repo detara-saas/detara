@@ -92,6 +92,7 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .HasColumnType("bit");
 
                     b.Property<Guid>("EmpresaId")
+                        .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Nome")
@@ -161,6 +162,7 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<Guid>("EmpresaId")
+                        .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Nome")
@@ -186,6 +188,92 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.ToTable("Usuarios", (string)null);
                 });
 
+            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPaginaFavorita", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Pagina")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<Guid>("UsuarioPreferenciaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "UsuarioPreferenciaId", "Ordem");
+
+                    b.HasIndex("EmpresaId", "UsuarioPreferenciaId", "Pagina")
+                        .IsUnique();
+
+                    b.ToTable("UsuariosPaginasFavoritas", (string)null);
+                });
+
+            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPreferencia", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Idioma")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("PaginaInicial")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<bool>("SidebarRecolhida")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Tema")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "UsuarioId")
+                        .IsUnique();
+
+                    b.ToTable("UsuariosPreferencias", (string)null);
+                });
+
             modelBuilder.Entity("PerfilPermissao", b =>
                 {
                     b.Property<Guid>("PerfilId")
@@ -201,8 +289,23 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.ToTable("PerfisPermissoes", (string)null);
                 });
 
+            modelBuilder.Entity("Detara.Domain.Entidades.Perfil", b =>
+                {
+                    b.HasOne("Detara.Domain.Entidades.Empresa", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Detara.Domain.Entidades.Usuario", b =>
                 {
+                    b.HasOne("Detara.Domain.Entidades.Empresa", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Detara.Domain.Entidades.Perfil", "Perfil")
                         .WithMany()
                         .HasForeignKey("EmpresaId", "PerfilId")
@@ -211,6 +314,26 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .IsRequired();
 
                     b.Navigation("Perfil");
+                });
+
+            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPaginaFavorita", b =>
+                {
+                    b.HasOne("Detara.Domain.Entidades.UsuarioPreferencia", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId", "UsuarioPreferenciaId")
+                        .HasPrincipalKey("EmpresaId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Detara.Domain.Entidades.UsuarioPreferencia", b =>
+                {
+                    b.HasOne("Detara.Domain.Entidades.Usuario", null)
+                        .WithOne()
+                        .HasForeignKey("Detara.Domain.Entidades.UsuarioPreferencia", "EmpresaId", "UsuarioId")
+                        .HasPrincipalKey("Detara.Domain.Entidades.Usuario", "EmpresaId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("PerfilPermissao", b =>

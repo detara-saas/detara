@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
+@implements IDisposable
+@inject PreferenciasInterfaceServico Preferencias
 
-<MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" />
+<MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -8,3 +10,9 @@
 <main class="login-shell">
     @Body
 </main>
+
+@code {
+    protected override void OnInitialized() => Preferencias.Alterado += Atualizar;
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Preferencias.Alterado -= Atualizar;
+}

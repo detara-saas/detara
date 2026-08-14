@@ -10,11 +10,16 @@ internal sealed class UsuarioConfiguracao : IEntityTypeConfiguration<Usuario>
     {
         builder.ToTable("Usuarios");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.EmpresaId, x.Id });
         builder.Property(x => x.Nome).HasMaxLength(160).IsRequired();
         builder.Property(x => x.Email).HasMaxLength(200).IsRequired();
         builder.Property(x => x.SenhaHash).HasMaxLength(500).IsRequired();
         builder.HasIndex(x => new { x.EmpresaId, x.Email }).IsUnique();
         builder.HasIndex(x => new { x.EmpresaId, x.PerfilId });
+        builder.HasOne<Empresa>()
+            .WithMany()
+            .HasForeignKey(x => x.EmpresaId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.Perfil)
             .WithMany()
             .HasForeignKey(x => new { x.EmpresaId, x.PerfilId })

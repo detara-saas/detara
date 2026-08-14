@@ -4,6 +4,7 @@ using Detara.Contracts.Comum;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Detara.Api.Controllers;
 
@@ -12,10 +13,12 @@ namespace Detara.Api.Controllers;
 public sealed class AutenticacaoController(ISender sender) : ControllerBase
 {
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     [ProducesResponseType(typeof(RespostaApi<LoginResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(RespostaApi<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(RespostaApi<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(RespostaApi<object>), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<RespostaApi<LoginResponse>>> Login(
         LoginRequest request,
         CancellationToken cancellationToken)

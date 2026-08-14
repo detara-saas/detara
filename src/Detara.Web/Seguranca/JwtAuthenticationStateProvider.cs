@@ -22,7 +22,7 @@ public sealed class JwtAuthenticationStateProvider(TokenStorage tokenStorage)
         {
             var claims = LerClaims(token);
             var expiracao = claims.FirstOrDefault(x => x.Type == "exp")?.Value;
-            if (long.TryParse(expiracao, out var segundos) &&
+            if (!long.TryParse(expiracao, out var segundos) ||
                 DateTimeOffset.FromUnixTimeSeconds(segundos) <= DateTimeOffset.UtcNow)
             {
                 await tokenStorage.RemoverAsync();
@@ -32,7 +32,8 @@ public sealed class JwtAuthenticationStateProvider(TokenStorage tokenStorage)
             return new AuthenticationState(
                 new ClaimsPrincipal(new ClaimsIdentity(claims, "jwt", "name", "role")));
         }
-        catch (Exception exception) when (exception is FormatException or JsonException)
+        catch (Exception exception) when (
+            exception is FormatException or JsonException or ArgumentOutOfRangeException)
         {
             await tokenStorage.RemoverAsync();
             return Anonimo;

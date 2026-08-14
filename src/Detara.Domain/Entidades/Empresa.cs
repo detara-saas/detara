@@ -18,7 +18,7 @@ public sealed class Empresa : EntidadeBase
         NomeFantasia = Exigir(nomeFantasia, nameof(nomeFantasia));
         RazaoSocial = Exigir(razaoSocial, nameof(razaoSocial));
         CpfCnpj = Exigir(cpfCnpj, nameof(cpfCnpj));
-        Slug = Exigir(slug, nameof(slug)).ToLowerInvariant();
+        Slug = NormalizarSlug(slug);
         Email = NormalizarOpcional(email);
         Telefone = NormalizarOpcional(telefone);
     }
@@ -37,4 +37,22 @@ public sealed class Empresa : EntidadeBase
 
     private static string? NormalizarOpcional(string? valor) =>
         string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+
+    private static string NormalizarSlug(string valor)
+    {
+        var slug = Exigir(valor, nameof(valor)).ToLowerInvariant();
+        if (slug.Length > 63 ||
+            slug[0] == '-' ||
+            slug[^1] == '-' ||
+            slug.Any(caractere => caractere is not (>= 'a' and <= 'z')
+                and not (>= '0' and <= '9')
+                and not '-'))
+        {
+            throw new ArgumentException(
+                "O slug deve ser um rótulo DNS válido com até 63 caracteres.",
+                nameof(valor));
+        }
+
+        return slug;
+    }
 }

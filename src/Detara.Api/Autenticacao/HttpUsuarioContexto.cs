@@ -8,7 +8,10 @@ internal sealed class HttpUsuarioContexto(IHttpContextAccessor httpContextAccess
     private readonly System.Security.Claims.ClaimsPrincipal? _usuario =
         httpContextAccessor.HttpContext?.User;
 
-    public bool EstaAutenticado => _usuario?.Identity?.IsAuthenticated is true;
+    public bool EstaAutenticado =>
+        _usuario?.Identity?.IsAuthenticated is true &&
+        UsuarioId != Guid.Empty &&
+        EmpresaId != Guid.Empty;
 
     public Guid UsuarioId => ObterGuid(JwtRegisteredClaimNames.Sub);
 

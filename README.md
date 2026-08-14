@@ -28,7 +28,7 @@ Configure `ConnectionStrings__DefaultConnection` e `Jwt__ChaveAssinatura` por va
 
 ```powershell
 dotnet tool restore
-dotnet tool run dotnet-ef database update --project src/Detara.Infrastructure --startup-project src/Detara.Api
+dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj --startup-project src/Detara.Api/Detara.Api.csproj
 dotnet run --project src/Detara.Api
 dotnet run --project src/Detara.Web
 ```
@@ -42,3 +42,5 @@ dotnet test --no-build --no-restore
 ```
 
 Decisões importantes estão resumidas em [docs/architecture.md](docs/architecture.md) e [docs/multi-tenancy.md](docs/multi-tenancy.md).
+
+As regras visuais oficiais estão em [docs/design-system.md](docs/design-system.md), com referências em `docs/design/` e assets consumíveis em `src/Detara.Web/wwwroot/brand/`.

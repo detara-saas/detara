@@ -3,6 +3,7 @@ using Detara.Application.Autenticacao;
 using Detara.Contracts.Comum;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Api.Erros;
 
@@ -63,6 +64,11 @@ internal sealed class TratadorGlobalExcecoes(ILogger<TratadorGlobalExcecoes> log
                 StatusCodes.Status403Forbidden,
                 "Você não tem permissão para realizar esta operação.",
                 "acesso_negado",
+                null),
+            DbUpdateConcurrencyException => (
+                StatusCodes.Status409Conflict,
+                "O registro foi alterado ou não pertence ao contexto atual.",
+                "conflito_concorrencia",
                 null),
             _ => (
                 StatusCodes.Status500InternalServerError,

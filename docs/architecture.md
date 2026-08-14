@@ -22,4 +22,6 @@ Web ──> Contracts
 
 Controllers apenas traduzem HTTP para comandos e contratos. Não há repository genérico nem Unit of Work custom; o `DbContext` cumpre essa responsabilidade.
 
+A API exige autenticação por padrão por meio de fallback policy; endpoints públicos precisam de `[AllowAnonymous]` explícito. Permissões específicas continuam sendo responsabilidade de policies/endpoints de cada módulo, pois autenticação não equivale a autorização.
+
 Veja também os ADRs [001](adr/001-modular-monolith.md) e [002](adr/002-shared-database-multitenancy.md).

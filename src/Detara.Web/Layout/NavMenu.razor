@@ -1,24 +1,63 @@
+@inject PreferenciasInterfaceServico Preferencias
+
 <MudNavMenu Class="detara-nav">
+    @if (Preferencias.Atual.Favoritos.Count > 0)
+    {
+        <MudText Typo="Typo.overline" Class="nav-section">FAVORITOS</MudText>
+        @foreach (var pagina in Preferencias.Atual.Favoritos)
+        {
+            @if (Itens.TryGetValue(pagina, out var item))
+            {
+                <MudNavLink Href="@item.Href" Icon="@Icons.Material.Outlined.StarOutline">
+                    <span class="nav-label">@item.Nome</span>
+                </MudNavLink>
+            }
+        }
+    }
+
+    <MudText Typo="Typo.overline" Class="nav-section">PRINCIPAL</MudText>
     <MudNavLink Href="/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.SpaceDashboard">
-        Dashboard
+        <span class="nav-label">Dashboard</span>
     </MudNavLink>
-    <MudNavLink Href="/agenda" Icon="@Icons.Material.Outlined.CalendarMonth">Agenda</MudNavLink>
+    <MudNavLink Href="/agenda" Icon="@Icons.Material.Outlined.CalendarMonth"><span class="nav-label">Agenda</span></MudNavLink>
 
     <MudText Typo="Typo.overline" Class="nav-section">ATENDIMENTO</MudText>
-    <MudNavLink Href="/orcamentos" Icon="@Icons.Material.Outlined.RequestQuote">Orçamentos</MudNavLink>
-    <MudNavLink Href="/ordens-servico" Icon="@Icons.Material.Outlined.FactCheck">Ordens de Serviço</MudNavLink>
+    <MudNavLink Href="/orcamentos" Icon="@Icons.Material.Outlined.RequestQuote"><span class="nav-label">Orçamentos</span></MudNavLink>
+    <MudNavLink Href="/ordens-servico" Icon="@Icons.Material.Outlined.FactCheck"><span class="nav-label">Ordens de Serviço</span></MudNavLink>
 
     <MudText Typo="Typo.overline" Class="nav-section">CADASTROS</MudText>
-    <MudNavLink Href="/clientes" Icon="@Icons.Material.Outlined.People">Clientes</MudNavLink>
-    <MudNavLink Href="/veiculos" Icon="@Icons.Material.Outlined.DirectionsCar">Veículos</MudNavLink>
-    <MudNavLink Href="/servicos" Icon="@Icons.Material.Outlined.AutoFixHigh">Serviços</MudNavLink>
-    <MudNavLink Href="/pacotes" Icon="@Icons.Material.Outlined.Inventory2">Pacotes</MudNavLink>
+    <MudNavLink Href="/clientes" Icon="@Icons.Material.Outlined.People"><span class="nav-label">Clientes</span></MudNavLink>
+    <MudNavLink Href="/veiculos" Icon="@Icons.Material.Outlined.DirectionsCar"><span class="nav-label">Veículos</span></MudNavLink>
+    <MudNavLink Href="/servicos" Icon="@Icons.Material.Outlined.AutoFixHigh"><span class="nav-label">Serviços</span></MudNavLink>
+    <MudNavLink Href="/pacotes" Icon="@Icons.Material.Outlined.Inventory2"><span class="nav-label">Pacotes</span></MudNavLink>
 
     <MudText Typo="Typo.overline" Class="nav-section">FINANCEIRO</MudText>
-    <MudNavLink Href="/pagamentos" Icon="@Icons.Material.Outlined.Payments">Pagamentos</MudNavLink>
+    <MudNavLink Href="/pagamentos" Icon="@Icons.Material.Outlined.Payments"><span class="nav-label">Pagamentos</span></MudNavLink>
 
     <MudText Typo="Typo.overline" Class="nav-section">ADMINISTRAÇÃO</MudText>
-    <MudNavLink Href="/usuarios" Icon="@Icons.Material.Outlined.ManageAccounts">Usuários</MudNavLink>
-    <MudNavLink Href="/perfis" Icon="@Icons.Material.Outlined.AdminPanelSettings">Perfis</MudNavLink>
-    <MudNavLink Href="/empresa" Icon="@Icons.Material.Outlined.Business">Empresa</MudNavLink>
+    <MudNavLink Href="/usuarios" Icon="@Icons.Material.Outlined.ManageAccounts"><span class="nav-label">Usuários</span></MudNavLink>
+    <MudNavLink Href="/perfis" Icon="@Icons.Material.Outlined.AdminPanelSettings"><span class="nav-label">Perfis</span></MudNavLink>
+    <MudNavLink Href="/empresa" Icon="@Icons.Material.Outlined.Business"><span class="nav-label">Empresa</span></MudNavLink>
 </MudNavMenu>
+
+@code {
+    [Parameter]
+    public bool Recolhida { get; set; }
+
+    private static readonly IReadOnlyDictionary<string, (string Nome, string Href)> Itens =
+        new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["dashboard"] = ("Dashboard", "/dashboard"),
+            ["agenda"] = ("Agenda", "/agenda"),
+            ["orcamentos"] = ("Orçamentos", "/orcamentos"),
+            ["ordens-servico"] = ("Ordens de Serviço", "/ordens-servico"),
+            ["clientes"] = ("Clientes", "/clientes"),
+            ["veiculos"] = ("Veículos", "/veiculos"),
+            ["servicos"] = ("Serviços", "/servicos"),
+            ["pacotes"] = ("Pacotes", "/pacotes"),
+            ["pagamentos"] = ("Pagamentos", "/pagamentos"),
+            ["usuarios"] = ("Usuários", "/usuarios"),
+            ["perfis"] = ("Perfis", "/perfis"),
+            ["empresa"] = ("Empresa", "/empresa")
+        };
+}
