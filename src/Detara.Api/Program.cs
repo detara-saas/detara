@@ -90,7 +90,7 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
-    foreach (var permissao in Permissoes.ModulosClientesVeiculos)
+    foreach (var permissao in Permissoes.Todas)
     {
         options.AddPolicy(permissao, policy => policy.RequireClaim("permissao", permissao));
     }

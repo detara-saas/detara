@@ -8,14 +8,26 @@ public static class Permissoes
     public const string VeiculosVisualizar = "Veiculos.Visualizar";
     public const string VeiculosCriar = "Veiculos.Criar";
     public const string VeiculosEditar = "Veiculos.Editar";
+    public const string ServicosVisualizar = "Servicos.Visualizar";
+    public const string ServicosCriar = "Servicos.Criar";
+    public const string ServicosEditar = "Servicos.Editar";
+    public const string PacotesVisualizar = "Pacotes.Visualizar";
+    public const string PacotesCriar = "Pacotes.Criar";
+    public const string PacotesEditar = "Pacotes.Editar";
 
-    public static readonly IReadOnlyCollection<string> ModulosClientesVeiculos =
+    public static readonly IReadOnlyCollection<string> Todas =
     [
         ClientesVisualizar,
         ClientesCriar,
         ClientesEditar,
         VeiculosVisualizar,
         VeiculosCriar,
-        VeiculosEditar
+        VeiculosEditar,
+        ServicosVisualizar,
+        ServicosCriar,
+        ServicosEditar,
+        PacotesVisualizar,
+        PacotesCriar,
+        PacotesEditar
     ];
 }
