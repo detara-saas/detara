@@ -1,0 +1,137 @@
+@page "/clientes"
+@attribute [Authorize(Policy = Permissoes.ClientesVisualizar)]
+@inject ClientesServico ClientesApi
+@inject IMensagemServico Mensagens
+
+<PageTitle>Clientes | Detara</PageTitle>
+
+<CabecalhoPagina Titulo="Clientes" Descricao="Gerencie seus clientes e os veículos vinculados." Sobretitulo="CADASTROS">
+    <Acoes>
+        <AuthorizeView Policy="@Permissoes.ClientesCriar">
+            <Authorized>
+                <MudButton Href="/clientes/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PersonAdd">
+                    Novo cliente
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </Acoes>
+</CabecalhoPagina>
+
+<section class="module-toolbar" aria-label="Filtros de clientes">
+    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Nome, documento, telefone ou placa"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" />
+    <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense">
+        <MudSelectItem Value="@("todos")">Todos</MudSelectItem>
+        <MudSelectItem Value="@("ativos")">Ativos</MudSelectItem>
+        <MudSelectItem Value="@("inativos")">Inativos</MudSelectItem>
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_tipoPessoa" Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
+        <MudSelectItem Value="@("todos")">Todos</MudSelectItem>
+        <MudSelectItem Value="@("PessoaFisica")">Pessoa física</MudSelectItem>
+        <MudSelectItem Value="@("PessoaJuridica")">Pessoa jurídica</MudSelectItem>
+    </MudSelect>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="PesquisarAsync" StartIcon="@Icons.Material.Outlined.FilterAlt">
+        Aplicar
+    </MudButton>
+</section>
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else if (_pagina is null || _pagina.Itens.Count == 0)
+{
+    <EstadoVazio Titulo="Nenhum cliente encontrado"
+                 Descricao="Cadastre seu primeiro cliente ou ajuste os filtros de pesquisa."
+                 Icone="@Icons.Material.Outlined.PeopleOutline">
+        <Acao>
+            <AuthorizeView Policy="@Permissoes.ClientesCriar">
+                <Authorized>
+                    <MudButton Href="/clientes/novo" Variant="Variant.Filled" Color="Color.Primary">Cadastrar cliente</MudButton>
+                </Authorized>
+            </AuthorizeView>
+        </Acao>
+    </EstadoVazio>
+}
+else
+{
+    <section class="module-panel desktop-list" aria-label="Lista de clientes">
+        <table class="module-table">
+            <thead><tr><th>Cliente</th><th>Telefone</th><th>Documento</th><th>Veículos</th><th>Status</th><th class="actions-column">Ações</th></tr></thead>
+            <tbody>
+            @foreach (var cliente in _pagina.Itens)
+            {
+                <tr>
+                    <td><a class="primary-link" href="@($"/clientes/{cliente.Id}")">@cliente.Nome</a><span class="cell-caption">@FormatarTipo(cliente.TipoPessoa)</span></td>
+                    <td>@FormatarTelefone(cliente.Telefone)</td>
+                    <td>@FormatarDocumento(cliente.CpfCnpj)</td>
+                    <td>@cliente.QuantidadeVeiculos</td>
+                    <td><span class="status-badge @(cliente.EhAtivo ? "status-running" : "status-neutral")">@(cliente.EhAtivo ? "Ativo" : "Inativo")</span></td>
+                    <td class="table-actions">
+                        <MudIconButton Href="@($"/clientes/{cliente.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir cliente" />
+                        <AuthorizeView Policy="@Permissoes.ClientesEditar">
+                            <Authorized><MudIconButton Href="@($"/clientes/{cliente.Id}/editar")" Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Editar cliente" /></Authorized>
+                        </AuthorizeView>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="mobile-list" aria-label="Lista de clientes">
+        @foreach (var cliente in _pagina.Itens)
+        {
+            <a class="mobile-record" href="@($"/clientes/{cliente.Id}")">
+                <div class="mobile-record-main"><strong>@cliente.Nome</strong><span>@FormatarTelefone(cliente.Telefone)</span><span>@cliente.QuantidadeVeiculos veículo(s)</span></div>
+                <span class="status-badge @(cliente.EhAtivo ? "status-running" : "status-neutral")">@(cliente.EhAtivo ? "Ativo" : "Inativo")</span>
+                <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+            </a>
+        }
+    </section>
+
+    <div class="module-pagination">
+        <span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span>
+        <div>
+            <MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" aria-label="Página anterior" />
+            <MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" aria-label="Próxima página" />
+        </div>
+    </div>
+}
+
+@code {
+    private PaginaResponse<ClienteListaResponse>? _pagina;
+    private bool _carregando = true;
+    private string? _pesquisa;
+    private string _status = "todos";
+    private string _tipoPessoa = "todos";
+    private int _paginaAtual = 1;
+
+    protected override Task OnInitializedAsync() => CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var resultado = await ClientesApi.ListarAsync(
+            _paginaAtual,
+            25,
+            _pesquisa,
+            _status == "todos" ? null : _status == "ativos",
+            _tipoPessoa == "todos" ? null : _tipoPessoa);
+        _pagina = resultado.Resultado;
+        if (!resultado.Sucesso)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+        }
+
+        _carregando = false;
+    }
+
+    private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
+    private async Task PaginaAnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
+    private async Task ProximaPaginaAsync() { _paginaAtual++; await CarregarAsync(); }
+    private static string FormatarTipo(string tipo) => tipo == "PessoaJuridica" ? "Pessoa jurídica" : "Pessoa física";
+    private static string FormatarTelefone(string? valor) => string.IsNullOrWhiteSpace(valor) ? "—" : valor;
+    private static string FormatarDocumento(string? valor) => string.IsNullOrWhiteSpace(valor) ? "—" : valor;
+}

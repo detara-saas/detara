@@ -1,0 +1,67 @@
+@inject ClientesServico ClientesApi
+
+<MudAutocomplete T="ClienteBuscaResponse"
+                 Value="_selecionado"
+                 ValueChanged="SelecionarAsync"
+                 SearchFunc="BuscarAsync"
+                 ToStringFunc="Descrever"
+                 Label="Cliente *"
+                 Placeholder="Digite nome, telefone ou documento"
+                 Variant="Variant.Outlined"
+                 Required="true"
+                 Disabled="Fixo"
+                 Clearable="@(!Fixo)"
+                 MinCharacters="2"
+                 DebounceInterval="300"
+                 MaxItems="15" />
+
+@code {
+    [Parameter]
+    public Guid? ClienteId { get; set; }
+
+    [Parameter]
+    public string? ClienteNome { get; set; }
+
+    [Parameter]
+    public bool Fixo { get; set; }
+
+    [Parameter]
+    public EventCallback<ClienteBuscaResponse?> SelecionadoChanged { get; set; }
+
+    private ClienteBuscaResponse? _selecionado;
+
+    protected override void OnParametersSet()
+    {
+        if (ClienteId.HasValue && (_selecionado is null || _selecionado.Id != ClienteId.Value))
+        {
+            _selecionado = new ClienteBuscaResponse(
+                ClienteId.Value,
+                ClienteNome ?? "Cliente selecionado",
+                null,
+                null);
+        }
+    }
+
+    private async Task<IEnumerable<ClienteBuscaResponse>> BuscarAsync(
+        string? texto,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Trim().Length < 2)
+        {
+            return [];
+        }
+
+        var resultado = await ClientesApi.BuscarAsync(texto.Trim(), cancellationToken);
+        return resultado.Resultado ?? [];
+    }
+
+    private async Task SelecionarAsync(ClienteBuscaResponse? cliente)
+    {
+        _selecionado = cliente;
+        await SelecionadoChanged.InvokeAsync(cliente);
+    }
+
+    private static string Descrever(ClienteBuscaResponse? cliente) => cliente is null
+        ? string.Empty
+        : string.Join(" · ", new[] { cliente.Nome, cliente.Telefone }.Where(item => !string.IsNullOrWhiteSpace(item)));
+}

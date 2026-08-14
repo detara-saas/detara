@@ -1,0 +1,79 @@
+@page "/veiculos/{Id:guid}"
+@attribute [Authorize(Policy = Permissoes.VeiculosVisualizar)]
+@inject VeiculosServico VeiculosApi
+@inject IMensagemServico Mensagens
+
+<PageTitle>@(_veiculo is null ? "Veículo" : $"{_veiculo.Marca} {_veiculo.Modelo}") | Detara</PageTitle>
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else if (_veiculo is null)
+{
+    <EstadoVazio Titulo="Veículo não encontrado" Descricao="O veículo não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.NoCrash" />
+}
+else
+{
+    <CabecalhoPagina Titulo="@DescricaoVeiculo" Descricao="@_veiculo.Placa" Sobretitulo="VEÍCULO">
+        <Acoes>
+            <span class="status-badge @(_veiculo.EhAtivo ? "status-running" : "status-neutral")">@(_veiculo.EhAtivo ? "Ativo" : "Inativo")</span>
+            <AuthorizeView Policy="@Permissoes.VeiculosEditar"><Authorized><MudButton Href="@($"/veiculos/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Variant="Variant.Text" Color="@(_veiculo.EhAtivo ? Color.Error : Color.Success)" OnClick="SolicitarStatus">@(_veiculo.EhAtivo ? "Inativar" : "Ativar")</MudButton></Authorized></AuthorizeView>
+        </Acoes>
+    </CabecalhoPagina>
+
+    @if (_confirmandoStatus)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip"><div><strong>Confirmar @(_veiculo.EhAtivo ? "inativação" : "ativação")?</strong><span>O histórico do veículo será preservado.</span></div><div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert>
+    }
+
+    <div class="detail-grid vehicle-detail-grid">
+        <section class="module-panel detail-card">
+            <div class="section-heading"><div><span class="section-eyebrow">IDENTIFICAÇÃO</span><h2>Dados do veículo</h2></div><span class="plate-badge large">@_veiculo.Placa</span></div>
+            <dl class="detail-list">
+                <div><dt>Marca</dt><dd>@_veiculo.Marca</dd></div>
+                <div><dt>Modelo</dt><dd>@_veiculo.Modelo</dd></div>
+                <div><dt>Versão</dt><dd>@Valor(_veiculo.Versao)</dd></div>
+                <div><dt>Ano</dt><dd>@FormatarAno()</dd></div>
+                <div><dt>Cor</dt><dd>@Valor(_veiculo.Cor)</dd></div>
+                <div><dt>Quilometragem</dt><dd>@(_veiculo.Quilometragem?.ToString("N0") ?? "—") km</dd></div>
+            </dl>
+        </section>
+        <section class="module-panel detail-card owner-card">
+            <div class="section-heading"><div><span class="section-eyebrow">CLIENTE</span><h2>Proprietário</h2></div></div>
+            <a class="owner-link" href="@($"/clientes/{_veiculo.ClienteId}")"><div class="owner-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" /></div><div><strong>@_veiculo.ClienteNome</strong><span>Abrir cadastro do cliente</span></div><MudIcon Icon="@Icons.Material.Outlined.ArrowForward" /></a>
+            <div class="observation-block"><span class="section-eyebrow">OBSERVAÇÕES</span><p>@Valor(_veiculo.Observacao, "Nenhuma observação registrada.")</p></div>
+        </section>
+    </div>
+
+    <section class="future-grid">
+        <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Histórico</strong><span>Nenhum serviço registrado.</span></div></article>
+        <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.Event" /><div><strong>Próximo agendamento</strong><span>Nenhum agendamento futuro.</span></div></article>
+        <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><div><strong>Fotos</strong><span>Disponível em uma etapa futura.</span></div></article>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private VeiculoDetalheResponse? _veiculo;
+    private bool _carregando = true;
+    private bool _confirmandoStatus;
+    private string DescricaoVeiculo => _veiculo is null ? string.Empty : string.Join(" ", new[] { _veiculo.Marca, _veiculo.Modelo, _veiculo.Versao }.Where(item => !string.IsNullOrWhiteSpace(item)));
+    protected override async Task OnParametersSetAsync()
+    {
+        _carregando = true;
+        var resultado = await VeiculosApi.ObterAsync(Id);
+        _veiculo = resultado.Resultado;
+        if (!resultado.Sucesso)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+        }
+
+        _carregando = false;
+    }
+    private void SolicitarStatus() => _confirmandoStatus = true;
+    private void CancelarStatus() => _confirmandoStatus = false;
+    private async Task ConfirmarStatusAsync() { if (_veiculo is null) return; var resultado = await VeiculosApi.AlterarStatusAsync(Id, !_veiculo.EhAtivo); Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); _confirmandoStatus = false; if (resultado.Sucesso) await OnParametersSetAsync(); }
+    private string FormatarAno() => _veiculo is null ? "—" : _veiculo.AnoFabricacao.HasValue || _veiculo.AnoModelo.HasValue ? $"{_veiculo.AnoFabricacao?.ToString() ?? "—"}/{_veiculo.AnoModelo?.ToString() ?? "—"}" : "—";
+    private static string Valor(string? valor, string padrao = "—") => string.IsNullOrWhiteSpace(valor) ? padrao : valor;
+}
