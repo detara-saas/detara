@@ -25,6 +25,26 @@ Segurança entre tenants é crítica. Nunca confie em `EmpresaId` vindo do front
 
 Mantenha o monólito modular e, preferencialmente, o fluxo `Controller → MediatR → Handler → Domain/Infrastructure`. Domain não depende de Infrastructure, Api ou Web. Não crie abstrações sem necessidade.
 
+## Module Boundaries
+
+Consulte `docs/architecture/module-boundaries.md` antes de criar ou integrar módulos.
+
+- Cada módulo é dono do próprio domínio, invariantes e dados.
+- Não modifique entidades de outro módulo diretamente.
+- Referências cross-module devem preferir IDs e o menor contrato explícito necessário.
+- Não consulte tabelas internas de outro módulo indiscriminadamente só porque o `DbContext` é compartilhado.
+- Crie contratos internos somente quando existir uma integração real; não adicione service layers genéricos preventivos.
+- Dependências circulares entre módulos são proibidas.
+- O produto base não depende de add-ons.
+- Add-ons estendem comportamento sem serem obrigatórios para o fluxo base.
+- Considere eventos internos in-process para reações entre módulos quando houver caso real.
+- Não adicione mensageria ou infraestrutura distribuída sem necessidade comprovada.
+- Shared database não elimina data ownership nem autoriza grafos EF atravessando módulos.
+- Evite cascade delete entre módulos; prefira `Restrict`, inativação e eventos conforme o contexto.
+- Novos módulos devem nascer organizados pela fronteira de negócio nos projetos atuais.
+- Mantenha o Shared Kernel pequeno e técnico; `Common`, `Shared`, `Helpers` e `Utils` não são depósitos de regras de negócio.
+- Microserviço é uma decisão operacional futura, não o padrão inicial.
+
 ## Segurança
 
 Nunca commite senha, JWT signing key, API key, connection string real, certificado/chave privada ou `.env` real. Nunca registre senha, JWT, secret ou connection string em logs.
