@@ -1,3 +1,5 @@
+using Detara.Domain.Catalogo;
+
 namespace Detara.Domain.Entidades;
 
 public sealed class Pacote : EntidadeEmpresaBase
@@ -6,31 +8,31 @@ public sealed class Pacote : EntidadeEmpresaBase
 
     private Pacote() { }
 
-    public Pacote(Guid empresaId, string nome, string? descricao, decimal? preco, IReadOnlyCollection<Guid> servicoIds)
+    public Pacote(Guid empresaId, string nome, string? descricao, TipoPrecificacao tipoPrecificacao, decimal? preco, IReadOnlyCollection<Guid> servicoIds)
         : base(Guid.NewGuid(), empresaId)
     {
-        AtualizarDados(nome, descricao, preco);
+        AtualizarDados(nome, descricao, tipoPrecificacao, preco);
         SubstituirServicos(servicoIds);
     }
 
     public string Nome { get; private set; } = string.Empty;
     public string? Descricao { get; private set; }
+    public TipoPrecificacao TipoPrecificacao { get; private set; }
     public decimal? Preco { get; private set; }
     public IReadOnlyCollection<PacoteServico> Servicos => _servicos;
 
-    public void Atualizar(string nome, string? descricao, decimal? preco, IReadOnlyCollection<Guid> servicoIds)
+    public void Atualizar(string nome, string? descricao, TipoPrecificacao tipoPrecificacao, decimal? preco, IReadOnlyCollection<Guid> servicoIds)
     {
-        AtualizarDados(nome, descricao, preco);
+        AtualizarDados(nome, descricao, tipoPrecificacao, preco);
         SubstituirServicos(servicoIds);
     }
 
-    private void AtualizarDados(string nome, string? descricao, decimal? preco)
+    private void AtualizarDados(string nome, string? descricao, TipoPrecificacao tipoPrecificacao, decimal? preco)
     {
         Nome = TextoCatalogo.Exigir(nome, 160, nameof(nome), 2);
         Descricao = TextoCatalogo.NormalizarOpcional(descricao, 2000);
-        Preco = preco is null or >= 0
-            ? preco
-            : throw new ArgumentException("O preço do pacote não pode ser negativo.", nameof(preco));
+        TipoPrecificacao = tipoPrecificacao;
+        Preco = PrecificacaoCatalogo.Validar(tipoPrecificacao, preco, nameof(preco));
         MarcarComoAtualizada();
     }
 

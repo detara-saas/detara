@@ -2,6 +2,7 @@ using Detara.Application.Catalogo;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Catalogo;
 using Detara.Contracts.Comum;
+using Detara.Domain.Catalogo;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,18 +24,20 @@ public sealed class PacotesController(ISender sender) : ControllerBase
     [HttpPost, Authorize(Policy = Permissoes.PacotesCriar)]
     public async Task<ActionResult<RespostaApi<PacoteDetalheResponse>>> Criar(SalvarPacoteRequest request, CancellationToken ct)
     {
-        var item = await sender.Send(new CriarPacoteCommand(request.Nome, request.Descricao, request.Preco, request.ServicoIds), ct);
+        var item = await sender.Send(new CriarPacoteCommand(request.Nome, request.Descricao, MapearTipo(request.TipoPrecificacao), request.Preco, request.ServicoIds), ct);
         return CreatedAtAction(nameof(Obter), new { id = item.Id }, RespostaApi<PacoteDetalheResponse>.Ok(MapearDetalhe(item), "Pacote cadastrado com sucesso."));
     }
     [HttpPut("{id:guid}"), Authorize(Policy = Permissoes.PacotesEditar)]
     public async Task<ActionResult<RespostaApi<PacoteDetalheResponse>>> Atualizar(Guid id, SalvarPacoteRequest request, CancellationToken ct)
     {
-        var item = await sender.Send(new AtualizarPacoteCommand(id, request.Nome, request.Descricao, request.Preco, request.ServicoIds), ct);
+        var item = await sender.Send(new AtualizarPacoteCommand(id, request.Nome, request.Descricao, MapearTipo(request.TipoPrecificacao), request.Preco, request.ServicoIds), ct);
         return Ok(RespostaApi<PacoteDetalheResponse>.Ok(MapearDetalhe(item), "Pacote atualizado com sucesso."));
     }
     [HttpPatch("{id:guid}/status"), Authorize(Policy = Permissoes.PacotesEditar)]
     public async Task<IActionResult> AlterarStatus(Guid id, AlterarStatusRequest request, CancellationToken ct) { await sender.Send(new AlterarStatusPacoteCommand(id, request.EhAtivo), ct); return NoContent(); }
 
-    private static PacoteListaResponse MapearLista(PacoteListaItemResultado x) => new(x.Id, x.Nome, x.QuantidadeServicos, x.Preco, x.SomaServicos, x.Economia, x.DuracaoEstimadaMinutos, x.EhAtivo);
-    private static PacoteDetalheResponse MapearDetalhe(PacoteDetalheResultado x) => new(x.Id, x.Nome, x.Descricao, x.Preco, x.SomaServicos, x.Economia, x.DuracaoEstimadaMinutos, x.CriadoEmUtc, x.AtualizadoEmUtc, x.EhAtivo, x.Servicos.Select(s => new PacoteServicoResponse(s.ServicoId, s.Nome, s.CategoriaNome, s.PrecoBase, s.DuracaoEstimadaMinutos, s.Ordem, s.EhAtivo)).ToArray());
+    private static PacoteListaResponse MapearLista(PacoteListaItemResultado x) => new(x.Id, x.Nome, x.QuantidadeServicos, MapearTipo(x.TipoPrecificacao), x.Preco, x.SomaServicos, x.Economia, x.DuracaoEstimadaMinutos, x.EhAtivo);
+    private static PacoteDetalheResponse MapearDetalhe(PacoteDetalheResultado x) => new(x.Id, x.Nome, x.Descricao, MapearTipo(x.TipoPrecificacao), x.Preco, x.SomaServicos, x.Economia, x.DuracaoEstimadaMinutos, x.CriadoEmUtc, x.AtualizadoEmUtc, x.EhAtivo, x.Servicos.Select(s => new PacoteServicoResponse(s.ServicoId, s.Nome, s.CategoriaNome, MapearTipo(s.TipoPrecificacao), s.PrecoBase, s.DuracaoEstimadaMinutos, s.Ordem, s.EhAtivo)).ToArray());
+    private static TipoPrecificacao MapearTipo(TipoPrecificacaoCatalogo tipo) => (TipoPrecificacao)(int)tipo;
+    private static TipoPrecificacaoCatalogo MapearTipo(TipoPrecificacao tipo) => (TipoPrecificacaoCatalogo)(int)tipo;
 }

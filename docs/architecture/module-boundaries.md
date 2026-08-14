@@ -42,11 +42,12 @@ Não serão criados assemblies por módulo enquanto a quantidade de módulos, eq
 | Plataforma / Identidade | Atual, base | Empresa, usuário, perfil, permissão, preferência, autenticação e resolução do tenant |
 | Clientes | Atual, base | Cadastro e identificação de clientes e veículos |
 | Catálogo | Atual, base | O que a empresa oferece: categorias, serviços e pacotes |
-| Agenda | Futuro, base | Agendamento, reagendamento, cancelamento e disponibilidade |
+| Agenda | Atual, base | Agendamento, itens planejados, snapshots, reagendamento, status e consultas operacionais |
 | Atendimento | Futuro, base | Orçamento, ordem de serviço, checklist, execução, fotos e entrega |
 | Financeiro | Futuro | Pagamentos, recebimentos, fluxo e indicadores financeiros |
 | Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
 | CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
+| Autoatendimento / Portal do Cliente | Futuro, add-on candidato | Experiência externa de catálogo, agenda, aprovações e acompanhamento, consumindo capacidades do Core |
 
 Essa lista é uma visão inicial, não um enum fechado. Novos bounded contexts podem surgir e os existentes podem ser reorganizados com aprendizado real de produto.
 
@@ -155,6 +156,8 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `Servicos` | Catálogo |
 | `Pacotes` | Catálogo |
 | `PacotesServicos` | Catálogo |
+| `Agendamentos` | Agenda |
+| `AgendamentosItens` | Agenda |
 
 Essa matriz deve ser atualizada quando uma tabela ou agregado for introduzido.
 
@@ -174,7 +177,7 @@ Dentro de um módulo, a regra padrão é consistência forte. Entre módulos dis
 
 ## Documentos transacionais e snapshots
 
-Agenda e Atendimento podem referenciar IDs de Clientes e Catálogo. Orçamentos e ordens de serviço, porém, devem preservar snapshots das informações comerciais relevantes — nome do serviço, descrição negociada, quantidade e preço praticado — para que alterações posteriores no Catálogo não reescrevam o histórico.
+Agenda e Atendimento podem referenciar IDs de Clientes e Catálogo. Agenda preserva snapshots de identificação do cliente/veículo e das referências do catálogo apresentadas no planejamento. Orçamentos e ordens de serviço, porém, deverão preservar também as informações comerciais negociadas — descrição, quantidade e preço praticado — para que alterações posteriores no Catálogo não reescrevam o histórico.
 
 O snapshot pertence ao documento transacional. Ele não transfere ownership do cadastro original.
 
@@ -239,21 +242,33 @@ Commands, queries, handlers e validators podem ser separados gradualmente quando
 
 Testes arquiteturais poderão ser adicionados quando namespaces e fronteiras estiverem estáveis o suficiente para produzir regras robustas. Não usar testes frágeis baseados apenas em strings.
 
-## Preparação da Agenda
+## Agenda implementada
 
-Agenda será dona de `Agendamento`, reagendamento, cancelamento e disponibilidade. Não será dona de Cliente, Veículo, Serviço ou Pacote.
+Agenda é dona de `Agendamento`, `AgendamentoItem`, reagendamento, status e consultas por período. Não é dona de Cliente, Veículo, Serviço, Pacote ou Empresa.
 
 Na implementação inicial:
 
 - armazenar os IDs necessários;
-- validar referências por contratos explícitos quando houver caso real;
-- consultar apenas a projeção mínima necessária para exibição;
+- validar e copiar Cliente/Veículo por `IClientesAgendaConsulta`;
+- validar e copiar Serviço/Pacote por `ICatalogoAgendaConsulta`;
+- obter o fuso IANA da empresa por `IFusoHorarioEmpresaConsulta`;
+- consultar apenas projeções mínimas, com snapshots para leituras históricas;
 - não alterar agregados de Clientes ou Catálogo;
 - não criar navegações EF profundas atravessando esses módulos.
+
+As tabelas da Agenda não possuem FKs cross-module para Clientes ou Catálogo. A integridade de entrada é validada pelos contratos internos e os IDs são mantidos para rastreabilidade. A FK composta entre `AgendamentosItens` e `Agendamentos` é interna, tenant-safe e forte.
+
+Preço no Agendamento é somente snapshot da referência do Catálogo. Agenda não possui preço acordado, total a cobrar ou valor final; esses conceitos pertencerão ao futuro Orçamento.
 
 Atendimento será posteriormente dono de Orçamento, Ordem de Serviço e Checklist. Ele também referencia Clientes e Catálogo sem assumir o cadastro deles.
 
 ## Add-ons e exemplos de evolução
+
+### Autoatendimento / Portal do Cliente
+
+Autoatendimento é candidato a add-on comercial futuro. Ele deverá consumir capacidades de Agenda e Catálogo, sem criar agendas ou catálogos paralelos (`PortalAgendamento`, `PortalServico` ou `PortalPacote`). O módulo opcional será dono da própria configuração de publicação; por isso o Catálogo Core não recebe `DisponivelNoPortal` antecipadamente.
+
+O Portal poderá futuramente agendar, reagendar, cancelar, consultar catálogo, visualizar/aprovar orçamentos e acompanhar atendimentos. Nenhuma API pública, entitlement ou dependência do Core no Portal é criada antes da implementação real do add-on.
 
 ### Estoque
 

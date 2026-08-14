@@ -1,4 +1,5 @@
 using Detara.Application.Comportamentos;
+using Detara.Application.Agenda;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ public static class DependencyInjection
         services.AddMediatR(configuracao => configuracao.RegisterServicesFromAssembly(assembly));
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidacaoBehavior<,>));
+        services.AddSingleton<IConversorFusoHorario, ConversorFusoHorario>();
 
         return services;
     }

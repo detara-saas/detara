@@ -1,0 +1,37 @@
+@inject AgendaServico AgendaApi
+
+<MudAutocomplete T="ClienteAgendaResponse"
+                 Value="_selecionado"
+                 ValueChanged="SelecionarAsync"
+                 SearchFunc="BuscarAsync"
+                 ToStringFunc="Descrever"
+                 Label="Cliente *"
+                 Placeholder="Digite nome ou telefone"
+                 Variant="Variant.Outlined"
+                 Required="true"
+                 Disabled="Fixo"
+                 Clearable="@(!Fixo)"
+                 MinCharacters="2"
+                 DebounceInterval="300"
+                 MaxItems="15" />
+
+@code {
+    [Parameter] public Guid? ClienteId { get; set; }
+    [Parameter] public string? ClienteNome { get; set; }
+    [Parameter] public bool Fixo { get; set; }
+    [Parameter] public EventCallback<ClienteAgendaResponse?> SelecionadoChanged { get; set; }
+    private ClienteAgendaResponse? _selecionado;
+
+    protected override void OnParametersSet()
+    {
+        if (ClienteId.HasValue && (_selecionado is null || _selecionado.Id != ClienteId.Value)) _selecionado = new(ClienteId.Value, ClienteNome ?? "Cliente selecionado", null);
+    }
+
+    private async Task<IEnumerable<ClienteAgendaResponse>> BuscarAsync(string? texto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Trim().Length < 2) return [];
+        return (await AgendaApi.BuscarClientesAsync(texto.Trim(), ct)).Resultado ?? [];
+    }
+    private async Task SelecionarAsync(ClienteAgendaResponse? cliente) { _selecionado = cliente; await SelecionadoChanged.InvokeAsync(cliente); }
+    private static string Descrever(ClienteAgendaResponse? cliente) => cliente is null ? string.Empty : string.Join(" · ", new[] { cliente.Nome, cliente.Telefone }.Where(x => !string.IsNullOrWhiteSpace(x)));
+}

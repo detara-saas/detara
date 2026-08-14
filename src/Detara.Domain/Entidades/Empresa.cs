@@ -12,7 +12,8 @@ public sealed class Empresa : EntidadeBase
         string cpfCnpj,
         string slug,
         string? email = null,
-        string? telefone = null)
+        string? telefone = null,
+        string fusoHorario = "America/Sao_Paulo")
         : base(Guid.NewGuid())
     {
         NomeFantasia = Exigir(nomeFantasia, nameof(nomeFantasia));
@@ -21,6 +22,7 @@ public sealed class Empresa : EntidadeBase
         Slug = NormalizarSlug(slug);
         Email = NormalizarOpcional(email);
         Telefone = NormalizarOpcional(telefone);
+        FusoHorario = Exigir(fusoHorario, nameof(fusoHorario));
     }
 
     public string NomeFantasia { get; private set; } = string.Empty;
@@ -29,6 +31,13 @@ public sealed class Empresa : EntidadeBase
     public string? Email { get; private set; }
     public string? Telefone { get; private set; }
     public string Slug { get; private set; } = string.Empty;
+    public string FusoHorario { get; private set; } = "America/Sao_Paulo";
+
+    public void AlterarFusoHorario(string fusoHorario)
+    {
+        FusoHorario = Exigir(fusoHorario, nameof(fusoHorario));
+        MarcarComoAtualizada();
+    }
 
     private static string Exigir(string valor, string parametro) =>
         string.IsNullOrWhiteSpace(valor)

@@ -1,3 +1,5 @@
+using Detara.Domain.Catalogo;
+
 namespace Detara.Domain.Entidades;
 
 public sealed class Servico : EntidadeEmpresaBase
@@ -11,15 +13,17 @@ public sealed class Servico : EntidadeEmpresaBase
         Guid categoriaServicoId,
         string nome,
         string? descricao,
+        TipoPrecificacao tipoPrecificacao,
         decimal? precoBase,
         int? duracaoEstimadaMinutos,
         int ordem)
         : base(Guid.NewGuid(), empresaId) =>
-        Atualizar(categoriaServicoId, nome, descricao, precoBase, duracaoEstimadaMinutos, ordem);
+        Atualizar(categoriaServicoId, nome, descricao, tipoPrecificacao, precoBase, duracaoEstimadaMinutos, ordem);
 
     public Guid CategoriaServicoId { get; private set; }
     public string Nome { get; private set; } = string.Empty;
     public string? Descricao { get; private set; }
+    public TipoPrecificacao TipoPrecificacao { get; private set; }
     public decimal? PrecoBase { get; private set; }
     public int? DuracaoEstimadaMinutos { get; private set; }
     public int Ordem { get; private set; }
@@ -30,6 +34,7 @@ public sealed class Servico : EntidadeEmpresaBase
         Guid categoriaServicoId,
         string nome,
         string? descricao,
+        TipoPrecificacao tipoPrecificacao,
         decimal? precoBase,
         int? duracaoEstimadaMinutos,
         int ordem)
@@ -39,9 +44,8 @@ public sealed class Servico : EntidadeEmpresaBase
             : throw new ArgumentException("A categoria deve ser informada.", nameof(categoriaServicoId));
         Nome = TextoCatalogo.Exigir(nome, 160, nameof(nome), 2);
         Descricao = TextoCatalogo.NormalizarOpcional(descricao, 2000);
-        PrecoBase = precoBase is null or >= 0
-            ? precoBase
-            : throw new ArgumentException("O preço base não pode ser negativo.", nameof(precoBase));
+        TipoPrecificacao = tipoPrecificacao;
+        PrecoBase = PrecificacaoCatalogo.Validar(tipoPrecificacao, precoBase, nameof(precoBase));
         DuracaoEstimadaMinutos = duracaoEstimadaMinutos is null or > 0 and <= 43200
             ? duracaoEstimadaMinutos
             : throw new ArgumentException("A duração deve estar entre 1 e 43.200 minutos.", nameof(duracaoEstimadaMinutos));

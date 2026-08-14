@@ -25,13 +25,13 @@ else
     <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Pacote</th><th>Serviços</th><th>Preço</th><th>Valor individual</th><th>Economia</th><th>Status</th><th class="actions-column">Ações</th></tr></thead><tbody>
     @foreach (var pacote in _pagina.Itens)
     {
-        <tr><td><a class="primary-link" href="@($"/pacotes/{pacote.Id}")">@pacote.Nome</a><span class="cell-caption">@FormatarDuracao(pacote.DuracaoEstimadaMinutos)</span></td><td>@pacote.QuantidadeServicos</td><td>@FormatarPreco(pacote.Preco)</td><td>@FormatarPreco(pacote.SomaServicos)</td><td><span class="@(pacote.Economia.HasValue ? "saving-value" : "cell-caption")">@(pacote.Economia.HasValue ? FormatarPreco(pacote.Economia) : "—")</span></td><td><span class="status-badge @(pacote.EhAtivo ? "status-running" : "status-neutral")">@(pacote.EhAtivo ? "Ativo" : "Inativo")</span></td><td class="table-actions"><MudIconButton Href="@($"/pacotes/{pacote.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir pacote" /><AuthorizeView Policy="@Permissoes.PacotesEditar"><Authorized><MudIconButton Href="@($"/pacotes/{pacote.Id}/editar")" Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Editar pacote" /></Authorized></AuthorizeView></td></tr>
+        <tr><td><a class="primary-link" href="@($"/pacotes/{pacote.Id}")">@pacote.Nome</a><span class="cell-caption">@FormatarDuracao(pacote.DuracaoEstimadaMinutos)</span></td><td>@pacote.QuantidadeServicos</td><td>@FormatacaoCatalogo.Preco(pacote.TipoPrecificacao, pacote.Preco)</td><td>@FormatarValor(pacote.SomaServicos)</td><td><span class="@(pacote.Economia.HasValue ? "saving-value" : "cell-caption")">@(pacote.Economia.HasValue ? FormatarValor(pacote.Economia) : "—")</span></td><td><span class="status-badge @(pacote.EhAtivo ? "status-running" : "status-neutral")">@(pacote.EhAtivo ? "Ativo" : "Inativo")</span></td><td class="table-actions"><MudIconButton Href="@($"/pacotes/{pacote.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir pacote" /><AuthorizeView Policy="@Permissoes.PacotesEditar"><Authorized><MudIconButton Href="@($"/pacotes/{pacote.Id}/editar")" Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Editar pacote" /></Authorized></AuthorizeView></td></tr>
     }
     </tbody></table></section>
     <section class="mobile-list">
     @foreach (var pacote in _pagina.Itens)
     {
-        <a class="mobile-record" href="@($"/pacotes/{pacote.Id}")"><div class="mobile-record-main"><strong>@pacote.Nome</strong><span>@pacote.QuantidadeServicos serviço(s) · @FormatarDuracao(pacote.DuracaoEstimadaMinutos)</span><span>@FormatarPreco(pacote.Preco)@(pacote.Economia.HasValue ? $" · economia {FormatarPreco(pacote.Economia)}" : string.Empty)</span></div><span class="status-badge @(pacote.EhAtivo ? "status-running" : "status-neutral")">@(pacote.EhAtivo ? "Ativo" : "Inativo")</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+        <a class="mobile-record" href="@($"/pacotes/{pacote.Id}")"><div class="mobile-record-main"><strong>@pacote.Nome</strong><span>@pacote.QuantidadeServicos serviço(s) · @FormatarDuracao(pacote.DuracaoEstimadaMinutos)</span><span>@FormatacaoCatalogo.Preco(pacote.TipoPrecificacao, pacote.Preco)@(pacote.Economia.HasValue ? $" · economia {FormatarValor(pacote.Economia)}" : string.Empty)</span></div><span class="status-badge @(pacote.EhAtivo ? "status-running" : "status-neutral")">@(pacote.EhAtivo ? "Ativo" : "Inativo")</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
     }
     </section>
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" aria-label="Próxima página" /></div></div>
@@ -48,6 +48,6 @@ else
     private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
     private async Task PaginaAnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
     private async Task ProximaPaginaAsync() { _paginaAtual++; await CarregarAsync(); }
-    private static string FormatarPreco(decimal? valor) => valor?.ToString("C2") ?? "Sob consulta";
+    private static string FormatarValor(decimal? valor) => valor?.ToString("C2") ?? "Não calculado";
     private static string FormatarDuracao(int? minutos) => minutos.HasValue ? $"{minutos.Value} min" : "Duração variável";
 }

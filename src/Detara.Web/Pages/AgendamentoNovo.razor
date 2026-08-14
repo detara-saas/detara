@@ -1,0 +1,6 @@
+@page "/agenda/novo"
+@attribute [Authorize(Policy = Permissoes.AgendaCriar)]
+
+<PageTitle>Novo agendamento | Detara</PageTitle>
+<CabecalhoPagina Titulo="Novo agendamento" Descricao="Planeje cliente, veículo, itens e duração operacional." Sobretitulo="AGENDA" />
+<AgendamentoFormulario />

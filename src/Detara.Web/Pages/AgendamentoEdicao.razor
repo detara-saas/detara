@@ -1,0 +1,8 @@
+@page "/agenda/{Id:guid}/editar"
+@attribute [Authorize(Policy = Permissoes.AgendaEditar)]
+
+<PageTitle>Editar agendamento | Detara</PageTitle>
+<CabecalhoPagina Titulo="Editar agendamento" Descricao="Ajuste o planejamento sem alterar os snapshots históricos mantidos." Sobretitulo="AGENDA" />
+<AgendamentoFormulario AgendamentoId="Id" />
+
+@code { [Parameter] public Guid Id { get; set; } }

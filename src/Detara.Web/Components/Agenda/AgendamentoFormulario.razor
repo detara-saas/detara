@@ -1,0 +1,118 @@
+@inject AgendaServico AgendaApi
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else
+{
+<MudForm @ref="_form">
+    <section class="module-panel form-panel agenda-form-panel">
+        <div class="section-heading"><div><span class="section-eyebrow">IDENTIFICAÇÃO</span><h2>Cliente e veículo</h2></div></div>
+        <div class="form-grid">
+            <ClienteAgendaAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="AgendamentoId.HasValue" SelecionadoChanged="SelecionarClienteAsync" />
+            <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Required="true" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || AgendamentoId.HasValue)" Placeholder="Selecione o cliente primeiro">
+                @foreach (var veiculo in _veiculos) { <MudSelectItem Value="@(new Guid?(veiculo.Id))">@veiculo.Descricao · @veiculo.Placa</MudSelectItem> }
+            </MudSelect>
+        </div>
+
+        <div class="section-heading agenda-form-section"><div><span class="section-eyebrow">PLANEJAMENTO</span><h2>Data, horário e duração</h2></div></div>
+        <div class="form-grid agenda-time-grid">
+            <MudDatePicker @bind-Date="_data" Label="Data *" Required="true" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" />
+            <MudTimePicker @bind-Time="_hora" Label="Hora *" Required="true" Variant="Variant.Outlined" AmPm="false" />
+            <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada (minutos) *" Required="true" Min="1" Max="43200" Variant="Variant.Outlined" HelperText="Independente da duração de referência do catálogo." />
+            <div class="duration-suggestion"><span>Duração sugerida pelos itens</span><strong>@FormatarDuracao(DuracaoSugerida)</strong><MudButton Variant="Variant.Text" Size="Size.Small" Disabled="@(!DuracaoSugerida.HasValue)" OnClick="AplicarDuracaoSugerida">Aplicar</MudButton></div>
+        </div>
+
+        <div class="section-heading agenda-form-section"><div><span class="section-eyebrow">ITENS</span><h2>Serviços e pacotes</h2></div><span class="selected-count">@_selecionados.Count selecionado(s)</span></div>
+        <div class="catalog-search-row"><MudTextField T="string" @bind-Value="_pesquisaCatalogo" Label="Pesquisar catálogo" Placeholder="Nome ou categoria" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" /><MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="BuscarCatalogoAsync">Pesquisar</MudButton></div>
+        <div class="agenda-catalog-picker">
+            @foreach (var item in _catalogo)
+            {
+                var chave = (item.TipoItem, item.Id);
+                var selecionado = _selecionados.ContainsKey(chave);
+                <label class="agenda-catalog-item @(selecionado ? "selected" : string.Empty) @(!item.EhAtivo ? "inactive" : string.Empty)">
+                    <MudCheckBox T="bool" Value="selecionado" ValueChanged="@(valor => SelecionarItem(item, valor))" Disabled="@(!item.EhAtivo && !selecionado)" />
+                    <div><strong>@item.Nome</strong><span>@(item.TipoItem == TipoItemAgendamentoContrato.Servico ? item.Categoria ?? "Serviço" : "Pacote") · @FormatacaoCatalogo.Preco(item.TipoPrecificacao, item.PrecoReferencia) · @FormatarDuracao(item.DuracaoReferenciaMinutos)@(!item.EhAtivo ? " · Inativo" : "")</span></div>
+                </label>
+            }
+        </div>
+        @if (_selecionados.Count > 0)
+        {
+            <div class="selected-agenda-items">
+                @foreach (var item in _selecionados.Values)
+                {
+                    <article><div><strong>@item.Nome</strong><span>@FormatacaoCatalogo.Preco(item.TipoPrecificacao, item.PrecoReferencia) · @FormatarDuracao(item.DuracaoReferenciaMinutos)@(!item.EhAtivo ? " · Item atualmente inativo; snapshot preservado" : "")</span></div><MudIconButton Icon="@Icons.Material.Outlined.Close" OnClick="@(() => RemoverItem(item))" aria-label="Remover item" /></article>
+                }
+            </div>
+        }
+
+        <div class="section-heading agenda-form-section"><div><span class="section-eyebrow">OBSERVAÇÕES</span><h2>Contexto do agendamento</h2></div></div>
+        <div class="form-grid">
+            <MudTextField T="string" @bind-Value="_observacaoSolicitante" Label="Observação do solicitante" Variant="Variant.Outlined" Lines="4" Counter="2000" />
+            <MudTextField T="string" @bind-Value="_observacaoInterna" Label="Observação interna" Variant="Variant.Outlined" Lines="4" Counter="4000" HelperText="Visível apenas para a operação interna." />
+        </div>
+
+        @if (_quantidadeSobreposicoes > 0)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="agenda-overlap-warning"><strong>@_quantidadeSobreposicoes agendamento(s) se sobrepõem a este horário.</strong> A sobreposição é permitida; confirme para continuar.</MudAlert>
+        }
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="commercial-reference-note">Os valores exibidos são referências do catálogo. O valor final poderá depender da avaliação do veículo e pertencerá ao futuro orçamento.</MudAlert>
+        <div class="form-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvando" OnClick="SalvarAsync">@(_salvando ? "Salvando..." : _quantidadeSobreposicoes > 0 && _sobreposicaoConfirmada ? "Salvar mesmo assim" : "Salvar agendamento")</MudButton></div>
+    </section>
+</MudForm>
+}
+
+@code {
+    [Parameter] public Guid? AgendamentoId { get; set; }
+    private MudForm? _form; private bool _carregando = true; private bool _salvando;
+    private Guid? _clienteId; private string? _clienteNome; private Guid? _veiculoId; private IReadOnlyCollection<VeiculoAgendaResponse> _veiculos = [];
+    private DateTime? _data; private TimeSpan? _hora; private int? _duracao;
+    private string? _observacaoSolicitante; private string? _observacaoInterna; private string? _pesquisaCatalogo;
+    private IReadOnlyCollection<ItemCatalogoAgendaResponse> _catalogo = [];
+    private readonly Dictionary<(TipoItemAgendamentoContrato, Guid), ItemCatalogoAgendaResponse> _selecionados = [];
+    private int _quantidadeSobreposicoes; private bool _sobreposicaoConfirmada;
+    private int? DuracaoSugerida => _selecionados.Count > 0 && _selecionados.Values.All(x => x.DuracaoReferenciaMinutos.HasValue) ? _selecionados.Values.Sum(x => x.DuracaoReferenciaMinutos!.Value) : null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _carregando = true;
+        if (AgendamentoId.HasValue)
+        {
+            var resultado = await AgendaApi.ObterAsync(AgendamentoId.Value);
+            if (resultado.Resultado is not { } agendamento) { Mensagens.Mostrar(resultado.Mensagem, true); _carregando = false; return; }
+            _clienteId = agendamento.ClienteId; _clienteNome = agendamento.ClienteNome; _veiculoId = agendamento.VeiculoId;
+            _veiculos = (await AgendaApi.ListarVeiculosAsync(agendamento.ClienteId, true)).Resultado ?? [new(agendamento.VeiculoId, agendamento.VeiculoDescricao, agendamento.VeiculoPlaca)];
+            _data = agendamento.InicioLocal.Date; _hora = agendamento.InicioLocal.TimeOfDay; _duracao = agendamento.DuracaoPlanejadaMinutos;
+            _observacaoSolicitante = agendamento.ObservacaoSolicitante; _observacaoInterna = agendamento.ObservacaoInterna;
+            _selecionados.Clear(); foreach (var item in agendamento.Itens) _selecionados[(item.TipoItem, item.ItemCatalogoId)] = new(item.TipoItem, item.ItemCatalogoId, item.Nome, item.Descricao, null, item.TipoPrecificacao, item.PrecoReferencia, item.DuracaoReferenciaMinutos, item.ItemAtivoNoCatalogo);
+        }
+        else { var contexto = await AgendaApi.ObterContextoAsync(); if (contexto.Resultado is { } c) _data ??= c.HojeLocal.ToDateTime(TimeOnly.MinValue); _hora ??= new TimeSpan(9, 0, 0); }
+        await BuscarCatalogoAsync(); _carregando = false;
+    }
+
+    private async Task SelecionarClienteAsync(ClienteAgendaResponse? cliente) { _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = cliente is null ? [] : (await AgendaApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? []; if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id; }
+    private async Task BuscarCatalogoAsync() { var resultado = await AgendaApi.BuscarCatalogoAsync(_pesquisaCatalogo, AgendamentoId.HasValue); _catalogo = (resultado.Resultado ?? []).Concat(_selecionados.Values).GroupBy(x => (x.TipoItem, x.Id)).Select(x => x.First()).OrderBy(x => x.Nome).ToArray(); if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true); }
+    private void SelecionarItem(ItemCatalogoAgendaResponse item, bool valor) { var chave = (item.TipoItem, item.Id); if (valor) _selecionados[chave] = item; else _selecionados.Remove(chave); }
+    private void RemoverItem(ItemCatalogoAgendaResponse item) => _selecionados.Remove((item.TipoItem, item.Id));
+    private void AplicarDuracaoSugerida() { if (DuracaoSugerida.HasValue) _duracao = DuracaoSugerida.Value; }
+    private DateTime? ObterInicioLocal() => _data.HasValue && _hora.HasValue ? _data.Value.Date.Add(_hora.Value) : null;
+
+    private async Task SalvarAsync()
+    {
+        if (_form is null) return; await _form.ValidateAsync(); var inicio = ObterInicioLocal();
+        if (!_form.IsValid || !_clienteId.HasValue || !_veiculoId.HasValue || _veiculoId.Value == Guid.Empty || !inicio.HasValue || !_duracao.HasValue || _selecionados.Count == 0) { Mensagens.Mostrar("Preencha cliente, veículo, data, hora, duração e ao menos um item.", true); return; }
+        var sobreposicoes = await AgendaApi.ContarSobreposicoesAsync(inicio.Value, _duracao.Value, AgendamentoId);
+        if (!sobreposicoes.Sucesso) { Mensagens.Mostrar(sobreposicoes.Mensagem, true); return; }
+        _quantidadeSobreposicoes = sobreposicoes.Resultado;
+        if (_quantidadeSobreposicoes > 0 && !_sobreposicaoConfirmada) { _sobreposicaoConfirmada = true; return; }
+        _salvando = true;
+        var request = new SalvarAgendamentoRequest(_clienteId.Value, _veiculoId.Value, inicio.Value, _duracao.Value, _observacaoSolicitante, _observacaoInterna, _selecionados.Values.Select(x => new AgendamentoItemRequest(x.TipoItem, x.Id)).ToArray());
+        var resultado = AgendamentoId.HasValue ? await AgendaApi.AtualizarAsync(AgendamentoId.Value, request) : await AgendaApi.CriarAsync(request);
+        _salvando = false; Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); if (resultado.Resultado is { } salvo) Navigation.NavigateTo($"/agenda/{salvo.Id}");
+    }
+    private void Cancelar() => Navigation.NavigateTo(AgendamentoId.HasValue ? $"/agenda/{AgendamentoId}" : "/agenda");
+    private static string FormatarDuracao(int? minutos) => !minutos.HasValue ? "Não informada" : minutos.Value >= 60 ? $"{minutos / 60}h{(minutos % 60 > 0 ? $" {minutos % 60}min" : string.Empty)}" : $"{minutos} min";
+}

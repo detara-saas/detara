@@ -134,6 +134,33 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task UsuarioSemAgendaVisualizar_Recebe403()
+    {
+        var response = await _client.GetAsync("/api/agenda/contexto");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioSemAgendaCriar_PostBloqueado()
+    {
+        UsarPermissoes(Permissoes.AgendaVisualizar);
+        var response = await _client.PostAsJsonAsync("/api/agendamentos", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("PUT", "/api/agendamentos/00000000-0000-0000-0000-000000000001")]
+    [InlineData("PATCH", "/api/agendamentos/00000000-0000-0000-0000-000000000001/status")]
+    [InlineData("PATCH", "/api/agendamentos/00000000-0000-0000-0000-000000000001/reagendar")]
+    public async Task UsuarioSemAgendaEditar_AlteracoesBloqueadas(string metodo, string rota)
+    {
+        UsarPermissoes(Permissoes.AgendaVisualizar, Permissoes.AgendaCriar);
+        using var request = new HttpRequestMessage(new HttpMethod(metodo), rota) { Content = JsonContent.Create(new { }) };
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private void UsarPermissoes(params string[] permissoes)
     {
         _client.DefaultRequestHeaders.Remove(TestAuthHandler.PermissionsHeader);

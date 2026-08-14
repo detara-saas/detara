@@ -22,6 +22,151 @@ namespace Detara.Infrastructure.Persistencia.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Detara.Domain.Agenda.Agendamento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClienteNomeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DuracaoPlanejadaMinutos")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("EmpresaId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("InicioUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MotivoCancelamento")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ObservacaoInterna")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ObservacaoSolicitante")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<string>("VeiculoDescricaoSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("VeiculoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VeiculoPlacaSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "ClienteId");
+
+                    b.HasIndex("EmpresaId", "InicioUtc");
+
+                    b.HasIndex("EmpresaId", "VeiculoId");
+
+                    b.HasIndex("EmpresaId", "Status", "InicioUtc");
+
+                    b.ToTable("Agendamentos", (string)null);
+                });
+
+            modelBuilder.Entity("Detara.Domain.Agenda.AgendamentoItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AgendamentoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DescricaoSnapshot")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int?>("DuracaoReferenciaMinutosSnapshot")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("EmpresaId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ItemCatalogoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NomeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("PrecoReferenciaSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TipoItem")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("TipoPrecificacaoSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("EmpresaId", "Id");
+
+                    b.HasIndex("EmpresaId", "AgendamentoId", "Ordem")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "TipoItem", "ItemCatalogoId");
+
+                    b.HasIndex("EmpresaId", "AgendamentoId", "TipoItem", "ItemCatalogoId")
+                        .IsUnique();
+
+                    b.ToTable("AgendamentosItens", (string)null);
+                });
+
             modelBuilder.Entity("Detara.Domain.Entidades.CategoriaServico", b =>
                 {
                     b.Property<Guid>("Id")
@@ -152,6 +297,13 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("FusoHorario")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("America/Sao_Paulo");
+
                     b.Property<string>("NomeFantasia")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -213,6 +365,11 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.Property<decimal?>("Preco")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TipoPrecificacao")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
 
@@ -369,6 +526,11 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.Property<decimal?>("PrecoBase")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TipoPrecificacao")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
 
@@ -600,6 +762,27 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.ToTable("PerfisPermissoes", (string)null);
                 });
 
+            modelBuilder.Entity("Detara.Domain.Agenda.Agendamento", b =>
+                {
+                    b.HasOne("Detara.Domain.Entidades.Empresa", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Detara.Domain.Agenda.AgendamentoItem", b =>
+                {
+                    b.HasOne("Detara.Domain.Agenda.Agendamento", "Agendamento")
+                        .WithMany("Itens")
+                        .HasForeignKey("EmpresaId", "AgendamentoId")
+                        .HasPrincipalKey("EmpresaId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Agendamento");
+                });
+
             modelBuilder.Entity("Detara.Domain.Entidades.CategoriaServico", b =>
                 {
                     b.HasOne("Detara.Domain.Entidades.Empresa", null)
@@ -750,6 +933,11 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .HasForeignKey("PermissaoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Detara.Domain.Agenda.Agendamento", b =>
+                {
+                    b.Navigation("Itens");
                 });
 
             modelBuilder.Entity("Detara.Domain.Entidades.CategoriaServico", b =>

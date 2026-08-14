@@ -42,13 +42,13 @@ else
     <section class="module-panel desktop-list" aria-label="Lista de serviços"><table class="module-table"><thead><tr><th>Serviço</th><th>Categoria</th><th>Preço base</th><th>Duração</th><th>Status</th><th class="actions-column">Ações</th></tr></thead><tbody>
     @foreach (var servico in _pagina.Itens)
     {
-        <tr><td><a class="primary-link" href="@($"/servicos/{servico.Id}")">@servico.Nome</a></td><td>@servico.CategoriaNome</td><td>@FormatarPreco(servico.PrecoBase)</td><td>@FormatarDuracao(servico.DuracaoEstimadaMinutos)</td><td><span class="status-badge @(servico.EhAtivo ? "status-running" : "status-neutral")">@(servico.EhAtivo ? "Ativo" : "Inativo")</span></td><td class="table-actions"><MudIconButton Href="@($"/servicos/{servico.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir serviço" /><AuthorizeView Policy="@Permissoes.ServicosEditar"><Authorized><MudIconButton Href="@($"/servicos/{servico.Id}/editar")" Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Editar serviço" /></Authorized></AuthorizeView></td></tr>
+        <tr><td><a class="primary-link" href="@($"/servicos/{servico.Id}")">@servico.Nome</a></td><td>@servico.CategoriaNome</td><td>@FormatacaoCatalogo.Preco(servico.TipoPrecificacao, servico.PrecoBase)</td><td>@FormatarDuracao(servico.DuracaoEstimadaMinutos)</td><td><span class="status-badge @(servico.EhAtivo ? "status-running" : "status-neutral")">@(servico.EhAtivo ? "Ativo" : "Inativo")</span></td><td class="table-actions"><MudIconButton Href="@($"/servicos/{servico.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir serviço" /><AuthorizeView Policy="@Permissoes.ServicosEditar"><Authorized><MudIconButton Href="@($"/servicos/{servico.Id}/editar")" Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Editar serviço" /></Authorized></AuthorizeView></td></tr>
     }
     </tbody></table></section>
     <section class="mobile-list" aria-label="Lista de serviços">
     @foreach (var servico in _pagina.Itens)
     {
-        <a class="mobile-record" href="@($"/servicos/{servico.Id}")"><div class="mobile-record-main"><strong>@servico.Nome</strong><span>@servico.CategoriaNome</span><span>@FormatarPreco(servico.PrecoBase) · @FormatarDuracao(servico.DuracaoEstimadaMinutos)</span></div><span class="status-badge @(servico.EhAtivo ? "status-running" : "status-neutral")">@(servico.EhAtivo ? "Ativo" : "Inativo")</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+        <a class="mobile-record" href="@($"/servicos/{servico.Id}")"><div class="mobile-record-main"><strong>@servico.Nome</strong><span>@servico.CategoriaNome</span><span>@FormatacaoCatalogo.Preco(servico.TipoPrecificacao, servico.PrecoBase) · @FormatarDuracao(servico.DuracaoEstimadaMinutos)</span></div><span class="status-badge @(servico.EhAtivo ? "status-running" : "status-neutral")">@(servico.EhAtivo ? "Ativo" : "Inativo")</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
     }
     </section>
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" aria-label="Próxima página" /></div></div>
@@ -84,6 +84,5 @@ else
     private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
     private async Task PaginaAnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
     private async Task ProximaPaginaAsync() { _paginaAtual++; await CarregarAsync(); }
-    private static string FormatarPreco(decimal? valor) => valor?.ToString("C2") ?? "Sob consulta";
     private static string FormatarDuracao(int? minutos) => minutos.HasValue ? $"{minutos.Value} min" : "Não informada";
 }

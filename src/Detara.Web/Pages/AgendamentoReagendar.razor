@@ -1,0 +1,27 @@
+@page "/agenda/{Id:guid}/reagendar"
+@attribute [Authorize(Policy = Permissoes.AgendaEditar)]
+@inject AgendaServico AgendaApi
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Reagendar | Detara</PageTitle>
+<CabecalhoPagina Titulo="Reagendar" Descricao="Altere somente o início e a duração planejada." Sobretitulo="AGENDA" />
+
+@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" /></div> }
+else if (_agendamento is null) { <EstadoVazio Titulo="Agendamento não encontrado" Descricao="Não foi possível carregar o registro." Icone="@Icons.Material.Outlined.EventBusy" /> }
+else
+{
+<section class="module-panel form-panel reschedule-panel">
+    <div class="reschedule-context"><strong>@_agendamento.ClienteNome</strong><span>@_agendamento.VeiculoDescricao · @_agendamento.VeiculoPlaca</span></div>
+    <div class="form-grid"><MudDatePicker @bind-Date="_data" Label="Nova data *" Required="true" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" /><MudTimePicker @bind-Time="_hora" Label="Nova hora *" Required="true" Variant="Variant.Outlined" AmPm="false" /><MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada (minutos) *" Required="true" Min="1" Max="43200" Variant="Variant.Outlined" /></div>
+    @if (_sobreposicoes > 0) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="agenda-overlap-warning"><strong>@_sobreposicoes sobreposição(ões).</strong> O reagendamento continua permitido.</MudAlert> }
+    <div class="form-actions"><MudButton Variant="Variant.Text" Href="@($"/agenda/{Id}")">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_salvando" OnClick="SalvarAsync">@(_salvando ? "Salvando..." : _sobreposicoes > 0 && _confirmado ? "Reagendar mesmo assim" : "Reagendar")</MudButton></div>
+</section>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private AgendamentoDetalheResponse? _agendamento; private DateTime? _data; private TimeSpan? _hora; private int? _duracao; private bool _carregando = true; private bool _salvando; private int _sobreposicoes; private bool _confirmado;
+    protected override async Task OnParametersSetAsync() { var r = await AgendaApi.ObterAsync(Id); _agendamento = r.Resultado; if (_agendamento is { } a) { _data = a.InicioLocal.Date; _hora = a.InicioLocal.TimeOfDay; _duracao = a.DuracaoPlanejadaMinutos; } else Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
+    private async Task SalvarAsync() { if (!_data.HasValue || !_hora.HasValue || !_duracao.HasValue) { Mensagens.Mostrar("Informe data, hora e duração.", true); return; } var inicio = _data.Value.Date.Add(_hora.Value); var conflitos = await AgendaApi.ContarSobreposicoesAsync(inicio, _duracao.Value, Id); if (!conflitos.Sucesso) { Mensagens.Mostrar(conflitos.Mensagem, true); return; } _sobreposicoes = conflitos.Resultado; if (_sobreposicoes > 0 && !_confirmado) { _confirmado = true; return; } _salvando = true; var r = await AgendaApi.ReagendarAsync(Id, new(inicio, _duracao.Value)); _salvando = false; Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) Navigation.NavigateTo($"/agenda/{Id}"); }
+}

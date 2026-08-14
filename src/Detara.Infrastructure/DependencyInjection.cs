@@ -6,6 +6,9 @@ using Detara.Infrastructure.Preferencias;
 using Detara.Infrastructure.Clientes;
 using Detara.Infrastructure.Veiculos;
 using Detara.Infrastructure.Catalogo;
+using Detara.Application.Agenda;
+using Detara.Infrastructure.Agenda;
+using Detara.Infrastructure.Plataforma;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -32,6 +35,10 @@ public static class DependencyInjection
         services.AddScoped<ICategoriasServicoRepositorio, CategoriasServicoRepositorio>();
         services.AddScoped<IServicosRepositorio, ServicosRepositorio>();
         services.AddScoped<IPacotesRepositorio, PacotesRepositorio>();
+        services.AddScoped<IAgendaRepositorio, AgendaRepositorio>();
+        services.AddScoped<IClientesAgendaConsulta, ClientesAgendaConsulta>();
+        services.AddScoped<ICatalogoAgendaConsulta, CatalogoAgendaConsulta>();
+        services.AddScoped<IFusoHorarioEmpresaConsulta, FusoHorarioEmpresaConsulta>();
         services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
         return services;
