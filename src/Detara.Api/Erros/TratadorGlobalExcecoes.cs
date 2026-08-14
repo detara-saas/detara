@@ -65,10 +65,25 @@ internal sealed class TratadorGlobalExcecoes(ILogger<TratadorGlobalExcecoes> log
                 "Você não tem permissão para realizar esta operação.",
                 "acesso_negado",
                 null),
+            RecursoNaoEncontradoException => (
+                StatusCodes.Status404NotFound,
+                exception.Message,
+                "nao_encontrado",
+                null),
+            ConflitoRegraNegocioException => (
+                StatusCodes.Status409Conflict,
+                exception.Message,
+                "conflito_regra",
+                null),
             DbUpdateConcurrencyException => (
                 StatusCodes.Status409Conflict,
                 "O registro foi alterado ou não pertence ao contexto atual.",
                 "conflito_concorrencia",
+                null),
+            DbUpdateException => (
+                StatusCodes.Status409Conflict,
+                "Os dados informados conflitam com um registro existente.",
+                "conflito_dados",
                 null),
             _ => (
                 StatusCodes.Status500InternalServerError,

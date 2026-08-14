@@ -3,6 +3,8 @@ using Detara.Domain.Entidades;
 using Detara.Infrastructure.Autenticacao;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Preferencias;
+using Detara.Infrastructure.Clientes;
+using Detara.Infrastructure.Veiculos;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -24,6 +26,8 @@ public static class DependencyInjection
         services.AddScoped<IUsuarioAutenticacaoRepositorio, UsuarioAutenticacaoRepositorio>();
         services.AddScoped<ISenhaServico, SenhaServico>();
         services.AddScoped<IPreferenciasUsuarioRepositorio, PreferenciasUsuarioRepositorio>();
+        services.AddScoped<IClientesRepositorio, ClientesRepositorio>();
+        services.AddScoped<IVeiculosRepositorio, VeiculosRepositorio>();
         services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
         return services;

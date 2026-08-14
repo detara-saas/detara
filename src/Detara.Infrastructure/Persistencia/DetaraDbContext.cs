@@ -16,6 +16,8 @@ public sealed class DetaraDbContext(
     public DbSet<Permissao> Permissoes => Set<Permissao>();
     public DbSet<UsuarioPreferencia> UsuariosPreferencias => Set<UsuarioPreferencia>();
     public DbSet<UsuarioPaginaFavorita> UsuariosPaginasFavoritas => Set<UsuarioPaginaFavorita>();
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+    public DbSet<Veiculo> Veiculos => Set<Veiculo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
