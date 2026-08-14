@@ -1,0 +1,325 @@
+# Fronteiras dos módulos
+
+Este documento é a fonte principal para ownership, dependências e comunicação entre os módulos da Detara. A decisão que o sustenta está no [ADR 001](../adr/001-modular-monolith.md).
+
+## Objetivo
+
+A Detara é um **monólito modular preparado para evolução arquitetural**. Hoje os módulos compartilham processo, deploy e banco SQL Server, mas suas fronteiras de negócio devem permanecer explícitas.
+
+A estratégia é:
+
+```text
+Modularização lógica primeiro
+        ↓
+Modularização comercial quando necessária
+        ↓
+Distribuição física somente quando justificada
+```
+
+Um módulo comercial não é sinônimo de microserviço. Um add-on pode ser contratado separadamente e continuar dentro do mesmo processo e banco.
+
+## Por que monólito modular
+
+O produto e o domínio ainda evoluem rapidamente. O monólito modular preserva transações locais, desenvolvimento simples, um único pipeline e baixo custo operacional. Fronteiras explícitas evitam que essa simplicidade se transforme em um monólito acoplado e preservam uma rota realista de extração futura.
+
+Permanecem os projetos atuais por camada:
+
+```text
+Detara.Api
+Detara.Application
+Detara.Domain
+Detara.Infrastructure
+Detara.Contracts
+Detara.Web
+```
+
+Não serão criados assemblies por módulo enquanto a quantidade de módulos, equipes e integrações não justificar esse custo.
+
+## Mapa inicial de módulos
+
+| Módulo | Estado | Responsabilidade e ownership |
+|---|---|---|
+| Plataforma / Identidade | Atual, base | Empresa, usuário, perfil, permissão, preferência, autenticação e resolução do tenant |
+| Clientes | Atual, base | Cadastro e identificação de clientes e veículos |
+| Catálogo | Atual, base | O que a empresa oferece: categorias, serviços e pacotes |
+| Agenda | Futuro, base | Agendamento, reagendamento, cancelamento e disponibilidade |
+| Atendimento | Futuro, base | Orçamento, ordem de serviço, checklist, execução, fotos e entrega |
+| Financeiro | Futuro | Pagamentos, recebimentos, fluxo e indicadores financeiros |
+| Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
+| CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
+
+Essa lista é uma visão inicial, não um enum fechado. Novos bounded contexts podem surgir e os existentes podem ser reorganizados com aprendizado real de produto.
+
+Plataforma oferece capacidades fundamentais, mas não é um depósito genérico para funcionalidades que ainda não foram classificadas.
+
+### Fluxo conceitual
+
+```text
+Plataforma
+   ↑
+   ├──────── Clientes
+   └──────── Catálogo
+
+Clientes ──────┐
+               ▼
+             Agenda
+               ▲
+Catálogo ──────┘
+               │
+               ▼
+          Atendimento
+          │     │     │
+          ▼     ▼     ▼
+     Financeiro Estoque CRM
+                 opcional opcional
+```
+
+As setas mostram fluxo de informação ou reação conceitual. Não representam automaticamente referência entre assemblies, navegação EF ou permissão para consultar tabelas internas.
+
+## Ownership e manipulação
+
+Cada módulo é dono de seu domínio, invariantes e dados. Somente o módulo proprietário pode alterar seus agregados.
+
+Um consumidor de outro módulo deve preferir:
+
+```text
+identificador
++
+menor contrato explícito necessário
+```
+
+Exemplo: Agenda pode armazenar `ClienteId`, `VeiculoId`, `ServicoId` e `PacoteId`, mas não passa a ser dona desses cadastros. Alterar telefone, documento, veículo, preço base ou composição de pacote continua responsabilidade de Clientes ou Catálogo.
+
+Aggregate roots não devem atravessar fronteiras como objetos mutáveis. Uma dependência entre módulos deve responder claramente:
+
+1. Por que o consumidor precisa conhecer o outro módulo?
+2. Qual é o menor contrato necessário?
+
+“Porque o `DbContext` permite” não é justificativa arquitetural.
+
+## Comunicação entre módulos
+
+### Consultas e comandos
+
+O `DetaraDbContext` compartilhado é uma decisão de infraestrutura, não uma API global. Um handler não pode consultar livremente tabelas internas de vários módulos.
+
+Quando existir uma integração real, criar um contrato interno estreito, por exemplo uma consulta de cliente ou serviço, definido e implementado na fronteira adequada. Não criar antecipadamente `IClienteService`, `IServicoService` ou service layers genéricos sem consumidor real.
+
+Chamadas locais podem permanecer in-process. Se um módulo for extraído, o contrato interno existente é o ponto natural para introduzir uma chamada remota.
+
+### Eventos
+
+Reações desacopladas podem usar Domain Events ou Application Events quando surgir um caso concreto. O primeiro mecanismo deve ser in-process e simples; esta arquitetura não exige barramento genérico.
+
+Exemplo futuro:
+
+```text
+OrdemServicoFinalizada
+    ├── Financeiro reage
+    ├── Estoque reage, se contratado
+    └── CRM reage, se contratado
+```
+
+Se houver distribuição física, o conceito de negócio pode evoluir para Integration Event e message broker. Broker, outbox, inbox, saga e consistência eventual só entram quando houver necessidade comprovada.
+
+### Integrações externas
+
+WhatsApp, e-mail, Google Calendar e provedores de pagamento devem ficar atrás de adapters/abstrações na fronteira apropriada. Agenda não deve conter código específico de provedor de WhatsApp; ela publica a intenção ou evento de notificação.
+
+## Dependências
+
+- Dependências circulares entre módulos são proibidas e indicam fronteira incorreta.
+- O produto base não depende de add-ons.
+- Add-ons estendem comportamento; sua ausência não bloqueia o fluxo essencial.
+- Shared Kernel deve ser pequeno e técnico: `EntidadeBase`, `EntidadeEmpresaBase`, `IUsuarioContexto`, paginação, respostas de API e abstrações fundamentais.
+- `Common`, `Shared`, `Helpers` ou `Utils` não são destinos padrão para regras de negócio.
+
+Uma dependência comum e estável pode permanecer compartilhada. Uma regra pertencente a um domínio deve ficar no módulo proprietário, mesmo quando outro módulo gostaria de reutilizá-la.
+
+## Banco compartilhado e data ownership
+
+Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilhado. Não é necessário schema SQL por módulo para existir um bounded context.
+
+| Entidade/tabela | Módulo proprietário |
+|---|---|
+| `Empresas` | Plataforma |
+| `Usuarios` | Plataforma |
+| `Perfis` | Plataforma |
+| `Permissoes` | Plataforma |
+| `PerfisPermissoes` | Plataforma |
+| `UsuariosPreferencias` | Plataforma |
+| `UsuariosPaginasFavoritas` | Plataforma |
+| `Clientes` | Clientes |
+| `Veiculos` | Clientes |
+| `CategoriasServico` | Catálogo |
+| `Servicos` | Catálogo |
+| `Pacotes` | Catálogo |
+| `PacotesServicos` | Catálogo |
+
+Essa matriz deve ser atualizada quando uma tabela ou agregado for introduzido.
+
+### Integridade e navegações
+
+- Dentro de um módulo, FKs fortes e navegações EF são recomendadas quando protegem invariantes úteis.
+- FKs cross-module são decisões deliberadas, avaliadas pelo equilíbrio entre integridade atual e custo de extração.
+- Grandes grafos de navegação atravessando módulos devem ser evitados.
+- Cascade delete não deve atravessar fronteiras. Preferir `Restrict`, inativação lógica e eventos.
+- Add-ons potencialmente extraíveis devem evitar hard coupling com tabelas do produto base quando identificador, validação de aplicação ou evento forem suficientes.
+
+### Transações e consistência
+
+Transações locais podem envolver operações de mais de um módulo enquanto tudo estiver no mesmo banco, mas novos fluxos não devem depender de transações gigantes sem necessidade.
+
+Dentro de um módulo, a regra padrão é consistência forte. Entre módulos distribuídos poderá existir consistência eventual; ela não será implementada preventivamente no monólito atual.
+
+## Documentos transacionais e snapshots
+
+Agenda e Atendimento podem referenciar IDs de Clientes e Catálogo. Orçamentos e ordens de serviço, porém, devem preservar snapshots das informações comerciais relevantes — nome do serviço, descrição negociada, quantidade e preço praticado — para que alterações posteriores no Catálogo não reescrevam o histórico.
+
+O snapshot pertence ao documento transacional. Ele não transfere ownership do cadastro original.
+
+## Add-ons, entitlement e autorização
+
+Módulo contratado pela empresa e permissão do usuário são conceitos distintos.
+
+Modelo conceitual futuro, criado apenas quando existir o primeiro add-on comercial real:
+
+```text
+EmpresaModulo
+    EmpresaId
+    Modulo
+    EhAtivo
+    Plano
+```
+
+O acesso a um módulo opcional poderá exigir:
+
+```text
+empresa possui entitlement ativo
+AND
+usuário possui permissão
+```
+
+Permissões não representam assinatura comercial, e a ausência de uma permissão não prova que a empresa não contratou o módulo. Feature flags também têm outra finalidade: rollout técnico.
+
+Entitlement futuro deve controlar de forma coerente rotas, sidebar, favoritos e acesso da API. Esconder a navegação não substitui autorização no backend.
+
+## Organização do código
+
+O inventário atual está organizado por funcionalidade em Application, Infrastructure e Contracts:
+
+```text
+Application/Clientes       Infrastructure/Clientes       Contracts/Clientes
+Application/Catalogo       Infrastructure/Catalogo       Contracts/Catalogo
+Application/Preferencias   Infrastructure/Preferencias   Contracts/Preferencias
+```
+
+Handlers estão em `Application/<Modulo>`, repositórios em `Infrastructure/<Modulo>`, contratos públicos em `Contracts/<Modulo>` e os controllers HTTP finos em `Api/Controllers`. O frontend usa páginas, componentes e clients HTTP próprios de Clientes, Veículos e Catálogo. Projeções de consulta ficam nos repositórios e o mapeamento HTTP permanece nos controllers.
+
+O Domain ainda concentra entidades em `Domain/Entidades`, e controllers/pages permanecem em pastas amplas. Isso não constitui, por si só, violação de fronteira. Não haverá reorganização em massa.
+
+### Auditoria da base atual
+
+- Cliente e Veículo permanecem no mesmo módulo Clientes; a relação entre eles é interna e válida.
+- Categoria, Serviço, Pacote e PacoteServico permanecem no Catálogo e não manipulam Clientes.
+- Application e Api não usam o `DetaraDbContext` como API global; acesso persistente fica encapsulado em Infrastructure.
+- O contrato técnico de ativação/inativação foi movido de `Contracts.Clientes` para `Contracts.Comum`, eliminando a única dependência nominal de Catálogo em Clientes encontrada no inventário.
+- Não foram encontradas dependências circulares ou modificações de agregados entre módulos.
+
+Novos módulos devem nascer organizados por ownership, por exemplo:
+
+```text
+Domain/Agenda/
+Application/Agenda/
+Infrastructure/Agenda/
+Contracts/Agenda/
+```
+
+Commands, queries, handlers e validators podem ser separados gradualmente quando o tamanho justificar. Namespaces devem refletir o módulo sem criar assemblies artificiais.
+
+Testes arquiteturais poderão ser adicionados quando namespaces e fronteiras estiverem estáveis o suficiente para produzir regras robustas. Não usar testes frágeis baseados apenas em strings.
+
+## Preparação da Agenda
+
+Agenda será dona de `Agendamento`, reagendamento, cancelamento e disponibilidade. Não será dona de Cliente, Veículo, Serviço ou Pacote.
+
+Na implementação inicial:
+
+- armazenar os IDs necessários;
+- validar referências por contratos explícitos quando houver caso real;
+- consultar apenas a projeção mínima necessária para exibição;
+- não alterar agregados de Clientes ou Catálogo;
+- não criar navegações EF profundas atravessando esses módulos.
+
+Atendimento será posteriormente dono de Orçamento, Ordem de Serviço e Checklist. Ele também referencia Clientes e Catálogo sem assumir o cadastro deles.
+
+## Add-ons e exemplos de evolução
+
+### Estoque
+
+Hoje, Atendimento e Estoque podem executar no mesmo processo e banco. A conclusão de uma ordem não depende da existência de Estoque. Se contratado, Estoque reage e gera movimentações.
+
+Futuramente:
+
+```text
+Detara Core
+    │ Integration Event
+    ▼
+Detara Estoque
+```
+
+O Core continua operando se o serviço de Estoque estiver ausente ou desabilitado.
+
+### Financeiro
+
+Financeiro pode permanecer no monólito e reagir a eventos como `OrcamentoAprovado`, `OrdemServicoConcluida` e `PagamentoRecebido`. Isso não o transforma automaticamente em candidato a microserviço.
+
+## Critérios para extração futura
+
+Um módulo pode virar serviço independente quando existir benefício comprovado, como:
+
+- escala ou carga muito diferente;
+- necessidade de deploy, SLA ou tecnologia independente;
+- equipe com autonomia operacional;
+- segurança ou regulação específica;
+- integrações externas intensas;
+- estratégia comercial que exija isolamento;
+- custo operacional menor que o benefício da separação.
+
+Quantidade de linhas de código, isoladamente, não é critério.
+
+Processo conceitual de extração:
+
+1. Confirmar o módulo e seu ownership.
+2. Inventariar contratos consumidos e oferecidos.
+3. Eliminar acessos externos diretos às tabelas do módulo.
+4. Transformar chamadas internas em contratos remotos.
+5. Migrar os dados proprietários.
+6. Transformar eventos internos em integration events.
+7. Introduzir somente a infraestrutura distribuída necessária.
+8. Definir observabilidade, resiliência e estratégia de consistência.
+
+## Anti-patterns
+
+São proibidos ou exigem correção arquitetural:
+
+- **DbContext como API global:** handler consultando tabelas de vários módulos apenas porque estão disponíveis.
+- **Agregados mutáveis compartilhados:** um módulo carregando e modificando aggregate root de outro.
+- **Grafo EF global:** navegações atravessando Cliente → Agenda → Atendimento → Financeiro.
+- **Common gigante:** regras de negócio movidas para uma pasta genérica sem ownership.
+- **Dependência circular:** Agenda dependendo de Atendimento que depende novamente de Agenda.
+- **Add-on obrigatório:** fluxo essencial do Core falhando porque Estoque ou CRM não existem.
+- **Microserviços preventivos:** mensageria, service discovery, API gateway, bancos separados ou containers por módulo sem problema real.
+
+## Checklist para novas funcionalidades
+
+Antes de implementar:
+
+1. Qual módulo é dono do novo conceito?
+2. Quais dados ele possui?
+3. Ele precisa conhecer outro módulo? Por quê?
+4. O menor vínculo possível é um ID, consulta ou evento?
+5. Existe acesso direto a tabela interna alheia que deveria virar contrato?
+6. O fluxo base passou a depender de add-on?
+7. Há cascade, navegação ou transação atravessando fronteiras sem justificativa?
+8. A matriz de ownership e este documento precisam ser atualizados?

@@ -8,6 +8,8 @@ SQL Server com EF Core Code First. `InitialCreate` cria:
 - `Permissoes`
 - `PerfisPermissoes`
 
+O banco é compartilhado entre os módulos, mas cada tabela possui um módulo proprietário. Shared database é uma decisão de infraestrutura e não autoriza acesso indiscriminado entre módulos. A matriz completa de ownership e as regras para FKs cross-module estão em [Fronteiras dos módulos](architecture/module-boundaries.md).
+
 Índices únicos: `Empresa.Slug`, `Empresa.CpfCnpj`, `Permissao.Codigo`, `Perfil(EmpresaId, Nome)` e `Usuario(EmpresaId, Email)`.
 
 A associação de usuário com perfil usa FK composta `(EmpresaId, PerfilId)`, impedindo associação entre tenants no próprio banco. Novas entidades comerciais devem herdar `EntidadeEmpresaBase` e adotar índices com `EmpresaId` quando a unicidade ou consulta for local à empresa.
