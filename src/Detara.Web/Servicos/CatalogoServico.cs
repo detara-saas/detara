@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using Detara.Contracts.Catalogo;
-using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
 
 namespace Detara.Web.Servicos;

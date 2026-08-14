@@ -1,7 +1,6 @@
 using Detara.Application.Catalogo;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Catalogo;
-using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

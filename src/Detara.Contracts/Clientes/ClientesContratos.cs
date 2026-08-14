@@ -10,8 +10,6 @@ public sealed record SalvarClienteRequest(
     DateOnly? DataNascimento,
     string? Observacao);
 
-public sealed record AlterarStatusRequest(bool EhAtivo);
-
 public sealed record ClienteListaResponse(
     Guid Id,
     string Nome,
