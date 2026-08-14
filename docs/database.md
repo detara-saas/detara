@@ -36,9 +36,24 @@ A migration `AddClientesEVeiculos` adiciona:
 
 Clientes e veículos herdam `EntidadeEmpresaBase`, portanto recebem automaticamente filtro global, validação de escrita e token de concorrência por tenant. Documento e placa são armazenados normalizados.
 
+## Catálogo de serviços e pacotes
+
+A migration `AddServicosCategoriasEPacotes` adiciona:
+
+- `CategoriasServico`, com nome único por `(EmpresaId, Nome)` e ordenação própria;
+- `Servicos`, com nome único por `(EmpresaId, CategoriaServicoId, Nome)`, preço base e duração opcionais;
+- `Pacotes`, com nome único por `(EmpresaId, Nome)` e preço comercial independente;
+- `PacotesServicos`, com composição ordenada e vínculo único por `(EmpresaId, PacoteId, ServicoId)`;
+- FKs compostas para categoria, pacote e serviço, impedindo associações entre tenants no banco;
+- FKs para empresa e exclusões restritivas em todos os relacionamentos.
+
+Categorias, serviços e pacotes usam inativação lógica independente. A soma dos serviços, a duração total e a economia do pacote são calculadas nas consultas e não são persistidas. A economia só é apresentada quando todos os serviços possuem preço e o preço do pacote é menor que a soma individual.
+
 Aplicação de migration:
 
 ```powershell
 dotnet tool restore
 dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj --startup-project src/Detara.Api/Detara.Api.csproj
 ```
+
+As migrations das Tasks 02 e 03 devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco.

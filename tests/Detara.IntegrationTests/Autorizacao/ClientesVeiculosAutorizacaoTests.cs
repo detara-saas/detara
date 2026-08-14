@@ -79,6 +79,61 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("/api/servicos")]
+    [InlineData("/api/categorias-servico")]
+    public async Task UsuarioSemServicosVisualizar_Recebe403(string rota)
+    {
+        var response = await _client.GetAsync(rota);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioComServicosVisualizar_ConsultaPermitida()
+    {
+        UsarPermissoes(Permissoes.ServicosVisualizar);
+        var response = await _client.GetAsync("/api/servicos");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/servicos", Permissoes.ServicosCriar)]
+    [InlineData("/api/pacotes", Permissoes.PacotesCriar)]
+    public async Task UsuarioSemPermissaoDeCriacao_Recebe403(string rota, string permissaoNecessaria)
+    {
+        UsarPermissoes(Permissoes.ServicosVisualizar, Permissoes.PacotesVisualizar);
+        Assert.DoesNotContain(permissaoNecessaria, _client.DefaultRequestHeaders.GetValues(TestAuthHandler.PermissionsHeader).Single());
+        var response = await _client.PostAsJsonAsync(rota, new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/servicos/00000000-0000-0000-0000-000000000001", Permissoes.ServicosEditar)]
+    [InlineData("/api/pacotes/00000000-0000-0000-0000-000000000001", Permissoes.PacotesEditar)]
+    public async Task UsuarioSemPermissaoDeEdicao_Recebe403(string rota, string permissaoNecessaria)
+    {
+        UsarPermissoes(Permissoes.ServicosVisualizar, Permissoes.PacotesVisualizar);
+        Assert.DoesNotContain(permissaoNecessaria, _client.DefaultRequestHeaders.GetValues(TestAuthHandler.PermissionsHeader).Single());
+        var response = await _client.PutAsJsonAsync(rota, new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioSemPacotesVisualizar_Recebe403()
+    {
+        UsarPermissoes(Permissoes.ServicosVisualizar);
+        var response = await _client.GetAsync("/api/pacotes");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioComPacotesVisualizar_ConsultaPermitida()
+    {
+        UsarPermissoes(Permissoes.PacotesVisualizar);
+        var response = await _client.GetAsync("/api/pacotes");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private void UsarPermissoes(params string[] permissoes)
     {
         _client.DefaultRequestHeaders.Remove(TestAuthHandler.PermissionsHeader);

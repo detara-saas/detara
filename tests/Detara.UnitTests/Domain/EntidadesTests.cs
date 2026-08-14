@@ -154,6 +154,54 @@ public sealed class EntidadesTests
         Assert.Throws<ArgumentException>(() => CriarVeiculo("ABC1D23", -1));
     }
 
+    [Fact]
+    public void CategoriaServico_NormalizaDadosEExigeOrdemValida()
+    {
+        var categoria = new CategoriaServico(Guid.NewGuid(), "  Polimento  ", "  Correção de pintura  ", 2);
+
+        Assert.Equal("Polimento", categoria.Nome);
+        Assert.Equal("Correção de pintura", categoria.Descricao);
+        Assert.Throws<ArgumentException>(() => new CategoriaServico(Guid.NewGuid(), "Lavagem", null, -1));
+    }
+
+    [Theory]
+    [InlineData(-0.01, 60)]
+    [InlineData(10, 0)]
+    [InlineData(10, 43201)]
+    public void Servico_RejeitaPrecoOuDuracaoInvalidos(decimal preco, int duracao)
+    {
+        Assert.Throws<ArgumentException>(() => new Servico(
+            Guid.NewGuid(), Guid.NewGuid(), "Serviço", null, preco, duracao, 0));
+    }
+
+    [Fact]
+    public void Servico_PermitePrecoEDuracaoNaoInformados()
+    {
+        var servico = new Servico(Guid.NewGuid(), Guid.NewGuid(), "Vitrificação", null, null, null, 0);
+
+        Assert.Null(servico.PrecoBase);
+        Assert.Null(servico.DuracaoEstimadaMinutos);
+    }
+
+    [Fact]
+    public void Pacote_ExigeServicoENaoPermiteDuplicidade()
+    {
+        var empresaId = Guid.NewGuid();
+        var servicoId = Guid.NewGuid();
+
+        Assert.Throws<ArgumentException>(() => new Pacote(empresaId, "Pacote", null, 100, []));
+        Assert.Throws<ArgumentException>(() => new Pacote(empresaId, "Pacote", null, 100, [servicoId, servicoId]));
+    }
+
+    [Fact]
+    public void Pacote_MantemPrecoProprioEOrdenaServicos()
+    {
+        var pacote = new Pacote(Guid.NewGuid(), "Combo Premium", null, 249.90m, [Guid.NewGuid(), Guid.NewGuid()]);
+
+        Assert.Equal(249.90m, pacote.Preco);
+        Assert.Equal([1, 2], pacote.Servicos.Select(item => item.Ordem));
+    }
+
     private static Veiculo CriarVeiculo(string placa, int quilometragem) => new(
         Guid.NewGuid(),
         Guid.NewGuid(),
