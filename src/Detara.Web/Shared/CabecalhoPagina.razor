@@ -1,0 +1,31 @@
+<header class="page-heading module-heading">
+    <div>
+        @if (!string.IsNullOrWhiteSpace(Sobretitulo))
+        {
+            <MudText Typo="Typo.caption" Class="page-eyebrow">@Sobretitulo</MudText>
+        }
+        <MudText Typo="Typo.h1">@Titulo</MudText>
+        @if (!string.IsNullOrWhiteSpace(Descricao))
+        {
+            <MudText Typo="Typo.body1" Color="Color.Secondary">@Descricao</MudText>
+        }
+    </div>
+    @if (Acoes is not null)
+    {
+        <div class="page-actions">@Acoes</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Descricao { get; set; }
+
+    [Parameter]
+    public string? Sobretitulo { get; set; }
+
+    [Parameter]
+    public RenderFragment? Acoes { get; set; }
+}

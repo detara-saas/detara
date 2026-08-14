@@ -26,8 +26,16 @@
     <MudNavLink Href="/ordens-servico" Icon="@Icons.Material.Outlined.FactCheck"><span class="nav-label">Ordens de Serviço</span></MudNavLink>
 
     <MudText Typo="Typo.overline" Class="nav-section">CADASTROS</MudText>
-    <MudNavLink Href="/clientes" Icon="@Icons.Material.Outlined.People"><span class="nav-label">Clientes</span></MudNavLink>
-    <MudNavLink Href="/veiculos" Icon="@Icons.Material.Outlined.DirectionsCar"><span class="nav-label">Veículos</span></MudNavLink>
+    <AuthorizeView Policy="@Permissoes.ClientesVisualizar">
+        <Authorized>
+            <MudNavLink Href="/clientes" Icon="@Icons.Material.Outlined.People"><span class="nav-label">Clientes</span></MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Policy="@Permissoes.VeiculosVisualizar">
+        <Authorized>
+            <MudNavLink Href="/veiculos" Icon="@Icons.Material.Outlined.DirectionsCar"><span class="nav-label">Veículos</span></MudNavLink>
+        </Authorized>
+    </AuthorizeView>
     <MudNavLink Href="/servicos" Icon="@Icons.Material.Outlined.AutoFixHigh"><span class="nav-label">Serviços</span></MudNavLink>
     <MudNavLink Href="/pacotes" Icon="@Icons.Material.Outlined.Inventory2"><span class="nav-label">Pacotes</span></MudNavLink>
 

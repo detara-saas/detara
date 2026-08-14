@@ -1,0 +1,128 @@
+@page "/clientes/{Id:guid}"
+@attribute [Authorize(Policy = Permissoes.ClientesVisualizar)]
+@inject ClientesServico ClientesApi
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>@(_cliente?.Nome ?? "Cliente") | Detara</PageTitle>
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else if (_cliente is null)
+{
+    <EstadoVazio Titulo="Cliente não encontrado" Descricao="O cliente não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.PersonOff" />
+}
+else
+{
+    <CabecalhoPagina Titulo="@_cliente.Nome" Descricao="@ResumoContato" Sobretitulo="CLIENTE">
+        <Acoes>
+            <span class="status-badge @(_cliente.EhAtivo ? "status-running" : "status-neutral")">@(_cliente.EhAtivo ? "Ativo" : "Inativo")</span>
+            <AuthorizeView Policy="@Permissoes.ClientesEditar">
+                <Authorized>
+                    <MudButton Href="@($"/clientes/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton>
+                    <MudButton Variant="Variant.Text" Color="@(_cliente.EhAtivo ? Color.Error : Color.Success)" OnClick="SolicitarAlteracaoStatus">
+                        @(_cliente.EhAtivo ? "Inativar" : "Ativar")
+                    </MudButton>
+                </Authorized>
+            </AuthorizeView>
+        </Acoes>
+    </CabecalhoPagina>
+
+    @if (_confirmandoStatus)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip">
+            <div><strong>Confirmar @(_cliente.EhAtivo ? "inativação" : "ativação")?</strong><span>O histórico será preservado.</span></div>
+            <div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div>
+        </MudAlert>
+    }
+
+    <div class="detail-grid">
+        <section class="module-panel detail-card">
+            <div class="section-heading"><div><span class="section-eyebrow">RESUMO</span><h2>Dados do cliente</h2></div></div>
+            <dl class="detail-list">
+                <div><dt>Tipo</dt><dd>@(_cliente.TipoPessoa == "PessoaJuridica" ? "Pessoa jurídica" : "Pessoa física")</dd></div>
+                <div><dt>CPF/CNPJ</dt><dd>@Valor(_cliente.CpfCnpj)</dd></div>
+                <div><dt>Telefone</dt><dd>@Valor(_cliente.Telefone)</dd></div>
+                <div><dt>WhatsApp</dt><dd>@Valor(_cliente.WhatsApp)</dd></div>
+                <div><dt>E-mail</dt><dd>@Valor(_cliente.Email)</dd></div>
+                <div><dt>Nascimento</dt><dd>@(_cliente.DataNascimento?.ToString("dd/MM/yyyy") ?? "—")</dd></div>
+            </dl>
+        </section>
+
+        <section class="module-panel detail-card detail-observation">
+            <div class="section-heading"><div><span class="section-eyebrow">OBSERVAÇÕES</span><h2>Contexto operacional</h2></div></div>
+            <p>@Valor(_cliente.Observacao, "Nenhuma observação registrada.")</p>
+        </section>
+    </div>
+
+    <section class="module-panel related-section">
+        <div class="section-heading">
+            <div><span class="section-eyebrow">VEÍCULOS</span><h2>@_cliente.Veiculos.Count veículo(s) associado(s)</h2></div>
+            <AuthorizeView Policy="@Permissoes.VeiculosCriar">
+                <Authorized><MudButton Href="@($"/veiculos/novo?clienteId={Id}")" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Adicionar veículo</MudButton></Authorized>
+            </AuthorizeView>
+        </div>
+        @if (_cliente.Veiculos.Count == 0)
+        {
+            <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" /><div><strong>Nenhum veículo cadastrado</strong><span>Adicione o primeiro veículo deste cliente.</span></div></div>
+        }
+        else
+        {
+            <div class="related-grid">
+                @foreach (var veiculo in _cliente.Veiculos)
+                {
+                    <article class="vehicle-summary-card">
+                        <div class="vehicle-summary-icon"><MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" /></div>
+                        <div><strong>@veiculo.Descricao</strong><span>@veiculo.Placa · @(veiculo.AnoModelo?.ToString() ?? "Ano não informado")</span><span>@Valor(veiculo.Cor) · @(veiculo.Quilometragem?.ToString("N0") ?? "—") km</span></div>
+                        <span class="status-badge @(veiculo.EhAtivo ? "status-running" : "status-neutral")">@(veiculo.EhAtivo ? "Ativo" : "Inativo")</span>
+                        <MudIconButton Href="@($"/veiculos/{veiculo.Id}")" Icon="@Icons.Material.Outlined.ArrowForward" aria-label="Abrir veículo" />
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="module-panel related-section">
+        <div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Atendimentos</h2></div></div>
+        <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhum atendimento registrado</strong><span>O histórico aparecerá aqui quando houver ordens de serviço.</span></div></div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private ClienteDetalheResponse? _cliente;
+    private bool _carregando = true;
+    private bool _confirmandoStatus;
+    private string ResumoContato => string.Join(" · ", new[] { _cliente?.Telefone, _cliente?.Email }.Where(item => !string.IsNullOrWhiteSpace(item)));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _carregando = true;
+        var resultado = await ClientesApi.ObterAsync(Id);
+        _cliente = resultado.Resultado;
+        if (!resultado.Sucesso)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+        }
+
+        _carregando = false;
+    }
+
+    private void SolicitarAlteracaoStatus() => _confirmandoStatus = true;
+    private void CancelarStatus() => _confirmandoStatus = false;
+
+    private async Task ConfirmarStatusAsync()
+    {
+        if (_cliente is null) return;
+        var resultado = await ClientesApi.AlterarStatusAsync(Id, !_cliente.EhAtivo);
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        _confirmandoStatus = false;
+        if (resultado.Sucesso) await OnParametersSetAsync();
+    }
+
+    private static string Valor(string? valor, string padrao = "—") => string.IsNullOrWhiteSpace(valor) ? padrao : valor;
+}

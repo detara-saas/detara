@@ -1,0 +1,101 @@
+@page "/veiculos"
+@attribute [Authorize(Policy = Permissoes.VeiculosVisualizar)]
+@inject VeiculosServico VeiculosApi
+@inject IMensagemServico Mensagens
+
+<PageTitle>Veículos | Detara</PageTitle>
+
+<CabecalhoPagina Titulo="Veículos" Descricao="Consulte os veículos atendidos pela sua operação." Sobretitulo="CADASTROS">
+    <Acoes>
+        <AuthorizeView Policy="@Permissoes.VeiculosCriar">
+            <Authorized><MudButton Href="/veiculos/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo veículo</MudButton></Authorized>
+        </AuthorizeView>
+    </Acoes>
+</CabecalhoPagina>
+
+<section class="module-toolbar" aria-label="Filtros de veículos">
+    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Placa, marca, modelo, cliente ou telefone"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" />
+    <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense">
+        <MudSelectItem Value="@("todos")">Todos</MudSelectItem>
+        <MudSelectItem Value="@("ativos")">Ativos</MudSelectItem>
+        <MudSelectItem Value="@("inativos")">Inativos</MudSelectItem>
+    </MudSelect>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="PesquisarAsync" StartIcon="@Icons.Material.Outlined.FilterAlt">Aplicar</MudButton>
+</section>
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else if (_pagina is null || _pagina.Itens.Count == 0)
+{
+    <EstadoVazio Titulo="Nenhum veículo encontrado" Descricao="Cadastre o primeiro veículo ou ajuste os filtros de pesquisa." Icone="@Icons.Material.Outlined.DirectionsCar">
+        <Acao><AuthorizeView Policy="@Permissoes.VeiculosCriar"><Authorized><MudButton Href="/veiculos/novo" Variant="Variant.Filled" Color="Color.Primary">Cadastrar veículo</MudButton></Authorized></AuthorizeView></Acao>
+    </EstadoVazio>
+}
+else
+{
+    <section class="module-panel desktop-list" aria-label="Lista de veículos">
+        <table class="module-table">
+            <thead><tr><th>Veículo</th><th>Placa</th><th>Cliente</th><th>Ano</th><th>Cor</th><th>Quilometragem</th><th>Status</th><th class="actions-column">Ações</th></tr></thead>
+            <tbody>
+            @foreach (var veiculo in _pagina.Itens)
+            {
+                <tr>
+                    <td><a class="primary-link" href="@($"/veiculos/{veiculo.Id}")">@veiculo.Descricao</a></td>
+                    <td><span class="plate-badge">@veiculo.Placa</span></td>
+                    <td><a class="secondary-link" href="@($"/clientes/{veiculo.ClienteId}")">@veiculo.ClienteNome</a></td>
+                    <td>@(veiculo.AnoModelo?.ToString() ?? "—")</td>
+                    <td>@Valor(veiculo.Cor)</td>
+                    <td>@(veiculo.Quilometragem?.ToString("N0") ?? "—") km</td>
+                    <td><span class="status-badge @(veiculo.EhAtivo ? "status-running" : "status-neutral")">@(veiculo.EhAtivo ? "Ativo" : "Inativo")</span></td>
+                    <td class="table-actions"><MudIconButton Href="@($"/veiculos/{veiculo.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir veículo" /><AuthorizeView Policy="@Permissoes.VeiculosEditar"><Authorized><MudIconButton Href="@($"/veiculos/{veiculo.Id}/editar")" Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Editar veículo" /></Authorized></AuthorizeView></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="mobile-list" aria-label="Lista de veículos">
+        @foreach (var veiculo in _pagina.Itens)
+        {
+            <a class="mobile-record vehicle-mobile-record" href="@($"/veiculos/{veiculo.Id}")">
+                <div class="mobile-record-main"><strong>@veiculo.Descricao</strong><span class="plate-badge">@veiculo.Placa</span><span>@veiculo.ClienteNome</span><span>@(veiculo.AnoModelo?.ToString() ?? "—") · @Valor(veiculo.Cor) · @(veiculo.Quilometragem?.ToString("N0") ?? "—") km</span></div>
+                <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+            </a>
+        }
+    </section>
+
+    <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" /></div></div>
+}
+
+@code {
+    private PaginaResponse<VeiculoListaResponse>? _pagina;
+    private bool _carregando = true;
+    private string? _pesquisa;
+    private string _status = "todos";
+    private int _paginaAtual = 1;
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var resultado = await VeiculosApi.ListarAsync(
+            _paginaAtual,
+            25,
+            _pesquisa,
+            _status == "todos" ? null : _status == "ativos");
+        _pagina = resultado.Resultado;
+        if (!resultado.Sucesso)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+        }
+
+        _carregando = false;
+    }
+    private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
+    private async Task PaginaAnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
+    private async Task ProximaPaginaAsync() { _paginaAtual++; await CarregarAsync(); }
+    private static string Valor(string? valor) => string.IsNullOrWhiteSpace(valor) ? "—" : valor;
+}

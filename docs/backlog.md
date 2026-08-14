@@ -3,7 +3,7 @@
 ## MVP
 
 - Fundação, autenticação, empresa e usuários
-- Clientes e veículos
+- Clientes e veículos — concluído na Task 02
 - Serviços, agenda e orçamentos
 - Ordens de serviço, checklist e fotos
 - Pagamento básico e dashboard com dados reais

@@ -6,6 +6,7 @@ using Detara.Web.Seguranca;
 using Detara.Web.Servicos;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor.Services;
+using Detara.Contracts.Autorizacao;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 var culturaPadrao = CultureInfo.GetCultureInfo("pt-BR");
@@ -16,7 +17,13 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 var apiBaseAddress = new Uri(
     builder.Configuration["Api:BaseUrl"] ?? builder.HostEnvironment.BaseAddress);
-builder.Services.AddAuthorizationCore();
+builder.Services.AddAuthorizationCore(options =>
+{
+    foreach (var permissao in Permissoes.ModulosClientesVeiculos)
+    {
+        options.AddPolicy(permissao, policy => policy.RequireClaim("permissao", permissao));
+    }
+});
 builder.Services.AddLocalization();
 builder.Services.AddMudServices();
 builder.Services.AddScoped<TokenStorage>();
@@ -34,6 +41,8 @@ builder.Services.AddScoped(provider =>
 builder.Services.AddScoped<AutenticacaoServico>();
 builder.Services.AddScoped<IMensagemServico, MensagemServico>();
 builder.Services.AddScoped<PreferenciasInterfaceServico>();
+builder.Services.AddScoped<ClientesServico>();
+builder.Services.AddScoped<VeiculosServico>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<PreferenciasInterfaceServico>().InicializarAsync();

@@ -1,0 +1,23 @@
+<section class="empty-state module-empty-state">
+    <div class="empty-icon"><MudIcon Icon="@Icone" Size="Size.Large" /></div>
+    <MudText Typo="Typo.h5">@Titulo</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">@Descricao</MudText>
+    @if (Acao is not null)
+    {
+        <div class="empty-action">@Acao</div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Descricao { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Icone { get; set; } = Icons.Material.Outlined.Inbox;
+
+    [Parameter]
+    public RenderFragment? Acao { get; set; }
+}

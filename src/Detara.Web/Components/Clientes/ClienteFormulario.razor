@@ -1,0 +1,100 @@
+@inject ClientesServico ClientesApi
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<MudForm @ref="_form" Class="module-form">
+    <div class="form-grid">
+        <MudTextField T="string" @bind-Value="_modelo.Nome" Label="Nome *" Required="true" Variant="Variant.Outlined" />
+        <MudSelect T="string" @bind-Value="_modelo.TipoPessoa" Label="Tipo de pessoa *" Required="true" Variant="Variant.Outlined">
+            <MudSelectItem Value="@("PessoaFisica")">Pessoa física</MudSelectItem>
+            <MudSelectItem Value="@("PessoaJuridica")">Pessoa jurídica</MudSelectItem>
+        </MudSelect>
+        <MudTextField T="string" @bind-Value="_modelo.CpfCnpj" Label="CPF/CNPJ" Variant="Variant.Outlined" HelperText="Opcional; aceita pontuação." />
+        <MudTextField T="string" @bind-Value="_modelo.Telefone" Label="Telefone" Variant="Variant.Outlined" InputType="InputType.Telephone" />
+        <MudTextField T="string" @bind-Value="_modelo.WhatsApp" Label="WhatsApp" Variant="Variant.Outlined" InputType="InputType.Telephone" />
+        <MudTextField T="string" @bind-Value="_modelo.Email" Label="E-mail" Variant="Variant.Outlined" InputType="InputType.Email" />
+        @if (_modelo.TipoPessoa == "PessoaFisica")
+        {
+            <MudDatePicker @bind-Date="_dataNascimento" Label="Data de nascimento" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" />
+        }
+        <MudTextField T="string" @bind-Value="_modelo.Observacao" Label="Observações" Variant="Variant.Outlined" Lines="4" Class="form-full" />
+    </div>
+    <div class="form-actions">
+        <MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SalvarAsync" Disabled="_salvando" StartIcon="@Icons.Material.Outlined.Save">
+            @(_salvando ? "Salvando..." : "Salvar cliente")
+        </MudButton>
+    </div>
+</MudForm>
+
+@code {
+    [Parameter]
+    public Guid? ClienteId { get; set; }
+
+    private MudForm? _form;
+    private ClienteFormModel _modelo = new();
+    private DateTime? _dataNascimento;
+    private bool _salvando;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ClienteId.HasValue) return;
+        var resultado = await ClientesApi.ObterAsync(ClienteId.Value);
+        if (resultado.Resultado is not { } cliente)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+            return;
+        }
+
+        _modelo = new ClienteFormModel
+        {
+            Nome = cliente.Nome,
+            TipoPessoa = cliente.TipoPessoa,
+            CpfCnpj = cliente.CpfCnpj,
+            Telefone = cliente.Telefone,
+            WhatsApp = cliente.WhatsApp,
+            Email = cliente.Email,
+            Observacao = cliente.Observacao
+        };
+        _dataNascimento = cliente.DataNascimento?.ToDateTime(TimeOnly.MinValue);
+    }
+
+    private async Task SalvarAsync()
+    {
+        if (_form is null) return;
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+        _salvando = true;
+        var request = new SalvarClienteRequest(
+            _modelo.Nome,
+            _modelo.TipoPessoa,
+            _modelo.CpfCnpj,
+            _modelo.Telefone,
+            _modelo.WhatsApp,
+            _modelo.Email,
+            _dataNascimento.HasValue ? DateOnly.FromDateTime(_dataNascimento.Value) : null,
+            _modelo.Observacao);
+        var resultado = ClienteId.HasValue
+            ? await ClientesApi.AtualizarAsync(ClienteId.Value, request)
+            : await ClientesApi.CriarAsync(request);
+        _salvando = false;
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        if (resultado is { Sucesso: true, Resultado: not null })
+        {
+            Navigation.NavigateTo($"/clientes/{resultado.Resultado.Id}");
+        }
+    }
+
+    private void Cancelar() => Navigation.NavigateTo(ClienteId.HasValue ? $"/clientes/{ClienteId}" : "/clientes");
+
+    private sealed class ClienteFormModel
+    {
+        public string Nome { get; set; } = string.Empty;
+        public string TipoPessoa { get; set; } = "PessoaFisica";
+        public string? CpfCnpj { get; set; }
+        public string? Telefone { get; set; }
+        public string? WhatsApp { get; set; }
+        public string? Email { get; set; }
+        public string? Observacao { get; set; }
+    }
+}

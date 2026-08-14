@@ -24,6 +24,18 @@ A migration `AddUserInterfacePreferences` adiciona:
 
 Tema, idioma, estado da sidebar, página inicial e favoritos pertencem ao usuário autenticado. O browser nunca envia `UsuarioId` ou `EmpresaId` para atualizar esses dados.
 
+## Clientes e veículos
+
+A migration `AddClientesEVeiculos` adiciona:
+
+- `Clientes`, com documento opcional e único por `(EmpresaId, CpfCnpj)` quando preenchido;
+- `Veiculos`, com placa única por `(EmpresaId, Placa)`;
+- FK composta `(EmpresaId, ClienteId)` de veículo para cliente;
+- FKs para empresa e relacionamento Cliente → Veículo com exclusão restritiva;
+- índices de busca por nome, telefone, documento, placa e cliente.
+
+Clientes e veículos herdam `EntidadeEmpresaBase`, portanto recebem automaticamente filtro global, validação de escrita e token de concorrência por tenant. Documento e placa são armazenados normalizados.
+
 Aplicação de migration:
 
 ```powershell

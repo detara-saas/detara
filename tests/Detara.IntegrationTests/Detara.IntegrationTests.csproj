@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -22,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Detara.Application\Detara.Application.csproj" />
+    <ProjectReference Include="..\..\src\Detara.Api\Detara.Api.csproj" />
+    <ProjectReference Include="..\..\src\Detara.Contracts\Detara.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Detara.Domain\Detara.Domain.csproj" />
     <ProjectReference Include="..\..\src\Detara.Infrastructure\Detara.Infrastructure.csproj" />
   </ItemGroup>

@@ -1,0 +1,66 @@
+@inject VeiculosServico VeiculosApi
+@inject ClientesServico ClientesApi
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<MudForm @ref="_form" Class="module-form">
+    <div class="form-grid">
+        <div class="form-full">
+            <ClienteAutocomplete ClienteId="_modelo.ClienteId" ClienteNome="_clienteNome" Fixo="ClienteFixo" SelecionadoChanged="SelecionarCliente" />
+        </div>
+        <MudTextField T="string" @bind-Value="_modelo.Placa" Label="Placa *" Required="true" Variant="Variant.Outlined" HelperText="ABC1234 ou ABC1D23" />
+        <MudTextField T="string" @bind-Value="_modelo.Marca" Label="Marca *" Required="true" Variant="Variant.Outlined" />
+        <MudTextField T="string" @bind-Value="_modelo.Modelo" Label="Modelo *" Required="true" Variant="Variant.Outlined" />
+        <MudTextField T="string" @bind-Value="_modelo.Versao" Label="Versão" Variant="Variant.Outlined" />
+        <MudNumericField T="int?" @bind-Value="_modelo.AnoFabricacao" Label="Ano de fabricação" Variant="Variant.Outlined" Min="1886" Max="@(DateTime.UtcNow.Year + 2)" />
+        <MudNumericField T="int?" @bind-Value="_modelo.AnoModelo" Label="Ano do modelo" Variant="Variant.Outlined" Min="1886" Max="@(DateTime.UtcNow.Year + 2)" />
+        <MudTextField T="string" @bind-Value="_modelo.Cor" Label="Cor" Variant="Variant.Outlined" />
+        <MudNumericField T="int?" @bind-Value="_modelo.Quilometragem" Label="Quilometragem" Variant="Variant.Outlined" Min="0" Adornment="Adornment.End" AdornmentText="km" />
+        <MudTextField T="string" @bind-Value="_modelo.Observacao" Label="Observações" Variant="Variant.Outlined" Lines="4" Class="form-full" />
+    </div>
+    <div class="form-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SalvarAsync" Disabled="_salvando" StartIcon="@Icons.Material.Outlined.Save">@(_salvando ? "Salvando..." : "Salvar veículo")</MudButton></div>
+</MudForm>
+
+@code {
+    [Parameter] public Guid? VeiculoId { get; set; }
+    [Parameter] public Guid? ClienteInicialId { get; set; }
+    private MudForm? _form;
+    private VeiculoFormModel _modelo = new();
+    private string? _clienteNome;
+    private bool _salvando;
+    private bool ClienteFixo => ClienteInicialId.HasValue && !VeiculoId.HasValue;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (VeiculoId.HasValue)
+        {
+            var resultado = await VeiculosApi.ObterAsync(VeiculoId.Value);
+            if (resultado.Resultado is not { } veiculo) { Mensagens.Mostrar(resultado.Mensagem, true); return; }
+            _modelo = new VeiculoFormModel { ClienteId = veiculo.ClienteId, Placa = veiculo.Placa, Marca = veiculo.Marca, Modelo = veiculo.Modelo, Versao = veiculo.Versao, AnoFabricacao = veiculo.AnoFabricacao, AnoModelo = veiculo.AnoModelo, Cor = veiculo.Cor, Quilometragem = veiculo.Quilometragem, Observacao = veiculo.Observacao };
+            _clienteNome = veiculo.ClienteNome;
+        }
+        else if (ClienteInicialId.HasValue)
+        {
+            var resultado = await ClientesApi.ObterAsync(ClienteInicialId.Value);
+            if (resultado.Resultado is { } cliente) { _modelo.ClienteId = cliente.Id; _clienteNome = cliente.Nome; }
+        }
+    }
+
+    private void SelecionarCliente(ClienteBuscaResponse? cliente) { _modelo.ClienteId = cliente?.Id; _clienteNome = cliente?.Nome; }
+
+    private async Task SalvarAsync()
+    {
+        if (_form is null) return;
+        await _form.ValidateAsync();
+        if (!_form.IsValid || !_modelo.ClienteId.HasValue) { if (!_modelo.ClienteId.HasValue) Mensagens.Mostrar("Selecione um cliente.", true); return; }
+        _salvando = true;
+        var request = new SalvarVeiculoRequest(_modelo.ClienteId.Value, _modelo.Placa, _modelo.Marca, _modelo.Modelo, _modelo.Versao, _modelo.AnoFabricacao, _modelo.AnoModelo, _modelo.Cor, _modelo.Quilometragem, _modelo.Observacao);
+        var resultado = VeiculoId.HasValue ? await VeiculosApi.AtualizarAsync(VeiculoId.Value, request) : await VeiculosApi.CriarAsync(request);
+        _salvando = false;
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        if (resultado is { Sucesso: true, Resultado: not null }) Navigation.NavigateTo($"/veiculos/{resultado.Resultado.Id}");
+    }
+
+    private void Cancelar() => Navigation.NavigateTo(VeiculoId.HasValue ? $"/veiculos/{VeiculoId}" : ClienteInicialId.HasValue ? $"/clientes/{ClienteInicialId}" : "/veiculos");
+    private sealed class VeiculoFormModel { public Guid? ClienteId { get; set; } public string Placa { get; set; } = string.Empty; public string Marca { get; set; } = string.Empty; public string Modelo { get; set; } = string.Empty; public string? Versao { get; set; } public int? AnoFabricacao { get; set; } public int? AnoModelo { get; set; } public string? Cor { get; set; } public int? Quilometragem { get; set; } public string? Observacao { get; set; } }
+}

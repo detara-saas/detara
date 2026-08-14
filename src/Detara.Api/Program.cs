@@ -6,6 +6,7 @@ using Detara.Application;
 using Detara.Application.Abstracoes;
 using Detara.Infrastructure;
 using Detara.Infrastructure.Persistencia;
+using Detara.Contracts.Autorizacao;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
@@ -89,6 +90,10 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+    foreach (var permissao in Permissoes.ModulosClientesVeiculos)
+    {
+        options.AddPolicy(permissao, policy => policy.RequireClaim("permissao", permissao));
+    }
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
