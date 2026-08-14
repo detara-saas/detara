@@ -1,0 +1,60 @@
+@page "/agenda"
+@attribute [Authorize(Policy = Permissoes.AgendaVisualizar)]
+@inject AgendaServico AgendaApi
+@inject IMensagemServico Mensagens
+
+<PageTitle>Agenda | Detara</PageTitle>
+<CabecalhoPagina Titulo="Agenda" Descricao="Planejamento operacional por horário, cliente e veículo." Sobretitulo="OPERAÇÃO">
+    <Acoes><AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo agendamento</MudButton></Authorized></AuthorizeView></Acoes>
+</CabecalhoPagina>
+
+<section class="agenda-view-toolbar module-panel" aria-label="Visualizações da agenda">
+    <div class="agenda-view-switch"><MudButton Variant="@(_visualizacao == "hoje" ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="@(() => TrocarVisualizacaoAsync("hoje"))">Hoje</MudButton><MudButton Variant="@(_visualizacao == "semana" ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="@(() => TrocarVisualizacaoAsync("semana"))">Semana</MudButton><MudButton Variant="@(_visualizacao == "lista" ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="@(() => TrocarVisualizacaoAsync("lista"))">Lista</MudButton></div>
+    @if (_visualizacao == "semana") { <div class="week-navigation"><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" OnClick="@(() => MoverSemanaAsync(-7))" aria-label="Semana anterior" /><strong>@_inicioSemana.ToString("dd/MM") — @_inicioSemana.AddDays(6).ToString("dd/MM/yyyy")</strong><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" OnClick="@(() => MoverSemanaAsync(7))" aria-label="Próxima semana" /></div> }
+    <span class="agenda-timezone"><MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small" />@_fusoHorario</span>
+</section>
+
+@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+else if (_visualizacao == "lista")
+{
+    <section class="module-toolbar agenda-list-filters"><MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Cliente, placa, veículo ou item" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" /><MudSelect T="StatusAgendamentoContrato?" @bind-Value="_status" Label="Status" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">@foreach (var status in Enum.GetValues<StatusAgendamentoContrato>()) { <MudSelectItem T="StatusAgendamentoContrato?" Value="status">@NomeStatus(status)</MudSelectItem> }</MudSelect><MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="PesquisarListaAsync">Aplicar</MudButton></section>
+    @if (_pagina is null || _pagina.Itens.Count == 0) { <EstadoVazio Titulo="Nenhum agendamento encontrado" Descricao="Ajuste os filtros ou crie um novo planejamento." Icone="@Icons.Material.Outlined.EventAvailable"><Acao><AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary">Novo agendamento</MudButton></Authorized></AuthorizeView></Acao></EstadoVazio> }
+    else
+    {
+        <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Data e hora</th><th>Cliente</th><th>Veículo</th><th>Itens</th><th>Status</th><th></th></tr></thead><tbody>@foreach (var item in _pagina.Itens) { <tr><td><strong>@item.InicioLocal.ToString("dd/MM/yyyy HH:mm")</strong><span class="cell-caption">@FormatarDuracao(item.DuracaoPlanejadaMinutos)</span></td><td><a class="primary-link" href="@($"/agenda/{item.Id}")">@item.ClienteNome</a></td><td>@item.VeiculoDescricao<span class="cell-caption">@item.VeiculoPlaca</span></td><td>@string.Join(", ", item.Itens.Take(2))@if (item.Itens.Count > 2) { <span class="cell-caption">+@(item.Itens.Count - 2) item(ns)</span> }</td><td><span class="status-badge @ClasseStatus(item.Status)">@NomeStatus(item.Status)</span></td><td><MudIconButton Href="@($"/agenda/{item.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" aria-label="Abrir agendamento" /></td></tr> }</tbody></table></section>
+        <section class="mobile-list">@foreach (var item in _pagina.Itens) { <a class="mobile-record appointment-mobile-record" href="@($"/agenda/{item.Id}")"><div class="mobile-record-main"><strong>@item.InicioLocal.ToString("dd/MM HH:mm") · @item.ClienteNome</strong><span>@item.VeiculoDescricao · @item.VeiculoPlaca</span><span>@string.Join(", ", item.Itens.Take(2))</span></div><span class="status-badge @ClasseStatus(item.Status)">@NomeStatus(item.Status)</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }</section>
+        <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="@(() => MoverPaginaAsync(-1))" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="@(() => MoverPaginaAsync(1))" aria-label="Próxima página" /></div></div>
+    }
+}
+else if (_visualizacao == "hoje")
+{
+    var hoje = ItensDoDia(_hojeLocal);
+    <section class="today-summary"><div><span class="section-eyebrow">@_hojeLocal.ToString("dddd", Cultura)</span><h2>@_hojeLocal.ToString("dd 'de' MMMM", Cultura)</h2></div><strong>@hoje.Count agendamento(s)</strong></section>
+    @if (hoje.Count == 0) { <EstadoVazio Titulo="Nenhum agendamento para hoje" Descricao="O dia está livre no planejamento atual." Icone="@Icons.Material.Outlined.EventAvailable"><Acao><AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary">Novo agendamento</MudButton></Authorized></AuthorizeView></Acao></EstadoVazio> }
+    else { <section class="day-timeline module-panel">@foreach (var item in hoje) { <AgendaCard Item="item" /> }</section> }
+}
+else
+{
+    <div class="week-mobile-selector">@foreach (var dia in DiasDaSemana) { <button class="@(_diaSelecionado == dia ? "selected" : string.Empty)" @onclick="@(() => _diaSelecionado = dia)"><span>@dia.ToString("ddd", Cultura)</span><strong>@dia.Day</strong></button> }</div>
+    <section class="week-grid" aria-label="Agenda semanal">@foreach (var dia in DiasDaSemana) { var itens = ItensDoDia(dia); <div class="week-day @(_hojeLocal == dia ? "today" : string.Empty)"><header><span>@dia.ToString("ddd", Cultura)</span><strong>@dia.Day</strong><small>@itens.Count</small></header><div>@if (itens.Count == 0) { <span class="week-empty">Livre</span> } else { @foreach (var item in itens) { <AgendaCard Item="item" Compacto="true" /> } }</div></div> }</section>
+    <section class="week-mobile-timeline module-panel">@foreach (var item in ItensDoDia(_diaSelecionado)) { <AgendaCard Item="item" /> } @if (ItensDoDia(_diaSelecionado).Count == 0) { <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.EventAvailable" /><div><strong>Dia livre</strong><span>Nenhum agendamento planejado.</span></div></div> }</section>
+}
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    private string _visualizacao = "hoje"; private bool _carregando = true; private DateOnly _hojeLocal; private DateOnly _inicioSemana; private DateOnly _diaSelecionado; private string _fusoHorario = "";
+    private IReadOnlyCollection<AgendamentoPeriodoResponse> _periodo = []; private PaginaResponse<AgendamentoListaResponse>? _pagina; private int _paginaAtual = 1; private string? _pesquisa; private StatusAgendamentoContrato? _status;
+    private IEnumerable<DateOnly> DiasDaSemana => Enumerable.Range(0, 7).Select(_inicioSemana.AddDays);
+    protected override async Task OnInitializedAsync() { var contexto = await AgendaApi.ObterContextoAsync(); if (contexto.Resultado is not { } c) { Mensagens.Mostrar(contexto.Mensagem, true); _carregando = false; return; } _hojeLocal = c.HojeLocal; _fusoHorario = c.FusoHorario; _inicioSemana = InicioDaSemana(_hojeLocal); _diaSelecionado = _hojeLocal; await CarregarPeriodoAsync(_hojeLocal, _hojeLocal.AddDays(1)); }
+    private async Task TrocarVisualizacaoAsync(string visualizacao) { _visualizacao = visualizacao; if (visualizacao == "lista") await CarregarListaAsync(); else if (visualizacao == "semana") await CarregarPeriodoAsync(_inicioSemana, _inicioSemana.AddDays(7)); else await CarregarPeriodoAsync(_hojeLocal, _hojeLocal.AddDays(1)); }
+    private async Task CarregarPeriodoAsync(DateOnly inicioLocal, DateOnly fimLocal) { _carregando = true; var inicioUtcSeguro = DateTime.SpecifyKind(inicioLocal.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc).AddHours(-14); var fimUtcSeguro = DateTime.SpecifyKind(fimLocal.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc).AddHours(14); var resultado = await AgendaApi.ListarPeriodoAsync(inicioUtcSeguro, fimUtcSeguro); _periodo = resultado.Resultado ?? []; if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true); _carregando = false; }
+    private async Task CarregarListaAsync() { _carregando = true; var resultado = await AgendaApi.ListarHistoricoAsync(_paginaAtual, 25, _pesquisa, _status); _pagina = resultado.Resultado; if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true); _carregando = false; }
+    private async Task PesquisarListaAsync() { _paginaAtual = 1; await CarregarListaAsync(); }
+    private async Task MoverPaginaAsync(int delta) { _paginaAtual += delta; await CarregarListaAsync(); }
+    private async Task MoverSemanaAsync(int dias) { _inicioSemana = _inicioSemana.AddDays(dias); _diaSelecionado = _inicioSemana; await CarregarPeriodoAsync(_inicioSemana, _inicioSemana.AddDays(7)); }
+    private List<AgendamentoPeriodoResponse> ItensDoDia(DateOnly dia) => _periodo.Where(x => DateOnly.FromDateTime(x.InicioLocal) == dia).OrderBy(x => x.InicioLocal).ToList();
+    private static DateOnly InicioDaSemana(DateOnly data) { var diferenca = ((int)data.DayOfWeek + 6) % 7; return data.AddDays(-diferenca); }
+    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.NaoCompareceu => "Não compareceu", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
+    private static string ClasseStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "status-scheduled", StatusAgendamentoContrato.Confirmado => "status-confirmed", StatusAgendamentoContrato.Compareceu => "status-waiting", StatusAgendamentoContrato.Concluido => "status-running", StatusAgendamentoContrato.Cancelado => "status-cancelled", _ => "status-neutral" };
+    private static string FormatarDuracao(int minutos) => minutos >= 60 ? $"{minutos / 60}h{(minutos % 60 > 0 ? $" {minutos % 60}min" : string.Empty)}" : $"{minutos} min";
+}

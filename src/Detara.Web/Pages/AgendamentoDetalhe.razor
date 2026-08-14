@@ -1,0 +1,65 @@
+@page "/agenda/{Id:guid}"
+@attribute [Authorize(Policy = Permissoes.AgendaVisualizar)]
+@inject AgendaServico AgendaApi
+@inject IMensagemServico Mensagens
+
+<PageTitle>@(_agendamento is null ? "Agendamento" : $"{_agendamento.ClienteNome} | Agenda") | Detara</PageTitle>
+@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+else if (_agendamento is null) { <EstadoVazio Titulo="Agendamento não encontrado" Descricao="O registro não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.EventBusy" /> }
+else
+{
+    <CabecalhoPagina Titulo="@_agendamento.ClienteNome" Descricao="@($"{_agendamento.VeiculoDescricao} · {_agendamento.VeiculoPlaca}")" Sobretitulo="AGENDAMENTO">
+        <Acoes><span class="status-badge @ClasseStatus(_agendamento.Status)">@NomeStatus(_agendamento.Status)</span><AuthorizeView Policy="@Permissoes.AgendaEditar"><Authorized>@if (EhEditavel(_agendamento.Status)) { <MudButton Href="@($"/agenda/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Href="@($"/agenda/{Id}/reagendar")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.EventRepeat">Reagendar</MudButton> }</Authorized></AuthorizeView></Acoes>
+    </CabecalhoPagina>
+
+    @if (_statusPendente.HasValue)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip agenda-status-confirmation"><div><strong>Confirmar: @NomeStatus(_statusPendente.Value)?</strong><span>Esta ação respeita o workflow e estados finais não poderão ser editados.</span></div>@if (_statusPendente == StatusAgendamentoContrato.Cancelado) { <MudTextField T="string" @bind-Value="_motivoCancelamento" Label="Motivo do cancelamento (opcional)" Variant="Variant.Outlined" /> }<div><MudButton Variant="Variant.Text" OnClick="CancelarAcao">Voltar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert>
+    }
+
+    <section class="appointment-hero module-panel">
+        <div><span class="section-eyebrow">INÍCIO LOCAL</span><strong>@_agendamento.InicioLocal.ToString("dd/MM/yyyy 'às' HH:mm")</strong><span>@_agendamento.FusoHorario</span></div>
+        <div><span class="section-eyebrow">DURAÇÃO PLANEJADA</span><strong>@FormatarDuracao(_agendamento.DuracaoPlanejadaMinutos)</strong><span>Independente da referência do catálogo</span></div>
+        <div><span class="section-eyebrow">REFERÊNCIA DO CATÁLOGO</span><strong>@_agendamento.Referencia.Texto</strong><span>@(_agendamento.Referencia.PossuiSobConsulta ? "Itens sujeitos à avaliação" : "Não é preço acordado")</span></div>
+    </section>
+
+    @if (_agendamento.QuantidadeSobreposicoes > 0) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="agenda-overlap-warning">Existem @_agendamento.QuantidadeSobreposicoes agendamento(s) sobrepostos. Sobreposições são permitidas e não representam capacidade bloqueada.</MudAlert> }
+
+    <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">ITENS PLANEJADOS</span><h2>@_agendamento.Itens.Count serviço(s)/pacote(s)</h2></div></div><div class="appointment-items">
+        @foreach (var item in _agendamento.Itens.OrderBy(x => x.Ordem))
+        {
+            <article><span class="package-order">@item.Ordem</span><div><strong>@item.Nome</strong><span>@(item.TipoItem == TipoItemAgendamentoContrato.Servico ? "Serviço" : "Pacote") · @FormatacaoCatalogo.Preco(item.TipoPrecificacao, item.PrecoReferencia) · @FormatarDuracao(item.DuracaoReferenciaMinutos)</span>@if (!string.IsNullOrWhiteSpace(item.Descricao)) { <p>@item.Descricao</p> }</div>@if (!item.ItemAtivoNoCatalogo) { <span class="status-badge status-neutral">Inativo no catálogo</span> }</article>
+        }
+    </div></section>
+
+    <div class="detail-grid"><section class="module-panel detail-card detail-observation"><div class="section-heading"><div><span class="section-eyebrow">SOLICITANTE</span><h2>Observação recebida</h2></div></div><p>@(string.IsNullOrWhiteSpace(_agendamento.ObservacaoSolicitante) ? "Nenhuma observação registrada." : _agendamento.ObservacaoSolicitante)</p></section><section class="module-panel detail-card detail-observation"><div class="section-heading"><div><span class="section-eyebrow">OPERAÇÃO INTERNA</span><h2>Observação interna</h2></div></div><p>@(string.IsNullOrWhiteSpace(_agendamento.ObservacaoInterna) ? "Nenhuma observação interna." : _agendamento.ObservacaoInterna)</p></section></div>
+    @if (_agendamento.Status == StatusAgendamentoContrato.Cancelado && !string.IsNullOrWhiteSpace(_agendamento.MotivoCancelamento)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined"><strong>Motivo do cancelamento:</strong> @_agendamento.MotivoCancelamento</MudAlert> }
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="commercial-reference-note">Os valores exibidos são referências do catálogo. O valor final pode depender da avaliação do veículo. A Agenda não registra preço acordado.</MudAlert>
+
+    <AuthorizeView Policy="@Permissoes.AgendaEditar"><Authorized>
+        @if (!EhFinal(_agendamento.Status))
+        {
+            <section class="appointment-actions module-panel"><div><span class="section-eyebrow">PRÓXIMA AÇÃO</span><h2>Atualizar etapa operacional</h2></div><div class="appointment-action-buttons">
+                @if (_agendamento.Status == StatusAgendamentoContrato.Agendado) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.Confirmado))">Confirmar</MudButton> }
+                @if (_agendamento.Status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DirectionsCar" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.Compareceu))">Cliente chegou</MudButton><MudButton Variant="Variant.Text" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.NaoCompareceu))">Não compareceu</MudButton> }
+                @if (_agendamento.Status == StatusAgendamentoContrato.Compareceu) { <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.Concluido))">Concluir</MudButton> }
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.Cancelado))">Cancelar agendamento</MudButton>
+            </div></section>
+        }
+    </Authorized></AuthorizeView>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private AgendamentoDetalheResponse? _agendamento; private bool _carregando = true; private StatusAgendamentoContrato? _statusPendente; private string? _motivoCancelamento;
+    protected override async Task OnParametersSetAsync() { _carregando = true; var resultado = await AgendaApi.ObterAsync(Id); _agendamento = resultado.Resultado; if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true); _carregando = false; }
+    private void SolicitarStatus(StatusAgendamentoContrato status) { _statusPendente = status; _motivoCancelamento = null; }
+    private void CancelarAcao() { _statusPendente = null; _motivoCancelamento = null; }
+    private async Task ConfirmarStatusAsync() { if (!_statusPendente.HasValue) return; var resultado = await AgendaApi.AlterarStatusAsync(Id, new(_statusPendente.Value, _motivoCancelamento)); Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); _statusPendente = null; if (resultado.Sucesso) await OnParametersSetAsync(); }
+    private static bool EhEditavel(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado;
+    private static bool EhFinal(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Concluido or StatusAgendamentoContrato.Cancelado or StatusAgendamentoContrato.NaoCompareceu;
+    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.NaoCompareceu => "Não compareceu", StatusAgendamentoContrato.Compareceu => "Compareceu", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
+    private static string ClasseStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "status-scheduled", StatusAgendamentoContrato.Confirmado => "status-confirmed", StatusAgendamentoContrato.Compareceu => "status-waiting", StatusAgendamentoContrato.Concluido => "status-running", StatusAgendamentoContrato.Cancelado => "status-cancelled", _ => "status-neutral" };
+    private static string FormatarDuracao(int minutos) => minutos >= 60 ? $"{minutos / 60}h{(minutos % 60 > 0 ? $" {minutos % 60}min" : string.Empty)}" : $"{minutos} min";
+    private static string FormatarDuracao(int? minutos) => minutos.HasValue ? FormatarDuracao(minutos.Value) : "Não informada";
+}

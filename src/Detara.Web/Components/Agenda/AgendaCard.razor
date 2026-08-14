@@ -1,0 +1,13 @@
+<a class="appointment-card @(Compacto ? "compact" : string.Empty)" href="@($"/agenda/{Item.Id}")">
+    <time>@Item.InicioLocal.ToString("HH:mm")</time>
+    <div><strong>@Item.ClienteNome</strong><span>@Item.VeiculoDescricao · @Item.VeiculoPlaca</span><span>@string.Join(", ", Item.PrincipaisItens) · @FormatarDuracao(Item.DuracaoPlanejadaMinutos)</span><small>@Item.Referencia.Texto</small></div>
+    <span class="status-badge @ClasseStatus(Item.Status)">@NomeStatus(Item.Status)</span>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public AgendamentoPeriodoResponse Item { get; set; } = null!;
+    [Parameter] public bool Compacto { get; set; }
+    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.NaoCompareceu => "Não compareceu", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
+    private static string ClasseStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "status-scheduled", StatusAgendamentoContrato.Confirmado => "status-confirmed", StatusAgendamentoContrato.Compareceu => "status-waiting", StatusAgendamentoContrato.Concluido => "status-running", StatusAgendamentoContrato.Cancelado => "status-cancelled", _ => "status-neutral" };
+    private static string FormatarDuracao(int minutos) => minutos >= 60 ? $"{minutos / 60}h{(minutos % 60 > 0 ? $" {minutos % 60}min" : string.Empty)}" : $"{minutos} min";
+}

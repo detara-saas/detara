@@ -14,6 +14,9 @@ public static class Permissoes
     public const string PacotesVisualizar = "Pacotes.Visualizar";
     public const string PacotesCriar = "Pacotes.Criar";
     public const string PacotesEditar = "Pacotes.Editar";
+    public const string AgendaVisualizar = "Agenda.Visualizar";
+    public const string AgendaCriar = "Agenda.Criar";
+    public const string AgendaEditar = "Agenda.Editar";
 
     public static readonly IReadOnlyCollection<string> Todas =
     [
@@ -28,6 +31,9 @@ public static class Permissoes
         ServicosEditar,
         PacotesVisualizar,
         PacotesCriar,
-        PacotesEditar
+        PacotesEditar,
+        AgendaVisualizar,
+        AgendaCriar,
+        AgendaEditar
     ];
 }

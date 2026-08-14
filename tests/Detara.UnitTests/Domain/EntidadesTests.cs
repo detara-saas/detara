@@ -1,4 +1,5 @@
 using Detara.Domain.Entidades;
+using Detara.Domain.Catalogo;
 
 namespace Detara.UnitTests.Domain;
 
@@ -171,13 +172,13 @@ public sealed class EntidadesTests
     public void Servico_RejeitaPrecoOuDuracaoInvalidos(decimal preco, int duracao)
     {
         Assert.Throws<ArgumentException>(() => new Servico(
-            Guid.NewGuid(), Guid.NewGuid(), "Serviço", null, preco, duracao, 0));
+            Guid.NewGuid(), Guid.NewGuid(), "Serviço", null, TipoPrecificacao.Fixo, preco, duracao, 0));
     }
 
     [Fact]
     public void Servico_PermitePrecoEDuracaoNaoInformados()
     {
-        var servico = new Servico(Guid.NewGuid(), Guid.NewGuid(), "Vitrificação", null, null, null, 0);
+        var servico = new Servico(Guid.NewGuid(), Guid.NewGuid(), "Vitrificação", null, TipoPrecificacao.SobConsulta, null, null, 0);
 
         Assert.Null(servico.PrecoBase);
         Assert.Null(servico.DuracaoEstimadaMinutos);
@@ -189,17 +190,45 @@ public sealed class EntidadesTests
         var empresaId = Guid.NewGuid();
         var servicoId = Guid.NewGuid();
 
-        Assert.Throws<ArgumentException>(() => new Pacote(empresaId, "Pacote", null, 100, []));
-        Assert.Throws<ArgumentException>(() => new Pacote(empresaId, "Pacote", null, 100, [servicoId, servicoId]));
+        Assert.Throws<ArgumentException>(() => new Pacote(empresaId, "Pacote", null, TipoPrecificacao.Fixo, 100, []));
+        Assert.Throws<ArgumentException>(() => new Pacote(empresaId, "Pacote", null, TipoPrecificacao.Fixo, 100, [servicoId, servicoId]));
     }
 
     [Fact]
     public void Pacote_MantemPrecoProprioEOrdenaServicos()
     {
-        var pacote = new Pacote(Guid.NewGuid(), "Combo Premium", null, 249.90m, [Guid.NewGuid(), Guid.NewGuid()]);
+        var pacote = new Pacote(Guid.NewGuid(), "Combo Premium", null, TipoPrecificacao.Fixo, 249.90m, [Guid.NewGuid(), Guid.NewGuid()]);
 
         Assert.Equal(249.90m, pacote.Preco);
         Assert.Equal([1, 2], pacote.Servicos.Select(item => item.Ordem));
+    }
+
+    [Theory]
+    [InlineData(TipoPrecificacao.Fixo)]
+    [InlineData(TipoPrecificacao.APartirDe)]
+    public void Servico_PrecoObrigatorioNosTiposComReferencia(TipoPrecificacao tipo)
+    {
+        Assert.Throws<ArgumentException>(() => new Servico(Guid.NewGuid(), Guid.NewGuid(), "Serviço", null, tipo, null, 60, 0));
+    }
+
+    [Fact]
+    public void Servico_SobConsultaNaoAceitaPreco()
+    {
+        Assert.Throws<ArgumentException>(() => new Servico(Guid.NewGuid(), Guid.NewGuid(), "Serviço", null, TipoPrecificacao.SobConsulta, 10m, 60, 0));
+    }
+
+    [Theory]
+    [InlineData(TipoPrecificacao.Fixo)]
+    [InlineData(TipoPrecificacao.APartirDe)]
+    public void Pacote_PrecoObrigatorioNosTiposComReferencia(TipoPrecificacao tipo)
+    {
+        Assert.Throws<ArgumentException>(() => new Pacote(Guid.NewGuid(), "Pacote", null, tipo, null, [Guid.NewGuid()]));
+    }
+
+    [Fact]
+    public void Pacote_SobConsultaNaoAceitaPreco()
+    {
+        Assert.Throws<ArgumentException>(() => new Pacote(Guid.NewGuid(), "Pacote", null, TipoPrecificacao.SobConsulta, 10m, [Guid.NewGuid()]));
     }
 
     private static Veiculo CriarVeiculo(string placa, int quilometragem) => new(

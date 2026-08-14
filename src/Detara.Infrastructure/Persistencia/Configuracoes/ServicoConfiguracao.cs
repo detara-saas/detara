@@ -10,6 +10,7 @@ internal sealed class ServicoConfiguracao : IEntityTypeConfiguration<Servico>
     {
         builder.ToTable("Servicos"); builder.HasKey(x => x.Id); builder.HasAlternateKey(x => new { x.EmpresaId, x.Id });
         builder.Property(x => x.Nome).HasMaxLength(160).IsRequired(); builder.Property(x => x.Descricao).HasMaxLength(2000);
+        builder.Property(x => x.TipoPrecificacao).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.PrecoBase).HasPrecision(18, 2);
         builder.HasIndex(x => new { x.EmpresaId, x.CategoriaServicoId, x.Nome }).IsUnique();
         builder.HasIndex(x => new { x.EmpresaId, x.CategoriaServicoId }); builder.HasIndex(x => new { x.EmpresaId, x.EhAtivo });

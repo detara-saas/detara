@@ -25,6 +25,7 @@ public static class DesenvolvimentoSeed
         ("Pacotes.Criar", "Criar pacotes"),
         ("Pacotes.Editar", "Editar pacotes"),
         ("Agenda.Visualizar", "Visualizar agenda"),
+        ("Agenda.Criar", "Criar agendamentos"),
         ("Agenda.Editar", "Editar agenda"),
         ("OrdemServico.Visualizar", "Visualizar ordens de serviço"),
         ("OrdemServico.Criar", "Criar ordens de serviço"),
