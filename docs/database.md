@@ -69,6 +69,20 @@ Categorias, serviços e pacotes usam inativação lógica independente. A soma d
 
 Não existem FKs cross-module de Agenda para Clientes ou Catálogo. Os vínculos são validados por contratos internos antes da gravação e preservados por ID + snapshot. O Agendamento não possui preço acordado ou total comercial.
 
+## Atendimento — Orçamentos
+
+`AddOrcamentos` adiciona:
+
+- `Orcamentos`, com código oficial único por empresa, snapshots de Cliente/Veículo, origem opcional por Agendamento, origem opcional por outro Orçamento, validade comercial, valores e timestamps de transição;
+- `OrcamentosItens`, com snapshots de Serviço/Pacote ou item personalizado, referência interna do Catálogo, quantidade e valor unitário negociado;
+- `OrcamentosHistoricosStatus`, com status, instante UTC, usuário responsável e observação opcional;
+- FKs compostas `(EmpresaId, OrcamentoId)` apenas dentro do módulo Atendimento, protegendo Itens e Histórico;
+- índices de código, status, criação, cliente, veículo, Agendamento de origem e Orçamento de origem, sempre iniciados por `EmpresaId`.
+
+Não existem FKs cross-module para Cliente, Veículo, Agendamento, Serviço, Pacote, Empresa ou Usuário. A integridade de entrada é validada pelos contratos internos e o histórico é preservado por ID + snapshot. `Subtotal` e `Total` são derivados de quantidade, valor unitário, desconto e acréscimo; não são colunas redundantes.
+
+O código é criado uma única vez na emissão no formato `ORC-AAAA-XXXXXXXXXXXX`, derivado do GUID do documento e protegido por índice único `(EmpresaId, Codigo)`. Rascunhos mantêm código nulo.
+
 Aplicação de migration:
 
 ```powershell
@@ -76,4 +90,4 @@ dotnet tool restore
 dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj --startup-project src/Detara.Api/Detara.Api.csproj
 ```
 
-As migrations devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco. A Task 04 gera as migrations, mas não executa `database update`.
+As migrations devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco. A Task 05 gera `AddOrcamentos`, mas não executa `database update`.

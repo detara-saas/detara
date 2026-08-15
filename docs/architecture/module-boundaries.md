@@ -43,7 +43,7 @@ Não serão criados assemblies por módulo enquanto a quantidade de módulos, eq
 | Clientes | Atual, base | Cadastro e identificação de clientes e veículos |
 | Catálogo | Atual, base | O que a empresa oferece: categorias, serviços e pacotes |
 | Agenda | Atual, base | Agendamento, itens planejados, snapshots, reagendamento, status e consultas operacionais |
-| Atendimento | Futuro, base | Orçamento, ordem de serviço, checklist, execução, fotos e entrega |
+| Atendimento | Atual, base | Orçamento, itens, histórico de status e, futuramente, ordem de serviço, checklist, execução, fotos e entrega |
 | Financeiro | Futuro | Pagamentos, recebimentos, fluxo e indicadores financeiros |
 | Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
 | CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
@@ -158,6 +158,9 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `PacotesServicos` | Catálogo |
 | `Agendamentos` | Agenda |
 | `AgendamentosItens` | Agenda |
+| `Orcamentos` | Atendimento |
+| `OrcamentosItens` | Atendimento |
+| `OrcamentosHistoricosStatus` | Atendimento |
 
 Essa matriz deve ser atualizada quando uma tabela ou agregado for introduzido.
 
@@ -261,6 +264,23 @@ As tabelas da Agenda não possuem FKs cross-module para Clientes ou Catálogo. A
 Preço no Agendamento é somente snapshot da referência do Catálogo. Agenda não possui preço acordado, total a cobrar ou valor final; esses conceitos pertencerão ao futuro Orçamento.
 
 Atendimento será posteriormente dono de Orçamento, Ordem de Serviço e Checklist. Ele também referencia Clientes e Catálogo sem assumir o cadastro deles.
+
+## Atendimento implementado — Orçamentos
+
+Atendimento é dono de `Orcamento`, `OrcamentoItem` e `HistoricoStatusOrcamento`. O módulo referencia Cliente, Veículo, Agendamento, Serviço, Pacote, Empresa e Usuário somente pelos IDs necessários e por consultas internas estreitas. Não existem FKs cross-module dessas referências; as FKs compostas tenant-safe existem apenas dentro do agregado de Orçamento.
+
+O fluxo consome:
+
+- Clientes por `IClientesAtendimentoConsulta`, validando tenant, atividade e pertencimento do Veículo ao Cliente;
+- Agenda por `IAgendaAtendimentoConsulta`, reutilizando os snapshots apresentados no Agendamento quando ele é a origem;
+- Catálogo por `ICatalogoAtendimentoConsulta`, copiando nome, descrição, tipo e preço de referência sem alterar Serviço/Pacote;
+- Plataforma por `IPlataformaAtendimentoConsulta`, obtendo fuso, identificação da Empresa e nomes de usuários para histórico/PDF.
+
+Orçamentos são mutáveis somente enquanto `Rascunho`. Após a emissão, qualquer mudança comercial exige um novo documento com novo ID, código e PDF. A emissão da nova proposta marca o documento de origem como `Substituido` somente se ele estiver `Emitido` ou `Aprovado`; criar ou abandonar um novo rascunho não altera o anterior. `Recusado` significa que o cliente recusou a proposta e nunca é reclassificado como `Substituido` apenas porque outra proposta foi criada.
+
+`Expirado` é um estado efetivo calculado quando o status persistido é `Emitido` e `ValidoAte` é anterior à data local da Empresa. Não existe job de expiração. O PDF oficial é regenerado server-side a partir dos snapshots e permanece disponível para documentos recusados, cancelados, expirados ou substituídos. Se futuramente houver exigência jurídica maior, a evolução prevista é armazenar o arquivo final, hash e data/origem de envio sem alterar o documento comercial existente.
+
+Uma futura Ordem de Serviço criada a partir de Orçamento aprovado deverá copiar itens, descrições, quantidades, valores negociados, desconto, acréscimo e total do Orçamento. Ela não poderá reconstruir preços a partir do Catálogo, nem nascer de orçamento recusado, cancelado, substituído ou expirado.
 
 ## Add-ons e exemplos de evolução
 
