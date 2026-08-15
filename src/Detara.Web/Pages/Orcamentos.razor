@@ -1,0 +1,45 @@
+@page "/orcamentos"
+@attribute [Authorize(Policy = Permissoes.OrcamentosVisualizar)]
+@inject OrcamentosServico OrcamentosApi
+@inject IMensagemServico Mensagens
+
+<PageTitle>Orçamentos | Detara</PageTitle>
+<CabecalhoPagina Titulo="Orçamentos" Descricao="Propostas comerciais formais, valores negociados e aprovações." Sobretitulo="ATENDIMENTO">
+    <Acoes><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo orçamento</MudButton></Authorized></AuthorizeView></Acoes>
+</CabecalhoPagina>
+
+<section class="module-toolbar quotation-list-filters">
+    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Código, cliente, documento, placa ou veículo" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" />
+    <MudSelect T="StatusOrcamentoContrato?" @bind-Value="_status" Label="Status" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+        @foreach (var status in Enum.GetValues<StatusOrcamentoContrato>()) { <MudSelectItem T="StatusOrcamentoContrato?" Value="status">@NomeStatus(status)</MudSelectItem> }
+    </MudSelect>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="PesquisarAsync">Aplicar filtros</MudButton>
+</section>
+
+@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+else if (_pagina is null || _pagina.Itens.Count == 0)
+{
+    <EstadoVazio Titulo="Nenhum orçamento encontrado" Descricao="Crie uma proposta ou ajuste os filtros." Icone="@Icons.Material.Outlined.RequestQuote"><Acao><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Filled" Color="Color.Primary">Novo orçamento</MudButton></Authorized></AuthorizeView></Acao></EstadoVazio>
+}
+else
+{
+    <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Código</th><th>Cliente</th><th>Veículo</th><th>Emissão / validade</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
+        @foreach (var item in _pagina.Itens)
+        {
+            <tr><td><a class="primary-link" href="@($"/orcamentos/{item.Id}")">@Identificacao(item)</a></td><td>@item.ClienteNome</td><td>@item.VeiculoDescricao<span class="cell-caption">@item.VeiculoPlaca</span></td><td>@(item.EmitidoEmUtc?.ToString("dd/MM/yyyy") ?? "Não emitido")<span class="cell-caption">Válido até @item.ValidoAte.ToString("dd/MM/yyyy")</span></td><td><strong>@item.Total.ToString("C2")</strong></td><td><span class="status-badge @ClasseStatus(item.Status)">@NomeStatus(item.Status)</span></td><td><MudIconButton Href="@($"/orcamentos/{item.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" aria-label="Abrir orçamento" /></td></tr>
+        }
+    </tbody></table></section>
+    <section class="mobile-list">@foreach (var item in _pagina.Itens) { <a class="mobile-record quotation-mobile-record" href="@($"/orcamentos/{item.Id}")"><div class="mobile-record-main"><strong>@Identificacao(item)</strong><span>@item.ClienteNome</span><span>@item.VeiculoDescricao · @item.VeiculoPlaca</span><strong>@item.Total.ToString("C2")</strong><span>Válido até @item.ValidoAte.ToString("dd/MM")</span></div><span class="status-badge @ClasseStatus(item.Status)">@NomeStatus(item.Status)</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }</section>
+    <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="@(() => MoverPaginaAsync(-1))" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="@(() => MoverPaginaAsync(1))" aria-label="Próxima página" /></div></div>
+}
+
+@code {
+    private PaginaResponse<OrcamentoListaResponse>? _pagina; private bool _carregando = true; private int _paginaAtual = 1; private string? _pesquisa; private StatusOrcamentoContrato? _status;
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var r = await OrcamentosApi.ListarAsync(_paginaAtual, 25, _pesquisa, _status); _pagina = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
+    private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
+    private async Task MoverPaginaAsync(int delta) { _paginaAtual += delta; await CarregarAsync(); }
+    private static string NomeStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Substituido => "Substituído", StatusOrcamentoContrato.Expirado => "Expirado", _ => status.ToString() };
+    private static string Identificacao(OrcamentoListaResponse item) => item.Codigo ?? (item.Status == StatusOrcamentoContrato.Rascunho ? "Rascunho" : "Sem emissão");
+    private static string ClasseStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Rascunho => "status-neutral", StatusOrcamentoContrato.Emitido => "status-scheduled", StatusOrcamentoContrato.Aprovado => "status-running", StatusOrcamentoContrato.Recusado => "status-cancelled", StatusOrcamentoContrato.Cancelado => "status-cancelled", StatusOrcamentoContrato.Substituido => "status-neutral", StatusOrcamentoContrato.Expirado => "status-waiting", _ => "status-neutral" };
+}

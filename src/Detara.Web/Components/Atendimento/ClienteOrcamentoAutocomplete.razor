@@ -1,0 +1,39 @@
+@inject OrcamentosServico OrcamentosApi
+
+<MudAutocomplete T="ClienteOrcamentoResponse"
+                 Value="_selecionado"
+                 ValueChanged="SelecionarAsync"
+                 SearchFunc="BuscarAsync"
+                 ToStringFunc="Descrever"
+                 Label="Cliente *"
+                 Placeholder="Digite nome, documento ou telefone"
+                 Variant="Variant.Outlined"
+                 Required="true"
+                 Disabled="Fixo"
+                 Clearable="@(!Fixo)"
+                 MinCharacters="2"
+                 DebounceInterval="300"
+                 MaxItems="15" />
+
+@code {
+    [Parameter] public Guid? ClienteId { get; set; }
+    [Parameter] public string? ClienteNome { get; set; }
+    [Parameter] public bool Fixo { get; set; }
+    [Parameter] public EventCallback<ClienteOrcamentoResponse?> SelecionadoChanged { get; set; }
+    private ClienteOrcamentoResponse? _selecionado;
+
+    protected override void OnParametersSet()
+    {
+        if (ClienteId.HasValue && (_selecionado is null || _selecionado.Id != ClienteId.Value))
+            _selecionado = new(ClienteId.Value, ClienteNome ?? "Cliente selecionado", null, null);
+        if (!ClienteId.HasValue) _selecionado = null;
+    }
+
+    private async Task<IEnumerable<ClienteOrcamentoResponse>> BuscarAsync(string? texto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Trim().Length < 2) return [];
+        return (await OrcamentosApi.BuscarClientesAsync(texto.Trim(), ct)).Resultado ?? [];
+    }
+    private async Task SelecionarAsync(ClienteOrcamentoResponse? cliente) { _selecionado = cliente; await SelecionadoChanged.InvokeAsync(cliente); }
+    private static string Descrever(ClienteOrcamentoResponse? cliente) => cliente is null ? string.Empty : string.Join(" · ", new[] { cliente.Nome, cliente.Documento, cliente.Telefone }.Where(x => !string.IsNullOrWhiteSpace(x)));
+}

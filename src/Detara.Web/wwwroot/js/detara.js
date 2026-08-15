@@ -14,5 +14,13 @@ window.detara = {
     aplicarTema: (escuro) => {
         document.documentElement.dataset.theme = escuro ? 'dark' : 'light';
         document.documentElement.style.colorScheme = escuro ? 'dark' : 'light';
+    },
+    baixarArquivoBase64: (nome, tipo, base64) => {
+        const link = document.createElement('a');
+        link.href = `data:${tipo};base64,${base64}`;
+        link.download = nome;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
     }
 };
