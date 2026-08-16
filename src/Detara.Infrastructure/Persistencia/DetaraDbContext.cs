@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Detara.Application.Abstracoes;
 using Detara.Domain.Entidades;
 using Detara.Domain.Agenda;
+using Detara.Domain.Atendimento;
 using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Persistencia;
@@ -25,6 +26,9 @@ public sealed class DetaraDbContext(
     public DbSet<PacoteServico> PacotesServicos => Set<PacoteServico>();
     public DbSet<Agendamento> Agendamentos => Set<Agendamento>();
     public DbSet<AgendamentoItem> AgendamentosItens => Set<AgendamentoItem>();
+    public DbSet<Orcamento> Orcamentos => Set<Orcamento>();
+    public DbSet<OrcamentoItem> OrcamentosItens => Set<OrcamentoItem>();
+    public DbSet<HistoricoStatusOrcamento> OrcamentosHistoricosStatus => Set<HistoricoStatusOrcamento>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

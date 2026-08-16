@@ -9,6 +9,8 @@ using Detara.Infrastructure.Catalogo;
 using Detara.Application.Agenda;
 using Detara.Infrastructure.Agenda;
 using Detara.Infrastructure.Plataforma;
+using Detara.Application.Atendimento;
+using Detara.Infrastructure.Atendimento;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +41,12 @@ public static class DependencyInjection
         services.AddScoped<IClientesAgendaConsulta, ClientesAgendaConsulta>();
         services.AddScoped<ICatalogoAgendaConsulta, CatalogoAgendaConsulta>();
         services.AddScoped<IFusoHorarioEmpresaConsulta, FusoHorarioEmpresaConsulta>();
+        services.AddScoped<IOrcamentosRepositorio, OrcamentosRepositorio>();
+        services.AddScoped<IClientesAtendimentoConsulta, ClientesAtendimentoConsulta>();
+        services.AddScoped<ICatalogoAtendimentoConsulta, CatalogoAtendimentoConsulta>();
+        services.AddScoped<IAgendaAtendimentoConsulta, AgendaAtendimentoConsulta>();
+        services.AddScoped<IPlataformaAtendimentoConsulta, PlataformaAtendimentoConsulta>();
+        services.AddSingleton<IOrcamentoPdfGenerator, PdfOrcamentoGenerator>();
         services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
         return services;

@@ -7,6 +7,8 @@ using Detara.Application.Abstracoes;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
 using Detara.Domain.Entidades;
+using Detara.Domain.Atendimento;
+using Detara.Domain.Catalogo;
 using Detara.Infrastructure.Persistencia;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -161,6 +163,47 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task UsuarioSemOrcamentosVisualizar_Recebe403()
+    {
+        var response = await _client.GetAsync("/api/orcamentos");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioSemOrcamentosCriar_PostBloqueado()
+    {
+        UsarPermissoes(Permissoes.OrcamentosVisualizar);
+        var response = await _client.PostAsJsonAsync("/api/orcamentos", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PdfOrcamento_Autorizado_RetornaArquivoPdfValido()
+    {
+        UsarPermissoes(Permissoes.OrcamentosVisualizar);
+        var response = await _client.GetAsync($"/api/orcamentos/{_factory.OrcamentoId}/pdf");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        Assert.True(bytes.Length > 1000);
+        Assert.Equal("%PDF-", System.Text.Encoding.ASCII.GetString(bytes, 0, 5));
+    }
+
+    [Theory]
+    [InlineData("PUT", "/api/orcamentos/00000000-0000-0000-0000-000000000001")]
+    [InlineData("POST", "/api/orcamentos/00000000-0000-0000-0000-000000000001/emitir")]
+    [InlineData("POST", "/api/orcamentos/00000000-0000-0000-0000-000000000001/aprovar")]
+    [InlineData("POST", "/api/orcamentos/00000000-0000-0000-0000-000000000001/recusar")]
+    [InlineData("POST", "/api/orcamentos/00000000-0000-0000-0000-000000000001/cancelar")]
+    public async Task UsuarioSemOrcamentosEditar_AlteracoesBloqueadas(string metodo, string rota)
+    {
+        UsarPermissoes(Permissoes.OrcamentosVisualizar, Permissoes.OrcamentosCriar);
+        using var request = new HttpRequestMessage(new HttpMethod(metodo), rota) { Content = JsonContent.Create(new { observacao = (string?)null }) };
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private void UsarPermissoes(params string[] permissoes)
     {
         _client.DefaultRequestHeaders.Remove(TestAuthHandler.PermissionsHeader);
@@ -173,6 +216,7 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         private readonly Dictionary<string, string?> _environmentBeforeTest = new();
         public Guid EmpresaId { get; } = Guid.NewGuid();
         public Guid ClienteId { get; private set; }
+        public Guid OrcamentoId { get; private set; }
 
         public DetaraApiFactory()
         {
@@ -229,6 +273,15 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             tenantContext.Clientes.Add(cliente);
             await tenantContext.SaveChangesAsync();
             ClienteId = cliente.Id;
+            var usuarioId = Guid.NewGuid();
+            var orcamento = new Orcamento(EmpresaId,
+                new(cliente.Id, cliente.Nome, cliente.CpfCnpj, cliente.Telefone, Guid.NewGuid(), "Honda Civic", "ABC1D23"),
+                null, null, DateOnly.FromDateTime(DateTime.UtcNow).AddDays(7), "Proposta comercial", null, "À vista", 0, 0,
+                [new(TipoItemOrcamento.Servico, Guid.NewGuid(), "Lavagem técnica", null, TipoPrecificacao.APartirDe, 100m, 160m, 1, 1, null)], usuarioId);
+            orcamento.Emitir(DateTime.UtcNow.Year, usuarioId);
+            tenantContext.Orcamentos.Add(orcamento);
+            await tenantContext.SaveChangesAsync();
+            OrcamentoId = orcamento.Id;
         }
 
         public new async ValueTask DisposeAsync()

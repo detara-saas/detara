@@ -1,0 +1,176 @@
+@inject OrcamentosServico OrcamentosApi
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navegacao
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else
+{
+    <EditForm Model="_modelo" OnValidSubmit="SalvarAsync" class="form-panel module-panel quotation-form-panel">
+        <DataAnnotationsValidator />
+        @if (_agendamentoOrigemId.HasValue)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="quotation-origin-note">Este rascunho usa os snapshots comerciais apresentados no agendamento. Você pode ajustar os valores negociados sem alterar a Agenda.</MudAlert>
+        }
+        <div class="section-heading"><div><span class="section-eyebrow">DESTINATÁRIO</span><h2>Cliente e veículo</h2></div></div>
+        <div class="form-grid">
+            <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="_clienteNome" Fixo="_agendamentoOrigemId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
+            <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoOrigemId.HasValue)" Required="true">
+                @foreach (var veiculo in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)veiculo.Id)">@veiculo.Descricao · @veiculo.Placa</MudSelectItem> }
+            </MudSelect>
+        </div>
+
+        <section class="quotation-form-section">
+            <div class="section-heading"><div><span class="section-eyebrow">PROPOSTA</span><h2>Itens e valores negociados</h2></div><span class="selected-count">@_itens.Count item(ns)</span></div>
+            <div class="catalog-search-row">
+                <MudTextField T="string" @bind-Value="_pesquisaCatalogo" Label="Pesquisar serviços e pacotes" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="BuscarCatalogoAsync">Buscar catálogo</MudButton>
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarPersonalizado">Item personalizado</MudButton>
+            </div>
+            @if (_catalogo.Count > 0)
+            {
+                <div class="quotation-catalog-picker">
+                    @foreach (var item in _catalogo)
+                    {
+                        <button type="button" class="quotation-catalog-item" @onclick="@(() => AdicionarCatalogo(item))">
+                            <MudIcon Icon="@(item.TipoItem == TipoItemOrcamentoContrato.Servico ? Icons.Material.Outlined.AutoFixHigh : Icons.Material.Outlined.Inventory2)" />
+                            <span><strong>@item.Nome</strong><small>@Referencia(item.TipoPrecificacao, item.PrecoReferencia)</small></span>
+                            <MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" />
+                        </button>
+                    }
+                </div>
+            }
+            <div class="quotation-items-editor">
+                @for (var indice = 0; indice < _itens.Count; indice++)
+                {
+                    var item = _itens[indice];
+                    <article>
+                        <div class="quotation-item-title">
+                            <span class="package-order">@(indice + 1)</span>
+                            <div>
+                                @if (item.TipoItem == TipoItemOrcamentoContrato.Personalizado)
+                                { <MudTextField T="string" @bind-Value="item.Nome" Label="Descrição do item *" Variant="Variant.Outlined" Required="true" /> }
+                                else
+                                { <strong>@item.Nome</strong><span>Referência interna: @Referencia(item.TipoPrecificacao, item.PrecoReferencia)</span> }
+                            </div>
+                            <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" OnClick="@(() => Remover(item))" aria-label="Remover item" />
+                        </div>
+                        <div class="quotation-item-values">
+                            <MudNumericField T="int" @bind-Value="item.Quantidade" Label="Quantidade" Variant="Variant.Outlined" Min="1" />
+                            <MudNumericField T="decimal" @bind-Value="item.ValorUnitario" Label="Valor neste orçamento" Variant="Variant.Outlined" Min="0" Format="C2" />
+                            <div class="quotation-item-subtotal"><span>Subtotal</span><strong>@((item.Quantidade * item.ValorUnitario).ToString("C2"))</strong></div>
+                        </div>
+                        <MudTextField T="string" @bind-Value="item.Observacao" Label="Observação do item (opcional)" Variant="Variant.Outlined" />
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="quotation-form-section quotation-commercial-grid">
+            <div>
+                <div class="section-heading"><div><span class="section-eyebrow">CONDIÇÕES</span><h2>Validade e comunicação</h2></div></div>
+                <div class="form-grid">
+                    <MudDatePicker @bind-Date="_validoAte" Label="Válido até *" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" />
+                    <MudTextField T="string" @bind-Value="_modelo.Condicoes" Label="Condições comerciais" Variant="Variant.Outlined" Lines="3" Class="form-full" />
+                    <MudTextField T="string" @bind-Value="_modelo.ObservacaoCliente" Label="Observações para o cliente" Variant="Variant.Outlined" Lines="3" Class="form-full" />
+                    <MudTextField T="string" @bind-Value="_modelo.ObservacaoInterna" Label="Observação interna (não aparece no PDF)" Variant="Variant.Outlined" Lines="3" Class="form-full" />
+                </div>
+            </div>
+            <aside class="quotation-summary module-panel">
+                <span class="section-eyebrow">RESUMO FINANCEIRO</span>
+                <div><span>Subtotal</span><strong>@Subtotal.ToString("C2")</strong></div>
+                <MudNumericField T="decimal" @bind-Value="_modelo.Desconto" Label="Desconto" Variant="Variant.Outlined" Min="0" Format="C2" />
+                <MudNumericField T="decimal" @bind-Value="_modelo.Acrescimo" Label="Acréscimo" Variant="Variant.Outlined" Min="0" Format="C2" />
+                <div class="quotation-total"><span>TOTAL</span><strong>@Total.ToString("C2")</strong></div>
+            </aside>
+        </section>
+
+        <div class="form-actions"><MudButton Href="@CancelarHref" Variant="Variant.Text">Cancelar</MudButton><MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvando">@(_salvando ? "Salvando..." : "Salvar rascunho")</MudButton></div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public Guid? OrcamentoId { get; set; }
+    private readonly ModeloFormulario _modelo = new();
+    private readonly List<ItemEdicao> _itens = [];
+    private IReadOnlyCollection<VeiculoOrcamentoResponse> _veiculos = [];
+    private IReadOnlyCollection<ItemCatalogoOrcamentoResponse> _catalogo = [];
+    private Guid? _clienteId; private string? _clienteNome; private Guid? _veiculoId; private Guid? _agendamentoOrigemId;
+    private DateTime? _validoAte; private string? _pesquisaCatalogo; private bool _carregando = true; private bool _salvando;
+    private decimal Subtotal => _itens.Sum(x => x.Quantidade * x.ValorUnitario);
+    private decimal Total => Subtotal - _modelo.Desconto + _modelo.Acrescimo;
+    private string CancelarHref => OrcamentoId.HasValue ? $"/orcamentos/{OrcamentoId}" : "/orcamentos";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (OrcamentoId.HasValue) await CarregarEdicaoAsync(OrcamentoId.Value);
+        else
+        {
+            var contexto = await OrcamentosApi.ObterContextoAsync(); _validoAte = contexto.Resultado?.ValidadeSugerida.ToDateTime(TimeOnly.MinValue);
+            var origemId = LerAgendamentoId(); if (origemId.HasValue) await CarregarOrigemAsync(origemId.Value);
+        }
+        _carregando = false;
+    }
+
+    private async Task CarregarEdicaoAsync(Guid id)
+    {
+        var resultado = await OrcamentosApi.ObterAsync(id); var o = resultado.Resultado;
+        if (o is null) { Mensagens.Mostrar(resultado.Mensagem, true); Navegacao.NavigateTo("/orcamentos"); return; }
+        if (o.Status != StatusOrcamentoContrato.Rascunho) { Mensagens.Mostrar("Este orçamento já foi emitido. Para mudar valores, crie uma nova proposta.", true); Navegacao.NavigateTo($"/orcamentos/{id}"); return; }
+        _clienteId = o.ClienteId; _clienteNome = o.ClienteNome; _veiculoId = o.VeiculoId; _agendamentoOrigemId = o.AgendamentoOrigemId;
+        _veiculos = [new(o.VeiculoId, o.VeiculoDescricao, o.VeiculoPlaca)]; _validoAte = o.ValidoAte.ToDateTime(TimeOnly.MinValue);
+        _modelo.ObservacaoCliente = o.ObservacaoCliente; _modelo.ObservacaoInterna = o.ObservacaoInterna; _modelo.Condicoes = o.Condicoes; _modelo.Desconto = o.Desconto; _modelo.Acrescimo = o.Acrescimo;
+        _itens.AddRange(o.Itens.OrderBy(x => x.Ordem).Select(x => new ItemEdicao(x.TipoItem, x.ItemCatalogoId, x.Nome, x.Descricao, x.TipoPrecificacaoReferencia, x.PrecoReferencia, x.ValorUnitario, x.Quantidade, x.Observacao)));
+    }
+
+    private async Task CarregarOrigemAsync(Guid id)
+    {
+        var resultado = await OrcamentosApi.ObterOrigemAsync(id); var origem = resultado.Resultado;
+        if (origem is null) { Mensagens.Mostrar(resultado.Mensagem, true); return; }
+        _agendamentoOrigemId = id; _clienteId = origem.ClienteId; _clienteNome = origem.ClienteNome; _veiculoId = origem.VeiculoId;
+        _veiculos = [new(origem.VeiculoId, origem.VeiculoDescricao, origem.VeiculoPlaca)];
+        _itens.AddRange(origem.Itens.Select(x => new ItemEdicao(x.TipoItem, x.Id, x.Nome, x.Descricao, x.TipoPrecificacao, x.PrecoReferencia, x.PrecoReferencia ?? 0, 1, null)));
+    }
+
+    private async Task ClienteSelecionadoAsync(ClienteOrcamentoResponse? cliente)
+    {
+        _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = [];
+        if (cliente is not null) _veiculos = (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? [];
+    }
+    private async Task BuscarCatalogoAsync() { _catalogo = (await OrcamentosApi.BuscarCatalogoAsync(_pesquisaCatalogo)).Resultado ?? []; }
+    private void AdicionarCatalogo(ItemCatalogoOrcamentoResponse item)
+    {
+        if (_itens.Any(x => x.TipoItem == item.TipoItem && x.ItemCatalogoId == item.Id)) { Mensagens.Mostrar("Este item já está no orçamento. Ajuste a quantidade.", true); return; }
+        _itens.Add(new(item.TipoItem, item.Id, item.Nome, item.Descricao, item.TipoPrecificacao, item.PrecoReferencia, item.PrecoReferencia ?? 0, 1, null));
+    }
+    private void AdicionarPersonalizado() => _itens.Add(new(TipoItemOrcamentoContrato.Personalizado, null, string.Empty, null, null, null, 0, 1, null));
+    private void Remover(ItemEdicao item) => _itens.Remove(item);
+
+    private async Task SalvarAsync()
+    {
+        if (!_clienteId.HasValue || !_veiculoId.HasValue || !_validoAte.HasValue || _itens.Count == 0) { Mensagens.Mostrar("Informe cliente, veículo, validade e ao menos um item.", true); return; }
+        if (Total < 0) { Mensagens.Mostrar("O total não pode ser negativo.", true); return; }
+        _salvando = true;
+        var request = new SalvarOrcamentoRequest(_clienteId.Value, _veiculoId.Value, _agendamentoOrigemId, DateOnly.FromDateTime(_validoAte.Value),
+            _modelo.ObservacaoCliente, _modelo.ObservacaoInterna, _modelo.Condicoes, _modelo.Desconto, _modelo.Acrescimo,
+            _itens.Select(x => new OrcamentoItemRequest(x.TipoItem, x.ItemCatalogoId, x.TipoItem == TipoItemOrcamentoContrato.Personalizado ? x.Nome : null,
+                x.TipoItem == TipoItemOrcamentoContrato.Personalizado ? x.Descricao : null, x.ValorUnitario, x.Quantidade, x.Observacao)).ToArray());
+        var resultado = OrcamentoId.HasValue ? await OrcamentosApi.AtualizarAsync(OrcamentoId.Value, request) : await OrcamentosApi.CriarAsync(request);
+        _salvando = false; Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        if (resultado.Resultado is not null) Navegacao.NavigateTo($"/orcamentos/{resultado.Resultado.Id}");
+    }
+
+    private Guid? LerAgendamentoId()
+    {
+        var query = Navegacao.ToAbsoluteUri(Navegacao.Uri).Query.TrimStart('?');
+        foreach (var parte in query.Split('&', StringSplitOptions.RemoveEmptyEntries)) { var p = parte.Split('=', 2); if (p.Length == 2 && p[0].Equals("agendamentoId", StringComparison.OrdinalIgnoreCase) && Guid.TryParse(Uri.UnescapeDataString(p[1]), out var id)) return id; }
+        return null;
+    }
+    private static string Referencia(TipoPrecificacaoCatalogo? tipo, decimal? preco) => tipo switch { TipoPrecificacaoCatalogo.Fixo => preco?.ToString("C2") ?? "Sob consulta", TipoPrecificacaoCatalogo.APartirDe => preco.HasValue ? $"A partir de {preco:C2}" : "Sob consulta", _ => "Sob consulta" };
+    private sealed class ModeloFormulario { public string? ObservacaoCliente { get; set; } public string? ObservacaoInterna { get; set; } public string? Condicoes { get; set; } public decimal Desconto { get; set; } public decimal Acrescimo { get; set; } }
+    private sealed class ItemEdicao(TipoItemOrcamentoContrato tipoItem, Guid? itemCatalogoId, string nome, string? descricao,
+        TipoPrecificacaoCatalogo? tipoPrecificacao, decimal? precoReferencia, decimal valorUnitario, int quantidade, string? observacao)
+    { public TipoItemOrcamentoContrato TipoItem { get; } = tipoItem; public Guid? ItemCatalogoId { get; } = itemCatalogoId; public string Nome { get; set; } = nome; public string? Descricao { get; } = descricao; public TipoPrecificacaoCatalogo? TipoPrecificacao { get; } = tipoPrecificacao; public decimal? PrecoReferencia { get; } = precoReferencia; public decimal ValorUnitario { get; set; } = valorUnitario; public int Quantidade { get; set; } = quantidade; public string? Observacao { get; set; } = observacao; }
+}
