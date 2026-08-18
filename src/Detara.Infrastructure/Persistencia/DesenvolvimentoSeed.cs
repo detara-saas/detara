@@ -30,6 +30,8 @@ public static class DesenvolvimentoSeed
         ("Orcamentos.Visualizar", "Visualizar orçamentos"),
         ("Orcamentos.Criar", "Criar orçamentos"),
         ("Orcamentos.Editar", "Editar e registrar transições de orçamentos"),
+        ("Configuracoes.Visualizar", "Visualizar configurações operacionais"),
+        ("Configuracoes.Editar", "Editar configurações operacionais e checklist"),
         ("OrdemServico.Visualizar", "Visualizar ordens de serviço"),
         ("OrdemServico.Criar", "Criar ordens de serviço"),
         ("OrdemServico.Finalizar", "Finalizar ordens de serviço"),

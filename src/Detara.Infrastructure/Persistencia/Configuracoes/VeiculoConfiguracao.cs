@@ -10,6 +10,7 @@ internal sealed class VeiculoConfiguracao : IEntityTypeConfiguration<Veiculo>
     {
         builder.ToTable("Veiculos");
         builder.HasKey(item => item.Id);
+        builder.HasAlternateKey(item => new { item.EmpresaId, item.Id });
         builder.Property(item => item.Placa).HasMaxLength(7).IsRequired();
         builder.Property(item => item.Marca).HasMaxLength(80).IsRequired();
         builder.Property(item => item.Modelo).HasMaxLength(80).IsRequired();

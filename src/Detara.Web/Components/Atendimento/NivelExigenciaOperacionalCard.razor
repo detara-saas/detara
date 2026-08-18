@@ -1,0 +1,35 @@
+<article class="operational-setting-card">
+    <div><strong>@Titulo</strong><span>@Descricao</span></div>
+    <MudSelect T="NivelExigenciaOperacionalContrato" Value="Valor" ValueChanged="ValorChanged" Label="Nível de exigência" Variant="Variant.Outlined" Disabled="@(!PodeEditar)" aria-label="@($"Nível de exigência para {Titulo}")" id="Identificador">
+        @foreach (var nivel in Enum.GetValues<NivelExigenciaOperacionalContrato>())
+        {
+            <MudSelectItem T="NivelExigenciaOperacionalContrato" Value="nivel">@NomeNivel(nivel)</MudSelectItem>
+        }
+    </MudSelect>
+    <small>@DescricaoNivel(Valor)</small>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Descricao { get; set; } = string.Empty;
+    [Parameter] public NivelExigenciaOperacionalContrato Valor { get; set; }
+    [Parameter] public EventCallback<NivelExigenciaOperacionalContrato> ValorChanged { get; set; }
+    [Parameter] public bool PodeEditar { get; set; }
+    [Parameter, EditorRequired] public string Identificador { get; set; } = string.Empty;
+
+    private static string NomeNivel(NivelExigenciaOperacionalContrato nivel) => nivel switch
+    {
+        NivelExigenciaOperacionalContrato.Desabilitado => "Desabilitado",
+        NivelExigenciaOperacionalContrato.Opcional => "Opcional",
+        NivelExigenciaOperacionalContrato.Obrigatorio => "Obrigatório",
+        _ => nivel.ToString()
+    };
+
+    private static string DescricaoNivel(NivelExigenciaOperacionalContrato nivel) => nivel switch
+    {
+        NivelExigenciaOperacionalContrato.Desabilitado => "Este recurso não fará parte do fluxo de atendimento.",
+        NivelExigenciaOperacionalContrato.Opcional => "O operador poderá registrar, mas não será obrigado.",
+        NivelExigenciaOperacionalContrato.Obrigatorio => "O atendimento deverá cumprir esta etapa antes de avançar.",
+        _ => string.Empty
+    };
+}

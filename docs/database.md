@@ -83,6 +83,28 @@ Não existem FKs cross-module para Cliente, Veículo, Agendamento, Serviço, Pac
 
 O código é criado uma única vez na emissão no formato `ORC-AAAA-XXXXXXXXXXXX`, derivado do GUID do documento e protegido por índice único `(EmpresaId, Codigo)`. Rascunhos mantêm código nulo.
 
+## Fundação operacional e checklist
+
+A migration `AddOperationalSettingsAndChecklist` adiciona:
+
+- `ConfiguracoesOperacionaisAtendimento`, única por `EmpresaId`, com os níveis desabilitado, opcional ou obrigatório para checklist de entrada, fotos de entrada e fotos de saída;
+- `ChecklistModelos`, único por `EmpresaId` nesta versão inicial;
+- `ChecklistModeloItens`, com FK composta `(EmpresaId, ChecklistModeloId)`, cascade somente dentro do agregado e ordem única por modelo;
+- validação de domínio case-insensitive após trim para bloquear duplicidades de itens.
+
+A ausência da configuração ou do modelo é válida e representa defaults desabilitados. Nenhum registro é criado ao cadastrar uma empresa ou apenas consultar a configuração. Não existem FKs dessas tabelas para `Empresas`, pois a referência é cross-module com Plataforma; os filtros e interceptações tenant-safe do `DetaraDbContext`, os repositórios e os índices por empresa protegem leitura e escrita.
+
+## Fotos permanentes de veículos
+
+A migration `AddVehiclePhotos` adiciona:
+
+- chave alternativa tenant-safe `(EmpresaId, Id)` em `Veiculos`;
+- `VeiculosFotos`, com metadados, chave lógica privada de storage e indicação de foto principal;
+- FK composta `(EmpresaId, VeiculoId)` para `Veiculos`, interna ao módulo Clientes e com delete `Restrict`;
+- chave de storage única e índice filtrado que permite no máximo uma foto principal por veículo.
+
+O conteúdo binário e caminhos físicos não são armazenados no SQL Server. O banco contém somente `ChaveStorage`, nome original saneado, content type detectado, tamanho, principal e auditoria. A inativação do veículo não remove fotos.
+
 Aplicação de migration:
 
 ```powershell
@@ -90,4 +112,4 @@ dotnet tool restore
 dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj --startup-project src/Detara.Api/Detara.Api.csproj
 ```
 
-As migrations devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco. A Task 05 gera `AddOrcamentos`, mas não executa `database update`.
+As migrations devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco. A Task 06.1 gera `AddOperationalSettingsAndChecklist` e `AddVehiclePhotos`, mas não executa `database update` permanente.

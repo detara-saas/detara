@@ -3,6 +3,7 @@ using Detara.Application.Abstracoes;
 using Detara.Domain.Entidades;
 using Detara.Domain.Agenda;
 using Detara.Domain.Atendimento;
+using Detara.Domain.Clientes;
 using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Persistencia;
@@ -29,6 +30,10 @@ public sealed class DetaraDbContext(
     public DbSet<Orcamento> Orcamentos => Set<Orcamento>();
     public DbSet<OrcamentoItem> OrcamentosItens => Set<OrcamentoItem>();
     public DbSet<HistoricoStatusOrcamento> OrcamentosHistoricosStatus => Set<HistoricoStatusOrcamento>();
+    public DbSet<ConfiguracaoOperacionalAtendimento> ConfiguracoesOperacionaisAtendimento => Set<ConfiguracaoOperacionalAtendimento>();
+    public DbSet<ChecklistModelo> ChecklistModelos => Set<ChecklistModelo>();
+    public DbSet<ChecklistModeloItem> ChecklistModeloItens => Set<ChecklistModeloItem>();
+    public DbSet<VeiculoFoto> VeiculosFotos => Set<VeiculoFoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

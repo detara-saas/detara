@@ -22,5 +22,14 @@ window.detara = {
         document.body.appendChild(link);
         link.click();
         link.remove();
+    },
+    criarUrlImagem: async (streamReference, contentType) => {
+        const buffer = await streamReference.arrayBuffer();
+        return URL.createObjectURL(new Blob([buffer], { type: contentType }));
+    },
+    revogarUrlImagem: (url) => URL.revokeObjectURL(url),
+    limparInputArquivo: (id) => {
+        const input = document.getElementById(id);
+        if (input) input.value = "";
     }
 };

@@ -40,10 +40,10 @@ Não serão criados assemblies por módulo enquanto a quantidade de módulos, eq
 | Módulo | Estado | Responsabilidade e ownership |
 |---|---|---|
 | Plataforma / Identidade | Atual, base | Empresa, usuário, perfil, permissão, preferência, autenticação e resolução do tenant |
-| Clientes | Atual, base | Cadastro e identificação de clientes e veículos |
+| Clientes | Atual, base | Cadastro e identificação de clientes e veículos, incluindo fotos permanentes do cadastro do veículo |
 | Catálogo | Atual, base | O que a empresa oferece: categorias, serviços e pacotes |
 | Agenda | Atual, base | Agendamento, itens planejados, snapshots, reagendamento, status e consultas operacionais |
-| Atendimento | Atual, base | Orçamento, itens, histórico de status e, futuramente, ordem de serviço, checklist, execução, fotos e entrega |
+| Atendimento | Atual, base | Orçamento, configuração operacional e modelo padrão de checklist; futuramente, ordem de serviço, execução, fotos transacionais e entrega |
 | Financeiro | Futuro | Pagamentos, recebimentos, fluxo e indicadores financeiros |
 | Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
 | CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
@@ -152,6 +152,7 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `UsuariosPaginasFavoritas` | Plataforma |
 | `Clientes` | Clientes |
 | `Veiculos` | Clientes |
+| `VeiculosFotos` | Clientes |
 | `CategoriasServico` | Catálogo |
 | `Servicos` | Catálogo |
 | `Pacotes` | Catálogo |
@@ -161,6 +162,9 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `Orcamentos` | Atendimento |
 | `OrcamentosItens` | Atendimento |
 | `OrcamentosHistoricosStatus` | Atendimento |
+| `ConfiguracoesOperacionaisAtendimento` | Atendimento |
+| `ChecklistModelos` | Atendimento |
+| `ChecklistModeloItens` | Atendimento |
 
 Essa matriz deve ser atualizada quando uma tabela ou agregado for introduzido.
 
@@ -281,6 +285,18 @@ Orçamentos são mutáveis somente enquanto `Rascunho`. Após a emissão, qualqu
 `Expirado` é um estado efetivo calculado quando o status persistido é `Emitido` e `ValidoAte` é anterior à data local da Empresa. Não existe job de expiração. O PDF oficial é regenerado server-side a partir dos snapshots e permanece disponível para documentos recusados, cancelados, expirados ou substituídos. Se futuramente houver exigência jurídica maior, a evolução prevista é armazenar o arquivo final, hash e data/origem de envio sem alterar o documento comercial existente.
 
 Uma futura Ordem de Serviço criada a partir de Orçamento aprovado deverá copiar itens, descrições, quantidades, valores negociados, desconto, acréscimo e total do Orçamento. Ela não poderá reconstruir preços a partir do Catálogo, nem nascer de orçamento recusado, cancelado, substituído ou expirado.
+
+## Fundação operacional implementada
+
+Atendimento é dono de `ConfiguracaoOperacionalAtendimento`, `ChecklistModelo` e `ChecklistModeloItem`. Cada empresa pode ter uma configuração e um modelo padrão de checklist de entrada. A ausência de registros representa os defaults desabilitados e não provoca escrita durante criação de empresa ou consulta. Desabilitar a exigência preserva o modelo configurado.
+
+O modelo padrão é configuração mutável. Quando a Ordem de Serviço for implementada, Atendimento deverá copiar os itens para um snapshot pertencente à OS; alterações posteriores no modelo não poderão reescrever atendimentos históricos. Respostas e evidências preenchidas também pertencerão à OS.
+
+Clientes é dono de `VeiculoFoto`, pois a imagem permanente descreve o cadastro e o histórico do veículo, independentemente de um atendimento. Fotos futuras de entrada, durante o serviço ou saída pertencerão à Ordem de Serviço em Atendimento e não reutilizarão `VeiculoFoto` como entidade genérica.
+
+`IArquivoStorage` é uma abstração técnica de infraestrutura, não um módulo de mídia. A implementação local persiste conteúdo privado fora do `wwwroot`; o banco guarda apenas chave lógica e metadados. Um futuro adapter de Object Storage poderá substituir o provider sem mudar o ownership dos arquivos.
+
+A FK composta tenant-safe de `VeiculosFotos` para `Veiculos` é interna ao módulo Clientes e usa exclusão restritiva. Configuração e checklist não recebem FK para `Empresas`: o isolamento e a existência da empresa são protegidos pelo contexto autenticado e pelos índices únicos por `EmpresaId`, evitando acoplamento desnecessário entre Atendimento e Plataforma.
 
 ## Add-ons e exemplos de evolução
 

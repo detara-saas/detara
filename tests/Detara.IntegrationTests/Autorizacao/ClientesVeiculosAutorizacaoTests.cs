@@ -81,6 +81,63 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task UsuarioSemConfiguracoesVisualizar_Recebe403()
+    {
+        var response = await _client.GetAsync("/api/configuracoes/operacao");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioComConfiguracoesVisualizar_ConsultaPermitida()
+    {
+        UsarPermissoes(Permissoes.ConfiguracoesVisualizar);
+        var response = await _client.GetAsync("/api/configuracoes/operacao");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/configuracoes/operacao")]
+    [InlineData("/api/configuracoes/operacao/checklist")]
+    public async Task UsuarioSemConfiguracoesEditar_AlteracaoBloqueada(string rota)
+    {
+        UsarPermissoes(Permissoes.ConfiguracoesVisualizar);
+        var response = await _client.PutAsJsonAsync(rota, new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/veiculos/00000000-0000-0000-0000-000000000001/fotos")]
+    [InlineData("/api/veiculos/00000000-0000-0000-0000-000000000001/fotos/00000000-0000-0000-0000-000000000002/conteudo")]
+    public async Task UsuarioSemVeiculosVisualizar_FotosBloqueadas(string rota)
+    {
+        var response = await _client.GetAsync(rota);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("PATCH", "/api/veiculos/00000000-0000-0000-0000-000000000001/fotos/00000000-0000-0000-0000-000000000002/principal")]
+    [InlineData("DELETE", "/api/veiculos/00000000-0000-0000-0000-000000000001/fotos/00000000-0000-0000-0000-000000000002")]
+    public async Task UsuarioSemVeiculosEditar_MutacoesDeFotoBloqueadas(string metodo, string rota)
+    {
+        UsarPermissoes(Permissoes.VeiculosVisualizar);
+        using var request = new HttpRequestMessage(new HttpMethod(metodo), rota);
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioSemVeiculosEditar_UploadDeFotoBloqueado()
+    {
+        UsarPermissoes(Permissoes.VeiculosVisualizar);
+        using var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent([0xFF, 0xD8, 0xFF, 0xD9]), "arquivo", "foto.jpg");
+        var response = await _client.PostAsync(
+            "/api/veiculos/00000000-0000-0000-0000-000000000001/fotos",
+            content);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     [Theory]
     [InlineData("/api/servicos")]
     [InlineData("/api/categorias-servico")]
