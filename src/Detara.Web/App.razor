@@ -2,8 +2,19 @@
     <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                <NotAuthorized>
-                    <RedirecionarLogin />
+                <NotAuthorized Context="authenticationState">
+                    @if (authenticationState.User.Identity?.IsAuthenticated == true)
+                    {
+                        <LayoutView Layout="@typeof(MainLayout)">
+                            <EstadoVazio Titulo="Acesso não autorizado"
+                                         Descricao="Seu perfil não possui permissão para acessar esta página."
+                                         Icone="@Icons.Material.Outlined.Lock" />
+                        </LayoutView>
+                    }
+                    else
+                    {
+                        <RedirecionarLogin />
+                    }
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />

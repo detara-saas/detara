@@ -25,9 +25,9 @@ public interface ICatalogoAtendimentoConsulta
 }
 
 public sealed record ItemAgendamentoAtendimentoInterno(TipoItemOrcamento TipoItem, Guid ItemCatalogoId, string Nome, string? Descricao,
-    TipoPrecificacao TipoPrecificacao, decimal? PrecoReferencia);
+    TipoPrecificacao TipoPrecificacao, decimal? PrecoReferencia, int? DuracaoReferenciaMinutos = null);
 public sealed record AgendamentoAtendimentoInterno(Guid Id, Guid ClienteId, string ClienteNome, Guid VeiculoId, string VeiculoDescricao,
-    string VeiculoPlaca, IReadOnlyCollection<ItemAgendamentoAtendimentoInterno> Itens);
+    string VeiculoPlaca, IReadOnlyCollection<ItemAgendamentoAtendimentoInterno> Itens, int? DuracaoPlanejadaMinutos = null);
 
 public interface IAgendaAtendimentoConsulta
 {

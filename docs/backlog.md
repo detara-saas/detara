@@ -8,7 +8,7 @@
 - Agenda e agendamentos — concluído na Task 04
 - Orçamentos, valor negociado, aprovação e PDF profissional — concluído na Task 05
 - Fundação operacional, checklist configurável, storage privado e fotos permanentes do veículo — concluído na Task 06.1
-- Ordens de serviço, snapshots do checklist e fotos de entrada/saída — Task 06.2
+- Ordens de serviço, check-in, execução, adicionais e fotos transacionais — concluído na Task 06.2
 - Pagamento básico e dashboard com dados reais
 
 ## Próxima versão
@@ -36,13 +36,8 @@
 - Definir publicação do Catálogo dentro do futuro módulo Autoatendimento, sem `DisponivelNoPortal` no Core
 - Projetar API pública, segurança e entitlement somente quando Autoatendimento for efetivamente implementado
 - Portal do Cliente poderá visualizar, baixar, aprovar e recusar Orçamentos; não criar link/token público antes do módulo existir
-- Ordem de Serviço originada de Orçamento aprovado deverá copiar os valores negociados e nunca recalculá-los pelo Catálogo
 - Reavaliar extração de microserviço apenas pelos critérios operacionais do ADR 001
 - Checklist por serviço, categoria ou tipo de veículo somente após validar a necessidade; a versão atual mantém um modelo padrão por empresa
-- Snapshots imutáveis de checklist e respostas pertencentes à Ordem de Serviço
-- Fotos de entrada, durante o serviço e saída pertencentes à Ordem de Serviço, separadas das fotos permanentes do cadastro do veículo
-- Categorias e finalidade das fotos de Ordem de Serviço
-- Respostas simples de checklist (conforme/não conforme, observação e evidência) na Task 06.2
 - Integração futura de consumo com Estoque e geração financeira apenas quando esses módulos forem implementados
 
 Cada item exige validação de produto antes de introduzir infraestrutura externa.

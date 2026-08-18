@@ -19,12 +19,15 @@ public sealed class Orcamento : EntidadeEmpresaBase
 
     public Orcamento(Guid empresaId, PartesOrcamentoSnapshot partes, Guid? agendamentoOrigemId, Guid? orcamentoOrigemId, DateOnly validoAte,
         string? observacaoCliente, string? observacaoInterna, string? condicoes, decimal desconto, decimal acrescimo,
-        IReadOnlyCollection<ItemOrcamentoSnapshot> itens, Guid usuarioId)
+        IReadOnlyCollection<ItemOrcamentoSnapshot> itens, Guid usuarioId, Guid? ordemServicoOrigemId = null)
         : base(Guid.NewGuid(), empresaId)
     {
         Status = StatusOrcamento.Rascunho;
         AgendamentoOrigemId = ValidarIdOpcional(agendamentoOrigemId);
         OrcamentoOrigemId = ValidarIdOpcional(orcamentoOrigemId);
+        OrdemServicoOrigemId = ValidarIdOpcional(ordemServicoOrigemId);
+        if (OrcamentoOrigemId.HasValue && OrdemServicoOrigemId.HasValue)
+            throw new ArgumentException("Um orçamento não pode ser simultaneamente substituição e adicional de uma ordem de serviço.");
         AtualizarRascunho(partes, validoAte, observacaoCliente, observacaoInterna, condicoes, desconto, acrescimo, itens);
         RegistrarHistorico(StatusOrcamento.Rascunho, usuarioId, "Orçamento criado.");
     }
@@ -39,6 +42,7 @@ public sealed class Orcamento : EntidadeEmpresaBase
     public string VeiculoPlacaSnapshot { get; private set; } = string.Empty;
     public Guid? AgendamentoOrigemId { get; private set; }
     public Guid? OrcamentoOrigemId { get; private set; }
+    public Guid? OrdemServicoOrigemId { get; private set; }
     public StatusOrcamento Status { get; private set; }
     public DateOnly ValidoAte { get; private set; }
     public string? ObservacaoCliente { get; private set; }

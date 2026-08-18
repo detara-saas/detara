@@ -13,7 +13,7 @@ public sealed record HistoricoStatusOrcamentoResultado(Guid Id, StatusOrcamento 
 public sealed record ReferenciaOrcamentoResultado(Guid Id, string? Codigo, StatusOrcamento Status, DateOnly ValidoAte);
 public sealed record OrcamentoDetalheResultado(Guid Id, string? Codigo, Guid ClienteId, string ClienteNome, string? ClienteDocumento,
     string? ClienteTelefone, Guid VeiculoId, string VeiculoDescricao, string VeiculoPlaca, Guid? AgendamentoOrigemId,
-    Guid? OrcamentoOrigemId, StatusOrcamento Status, DateOnly ValidoAte, string? ObservacaoCliente, string? ObservacaoInterna,
+    Guid? OrcamentoOrigemId, Guid? OrdemServicoOrigemId, Guid? OrdemServicoId, StatusOrcamento Status, DateOnly ValidoAte, string? ObservacaoCliente, string? ObservacaoInterna,
     string? Condicoes, decimal Desconto, decimal Acrescimo, DateTime CriadoEmUtc, DateTime? AtualizadoEmUtc, DateTime? EmitidoEmUtc,
     DateTime? AprovadoEmUtc, DateTime? RecusadoEmUtc, DateTime? CanceladoEmUtc, DateTime? SubstituidoEmUtc,
     Guid? AprovadoPorUsuarioId, IReadOnlyCollection<OrcamentoItemResultado> Itens,

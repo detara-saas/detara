@@ -206,6 +206,105 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     [Fact] public async Task EmpresaA_NaoUsaAgendamentoEmpresaB() { await using var c = Contexto(_empresaA, _usuarioA); await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() => CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, _servicoA, 160m, _agendamentoB), default)); }
     [Fact] public async Task VeiculoMesmoTenant_DeOutroCliente_EhRejeitado() { await using var c = Contexto(_empresaA, _usuarioA); await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() => CriarHandler(c).Handle(Comando(_clienteA, _veiculoA2, _servicoA, 160m), default)); }
 
+    [Fact]
+    public async Task OrcamentoAprovado_OriginaUmaUnicaOsComSnapshotsEValorExatos()
+    {
+        await using var c = Contexto(_empresaA, _usuarioA);
+        var criado = await CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, _servicoA, 160m), default);
+        c.ChangeTracker.Clear();
+        await EmitirHandler(c).Handle(new(criado.Orcamento.Id, null), default);
+        c.ChangeTracker.Clear();
+        await new AprovarOrcamentoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
+            new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c), new OrdensServicoRepositorio(c))
+            .Handle(new(criado.Orcamento.Id, "Aprovado"), default);
+        c.ChangeTracker.Clear();
+
+        var comando = new CriarOrdemServicoCommand(criado.Orcamento.Id, null, null, null, null,
+            0, 0, null, []);
+        var ordem = await CriarOrdemServicoHandler(c).Handle(comando, default);
+
+        Assert.Equal(160m, ordem.OrdemServico.TotalAutorizado);
+        Assert.Equal("Lavagem técnica", Assert.Single(ordem.OrdemServico.Itens).NomeSnapshot);
+        Assert.Equal(OrigemComercialOrdemServico.Orcamento, ordem.OrdemServico.Itens.Single().OrigemComercial);
+        c.ChangeTracker.Clear();
+        await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() => CriarOrdemServicoHandler(c).Handle(comando, default));
+    }
+
+    [Fact]
+    public async Task OrcamentoNaoAprovado_NaoOriginaOs()
+    {
+        await using var c = Contexto(_empresaA, _usuarioA);
+        var criado = await CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, _servicoA, 160m), default);
+        c.ChangeTracker.Clear();
+        await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() => CriarOrdemServicoHandler(c).Handle(
+            new(criado.Orcamento.Id, null, null, null, null, 0, 0, null, []), default));
+    }
+
+    [Fact]
+    public async Task CriacaoDireta_ExigeValorAutorizadoEPreservaCatalogo()
+    {
+        await using var c = Contexto(_empresaA, _usuarioA);
+        var ordem = await CriarOrdemServicoHandler(c).Handle(new(null, null, _clienteA, _veiculoA,
+            null, 0, 0, "Cliente autorizou presencialmente.",
+            [new(TipoItemOrcamento.Servico, _servicoA, null, null, 175m, 1, null)]), default);
+
+        Assert.Equal(175m, ordem.OrdemServico.TotalAutorizado);
+        Assert.Equal(OrigemOrdemServico.AtendimentoDireto, ordem.OrdemServico.Origem);
+        Assert.NotNull(ordem.OrdemServico.AutorizacaoDiretaEmUtc);
+        Assert.Equal(100m, (await c.Servicos.SingleAsync(item => item.Id == _servicoA)).PrecoBase);
+    }
+
+    [Fact]
+    public async Task OrcamentoAdicional_AprovadoIncorporaItensSemSubstituirOriginal()
+    {
+        await using var c = Contexto(_empresaA, _usuarioA);
+        var baseCriada = await CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, _servicoA, 160m), default);
+        c.ChangeTracker.Clear(); await EmitirHandler(c).Handle(new(baseCriada.Orcamento.Id, null), default);
+        c.ChangeTracker.Clear(); await new AprovarOrcamentoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
+            new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c), new OrdensServicoRepositorio(c))
+            .Handle(new(baseCriada.Orcamento.Id, null), default);
+        c.ChangeTracker.Clear();
+        var ordem = await CriarOrdemServicoHandler(c).Handle(new(baseCriada.Orcamento.Id, null, null, null,
+            null, 0, 0, null, []), default);
+        c.ChangeTracker.Clear();
+        var persistida = await new OrdensServicoRepositorio(c).ObterAsync(ordem.OrdemServico.Id, true, default);
+        persistida!.RealizarCheckIn(new(NivelExigenciaOperacional.Desabilitado,
+            NivelExigenciaOperacional.Desabilitado, NivelExigenciaOperacional.Desabilitado, null, []), null, null, _usuarioA);
+        await c.SaveChangesAsync(); c.ChangeTracker.Clear();
+        var repositorioOrdens = new OrdensServicoRepositorio(c);
+        persistida = await repositorioOrdens.ObterAsync(ordem.OrdemServico.Id, true, default);
+        persistida!.IniciarExecucao(_usuarioA, null);
+        repositorioOrdens.AdicionarUltimoHistorico(persistida);
+        await c.SaveChangesAsync(); c.ChangeTracker.Clear();
+
+        var adicional = await new CriarOrcamentoAdicionalHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
+            new OrdensServicoRepositorio(c), new OrcamentosRepositorio(c), new CatalogoAtendimentoConsulta(c),
+            new PlataformaAtendimentoConsulta(c)).Handle(new(ordem.OrdemServico.Id,
+                DateOnly.FromDateTime(DateTime.UtcNow).AddDays(7), null, null, null, 0, 0,
+                [new(TipoItemOrcamento.Personalizado, null, "Vitrificação de vidro", null, 80m, 1, null)]), default);
+        c.ChangeTracker.Clear(); await EmitirHandler(c).Handle(new(adicional.Orcamento.Id, null), default);
+        c.ChangeTracker.Clear(); await new AprovarOrcamentoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
+            new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c), new OrdensServicoRepositorio(c))
+            .Handle(new(adicional.Orcamento.Id, "Aprovado"), default);
+        c.ChangeTracker.Clear();
+
+        var atualizada = await c.OrdensServico.Include(item => item.Itens).SingleAsync(item => item.Id == ordem.OrdemServico.Id);
+        Assert.Equal(240m, atualizada.TotalAutorizado);
+        Assert.Equal(2, atualizada.Itens.Count);
+        Assert.Equal(StatusOrcamento.Aprovado, (await c.Orcamentos.SingleAsync(item => item.Id == baseCriada.Orcamento.Id)).Status);
+    }
+
+    [Fact]
+    public async Task EmpresaA_NaoConsultaOsDaEmpresaB()
+    {
+        await using var b = Contexto(_empresaB, _usuarioB);
+        var ordemB = await CriarOrdemServicoHandler(b, _empresaB, _usuarioB).Handle(new(null, null,
+            _clienteB, _veiculoB, null, 0, 0, "Autorizado", [new(TipoItemOrcamento.Servico,
+                _servicoB, null, null, 80m, 1, null)]), default);
+        await using var a = Contexto(_empresaA, _usuarioA);
+        Assert.Null(await new OrdensServicoRepositorio(a).ObterAsync(ordemB.OrdemServico.Id, false, default));
+    }
+
     private async Task CriarBaseTenantAsync(Guid empresaId, bool empresaA)
     {
         await using var c = Contexto(empresaId, empresaA ? _usuarioA : _usuarioB);
@@ -247,6 +346,10 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     private AtualizarOrcamentoHandler AtualizarHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c), new AgendaAtendimentoConsulta(c), new OrcamentosRepositorio(c));
     private EmitirOrcamentoHandler EmitirHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c));
     private CriarNovaPropostaHandler NovaHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c));
+    private CriarOrdemServicoHandler CriarOrdemServicoHandler(DetaraDbContext c, Guid? empresa = null, Guid? usuario = null) =>
+        new(new UsuarioContextoTeste(empresa ?? _empresaA, usuario ?? _usuarioA), new OrdensServicoRepositorio(c),
+            new OrcamentosRepositorio(c), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c),
+            new AgendaAtendimentoConsulta(c), new PlataformaAtendimentoConsulta(c));
     private CriarOrcamentoCommand Comando(Guid cliente, Guid veiculo, Guid servico, decimal valor, Guid? agenda = null) => new(cliente, veiculo, agenda,
         DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30), "Cliente", "Interna confidencial", "À vista", 0, 0,
         [new(TipoItemOrcamento.Servico, servico, null, null, valor, 1, null)]);

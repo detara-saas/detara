@@ -34,6 +34,7 @@ public static class DesenvolvimentoSeed
         ("Configuracoes.Editar", "Editar configurações operacionais e checklist"),
         ("OrdemServico.Visualizar", "Visualizar ordens de serviço"),
         ("OrdemServico.Criar", "Criar ordens de serviço"),
+        ("OrdemServico.Editar", "Editar check-in, evidências e adicionais da ordem de serviço"),
         ("OrdemServico.Finalizar", "Finalizar ordens de serviço"),
         ("Financeiro.Visualizar", "Visualizar financeiro"),
         ("Administracao.Usuario", "Administrar usuários")
@@ -64,7 +65,6 @@ public static class DesenvolvimentoSeed
         var email = configuration["Seed:EmailAdministrador"] ?? "admin@detara.local";
 
         await using var contextSistema = new DetaraDbContext(options, UsuarioContextoFixo.Anonimo);
-        await contextSistema.Database.MigrateAsync(cancellationToken);
         var empresa = await contextSistema.Empresas.SingleOrDefaultAsync(x => x.Slug == slug, cancellationToken);
         if (empresa is null)
         {
@@ -111,6 +111,25 @@ public static class DesenvolvimentoSeed
             await contextTenant.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Seed de desenvolvimento criado para a empresa {EmpresaId}", empresa.Id);
         }
+    }
+
+    public static async Task ValidarMigrationsDesenvolvimentoAsync(
+        this IServiceProvider services,
+        CancellationToken cancellationToken = default)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+        await using var context = new DetaraDbContext(options, UsuarioContextoFixo.Anonimo);
+        var pendentes = (await context.Database.GetPendingMigrationsAsync(cancellationToken)).ToArray();
+        if (pendentes.Length == 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Existem migrations pendentes ({string.Join(", ", pendentes)}). " +
+            "Execute 'dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj " +
+            "--startup-project src/Detara.Api/Detara.Api.csproj' antes de iniciar a API em Development.");
     }
 
     private sealed class UsuarioContextoFixo(Guid empresaId) : IUsuarioContexto

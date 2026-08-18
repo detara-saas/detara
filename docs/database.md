@@ -105,6 +105,29 @@ A migration `AddVehiclePhotos` adiciona:
 
 O conteúdo binário e caminhos físicos não são armazenados no SQL Server. O banco contém somente `ChaveStorage`, nome original saneado, content type detectado, tamanho, principal e auditoria. A inativação do veículo não remove fotos.
 
+## Atendimento — Ordens de Serviço
+
+A migration `AddOrdensServico` adiciona `OrdensServico`, `OrdensServicoItens`,
+`OrdensServicoChecklist`, `OrdensServicoChecklistItens`, `OrdensServicoFotos` e
+`OrdensServicoHistoricosStatus`, além de `Orcamentos.OrdemServicoOrigemId` para
+orçamentos complementares.
+
+O código da OS é imutável e único por `(EmpresaId, Codigo)`. A origem por orçamento
+principal também é única por tenant, impedindo duas OS para o mesmo documento aprovado.
+Os índices de status, criação, cliente, veículo e origens começam por `EmpresaId`.
+`OrcamentoItemOrigemId` é único por tenant nos itens da OS, tornando a incorporação de
+adicionais aprovados idempotente.
+
+Cliente, Veículo, Agenda e Catálogo são referenciados por IDs e snapshots, sem FKs
+cross-module. As FKs compostas existem somente entre a OS e suas composições internas.
+Não há FK destrutiva entre OS e Orçamento: cancelar uma OS não altera ou apaga o documento
+comercial. Fotos transacionais usam o mesmo storage privado da aplicação, mas possuem
+metadados próprios e não se relacionam com `VeiculosFotos`.
+
+O total autorizado é derivado dos itens incorporados, descontos e acréscimos aprovados.
+Financeiro deverá consumir esse total e nunca reconstruí-lo a partir do Catálogo. Estoque
+deverá reagir ao consumo efetivamente executado quando o módulo existir.
+
 Aplicação de migration:
 
 ```powershell
@@ -112,4 +135,7 @@ dotnet tool restore
 dotnet ef database update --project src/Detara.Infrastructure/Detara.Infrastructure.csproj --startup-project src/Detara.Api/Detara.Api.csproj
 ```
 
-As migrations devem permanecer pendentes no ambiente local até a aplicação deliberada pelo responsável pelo banco. A Task 06.1 gera `AddOperationalSettingsAndChecklist` e `AddVehiclePhotos`, mas não executa `database update` permanente.
+As migrations permanecem pendentes até aplicação deliberada pelo responsável pelo banco.
+Em Development, a API valida migrations pendentes e informa o comando necessário; seed
+de dados e evolução de schema são operações separadas. Production nunca executa migration
+ou seed automaticamente.

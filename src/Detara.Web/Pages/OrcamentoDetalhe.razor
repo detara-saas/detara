@@ -14,6 +14,8 @@ else
         <Acoes>
             <span class="status-badge @ClasseStatus(_orcamento.Status)">@NomeStatus(_orcamento.Status)</span>
             @if (_orcamento.EmitidoEmUtc.HasValue) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.PictureAsPdf" OnClick="BaixarPdfAsync">Baixar PDF</MudButton> }
+            @if (_orcamento.OrdemServicoOrigemId.HasValue) { <MudButton Href="@($"/ordens-servico/{_orcamento.OrdemServicoOrigemId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FactCheck">Ver OS de origem</MudButton> }
+            else if (_orcamento.Status == StatusOrcamentoContrato.Aprovado) { @if (_orcamento.OrdemServicoId.HasValue) { <MudButton Href="@($"/ordens-servico/{_orcamento.OrdemServicoId}")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck">@("OS criada")</MudButton> } else { <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="@($"/ordens-servico/nova?orcamentoId={Id}")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck">Criar ordem de serviço</MudButton></Authorized></AuthorizeView> } }
             <AuthorizeView Policy="@Permissoes.OrcamentosEditar"><Authorized>@if (_orcamento.Status == StatusOrcamentoContrato.Rascunho) { <MudButton Href="@($"/orcamentos/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton> }</Authorized></AuthorizeView>
         </Acoes>
     </CabecalhoPagina>

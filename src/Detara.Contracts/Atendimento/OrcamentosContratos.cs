@@ -90,6 +90,8 @@ public sealed record OrcamentoDetalheResponse(
     string VeiculoDescricao,
     string VeiculoPlaca,
     Guid? AgendamentoOrigemId,
+    Guid? OrdemServicoOrigemId,
+    Guid? OrdemServicoId,
     StatusOrcamentoContrato Status,
     DateOnly ValidoAte,
     string? ObservacaoCliente,

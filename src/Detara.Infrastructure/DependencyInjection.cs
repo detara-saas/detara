@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<ICatalogoAgendaConsulta, CatalogoAgendaConsulta>();
         services.AddScoped<IFusoHorarioEmpresaConsulta, FusoHorarioEmpresaConsulta>();
         services.AddScoped<IOrcamentosRepositorio, OrcamentosRepositorio>();
+        services.AddScoped<IOrdensServicoRepositorio, OrdensServicoRepositorio>();
         services.AddScoped<IClientesAtendimentoConsulta, ClientesAtendimentoConsulta>();
         services.AddScoped<ICatalogoAtendimentoConsulta, CatalogoAtendimentoConsulta>();
         services.AddScoped<IAgendaAtendimentoConsulta, AgendaAtendimentoConsulta>();
