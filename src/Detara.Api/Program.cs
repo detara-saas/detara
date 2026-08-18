@@ -118,7 +118,8 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    await app.Services.InicializarDesenvolvimentoAsync(builder.Configuration);
+    await app.Services.ValidarMigrationsDesenvolvimentoAsync();
+    await app.Services.InicializarDesenvolvimentoAsync(app.Configuration);
 }
 
 app.UseExceptionHandler();
