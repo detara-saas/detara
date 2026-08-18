@@ -155,7 +155,8 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     public async Task Expirado_NaoPodeSerAprovado()
     {
         await using var c = Contexto(_empresaA, _usuarioA);
-        var entidade = new Orcamento(_empresaA, PartesA(), null, null, DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1),
+        var hojeLocal = OrcamentoFluxo.HojeLocal("America/Sao_Paulo");
+        var entidade = new Orcamento(_empresaA, PartesA(), null, null, hojeLocal.AddDays(-1),
             null, null, null, 0, 0, [ItemSnapshot(_servicoA, 160m)], _usuarioA);
         entidade.Emitir(DateTime.UtcNow.Year, _usuarioA); c.Orcamentos.Add(entidade); await c.SaveChangesAsync();
         var handler = new AprovarOrcamentoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c));
