@@ -43,7 +43,7 @@ Não serão criados assemblies por módulo enquanto a quantidade de módulos, eq
 | Clientes | Atual, base | Cadastro e identificação de clientes e veículos, incluindo fotos permanentes do cadastro do veículo |
 | Catálogo | Atual, base | O que a empresa oferece: categorias, serviços e pacotes |
 | Agenda | Atual, base | Agendamento, itens planejados, snapshots, reagendamento, status e consultas operacionais |
-| Atendimento | Atual, base | Orçamento, configuração operacional e modelo padrão de checklist; futuramente, ordem de serviço, execução, fotos transacionais e entrega |
+| Atendimento | Atual, base | Orçamento, configuração operacional, ordem de serviço, check-in, execução, fotos transacionais e entrega |
 | Financeiro | Futuro | Pagamentos, recebimentos, fluxo e indicadores financeiros |
 | Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
 | CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
@@ -267,7 +267,7 @@ As tabelas da Agenda não possuem FKs cross-module para Clientes ou Catálogo. A
 
 Preço no Agendamento é somente snapshot da referência do Catálogo. Agenda não possui preço acordado, total a cobrar ou valor final; esses conceitos pertencerão ao futuro Orçamento.
 
-Atendimento será posteriormente dono de Orçamento, Ordem de Serviço e Checklist. Ele também referencia Clientes e Catálogo sem assumir o cadastro deles.
+Atendimento é dono de Orçamento, Ordem de Serviço e Checklist. Ele referencia Clientes e Catálogo sem assumir o cadastro deles.
 
 ## Atendimento implementado — Orçamentos
 
@@ -284,7 +284,7 @@ Orçamentos são mutáveis somente enquanto `Rascunho`. Após a emissão, qualqu
 
 `Expirado` é um estado efetivo calculado quando o status persistido é `Emitido` e `ValidoAte` é anterior à data local da Empresa. Não existe job de expiração. O PDF oficial é regenerado server-side a partir dos snapshots e permanece disponível para documentos recusados, cancelados, expirados ou substituídos. Se futuramente houver exigência jurídica maior, a evolução prevista é armazenar o arquivo final, hash e data/origem de envio sem alterar o documento comercial existente.
 
-Uma futura Ordem de Serviço criada a partir de Orçamento aprovado deverá copiar itens, descrições, quantidades, valores negociados, desconto, acréscimo e total do Orçamento. Ela não poderá reconstruir preços a partir do Catálogo, nem nascer de orçamento recusado, cancelado, substituído ou expirado.
+Uma Ordem de Serviço criada a partir de Orçamento aprovado copia itens, descrições, quantidades, valores negociados, desconto, acréscimo e total do Orçamento. Ela não reconstrói preços a partir do Catálogo e não nasce de orçamento recusado, cancelado, substituído ou expirado.
 
 ## Fundação operacional implementada
 
