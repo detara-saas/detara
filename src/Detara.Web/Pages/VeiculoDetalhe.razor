@@ -1,7 +1,10 @@
 @page "/veiculos/{Id:guid}"
 @attribute [Authorize(Policy = Permissoes.VeiculosVisualizar)]
+@implements IAsyncDisposable
 @inject VeiculosServico VeiculosApi
 @inject IMensagemServico Mensagens
+@inject IDialogService DialogService
+@inject IJSRuntime JS
 
 <PageTitle>@(_veiculo is null ? "Veículo" : $"{_veiculo.Marca} {_veiculo.Modelo}") | Detara</PageTitle>
 
@@ -24,7 +27,7 @@ else
 
     @if (_confirmandoStatus)
     {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip"><div><strong>Confirmar @(_veiculo.EhAtivo ? "inativação" : "ativação")?</strong><span>O histórico do veículo será preservado.</span></div><div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert>
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip"><div><strong>Confirmar @(_veiculo.EhAtivo ? "inativação" : "ativação")?</strong><span>O histórico e as fotos do veículo serão preservados.</span></div><div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert>
     }
 
     <div class="detail-grid vehicle-detail-grid">
@@ -46,22 +49,114 @@ else
         </section>
     </div>
 
-    <section class="future-grid">
+    <section class="module-panel vehicle-photos-section" aria-labelledby="vehicle-photos-heading">
+        <div class="section-heading vehicle-photos-heading">
+            <div>
+                <span class="section-eyebrow">CADASTRO PERMANENTE</span>
+                <h2 id="vehicle-photos-heading">Fotos do veículo</h2>
+                <p>Imagem principal e galeria privada, acessíveis somente por usuários autorizados.</p>
+            </div>
+            @if (_veiculo.EhAtivo)
+            {
+                <AuthorizeView Policy="@Permissoes.VeiculosEditar">
+                    <Authorized>
+                        <InputFile id="vehicle-photo-input" class="visually-hidden-file" accept="image/jpeg,image/png,image/webp" OnChange="EnviarFotoAsync" disabled="@_enviandoFoto" />
+                        <label class="vehicle-photo-upload @(_enviandoFoto ? "disabled" : string.Empty)" for="vehicle-photo-input">
+                            <MudIcon Icon="@Icons.Material.Outlined.AddAPhoto" />
+                            <span>@(_enviandoFoto ? "Enviando..." : "Adicionar foto")</span>
+                        </label>
+                    </Authorized>
+                </AuthorizeView>
+            }
+        </div>
+
+        @if (!_veiculo.EhAtivo)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="vehicle-photo-notice">A galeria permanece disponível para consulta. Ative o veículo para enviar, excluir ou trocar a foto principal.</MudAlert>
+        }
+        @if (_enviandoFoto)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="vehicle-photo-progress" />
+        }
+
+        @if (_carregandoFotos)
+        {
+            <div class="vehicle-photos-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" /><span>Carregando galeria segura...</span></div>
+        }
+        else if (_fotos.Count == 0)
+        {
+            <div class="compact-empty vehicle-photos-empty"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><div><strong>Nenhuma foto cadastrada para este veículo</strong><span>JPEG, PNG ou WebP, com até 10 MiB por arquivo.</span></div></div>
+        }
+        else
+        {
+            var principal = _fotos.FirstOrDefault(item => item.EhPrincipal);
+            @if (principal is not null)
+            {
+                <div class="vehicle-main-photo">
+                    <div class="vehicle-main-photo-frame">
+                        @ImagemFoto(principal, $"Foto principal de {DescricaoVeiculo}, placa {_veiculo.Placa}")
+                        <span class="status-badge status-running vehicle-main-badge"><MudIcon Icon="@Icons.Material.Outlined.Star" Size="Size.Small" /> Principal</span>
+                    </div>
+                    <div class="vehicle-main-photo-info"><strong>@principal.NomeOriginal</strong><span>@FormatarTamanho(principal.TamanhoBytes) · adicionada em @principal.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
+                </div>
+            }
+
+            <div class="vehicle-photo-gallery" role="list" aria-label="Galeria de fotos do veículo">
+                @foreach (var foto in _fotos)
+                {
+                    <article class="vehicle-photo-card" role="listitem" @key="foto.Id">
+                        <div class="vehicle-photo-frame">@ImagemFoto(foto, $"Foto do veículo {DescricaoVeiculo}")</div>
+                        <div class="vehicle-photo-meta"><strong title="@foto.NomeOriginal">@foto.NomeOriginal</strong><span>@FormatarTamanho(foto.TamanhoBytes)</span></div>
+                        @if (_veiculo.EhAtivo)
+                        {
+                            <AuthorizeView Policy="@Permissoes.VeiculosEditar">
+                                <Authorized>
+                                    <div class="vehicle-photo-actions">
+                                        @if (!foto.EhPrincipal)
+                                        {
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Outlined.StarOutline" Disabled="@(_alterandoFotoId == foto.Id)" OnClick="@(() => DefinirPrincipalAsync(foto.Id))">Tornar principal</MudButton>
+                                        }
+                                        else
+                                        {
+                                            <span class="vehicle-photo-principal-label"><MudIcon Icon="@Icons.Material.Outlined.Star" Size="Size.Small" /> Foto principal</span>
+                                        }
+                                        <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" aria-label="@($"Excluir foto {foto.NomeOriginal}")" Disabled="@(_alterandoFotoId == foto.Id)" OnClick="@(() => ConfirmarExclusaoAsync(foto))" />
+                                    </div>
+                                </Authorized>
+                            </AuthorizeView>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="future-grid vehicle-future-grid">
         <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Histórico</strong><span>Nenhum serviço registrado.</span></div></article>
         <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.Event" /><div><strong>Próximo agendamento</strong><span>Nenhum agendamento futuro.</span></div></article>
-        <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><div><strong>Fotos</strong><span>Disponível em uma etapa futura.</span></div></article>
     </section>
 }
 
 @code {
     [Parameter] public Guid Id { get; set; }
     private VeiculoDetalheResponse? _veiculo;
+    private readonly List<VeiculoFotoResponse> _fotos = [];
+    private readonly Dictionary<Guid, string> _urlsFotos = [];
     private bool _carregando = true;
+    private bool _carregandoFotos;
     private bool _confirmandoStatus;
-    private string DescricaoVeiculo => _veiculo is null ? string.Empty : string.Join(" ", new[] { _veiculo.Marca, _veiculo.Modelo, _veiculo.Versao }.Where(item => !string.IsNullOrWhiteSpace(item)));
+    private bool _enviandoFoto;
+    private Guid? _alterandoFotoId;
+
+    private string DescricaoVeiculo => _veiculo is null
+        ? string.Empty
+        : string.Join(" ", new[] { _veiculo.Marca, _veiculo.Modelo, _veiculo.Versao }
+            .Where(item => !string.IsNullOrWhiteSpace(item)));
+
     protected override async Task OnParametersSetAsync()
     {
         _carregando = true;
+        await LiberarUrlsAsync();
         var resultado = await VeiculosApi.ObterAsync(Id);
         _veiculo = resultado.Resultado;
         if (!resultado.Sucesso)
@@ -70,10 +165,177 @@ else
         }
 
         _carregando = false;
+        if (_veiculo is not null)
+        {
+            await CarregarFotosAsync();
+        }
     }
+
+    private async Task CarregarFotosAsync()
+    {
+        _carregandoFotos = true;
+        await LiberarUrlsAsync();
+        var resultado = await VeiculosApi.ListarFotosAsync(Id);
+        _fotos.Clear();
+        if (!resultado.Sucesso || resultado.Resultado is null)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+            _carregandoFotos = false;
+            return;
+        }
+
+        _fotos.AddRange(resultado.Resultado
+            .OrderByDescending(item => item.EhPrincipal)
+            .ThenBy(item => item.CriadoEmUtc));
+        var falhaConteudo = false;
+        foreach (var foto in _fotos)
+        {
+            var conteudo = await VeiculosApi.ObterConteudoFotoAsync(Id, foto.Id);
+            if (!conteudo.Sucesso || conteudo.Resultado is null)
+            {
+                falhaConteudo = true;
+                continue;
+            }
+
+            await using var download = conteudo.Resultado;
+            using var referencia = new DotNetStreamReference(download.Conteudo);
+            var url = await JS.InvokeAsync<string>("detara.criarUrlImagem", referencia, download.ContentType);
+            _urlsFotos[foto.Id] = url;
+        }
+
+        if (falhaConteudo)
+        {
+            Mensagens.Mostrar("Uma ou mais fotos não puderam ser carregadas.", true);
+        }
+
+        _carregandoFotos = false;
+    }
+
+    private RenderFragment ImagemFoto(VeiculoFotoResponse foto, string textoAlternativo) => builder =>
+    {
+        if (_urlsFotos.TryGetValue(foto.Id, out var url))
+        {
+            builder.OpenElement(0, "img");
+            builder.AddAttribute(1, "src", url);
+            builder.AddAttribute(2, "alt", textoAlternativo);
+            builder.AddAttribute(3, "loading", "lazy");
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.OpenElement(4, "div");
+            builder.AddAttribute(5, "class", "vehicle-photo-unavailable");
+            builder.OpenComponent<MudIcon>(6);
+            builder.AddAttribute(7, "Icon", Icons.Material.Outlined.BrokenImage);
+            builder.CloseComponent();
+            builder.OpenElement(8, "span");
+            builder.AddContent(9, "Imagem indisponível");
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+    };
+
+    private async Task EnviarFotoAsync(InputFileChangeEventArgs args)
+    {
+        _enviandoFoto = true;
+        var resultado = await VeiculosApi.EnviarFotoAsync(Id, args.File);
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        try
+        {
+            await JS.InvokeVoidAsync("detara.limparInputArquivo", "vehicle-photo-input");
+        }
+        catch (JSException)
+        {
+        }
+
+        _enviandoFoto = false;
+        if (resultado.Sucesso)
+        {
+            await CarregarFotosAsync();
+        }
+    }
+
+    private async Task DefinirPrincipalAsync(Guid fotoId)
+    {
+        _alterandoFotoId = fotoId;
+        var resultado = await VeiculosApi.DefinirFotoPrincipalAsync(Id, fotoId);
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        _alterandoFotoId = null;
+        if (resultado.Sucesso)
+        {
+            await CarregarFotosAsync();
+        }
+    }
+
+    private async Task ConfirmarExclusaoAsync(VeiculoFotoResponse foto)
+    {
+        var confirmado = await DialogService.ShowMessageBoxAsync(
+            "Excluir foto",
+            $"A foto “{foto.NomeOriginal}” será removida permanentemente do cadastro do veículo.",
+            yesText: "Excluir",
+            cancelText: "Cancelar");
+        if (confirmado != true)
+        {
+            return;
+        }
+
+        _alterandoFotoId = foto.Id;
+        var resultado = await VeiculosApi.ExcluirFotoAsync(Id, foto.Id);
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        _alterandoFotoId = null;
+        if (resultado.Sucesso)
+        {
+            await CarregarFotosAsync();
+        }
+    }
+
     private void SolicitarStatus() => _confirmandoStatus = true;
     private void CancelarStatus() => _confirmandoStatus = false;
-    private async Task ConfirmarStatusAsync() { if (_veiculo is null) return; var resultado = await VeiculosApi.AlterarStatusAsync(Id, !_veiculo.EhAtivo); Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); _confirmandoStatus = false; if (resultado.Sucesso) await OnParametersSetAsync(); }
-    private string FormatarAno() => _veiculo is null ? "—" : _veiculo.AnoFabricacao.HasValue || _veiculo.AnoModelo.HasValue ? $"{_veiculo.AnoFabricacao?.ToString() ?? "—"}/{_veiculo.AnoModelo?.ToString() ?? "—"}" : "—";
-    private static string Valor(string? valor, string padrao = "—") => string.IsNullOrWhiteSpace(valor) ? padrao : valor;
+
+    private async Task ConfirmarStatusAsync()
+    {
+        if (_veiculo is null)
+        {
+            return;
+        }
+
+        var resultado = await VeiculosApi.AlterarStatusAsync(Id, !_veiculo.EhAtivo);
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        _confirmandoStatus = false;
+        if (resultado.Sucesso)
+        {
+            await OnParametersSetAsync();
+        }
+    }
+
+    private async Task LiberarUrlsAsync()
+    {
+        foreach (var url in _urlsFotos.Values)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("detara.revogarUrlImagem", url);
+            }
+            catch (JSException)
+            {
+            }
+        }
+
+        _urlsFotos.Clear();
+    }
+
+    public async ValueTask DisposeAsync() => await LiberarUrlsAsync();
+
+    private string FormatarAno() => _veiculo is null
+        ? "—"
+        : _veiculo.AnoFabricacao.HasValue || _veiculo.AnoModelo.HasValue
+            ? $"{_veiculo.AnoFabricacao?.ToString() ?? "—"}/{_veiculo.AnoModelo?.ToString() ?? "—"}"
+            : "—";
+
+    private static string FormatarTamanho(long bytes) => bytes >= 1024 * 1024
+        ? $"{bytes / 1024d / 1024d:N1} MiB"
+        : $"{bytes / 1024d:N0} KiB";
+
+    private static string Valor(string? valor, string padrao = "—") =>
+        string.IsNullOrWhiteSpace(valor) ? padrao : valor;
 }

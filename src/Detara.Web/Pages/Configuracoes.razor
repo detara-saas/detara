@@ -1,0 +1,211 @@
+@page "/configuracoes"
+@attribute [Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
+@inject ConfiguracoesServico ConfiguracoesApi
+@inject IMensagemServico Mensagens
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthorizationService AuthorizationService
+
+<PageTitle>Configurações | Detara</PageTitle>
+
+<CabecalhoPagina Titulo="Configurações" Descricao="Defina como sua empresa conduz o atendimento sem impor um processo único." Sobretitulo="ADMINISTRAÇÃO" />
+
+@if (_carregando)
+{
+    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+}
+else if (_configuracao is null)
+{
+    <EstadoVazio Titulo="Configurações indisponíveis" Descricao="Não foi possível carregar as regras operacionais da empresa." Icone="@Icons.Material.Outlined.Settings" />
+}
+else
+{
+    <div class="settings-layout">
+        <section class="module-panel settings-panel" aria-labelledby="operacao-heading">
+            <div class="section-heading settings-heading">
+                <div>
+                    <span class="section-eyebrow">OPERAÇÃO · ATENDIMENTO</span>
+                    <h2 id="operacao-heading">Etapas do atendimento</h2>
+                    <p>Escolha o que ficará fora do fluxo, disponível ao operador ou obrigatório na futura Ordem de Serviço.</p>
+                </div>
+                <MudIcon Icon="@Icons.Material.Outlined.Tune" Color="Color.Primary" />
+            </div>
+
+            <div class="operational-settings-grid">
+                <NivelExigenciaOperacionalCard Titulo="Checklist de entrada" Descricao="Avaliação visual configurada pela sua empresa." Valor="_checklistEntrada" ValorChanged="@(valor => _checklistEntrada = valor)" PodeEditar="_podeEditar" Identificador="checklist-entrada" />
+                <NivelExigenciaOperacionalCard Titulo="Fotos de entrada" Descricao="Evidências registradas antes do início do serviço." Valor="_fotosEntrada" ValorChanged="@(valor => _fotosEntrada = valor)" PodeEditar="_podeEditar" Identificador="fotos-entrada" />
+                <NivelExigenciaOperacionalCard Titulo="Fotos de saída" Descricao="Evidências registradas antes da entrega do veículo." Valor="_fotosSaida" ValorChanged="@(valor => _fotosSaida = valor)" PodeEditar="_podeEditar" Identificador="fotos-saida" />
+            </div>
+
+            <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar">
+                <Authorized>
+                    <div class="settings-actions">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvandoOperacao" OnClick="SalvarOperacaoAsync">
+                            @(_salvandoOperacao ? "Salvando..." : "Salvar operação")
+                        </MudButton>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </section>
+
+        <section class="module-panel settings-panel checklist-editor" aria-labelledby="checklist-heading">
+            <div class="section-heading settings-heading">
+                <div>
+                    <span class="section-eyebrow">MODELO PADRÃO</span>
+                    <h2 id="checklist-heading">Checklist de entrada</h2>
+                    <p>A ordem abaixo será usada como base para o snapshot das futuras Ordens de Serviço.</p>
+                </div>
+                <span class="settings-count">@_itens.Count item(ns)</span>
+            </div>
+
+            <div class="settings-fields">
+                <MudTextField T="string" @bind-Value="_nomeChecklist" Label="Nome do checklist" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="120" />
+                <MudTextField T="string" @bind-Value="_descricaoChecklist" Label="Descrição (opcional)" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="500" Lines="2" />
+            </div>
+
+            @if (_itens.Count == 0)
+            {
+                <div class="compact-empty checklist-empty">
+                    <MudIcon Icon="@Icons.Material.Outlined.Checklist" />
+                    <div><strong>Nenhum item configurado</strong><span>Adicione itens antes de habilitar o checklist como opcional ou obrigatório.</span></div>
+                </div>
+            }
+            else
+            {
+                <ol class="checklist-settings-list">
+                    @for (var indice = 0; indice < _itens.Count; indice++)
+                    {
+                        var posicao = indice;
+                        <li @key="_itens[posicao].Chave">
+                            <span class="checklist-order" aria-hidden="true">@(posicao + 1)</span>
+                            <MudTextField T="string" @bind-Value="_itens[posicao].Descricao" Label="@($"Item {posicao + 1}")" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="@(!_podeEditar)" MaxLength="240" />
+                            <div class="checklist-item-actions">
+                                <MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowUp" aria-label="@($"Mover item {posicao + 1} para cima")" Disabled="@(!_podeEditar || posicao == 0)" OnClick="@(() => Mover(posicao, -1))" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.KeyboardArrowDown" aria-label="@($"Mover item {posicao + 1} para baixo")" Disabled="@(!_podeEditar || posicao == _itens.Count - 1)" OnClick="@(() => Mover(posicao, 1))" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" aria-label="@($"Remover item {posicao + 1}")" Disabled="@(!_podeEditar)" OnClick="@(() => Remover(posicao))" />
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
+
+            <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar">
+                <Authorized>
+                    <div class="settings-actions checklist-actions">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarItem">Adicionar item</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvandoChecklist" OnClick="SalvarChecklistAsync">
+                            @(_salvandoChecklist ? "Salvando..." : "Salvar checklist")
+                        </MudButton>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </section>
+    </div>
+}
+
+@code {
+    private ConfiguracaoOperacionalResponse? _configuracao;
+    private NivelExigenciaOperacionalContrato _checklistEntrada;
+    private NivelExigenciaOperacionalContrato _fotosEntrada;
+    private NivelExigenciaOperacionalContrato _fotosSaida;
+    private string _nomeChecklist = "Checklist de entrada";
+    private string? _descricaoChecklist;
+    private readonly List<ItemChecklistEdicao> _itens = [];
+    private bool _carregando = true;
+    private bool _podeEditar;
+    private bool _salvandoOperacao;
+    private bool _salvandoChecklist;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var autenticacao = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _podeEditar = (await AuthorizationService.AuthorizeAsync(
+            autenticacao.User,
+            Permissoes.ConfiguracoesEditar)).Succeeded;
+        await CarregarAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var resultado = await ConfiguracoesApi.ObterOperacaoAsync();
+        if (resultado.Sucesso && resultado.Resultado is not null)
+        {
+            Aplicar(resultado.Resultado);
+        }
+        else
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+        }
+
+        _carregando = false;
+    }
+
+    private void Aplicar(ConfiguracaoOperacionalResponse configuracao)
+    {
+        _configuracao = configuracao;
+        _checklistEntrada = configuracao.ChecklistEntrada;
+        _fotosEntrada = configuracao.FotosEntrada;
+        _fotosSaida = configuracao.FotosSaida;
+        _nomeChecklist = configuracao.Checklist.Nome;
+        _descricaoChecklist = configuracao.Checklist.Descricao;
+        _itens.Clear();
+        _itens.AddRange(configuracao.Checklist.Itens
+            .OrderBy(item => item.Ordem)
+            .Select(item => new ItemChecklistEdicao(item.Descricao)));
+    }
+
+    private async Task SalvarOperacaoAsync()
+    {
+        _salvandoOperacao = true;
+        var resultado = await ConfiguracoesApi.AtualizarOperacaoAsync(
+            new AtualizarConfiguracaoOperacionalRequest(
+                _checklistEntrada,
+                _fotosEntrada,
+                _fotosSaida));
+        if (resultado.Sucesso && resultado.Resultado is not null)
+        {
+            Aplicar(resultado.Resultado);
+        }
+
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        _salvandoOperacao = false;
+    }
+
+    private async Task SalvarChecklistAsync()
+    {
+        _salvandoChecklist = true;
+        var resultado = await ConfiguracoesApi.AtualizarChecklistAsync(
+            new AtualizarChecklistModeloRequest(
+                _nomeChecklist,
+                _descricaoChecklist,
+                _itens.Select(item => new ChecklistModeloItemRequest(item.Descricao)).ToArray()));
+        if (resultado.Sucesso && resultado.Resultado is not null)
+        {
+            Aplicar(resultado.Resultado);
+        }
+
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        _salvandoChecklist = false;
+    }
+
+    private void AdicionarItem() => _itens.Add(new ItemChecklistEdicao(string.Empty));
+
+    private void Remover(int indice) => _itens.RemoveAt(indice);
+
+    private void Mover(int indice, int deslocamento)
+    {
+        var destino = indice + deslocamento;
+        if (destino < 0 || destino >= _itens.Count)
+        {
+            return;
+        }
+
+        (_itens[indice], _itens[destino]) = (_itens[destino], _itens[indice]);
+    }
+
+    private sealed class ItemChecklistEdicao(string descricao)
+    {
+        public Guid Chave { get; } = Guid.NewGuid();
+        public string Descricao { get; set; } = descricao;
+    }
+}

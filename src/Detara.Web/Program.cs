@@ -46,6 +46,7 @@ builder.Services.AddScoped<VeiculosServico>();
 builder.Services.AddScoped<CatalogoServico>();
 builder.Services.AddScoped<AgendaServico>();
 builder.Services.AddScoped<OrcamentosServico>();
+builder.Services.AddScoped<ConfiguracoesServico>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<PreferenciasInterfaceServico>().InicializarAsync();
