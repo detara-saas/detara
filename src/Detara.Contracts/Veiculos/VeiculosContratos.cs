@@ -39,3 +39,12 @@ public sealed record VeiculoDetalheResponse(
     DateTime CriadoEmUtc,
     DateTime? AtualizadoEmUtc,
     bool EhAtivo);
+
+public sealed record VeiculoFotoResponse(
+    Guid Id,
+    Guid VeiculoId,
+    string NomeOriginal,
+    string ContentType,
+    long TamanhoBytes,
+    bool EhPrincipal,
+    DateTime CriadoEmUtc);

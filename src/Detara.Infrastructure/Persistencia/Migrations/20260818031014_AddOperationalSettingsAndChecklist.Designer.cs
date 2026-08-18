@@ -4,6 +4,7 @@ using Detara.Infrastructure.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Detara.Infrastructure.Persistencia.Migrations
 {
     [DbContext(typeof(DetaraDbContext))]
-    partial class DetaraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260818031014_AddOperationalSettingsAndChecklist")]
+    partial class AddOperationalSettingsAndChecklist
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -523,66 +526,6 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .IsUnique();
 
                     b.ToTable("OrcamentosItens", (string)null);
-                });
-
-            modelBuilder.Entity("Detara.Domain.Clientes.VeiculoFoto", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("AtualizadoEmUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ChaveStorage")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTime>("CriadoEmUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CriadoPorUsuarioId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("EhAtivo")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("EhPrincipal")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("EmpresaId")
-                        .IsConcurrencyToken()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("NomeOriginal")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<long>("TamanhoBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<Guid>("VeiculoId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmpresaId", "ChaveStorage")
-                        .IsUnique();
-
-                    b.HasIndex("EmpresaId", "VeiculoId", "CriadoEmUtc");
-
-                    b.HasIndex("EmpresaId", "VeiculoId", "EhPrincipal")
-                        .IsUnique()
-                        .HasFilter("[EhPrincipal] = 1");
-
-                    b.ToTable("VeiculosFotos", (string)null);
                 });
 
             modelBuilder.Entity("Detara.Domain.Entidades.CategoriaServico", b =>
@@ -1235,16 +1178,6 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .IsRequired();
 
                     b.Navigation("Orcamento");
-                });
-
-            modelBuilder.Entity("Detara.Domain.Clientes.VeiculoFoto", b =>
-                {
-                    b.HasOne("Detara.Domain.Entidades.Veiculo", null)
-                        .WithMany()
-                        .HasForeignKey("EmpresaId", "VeiculoId")
-                        .HasPrincipalKey("EmpresaId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Detara.Domain.Entidades.CategoriaServico", b =>

@@ -29,3 +29,6 @@ secrets.json
 # Containers e logs
 docker-compose.override.yml
 *.log
+
+# Storage privado local (Development/Testes/QA)
+**/data/storage/

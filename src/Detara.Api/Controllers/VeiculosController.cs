@@ -1,4 +1,5 @@
 using Detara.Application.Veiculos;
+using Detara.Application.Clientes;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
@@ -107,6 +108,83 @@ public sealed class VeiculosController(ISender sender) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("{veiculoId:guid}/fotos")]
+    [Authorize(Policy = Permissoes.VeiculosVisualizar)]
+    public async Task<ActionResult<RespostaApi<IReadOnlyCollection<VeiculoFotoResponse>>>> ListarFotos(
+        Guid veiculoId,
+        CancellationToken cancellationToken)
+    {
+        var resultado = await sender.Send(new ListarFotosVeiculoQuery(veiculoId), cancellationToken);
+        return Ok(RespostaApi<IReadOnlyCollection<VeiculoFotoResponse>>.Ok(
+            resultado.Select(MapearFoto).ToArray()));
+    }
+
+    [HttpPost("{veiculoId:guid}/fotos")]
+    [Authorize(Policy = Permissoes.VeiculosEditar)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(PoliticaImagemVeiculo.TamanhoMaximoBytes + 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = PoliticaImagemVeiculo.TamanhoMaximoBytes + 1024 * 1024)]
+    public async Task<ActionResult<RespostaApi<VeiculoFotoResponse>>> EnviarFoto(
+        Guid veiculoId,
+        IFormFile arquivo,
+        CancellationToken cancellationToken)
+    {
+        await using var conteudo = arquivo.OpenReadStream();
+        var resultado = await sender.Send(
+            new EnviarFotoVeiculoCommand(
+                veiculoId,
+                arquivo.FileName,
+                arquivo.Length,
+                conteudo),
+            cancellationToken);
+        return CreatedAtAction(
+            nameof(ObterConteudoFoto),
+            new { veiculoId, fotoId = resultado.Id },
+            RespostaApi<VeiculoFotoResponse>.Ok(
+                MapearFoto(resultado),
+                "Foto adicionada ao veículo."));
+    }
+
+    [HttpGet("{veiculoId:guid}/fotos/{fotoId:guid}/conteudo")]
+    [Authorize(Policy = Permissoes.VeiculosVisualizar)]
+    public async Task<IActionResult> ObterConteudoFoto(
+        Guid veiculoId,
+        Guid fotoId,
+        CancellationToken cancellationToken)
+    {
+        var resultado = await sender.Send(
+            new ObterConteudoVeiculoFotoQuery(veiculoId, fotoId),
+            cancellationToken);
+        Response.Headers.XContentTypeOptions = "nosniff";
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers.ContentDisposition = $"inline; filename=\"{Uri.EscapeDataString(resultado.NomeOriginal)}\"";
+        return File(resultado.Conteudo, resultado.ContentType, enableRangeProcessing: true);
+    }
+
+    [HttpPatch("{veiculoId:guid}/fotos/{fotoId:guid}/principal")]
+    [Authorize(Policy = Permissoes.VeiculosEditar)]
+    public async Task<IActionResult> DefinirFotoPrincipal(
+        Guid veiculoId,
+        Guid fotoId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new DefinirFotoPrincipalVeiculoCommand(veiculoId, fotoId),
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{veiculoId:guid}/fotos/{fotoId:guid}")]
+    [Authorize(Policy = Permissoes.VeiculosEditar)]
+    public async Task<IActionResult> ExcluirFoto(
+        Guid veiculoId,
+        Guid fotoId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new ExcluirFotoVeiculoCommand(veiculoId, fotoId), cancellationToken);
+        return NoContent();
+    }
+
     private static VeiculoListaResponse MapearLista(VeiculoListaItemResultado item) =>
         new(
             item.Id,
@@ -136,4 +214,14 @@ public sealed class VeiculosController(ISender sender) : ControllerBase
             item.CriadoEmUtc,
             item.AtualizadoEmUtc,
             item.EhAtivo);
+
+    private static VeiculoFotoResponse MapearFoto(VeiculoFotoVisualizacao item) =>
+        new(
+            item.Id,
+            item.VeiculoId,
+            item.NomeOriginal,
+            item.ContentType,
+            item.TamanhoBytes,
+            item.EhPrincipal,
+            item.CriadoEmUtc);
 }

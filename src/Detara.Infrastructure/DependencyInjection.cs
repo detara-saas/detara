@@ -11,6 +11,8 @@ using Detara.Infrastructure.Agenda;
 using Detara.Infrastructure.Plataforma;
 using Detara.Application.Atendimento;
 using Detara.Infrastructure.Atendimento;
+using Detara.Application.Clientes;
+using Detara.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -46,7 +48,19 @@ public static class DependencyInjection
         services.AddScoped<ICatalogoAtendimentoConsulta, CatalogoAtendimentoConsulta>();
         services.AddScoped<IAgendaAtendimentoConsulta, AgendaAtendimentoConsulta>();
         services.AddScoped<IPlataformaAtendimentoConsulta, PlataformaAtendimentoConsulta>();
+        services.AddScoped<IConfiguracoesOperacionaisRepositorio, ConfiguracoesOperacionaisRepositorio>();
+        services.AddScoped<IVeiculoFotosRepositorio, VeiculoFotosRepositorio>();
         services.AddSingleton<IOrcamentoPdfGenerator, PdfOrcamentoGenerator>();
+        var storageOptions = configuration.GetSection(StorageOptions.Secao).Get<StorageOptions>()
+            ?? throw new InvalidOperationException("A configuração Storage deve ser informada.");
+        if (!string.Equals(storageOptions.Provider, "Local", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"O provider de storage '{storageOptions.Provider}' não é suportado nesta versão.");
+        }
+
+        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.Secao));
+        services.AddSingleton<IArquivoStorage, LocalArquivoStorage>();
         services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
         return services;
