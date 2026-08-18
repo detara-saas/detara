@@ -261,6 +261,48 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task UsuarioSemOrdemServicoVisualizar_Recebe403()
+    {
+        var response = await _client.GetAsync("/api/ordens-servico");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioComOrdemServicoVisualizar_ConsultaPermitida()
+    {
+        UsarPermissoes(Permissoes.OrdemServicoVisualizar);
+        var response = await _client.GetAsync("/api/ordens-servico");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioSemOrdemServicoCriar_PostBloqueado()
+    {
+        UsarPermissoes(Permissoes.OrdemServicoVisualizar);
+        var response = await _client.PostAsJsonAsync("/api/ordens-servico", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("POST", "/api/ordens-servico/00000000-0000-0000-0000-000000000001/check-in", Permissoes.OrdemServicoEditar)]
+    [InlineData("PUT", "/api/ordens-servico/00000000-0000-0000-0000-000000000001/checklist", Permissoes.OrdemServicoEditar)]
+    [InlineData("POST", "/api/ordens-servico/00000000-0000-0000-0000-000000000001/iniciar-execucao", Permissoes.OrdemServicoFinalizar)]
+    [InlineData("POST", "/api/ordens-servico/00000000-0000-0000-0000-000000000001/finalizar-execucao", Permissoes.OrdemServicoFinalizar)]
+    [InlineData("POST", "/api/ordens-servico/00000000-0000-0000-0000-000000000001/concluir", Permissoes.OrdemServicoFinalizar)]
+    public async Task UsuarioSemPermissaoOperacionalDaOs_Recebe403(string metodo, string rota, string permissao)
+    {
+        UsarPermissoes(Permissoes.OrdemServicoVisualizar);
+        Assert.DoesNotContain(permissao,
+            _client.DefaultRequestHeaders.GetValues(TestAuthHandler.PermissionsHeader).Single());
+        using var request = new HttpRequestMessage(new HttpMethod(metodo), rota)
+        {
+            Content = JsonContent.Create(new { observacao = (string?)null })
+        };
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private void UsarPermissoes(params string[] permissoes)
     {
         _client.DefaultRequestHeaders.Remove(TestAuthHandler.PermissionsHeader);

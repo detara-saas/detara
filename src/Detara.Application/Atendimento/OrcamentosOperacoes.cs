@@ -132,7 +132,8 @@ internal sealed class EmitirOrcamentoHandler(IUsuarioContexto usuario, IOrcament
     }
 }
 
-internal sealed class AprovarOrcamentoHandler(IUsuarioContexto usuario, IOrcamentosRepositorio repositorio, IPlataformaAtendimentoConsulta plataforma)
+internal sealed class AprovarOrcamentoHandler(IUsuarioContexto usuario, IOrcamentosRepositorio repositorio,
+    IPlataformaAtendimentoConsulta plataforma, IOrdensServicoRepositorio? ordens = null)
     : IRequestHandler<AprovarOrcamentoCommand, OrcamentoDetalheVisualizacao>
 {
     public async Task<OrcamentoDetalheVisualizacao> Handle(AprovarOrcamentoCommand request, CancellationToken ct)
@@ -141,6 +142,22 @@ internal sealed class AprovarOrcamentoHandler(IUsuarioContexto usuario, IOrcamen
         var empresa = await OrcamentoFluxo.ObterEmpresaAsync(plataforma, usuario.EmpresaId, ct);
         OrcamentoFluxo.ExecutarRegra(() => entidade.Aprovar(OrcamentoFluxo.HojeLocal(empresa.FusoHorario), usuario.UsuarioId, request.Observacao));
         repositorio.AdicionarUltimoHistorico(entidade);
+        if (entidade.OrdemServicoOrigemId.HasValue)
+        {
+            if (ordens is null) throw new InvalidOperationException("O repositório de ordens de serviço deve estar configurado.");
+            var ordem = await ordens.ObterAsync(entidade.OrdemServicoOrigemId.Value, true, ct)
+                ?? throw new ConflitoRegraNegocioException("A ordem de serviço vinculada ao orçamento adicional não foi encontrada.");
+            var autorizadoEm = entidade.AprovadoEmUtc!.Value;
+            var itens = entidade.Itens.OrderBy(item => item.Ordem).Select(item => new ItemOrdemServicoSnapshot(
+                item.TipoItem, item.ItemCatalogoId, entidade.Id, item.Id, item.NomeSnapshot, item.DescricaoSnapshot,
+                item.ValorUnitario, item.Quantidade, item.Ordem, OrigemComercialOrdemServico.Orcamento,
+                autorizadoEm, usuario.UsuarioId, item.Observacao)).ToArray();
+            var incorporou = false;
+            OrdemServicoFluxo.ExecutarRegra(() => incorporou = ordem.IncorporarOrcamentoAdicional(
+                entidade.Id, entidade.Desconto, entidade.Acrescimo, itens));
+            if (incorporou)
+                ordens.AdicionarItens(ordem.Itens.Where(item => item.OrcamentoOrigemId == entidade.Id).ToArray());
+        }
         await repositorio.SalvarAsync(ct);
         return await OrcamentoFluxo.ObterDetalheAsync(entidade.Id, usuario.EmpresaId, repositorio, plataforma, ct);
     }

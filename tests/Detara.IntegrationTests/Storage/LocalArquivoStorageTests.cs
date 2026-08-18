@@ -1,4 +1,4 @@
-using Detara.Application.Clientes;
+using Detara.Application.Abstracoes;
 using Detara.Infrastructure.Storage;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -109,7 +109,7 @@ public sealed class LocalArquivoStorageTests : IAsyncLifetime
         string contentType,
         string extensao)
     {
-        var resultado = await ValidadorImagemUpload.ValidarAsync(
+        var resultado = await ValidadorArquivoImagem.ValidarAsync(
             new MemoryStream(bytes),
             bytes.Length,
             default);
@@ -127,7 +127,7 @@ public sealed class LocalArquivoStorageTests : IAsyncLifetime
         var bytes = ImagensValidas().First().First() as byte[] ?? [];
         await using var origem = new StreamSomenteLeituraSemSeek(bytes);
 
-        var resultado = await ValidadorImagemUpload.ValidarAsync(origem, bytes.Length, default);
+        var resultado = await ValidadorArquivoImagem.ValidarAsync(origem, bytes.Length, default);
         using var copiado = new MemoryStream();
         await resultado.Conteudo.CopyToAsync(copiado);
 
@@ -138,7 +138,7 @@ public sealed class LocalArquivoStorageTests : IAsyncLifetime
     public async Task ConteudoInvalido_MesmoComNomeJpeg_EhRejeitado()
     {
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            ValidadorImagemUpload.ValidarAsync(
+            ValidadorArquivoImagem.ValidarAsync(
                 new MemoryStream("nao-e-imagem"u8.ToArray()),
                 12,
                 default));
@@ -148,9 +148,9 @@ public sealed class LocalArquivoStorageTests : IAsyncLifetime
     public async Task ArquivoMaiorQue10MiB_EhRejeitadoAntesDaLeitura()
     {
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            ValidadorImagemUpload.ValidarAsync(
+            ValidadorArquivoImagem.ValidarAsync(
                 new MemoryStream([0xFF, 0xD8, 0xFF]),
-                PoliticaImagemVeiculo.TamanhoMaximoBytes + 1,
+                PoliticaImagemUpload.TamanhoMaximoBytes + 1,
                 default));
     }
 
@@ -158,7 +158,7 @@ public sealed class LocalArquivoStorageTests : IAsyncLifetime
     public async Task ArquivoVazio_EhRejeitado()
     {
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            ValidadorImagemUpload.ValidarAsync(new MemoryStream(), 0, default));
+            ValidadorArquivoImagem.ValidarAsync(new MemoryStream(), 0, default));
     }
 
     public static IEnumerable<object[]> ImagensValidas()

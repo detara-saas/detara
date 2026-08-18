@@ -96,6 +96,8 @@ public sealed class OrcamentosController(ISender sender) : ControllerBase
         x.Orcamento.ClienteNome, x.Orcamento.VeiculoDescricao, x.Orcamento.VeiculoPlaca, x.Orcamento.EmitidoEmUtc,
         x.Orcamento.ValidoAte, x.Orcamento.Total, (StatusOrcamentoContrato)(int)x.StatusEfetivo);
 
+    internal static OrcamentoDetalheResponse MapearDetalhePublico(OrcamentoDetalheVisualizacao x) => MapearDetalhe(x);
+
     private static OrcamentoDetalheResponse MapearDetalhe(OrcamentoDetalheVisualizacao x)
     {
         var o = x.Orcamento;
@@ -103,7 +105,8 @@ public sealed class OrcamentosController(ISender sender) : ControllerBase
             i.ItemCatalogoId, i.Nome, i.Descricao, i.TipoPrecificacaoReferencia.HasValue ? (TipoPrecificacaoCatalogo)(int)i.TipoPrecificacaoReferencia.Value : null,
             i.PrecoReferencia, i.ValorUnitario, i.Quantidade, i.ValorUnitario * i.Quantidade, i.Ordem, i.Observacao)).ToArray();
         return new(o.Id, o.Codigo, o.ClienteId, o.ClienteNome, o.ClienteDocumento, o.ClienteTelefone, o.VeiculoId,
-            o.VeiculoDescricao, o.VeiculoPlaca, o.AgendamentoOrigemId, (StatusOrcamentoContrato)(int)x.StatusEfetivo,
+            o.VeiculoDescricao, o.VeiculoPlaca, o.AgendamentoOrigemId, o.OrdemServicoOrigemId, o.OrdemServicoId,
+            (StatusOrcamentoContrato)(int)x.StatusEfetivo,
             o.ValidoAte, o.ObservacaoCliente, o.ObservacaoInterna, o.Condicoes, itens.Sum(i => i.Subtotal), o.Desconto,
             o.Acrescimo, itens.Sum(i => i.Subtotal) - o.Desconto + o.Acrescimo, o.CriadoEmUtc, o.AtualizadoEmUtc,
             o.EmitidoEmUtc, o.AprovadoEmUtc, o.RecusadoEmUtc, o.CanceladoEmUtc, o.SubstituidoEmUtc, o.AprovadoPorUsuarioId,

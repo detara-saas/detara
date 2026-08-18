@@ -19,11 +19,14 @@ internal sealed class AgendaAtendimentoConsulta(DetaraDbContext db) : IAgendaAte
                 x.VeiculoId,
                 VeiculoDescricao = x.VeiculoDescricaoSnapshot,
                 VeiculoPlaca = x.VeiculoPlacaSnapshot,
+                x.DuracaoPlanejadaMinutos,
                 Itens = x.Itens.OrderBy(i => i.Ordem).Select(i => new ItemAgendamentoAtendimentoInterno(
                     i.TipoItem == TipoItemAgendamento.Servico ? TipoItemOrcamento.Servico : TipoItemOrcamento.Pacote,
-                    i.ItemCatalogoId, i.NomeSnapshot, i.DescricaoSnapshot, i.TipoPrecificacaoSnapshot, i.PrecoReferenciaSnapshot)).ToArray()
+                    i.ItemCatalogoId, i.NomeSnapshot, i.DescricaoSnapshot, i.TipoPrecificacaoSnapshot, i.PrecoReferenciaSnapshot,
+                    i.DuracaoReferenciaMinutosSnapshot)).ToArray()
             })
             .SingleOrDefaultAsync(ct);
-        return dado is null ? null : new(dado.Id, dado.ClienteId, dado.ClienteNome, dado.VeiculoId, dado.VeiculoDescricao, dado.VeiculoPlaca, dado.Itens);
+        return dado is null ? null : new(dado.Id, dado.ClienteId, dado.ClienteNome, dado.VeiculoId, dado.VeiculoDescricao,
+            dado.VeiculoPlaca, dado.Itens, dado.DuracaoPlanejadaMinutos);
     }
 }

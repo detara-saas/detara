@@ -60,6 +60,7 @@ internal sealed class OrcamentosRepositorio(DetaraDbContext db) : IOrcamentosRep
             VeiculoPlaca = x.VeiculoPlacaSnapshot,
             x.AgendamentoOrigemId,
             x.OrcamentoOrigemId,
+            x.OrdemServicoOrigemId,
             x.Status,
             x.ValidoAte,
             x.ObservacaoCliente,
@@ -82,12 +83,14 @@ internal sealed class OrcamentosRepositorio(DetaraDbContext db) : IOrcamentosRep
                 h.DataUtc, h.UsuarioId, h.Observacao)).ToArray()
         }).SingleOrDefaultAsync(ct);
         if (dado is null) return null;
+        var ordemServicoId = await db.OrdensServico.AsNoTracking().Where(x => x.OrcamentoOrigemId == dado.Id)
+            .Select(x => (Guid?)x.Id).SingleOrDefaultAsync(ct);
         var origem = dado.OrcamentoOrigemId.HasValue ? await ObterReferenciaAsync(dado.OrcamentoOrigemId.Value, ct) : null;
         var substituto = await db.Orcamentos.AsNoTracking().Where(x => x.OrcamentoOrigemId == dado.Id && x.Status != StatusOrcamento.Rascunho)
             .OrderByDescending(x => x.EmitidoEmUtc).Select(x => new ReferenciaOrcamentoResultado(x.Id, x.Codigo, x.Status, x.ValidoAte)).FirstOrDefaultAsync(ct);
         return new(dado.Id, dado.Codigo, dado.ClienteId, dado.ClienteNome, dado.ClienteDocumento, dado.ClienteTelefone,
             dado.VeiculoId, dado.VeiculoDescricao, dado.VeiculoPlaca, dado.AgendamentoOrigemId, dado.OrcamentoOrigemId,
-            dado.Status, dado.ValidoAte, dado.ObservacaoCliente, dado.ObservacaoInterna, dado.Condicoes, dado.Desconto,
+            dado.OrdemServicoOrigemId, ordemServicoId, dado.Status, dado.ValidoAte, dado.ObservacaoCliente, dado.ObservacaoInterna, dado.Condicoes, dado.Desconto,
             dado.Acrescimo, dado.CriadoEmUtc, dado.AtualizadoEmUtc, dado.EmitidoEmUtc, dado.AprovadoEmUtc, dado.RecusadoEmUtc,
             dado.CanceladoEmUtc, dado.SubstituidoEmUtc, dado.AprovadoPorUsuarioId, dado.Itens, dado.Historico, origem, substituto);
     }

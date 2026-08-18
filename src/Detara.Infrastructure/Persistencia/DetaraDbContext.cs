@@ -30,6 +30,12 @@ public sealed class DetaraDbContext(
     public DbSet<Orcamento> Orcamentos => Set<Orcamento>();
     public DbSet<OrcamentoItem> OrcamentosItens => Set<OrcamentoItem>();
     public DbSet<HistoricoStatusOrcamento> OrcamentosHistoricosStatus => Set<HistoricoStatusOrcamento>();
+    public DbSet<OrdemServico> OrdensServico => Set<OrdemServico>();
+    public DbSet<OrdemServicoItem> OrdensServicoItens => Set<OrdemServicoItem>();
+    public DbSet<OrdemServicoChecklist> OrdensServicoChecklists => Set<OrdemServicoChecklist>();
+    public DbSet<OrdemServicoChecklistItem> OrdensServicoChecklistItens => Set<OrdemServicoChecklistItem>();
+    public DbSet<OrdemServicoFoto> OrdensServicoFotos => Set<OrdemServicoFoto>();
+    public DbSet<HistoricoStatusOrdemServico> OrdensServicoHistoricosStatus => Set<HistoricoStatusOrdemServico>();
     public DbSet<ConfiguracaoOperacionalAtendimento> ConfiguracoesOperacionaisAtendimento => Set<ConfiguracaoOperacionalAtendimento>();
     public DbSet<ChecklistModelo> ChecklistModelos => Set<ChecklistModelo>();
     public DbSet<ChecklistModeloItem> ChecklistModeloItens => Set<ChecklistModeloItem>();
