@@ -1,0 +1,91 @@
+@page "/ordens-servico/nova"
+@attribute [Authorize(Policy = Permissoes.OrdemServicoCriar)]
+@inject OrdensServicoServico OrdensApi
+@inject OrcamentosServico OrcamentosApi
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navegacao
+
+<PageTitle>Nova Ordem de Serviço | Detara</PageTitle>
+<CabecalhoPagina Titulo="Nova ordem de serviço" Descricao="Confirme a origem e o valor autorizado antes de iniciar o atendimento." Sobretitulo="ATENDIMENTO" />
+
+@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+else
+{
+    <section class="module-panel service-order-origin">
+        <span class="section-eyebrow">ORIGEM</span>
+        <div class="service-order-origin-options">
+            <span class="status-badge @(_orcamento is not null ? "status-running" : "status-neutral")">@NomeOrigem</span>
+            <p>@DescricaoOrigem</p>
+        </div>
+    </section>
+
+    @if (_orcamento is not null)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Os itens, descontos, acréscimos e valores abaixo são snapshots do orçamento aprovado e não serão recalculados pelo catálogo.</MudAlert>
+        <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">ORÇAMENTO APROVADO</span><h2>@_orcamento.Codigo</h2></div><strong>@_orcamento.Total.ToString("C2")</strong></div>
+            <div class="appointment-items">@foreach (var item in _orcamento.Itens.OrderBy(item => item.Ordem)) { <article><span class="package-order">@item.Ordem</span><div><strong>@item.Nome</strong><span>@item.Quantidade × @item.ValorUnitario.ToString("C2")</span></div><strong>@item.Subtotal.ToString("C2")</strong></article> }</div>
+        </section>
+        <div class="form-actions"><MudButton Href="@($"/orcamentos/{_orcamento.Id}")" Variant="Variant.Text">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck" OnClick="CriarAsync" Disabled="_salvando">@(_salvando ? "Criando..." : "Criar ordem de serviço")</MudButton></div>
+    }
+    else
+    {
+        <section class="module-panel form-panel">
+            <div class="section-heading"><div><span class="section-eyebrow">CLIENTE E VEÍCULO</span><h2>Atendimento</h2></div></div>
+            <div class="form-grid">
+                <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
+                <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@v.Descricao · @v.Placa</MudSelectItem> }</MudSelect>
+                <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada em minutos (opcional)" Variant="Variant.Outlined" Min="1" />
+                <MudTextField T="string" @bind-Value="_observacaoAutorizacao" Label="Registro da autorização direta (opcional)" Variant="Variant.Outlined" Lines="2" Class="form-full" />
+            </div>
+        </section>
+
+        <section class="module-panel related-section">
+            <div class="section-heading"><div><span class="section-eyebrow">ESCOPO AUTORIZADO</span><h2>Serviços e valores</h2></div><span class="selected-count">@_itens.Count item(ns)</span></div>
+            <div class="catalog-search-row"><MudTextField T="string" @bind-Value="_pesquisaCatalogo" Label="Pesquisar catálogo" Variant="Variant.Outlined" /><MudButton Variant="Variant.Outlined" OnClick="BuscarCatalogoAsync">Buscar</MudButton><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarPersonalizado">Personalizado</MudButton></div>
+            @if (_catalogo.Count > 0) { <div class="quotation-catalog-picker">@foreach (var item in _catalogo) { <button type="button" class="quotation-catalog-item" @onclick="@(() => Adicionar(item))"><MudIcon Icon="@Icons.Material.Outlined.AutoFixHigh" /><span><strong>@item.Nome</strong><small>@Referencia(item)</small></span><MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" /></button> }</div> }
+            <div class="quotation-items-editor">@for (var indice = 0; indice < _itens.Count; indice++) { var item = _itens[indice]; <article><div class="quotation-item-title"><span class="package-order">@(indice + 1)</span><div>@if (item.Tipo == TipoItemOrcamentoContrato.Personalizado) { <MudTextField T="string" @bind-Value="item.Nome" Label="Descrição *" Required="true" Variant="Variant.Outlined" /> } else { <strong>@item.Nome</strong><span>Referência: @item.Referencia</span> }</div><MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" OnClick="@(() => _itens.Remove(item))" /></div><div class="quotation-item-values"><MudNumericField T="int" @bind-Value="item.Quantidade" Label="Quantidade" Min="1" Variant="Variant.Outlined" /><MudNumericField T="decimal" @bind-Value="item.Valor" Label="Valor autorizado" Min="0" Format="C2" Variant="Variant.Outlined" /><div class="quotation-item-subtotal"><span>Subtotal</span><strong>@((item.Valor * item.Quantidade).ToString("C2"))</strong></div></div></article> }</div>
+        </section>
+        <section class="module-panel quotation-values service-order-total"><span class="section-eyebrow">TOTAL AUTORIZADO</span><div><span>Subtotal</span><strong>@Subtotal.ToString("C2")</strong></div><div class="quotation-total"><span>TOTAL</span><strong>@Subtotal.ToString("C2")</strong></div></section>
+        <div class="form-actions"><MudButton Href="/ordens-servico" Variant="Variant.Text">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CriarAsync" Disabled="_salvando">@(_salvando ? "Criando..." : "Criar ordem de serviço")</MudButton></div>
+    }
+}
+
+@code {
+    private bool _carregando = true, _salvando; private Guid? _orcamentoId, _agendamentoId, _clienteId, _veiculoId; private string? _clienteNome, _observacaoAutorizacao, _pesquisaCatalogo; private int? _duracao;
+    private OrcamentoDetalheResponse? _orcamento; private IReadOnlyCollection<VeiculoOrcamentoResponse> _veiculos = []; private IReadOnlyCollection<ItemCatalogoOrcamentoResponse> _catalogo = []; private readonly List<ItemEdicao> _itens = [];
+    private decimal Subtotal => _itens.Sum(item => item.Valor * item.Quantidade);
+    private string NomeOrigem => _orcamento is not null ? $"Orçamento {_orcamento.Codigo}" : _agendamentoId.HasValue ? "Agendamento" : "Atendimento direto";
+    private string DescricaoOrigem => _orcamento is not null ? "A fonte comercial é o documento aprovado." : _agendamentoId.HasValue ? "A Agenda sugere o escopo; confirme cada valor autorizado." : "Registre os valores confirmados diretamente pelo cliente.";
+    protected override async Task OnInitializedAsync()
+    {
+        _orcamentoId = LerId("orcamentoId"); _agendamentoId = LerId("agendamentoId");
+        if (_orcamentoId.HasValue)
+        {
+            var r = await OrcamentosApi.ObterAsync(_orcamentoId.Value); _orcamento = r.Resultado;
+            if (_orcamento is null || _orcamento.Status != StatusOrcamentoContrato.Aprovado || _orcamento.OrdemServicoOrigemId.HasValue) { Mensagens.Mostrar("Somente um orçamento principal aprovado pode originar uma OS.", true); _orcamento = null; }
+            else if (_orcamento.OrdemServicoId.HasValue) Navegacao.NavigateTo($"/ordens-servico/{_orcamento.OrdemServicoId}");
+        }
+        else if (_agendamentoId.HasValue)
+        {
+            var r = await OrcamentosApi.ObterOrigemAsync(_agendamentoId.Value); var origem = r.Resultado;
+            if (origem is not null) { _clienteId = origem.ClienteId; _clienteNome = origem.ClienteNome; _veiculoId = origem.VeiculoId; _veiculos = [new(origem.VeiculoId, origem.VeiculoDescricao, origem.VeiculoPlaca)]; _itens.AddRange(origem.Itens.Select(item => new ItemEdicao(item.TipoItem, item.Id, item.Nome, item.PrecoReferencia ?? 0, 1, Referencia(item)))); }
+        }
+        _carregando = false;
+    }
+    private async Task ClienteSelecionadoAsync(ClienteOrcamentoResponse? cliente) { _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = cliente is null ? [] : (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? []; }
+    private async Task BuscarCatalogoAsync() => _catalogo = (await OrcamentosApi.BuscarCatalogoAsync(_pesquisaCatalogo)).Resultado ?? [];
+    private void Adicionar(ItemCatalogoOrcamentoResponse item) { if (_itens.Any(i => i.Tipo == item.TipoItem && i.Id == item.Id)) { Mensagens.Mostrar("Este item já foi incluído; ajuste a quantidade.", true); return; } _itens.Add(new(item.TipoItem, item.Id, item.Nome, item.PrecoReferencia ?? 0, 1, Referencia(item))); }
+    private void AdicionarPersonalizado() => _itens.Add(new(TipoItemOrcamentoContrato.Personalizado, null, string.Empty, 0, 1, "Sem referência de catálogo"));
+    private async Task CriarAsync()
+    {
+        if (_orcamento is null && (!_clienteId.HasValue || !_veiculoId.HasValue || _itens.Count == 0)) { Mensagens.Mostrar("Informe cliente, veículo e ao menos um item autorizado.", true); return; }
+        _salvando = true;
+        var request = new CriarOrdemServicoRequest(_orcamento?.Id, _agendamentoId, _clienteId, _veiculoId, _duracao, 0, 0,
+            _observacaoAutorizacao, _orcamento is not null ? [] : _itens.Select(item => new ItemOrdemServicoRequest(item.Tipo, item.Id,
+                item.Tipo == TipoItemOrcamentoContrato.Personalizado ? item.Nome : null, null, item.Valor, item.Quantidade, null)).ToArray());
+        var r = await OrdensApi.CriarAsync(request); _salvando = false; Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Resultado is not null) Navegacao.NavigateTo($"/ordens-servico/{r.Resultado.Id}");
+    }
+    private Guid? LerId(string nome) { var query = Navegacao.ToAbsoluteUri(Navegacao.Uri).Query.TrimStart('?'); foreach (var parte in query.Split('&', StringSplitOptions.RemoveEmptyEntries)) { var p = parte.Split('=', 2); if (p.Length == 2 && p[0].Equals(nome, StringComparison.OrdinalIgnoreCase) && Guid.TryParse(Uri.UnescapeDataString(p[1]), out var id)) return id; } return null; }
+    private static string Referencia(ItemCatalogoOrcamentoResponse item) => item.TipoPrecificacao == TipoPrecificacaoCatalogo.APartirDe && item.PrecoReferencia.HasValue ? $"A partir de {item.PrecoReferencia:C2}" : item.PrecoReferencia?.ToString("C2") ?? "Sob consulta";
+    private sealed class ItemEdicao(TipoItemOrcamentoContrato tipo, Guid? id, string nome, decimal valor, int quantidade, string referencia) { public TipoItemOrcamentoContrato Tipo { get; } = tipo; public Guid? Id { get; } = id; public string Nome { get; set; } = nome; public decimal Valor { get; set; } = valor; public int Quantidade { get; set; } = quantidade; public string Referencia { get; } = referencia; }
+}

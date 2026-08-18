@@ -28,6 +28,35 @@
     background: var(--detara-background);
 }
 
+/* Ordem de Serviço — composição operacional */
+.service-order-hero { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--space-4); margin-bottom:var(--space-4); }
+.service-order-hero>div { display:flex; flex-direction:column; gap:.35rem; min-width:0; }
+.service-order-hero strong { font-size:1.35rem; color:var(--text-primary); }
+.service-order-origin { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); margin-bottom:var(--space-4); }
+.service-order-origin-options { display:flex; align-items:center; gap:var(--space-3); }
+.service-order-origin-options p { margin:0; color:var(--text-secondary); }
+.service-order-adjustments,.service-order-checkin-meta { display:flex; flex-wrap:wrap; gap:var(--space-4); padding-top:var(--space-3); color:var(--text-secondary); }
+.service-order-checklist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-3); margin-top:var(--space-4); }
+.service-order-checklist article { border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:var(--space-3); background:var(--surface-subtle); }
+.service-order-checklist article>div { display:grid; grid-template-columns:minmax(9rem,1fr) minmax(10rem,.8fr); gap:var(--space-3); align-items:center; }
+.service-order-checklist strong { grid-column:1/-1; }
+.service-order-photo-groups { display:grid; gap:var(--space-5); }
+.service-order-photo-heading { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-3); }
+.service-order-photo-heading>span { color:var(--text-secondary); margin-right:auto; }
+.service-order-total { max-width:30rem; margin-left:auto; }
+
+@media (max-width: 900px) {
+    .service-order-hero { grid-template-columns:1fr; }
+    .service-order-checklist { grid-template-columns:1fr; }
+}
+
+@media (max-width: 600px) {
+    .service-order-origin,.service-order-origin-options,.service-order-photo-heading { align-items:flex-start; flex-direction:column; }
+    .service-order-checklist article>div { grid-template-columns:1fr; }
+    .service-order-checklist strong { grid-column:auto; }
+    .service-order-total { max-width:none; margin-left:0; }
+}
+
 :root[data-theme="dark"] {
     --detara-background: #0b1220;
     --detara-surface: #111827;
