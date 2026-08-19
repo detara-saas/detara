@@ -4,8 +4,10 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using Detara.Application.Abstracoes;
+using Detara.Contracts.Atendimento;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
+using Detara.Contracts.Comum;
 using Detara.Domain.Entidades;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
@@ -236,6 +238,58 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OrcamentoComItemValido_PassaPeloPipelineESalvaRascunho()
+    {
+        UsarPermissoes(Permissoes.OrcamentosCriar);
+        var request = new SalvarOrcamentoRequest(
+            _factory.ClienteId,
+            _factory.VeiculoId,
+            null,
+            DateOnly.FromDateTime(DateTime.UtcNow).AddDays(7),
+            null,
+            null,
+            "À vista",
+            0,
+            0,
+            [new(TipoItemOrcamentoContrato.Servico, _factory.ServicoId, null, null, 160m, 1, null)]);
+
+        var response = await _client.PostAsJsonAsync("/api/orcamentos", request);
+        var conteudo = await response.Content.ReadFromJsonAsync<RespostaApi<OrcamentoDetalheResponse>>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(conteudo?.Sucesso);
+        Assert.Equal(160m, conteudo?.Resultado?.Total);
+        Assert.Single(conteudo!.Resultado!.Itens);
+    }
+
+    [Fact]
+    public async Task OrcamentoInvalido_RetornaDetalhesNoFormatoPadraoDaApi()
+    {
+        UsarPermissoes(Permissoes.OrcamentosCriar);
+        var request = new SalvarOrcamentoRequest(
+            Guid.Empty,
+            Guid.Empty,
+            null,
+            default,
+            null,
+            null,
+            null,
+            -1,
+            0,
+            [new(TipoItemOrcamentoContrato.Servico, null, null, null, -1, 0, null)]);
+
+        var response = await _client.PostAsJsonAsync("/api/orcamentos", request);
+        var conteudo = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(conteudo?.Sucesso);
+        Assert.Equal("validacao", conteudo?.Erro?.Codigo);
+        Assert.Contains("ClienteId", conteudo!.Erro!.Detalhes!.Keys);
+        Assert.Contains("Itens[0].ValorUnitario", conteudo.Erro.Detalhes.Keys);
+        Assert.Contains("Itens[0].Quantidade", conteudo.Erro.Detalhes.Keys);
+    }
+
+    [Fact]
     public async Task PdfOrcamento_Autorizado_RetornaArquivoPdfValido()
     {
         UsarPermissoes(Permissoes.OrcamentosVisualizar);
@@ -315,6 +369,8 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         private readonly Dictionary<string, string?> _environmentBeforeTest = new();
         public Guid EmpresaId { get; } = Guid.NewGuid();
         public Guid ClienteId { get; private set; }
+        public Guid VeiculoId { get; private set; }
+        public Guid ServicoId { get; private set; }
         public Guid OrcamentoId { get; private set; }
 
         public DetaraApiFactory()
@@ -372,9 +428,21 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             tenantContext.Clientes.Add(cliente);
             await tenantContext.SaveChangesAsync();
             ClienteId = cliente.Id;
+            var veiculo = new Veiculo(EmpresaId, cliente.Id, "ABC1D23", "Honda", "Civic", null,
+                2024, 2024, "Preto", 15000, null);
+            tenantContext.Veiculos.Add(veiculo);
+            var categoria = new CategoriaServico(EmpresaId, "Lavagem", null, 1);
+            tenantContext.CategoriasServico.Add(categoria);
+            await tenantContext.SaveChangesAsync();
+            var servico = new Servico(EmpresaId, categoria.Id, "Lavagem técnica", null,
+                TipoPrecificacao.APartirDe, 100m, 90, 1);
+            tenantContext.Servicos.Add(servico);
+            await tenantContext.SaveChangesAsync();
+            VeiculoId = veiculo.Id;
+            ServicoId = servico.Id;
             var usuarioId = Guid.NewGuid();
             var orcamento = new Orcamento(EmpresaId,
-                new(cliente.Id, cliente.Nome, cliente.CpfCnpj, cliente.Telefone, Guid.NewGuid(), "Honda Civic", "ABC1D23"),
+                new(cliente.Id, cliente.Nome, cliente.CpfCnpj, cliente.Telefone, veiculo.Id, "Honda Civic", "ABC1D23"),
                 null, null, DateOnly.FromDateTime(DateTime.UtcNow).AddDays(7), "Proposta comercial", null, "À vista", 0, 0,
                 [new(TipoItemOrcamento.Servico, Guid.NewGuid(), "Lavagem técnica", null, TipoPrecificacao.APartirDe, 100m, 160m, 1, 1, null)], usuarioId);
             orcamento.Emitir(DateTime.UtcNow.Year, usuarioId);

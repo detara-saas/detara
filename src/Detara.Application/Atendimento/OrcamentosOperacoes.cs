@@ -34,40 +34,56 @@ public sealed record OrcamentoDetalheVisualizacao(OrcamentoDetalheResultado Orca
 public sealed record ContextoOrcamentoVisualizacao(DateOnly HojeLocal, DateOnly ValidadeSugerida);
 public sealed record PdfOrcamentoResultado(string NomeArquivo, byte[] Conteudo);
 
-internal abstract class SalvarOrcamentoValidatorBase<T> : AbstractValidator<T>
+internal sealed class ItemOrcamentoEntradaValidator : AbstractValidator<ItemOrcamentoEntrada>
 {
-    protected void Regras(Func<T, Guid> cliente, Func<T, Guid> veiculo, Func<T, DateOnly> validade, Func<T, decimal> desconto,
-        Func<T, decimal> acrescimo, Func<T, string?> observacaoCliente, Func<T, string?> observacaoInterna,
-        Func<T, string?> condicoes, Func<T, IReadOnlyCollection<ItemOrcamentoEntrada>> itens)
+    public ItemOrcamentoEntradaValidator()
     {
-        RuleFor(x => cliente(x)).NotEmpty().WithName("ClienteId");
-        RuleFor(x => veiculo(x)).NotEmpty().WithName("VeiculoId");
-        RuleFor(x => validade(x)).NotEmpty().WithName("ValidoAte");
-        RuleFor(x => desconto(x)).GreaterThanOrEqualTo(0).WithName("Desconto");
-        RuleFor(x => acrescimo(x)).GreaterThanOrEqualTo(0).WithName("Acrescimo");
-        RuleFor(x => observacaoCliente(x)).MaximumLength(2000).WithName("ObservacaoCliente");
-        RuleFor(x => observacaoInterna(x)).MaximumLength(4000).WithName("ObservacaoInterna");
-        RuleFor(x => condicoes(x)).MaximumLength(2000).WithName("Condicoes");
-        RuleFor(x => itens(x)).NotEmpty().WithName("Itens");
-        RuleForEach(x => itens(x)).ChildRules(item =>
-        {
-            item.RuleFor(x => x.TipoItem).IsInEnum();
-            item.RuleFor(x => x.ValorUnitario).GreaterThanOrEqualTo(0);
-            item.RuleFor(x => x.Quantidade).GreaterThanOrEqualTo(1);
-            item.RuleFor(x => x.Nome).MaximumLength(160);
-            item.RuleFor(x => x.Descricao).MaximumLength(2000);
-            item.RuleFor(x => x.Observacao).MaximumLength(1000);
-            item.RuleFor(x => x).Must(x => x.TipoItem == TipoItemOrcamento.Personalizado
-                ? !x.ItemCatalogoId.HasValue && !string.IsNullOrWhiteSpace(x.Nome)
-                : x.ItemCatalogoId.HasValue).WithMessage("Informe um item de catálogo ou os dados do item personalizado.");
-        });
+        RuleFor(item => item.TipoItem).IsInEnum();
+        RuleFor(item => item.ValorUnitario).GreaterThanOrEqualTo(0);
+        RuleFor(item => item.Quantidade).GreaterThanOrEqualTo(1);
+        RuleFor(item => item.Nome).MaximumLength(160);
+        RuleFor(item => item.Descricao).MaximumLength(2000);
+        RuleFor(item => item.Observacao).MaximumLength(1000);
+        RuleFor(item => item).Must(item => item.TipoItem == TipoItemOrcamento.Personalizado
+            ? !item.ItemCatalogoId.HasValue && !string.IsNullOrWhiteSpace(item.Nome)
+            : item.ItemCatalogoId.HasValue).WithMessage("Informe um item de catálogo ou os dados do item personalizado.");
     }
 }
 
-internal sealed class CriarOrcamentoValidator : SalvarOrcamentoValidatorBase<CriarOrcamentoCommand>
-{ public CriarOrcamentoValidator() => Regras(x => x.ClienteId, x => x.VeiculoId, x => x.ValidoAte, x => x.Desconto, x => x.Acrescimo, x => x.ObservacaoCliente, x => x.ObservacaoInterna, x => x.Condicoes, x => x.Itens); }
-internal sealed class AtualizarOrcamentoValidator : SalvarOrcamentoValidatorBase<AtualizarOrcamentoCommand>
-{ public AtualizarOrcamentoValidator() { RuleFor(x => x.Id).NotEmpty(); Regras(x => x.ClienteId, x => x.VeiculoId, x => x.ValidoAte, x => x.Desconto, x => x.Acrescimo, x => x.ObservacaoCliente, x => x.ObservacaoInterna, x => x.Condicoes, x => x.Itens); } }
+internal sealed class CriarOrcamentoValidator : AbstractValidator<CriarOrcamentoCommand>
+{
+    public CriarOrcamentoValidator()
+    {
+        RuleFor(command => command.ClienteId).NotEmpty();
+        RuleFor(command => command.VeiculoId).NotEmpty();
+        RuleFor(command => command.ValidoAte).NotEmpty();
+        RuleFor(command => command.Desconto).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.Acrescimo).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.ObservacaoCliente).MaximumLength(2000);
+        RuleFor(command => command.ObservacaoInterna).MaximumLength(4000);
+        RuleFor(command => command.Condicoes).MaximumLength(2000);
+        RuleFor(command => command.Itens).NotEmpty();
+        RuleForEach(command => command.Itens).SetValidator(new ItemOrcamentoEntradaValidator());
+    }
+}
+
+internal sealed class AtualizarOrcamentoValidator : AbstractValidator<AtualizarOrcamentoCommand>
+{
+    public AtualizarOrcamentoValidator()
+    {
+        RuleFor(command => command.Id).NotEmpty();
+        RuleFor(command => command.ClienteId).NotEmpty();
+        RuleFor(command => command.VeiculoId).NotEmpty();
+        RuleFor(command => command.ValidoAte).NotEmpty();
+        RuleFor(command => command.Desconto).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.Acrescimo).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.ObservacaoCliente).MaximumLength(2000);
+        RuleFor(command => command.ObservacaoInterna).MaximumLength(4000);
+        RuleFor(command => command.Condicoes).MaximumLength(2000);
+        RuleFor(command => command.Itens).NotEmpty();
+        RuleForEach(command => command.Itens).SetValidator(new ItemOrcamentoEntradaValidator());
+    }
+}
 internal sealed class ListarOrcamentosValidator : AbstractValidator<ListarOrcamentosQuery>
 { public ListarOrcamentosValidator() { RuleFor(x => x.Pagina).GreaterThanOrEqualTo(1); RuleFor(x => x.TamanhoPagina).Must(x => x is 10 or 25 or 50); RuleFor(x => x.Pesquisa).MaximumLength(160); RuleFor(x => x.Status).IsInEnum().When(x => x.Status.HasValue); } }
 

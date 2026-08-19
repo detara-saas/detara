@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>Agenda | Detara</PageTitle>
+<div class="page-container page-container-wide operational-page">
 <CabecalhoPagina Titulo="Agenda" Descricao="Planejamento operacional por horário, cliente e veículo." Sobretitulo="OPERAÇÃO">
     <Acoes><AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo agendamento</MudButton></Authorized></AuthorizeView></Acoes>
 </CabecalhoPagina>
@@ -39,6 +40,7 @@ else
     <section class="week-grid" aria-label="Agenda semanal">@foreach (var dia in DiasDaSemana) { var itens = ItensDoDia(dia); <div class="week-day @(_hojeLocal == dia ? "today" : string.Empty)"><header><span>@dia.ToString("ddd", Cultura)</span><strong>@dia.Day</strong><small>@itens.Count</small></header><div>@if (itens.Count == 0) { <span class="week-empty">Livre</span> } else { @foreach (var item in itens) { <AgendaCard Item="item" Compacto="true" /> } }</div></div> }</section>
     <section class="week-mobile-timeline module-panel">@foreach (var item in ItensDoDia(_diaSelecionado)) { <AgendaCard Item="item" /> } @if (ItensDoDia(_diaSelecionado).Count == 0) { <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.EventAvailable" /><div><strong>Dia livre</strong><span>Nenhum agendamento planejado.</span></div></div> }</section>
 }
+</div>
 
 @code {
     private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");

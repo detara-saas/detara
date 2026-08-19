@@ -1,0 +1,41 @@
+<div class="section-heading section-card-heading @Classe">
+    <div>
+        @if (!string.IsNullOrWhiteSpace(Sobretitulo))
+        {
+            <span class="section-eyebrow">@Sobretitulo</span>
+        }
+        <h2>@Titulo</h2>
+        @if (!string.IsNullOrWhiteSpace(Descricao))
+        {
+            <p>@Descricao</p>
+        }
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Etapa))
+    {
+        <span class="step-badge" aria-label="Etapa @Etapa">@Etapa</span>
+    }
+    else if (Complemento is not null)
+    {
+        <div class="section-header-actions">@Complemento</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Sobretitulo { get; set; }
+
+    [Parameter]
+    public string? Descricao { get; set; }
+
+    [Parameter]
+    public string? Etapa { get; set; }
+
+    [Parameter]
+    public string? Classe { get; set; }
+
+    [Parameter]
+    public RenderFragment? Complemento { get; set; }
+}

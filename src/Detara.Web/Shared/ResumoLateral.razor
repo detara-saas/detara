@@ -1,0 +1,31 @@
+<aside class="module-panel summary-aside @Classe">
+    <div class="summary-aside-heading">
+        <span><MudIcon Icon="@Icone" /></span>
+        <div><span class="section-eyebrow">@Sobretitulo</span><h2>@Titulo</h2></div>
+    </div>
+    @ChildContent
+    @if (Acoes is not null)
+    {
+        <div class="summary-aside-actions">@Acoes</div>
+    }
+</aside>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Icone { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Sobretitulo { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? Acoes { get; set; }
+
+    [Parameter]
+    public string? Classe { get; set; }
+}

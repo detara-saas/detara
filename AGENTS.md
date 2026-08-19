@@ -17,6 +17,12 @@ Toda interface deve:
 - priorizar informação operacional, acessibilidade e alvos de toque adequados;
 - usar MudBlazor/Material Icons, sem emojis como ícones funcionais.
 
+Antes de criar uma nova página, identifique o arquétipo definido em `docs/design-system.md` e reutilize os padrões existentes. Não crie layouts isolados de feature sem justificativa explícita.
+
+Prefira componentes e padrões Detara existentes antes de introduzir novas estruturas visuais. MudBlazor continua sendo a base; componentes compartilhados representam padrões de produto, não wrappers genéricos de HTML.
+
+Não introduza spacing, cores, `max-width` ou layouts específicos de feature quando existir token ou padrão equivalente no Design System.
+
 ## Multi-tenancy
 
 Segurança entre tenants é crítica. Nunca confie em `EmpresaId` vindo do frontend quando o tenant puder ser obtido do usuário autenticado. Toda entidade comercial multi-tenant deve respeitar isolamento de leitura e escrita. Preferências e favoritos pertencem ao usuário autenticado; URLs ou identificadores arbitrários enviados pelo browser devem ser rejeitados.
