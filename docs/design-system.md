@@ -63,6 +63,80 @@ Fonte: `Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-se
 - Radius: XS 4, SM 6, MD 10, LG 14 e XL 20 px. Pills somente quando semanticamente adequadas.
 - Sombras são discretas; borda, superfície, espaço e hierarquia vêm primeiro. Dark mode não depende de sombras fortes.
 
+## Arquitetura de páginas
+
+Toda página autenticada deve começar pela escolha de um arquétipo. A composição pode variar conforme o domínio, mas largura, ritmo, hierarquia e comportamento responsivo vêm dos padrões compartilhados. Não crie um layout isolado para uma feature quando um arquétipo existente resolver o caso.
+
+### Tokens estruturais
+
+| Token CSS | Uso |
+|---|---|
+| `--detara-page-max-width` | largura máxima padrão de páginas operacionais (`1280px`) |
+| `--detara-page-wide-max-width` | exceções que precisam de mais área, como Agenda semanal (`1600px`) |
+| `--detara-page-gap` | distância entre regiões principais da página (`24px`) |
+| `--detara-section-gap` | ritmo entre seções relacionadas (`20px`) |
+| `--detara-card-padding` | preenchimento padrão de card de seção (`24px`) |
+| `--detara-form-gap` | distância entre grupos de formulário (`20px`) |
+| `--detara-summary-width` | largura do resumo lateral no desktop (`350px`) |
+
+Use `.page-container` como container central e `.page-container-wide` apenas quando a operação justificar largura adicional. O conteúdo autenticado também recebe uma largura máxima segura por padrão. Valores monetários usam `.currency-value` para preservar valor e símbolo na mesma linha quando houver espaço.
+
+### Cabeçalho de página
+
+`CabecalhoPagina` é o padrão para contexto, título, descrição e ações. A composição segue:
+
+1. eyebrow estável do domínio, como ATENDIMENTO, AGENDA, CADASTROS ou ADMINISTRAÇÃO;
+2. título curto e orientado à tarefa;
+3. descrição que esclarece objetivo ou contexto;
+4. uma ação principal opcional, com badges ou ações secundárias sem competir visualmente.
+
+Em mobile, título, badge e ações devem recompor em linhas próprias, sem overflow ou sobreposição.
+
+### Form Page
+
+Use em cadastros e operações, como orçamento, ordem de serviço e agendamento. A estrutura padrão é `CabecalhoPagina`, contexto opcional e `.form-page-grid`, com `.page-main-column` e `ResumoLateral` quando existir um resumo relevante. O conteúdo principal é dividido em `.section-card`; `CabecalhoSecao` fornece eyebrow, título, helper e número de etapa opcional.
+
+Etapas `01`, `02`, `03` só representam uma sequência real. Campos relacionados ficam juntos; condições e observações formam uma seção própria quando isso melhora a leitura. No desktop, o resumo pode ser sticky abaixo da topbar. Entre 768 e 1199 px, e no mobile, conteúdo e resumo são empilhados e as ações permanecem acessíveis.
+
+### Detail Page
+
+Use em entidades já criadas. A sequência recomendada é:
+
+1. `CabecalhoPagina` com identidade e status;
+2. `.detail-metrics` com poucos `CardMetrica` realmente prioritários;
+3. alerts contextuais;
+4. `.detail-stack` com cards de conteúdo;
+5. histórico, dados relacionados e ações operacionais.
+
+Orçamento e Ordem de Serviço são as referências desse arquétipo. Métricas não substituem conteúdo e não devem proliferar. Alertas usam `.page-alert`; histórico equivalente deve compartilhar a mesma linguagem de timeline.
+
+### List Page
+
+Use `CabecalhoPagina` com uma ação principal, barra `.module-toolbar`, tabela em desktop, lista recomposta em mobile e paginação. Busca, filtros, limpar e buscar devem conservar altura, espaçamento e hierarquia. Não comprima tabela desktop em telas estreitas. Estados sem dados usam `EstadoVazio` ou o padrão compartilhado de empty state apropriado ao contexto.
+
+### Settings Page
+
+Configurações usam `CabecalhoPagina`, container padrão, grupos claros e cards de configuração. Não recebem etapas ou resumo lateral apenas por estética. Helper text deve explicar impacto e escopo da preferência, preservando contraste nos três temas.
+
+### Dashboard / Operational Page
+
+Dashboard e Agenda preservam sua composição operacional. Eles compartilham header, tipografia, spacing, cards, status e regras responsivas, mas não são forçados ao layout de formulário. Agenda semanal pode usar `.page-container-wide`; dashboards devem manter apenas indicadores úteis para decisão.
+
+### Cards de seção e resumo lateral
+
+`.section-card` representa uma unidade real de trabalho, normalmente com `CabecalhoSecao`, descrição auxiliar e conteúdo. Evite cards aninhados sem função. Use número de etapa apenas em fluxos sequenciais.
+
+`ResumoLateral` apresenta síntese e ações quando o usuário precisa conferir totais ou contexto durante uma operação. Ele pode ser sticky no desktop, respeitando a topbar; deve perder sticky e ficar abaixo do conteúdo em tablet/mobile. Nunca use quando o bloco não acrescenta uma síntese operacional.
+
+### Responsividade dos arquétipos
+
+- Desktop (`>=1200px`): container central; Form Page pode usar conteúdo + resumo lateral; métricas podem ocupar três ou quatro colunas.
+- Tablet (`768–1199px`): grids principais empilham; métricas recompõem em duas colunas; Agenda mantém área maior quando necessário.
+- Mobile (`<768px`): uma coluna, cards com padding reduzido, ações com alvo mínimo de 44 px, métricas empilhadas e listas recompostas.
+- Em todas as larguras: nenhum scroll horizontal acidental, sticky sem sobreposição, textos longos com quebra segura e valores monetários sem separação inadequada.
+
+Os padrões são implementados em `app.css` e nos componentes `CabecalhoPagina`, `CabecalhoSecao`, `CardMetrica`, `ResumoLateral` e `EstadoVazio`. MudBlazor continua sendo a base; componentes Detara representam padrões de produto, não wrappers genéricos de HTML.
+
 ## Componentes
 
 - **Botões:** um primário por região; secundário, outline, text e destrutivo conforme hierarquia.
