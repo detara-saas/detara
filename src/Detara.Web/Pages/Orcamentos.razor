@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>Orçamentos | Detara</PageTitle>
+<div class="page-container list-page">
 <CabecalhoPagina Titulo="Orçamentos" Descricao="Propostas comerciais formais, valores negociados e aprovações." Sobretitulo="ATENDIMENTO">
     <Acoes><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo orçamento</MudButton></Authorized></AuthorizeView></Acoes>
 </CabecalhoPagina>
@@ -32,6 +33,7 @@ else
     <section class="mobile-list">@foreach (var item in _pagina.Itens) { <a class="mobile-record quotation-mobile-record" href="@($"/orcamentos/{item.Id}")"><div class="mobile-record-main"><strong>@Identificacao(item)</strong><span>@item.ClienteNome</span><span>@item.VeiculoDescricao · @item.VeiculoPlaca</span><strong>@item.Total.ToString("C2")</strong><span>Válido até @item.ValidoAte.ToString("dd/MM")</span></div><span class="status-badge @ClasseStatus(item.Status)">@NomeStatus(item.Status)</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }</section>
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="@(() => MoverPaginaAsync(-1))" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="@(() => MoverPaginaAsync(1))" aria-label="Próxima página" /></div></div>
 }
+</div>
 
 @code {
     private PaginaResponse<OrcamentoListaResponse>? _pagina; private bool _carregando = true; private int _paginaAtual = 1; private string? _pesquisa; private StatusOrcamentoContrato? _status;

@@ -10,6 +10,7 @@
 else if (_orcamento is null) { <EstadoVazio Titulo="Orçamento não encontrado" Descricao="O documento não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.RequestQuote" /> }
 else
 {
+    <div class="page-container quotation-detail-page">
     <CabecalhoPagina Titulo="@(_orcamento.Codigo ?? (_orcamento.Status == StatusOrcamentoContrato.Rascunho ? "Rascunho sem código" : "Documento sem emissão"))" Descricao="@($"{_orcamento.ClienteNome} · {_orcamento.VeiculoDescricao} · {_orcamento.VeiculoPlaca}")" Sobretitulo="ORÇAMENTO">
         <Acoes>
             <span class="status-badge @ClasseStatus(_orcamento.Status)">@NomeStatus(_orcamento.Status)</span>
@@ -20,17 +21,19 @@ else
         </Acoes>
     </CabecalhoPagina>
 
+    <div class="detail-stack">
+
     @if (_orcamento.EmitidoEmUtc.HasValue)
     {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="immutable-quotation-note">
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert immutable-quotation-note">
             <div><strong>Documento comercial imutável</strong><span>Este orçamento já foi emitido e não pode ser alterado. Para mudar valores ou serviços, crie uma nova proposta.</span></div>
             <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcao("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView>
         </MudAlert>
     }
-    @if (_orcamento.Status == StatusOrcamentoContrato.Expirado) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Este orçamento expirou em @_orcamento.ValidoAte.ToString("dd/MM/yyyy") e não pode receber nova aprovação. Crie uma nova proposta.</MudAlert> }
+    @if (_orcamento.Status == StatusOrcamentoContrato.Expirado) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="page-alert">Este orçamento expirou em @_orcamento.ValidoAte.ToString("dd/MM/yyyy") e não pode receber nova aprovação. Crie uma nova proposta.</MudAlert> }
     @if (_orcamento.Status == StatusOrcamentoContrato.Cancelado && !_orcamento.EmitidoEmUtc.HasValue)
     {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="immutable-quotation-note"><div><strong>Rascunho cancelado</strong><span>Este documento não chegou a ser emitido e não possui PDF oficial.</span></div><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcao("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView></MudAlert>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert immutable-quotation-note"><div><strong>Rascunho cancelado</strong><span>Este documento não chegou a ser emitido e não possui PDF oficial.</span></div><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcao("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView></MudAlert>
     }
     @if (_acao is not null)
     {
@@ -43,31 +46,32 @@ else
 
     @if (_orcamento.CriadoAPartirDe is not null || _orcamento.SubstituidoPor is not null)
     {
-        <section class="quotation-lineage module-panel">
+        <section class="quotation-lineage module-panel section-card">
             @if (_orcamento.CriadoAPartirDe is not null) { <div><span class="section-eyebrow">CRIADO A PARTIR DE</span><a class="primary-link" href="@($"/orcamentos/{_orcamento.CriadoAPartirDe.Id}")">@(_orcamento.CriadoAPartirDe.Codigo ?? "Orçamento anterior")</a></div> }
             @if (_orcamento.SubstituidoPor is not null) { <div><span class="section-eyebrow">SUBSTITUÍDO POR</span><a class="primary-link" href="@($"/orcamentos/{_orcamento.SubstituidoPor.Id}")">@(_orcamento.SubstituidoPor.Codigo ?? "Novo orçamento")</a></div> }
         </section>
     }
 
-    <section class="quotation-hero module-panel">
-        <div><span class="section-eyebrow">TOTAL NEGOCIADO</span><strong>@_orcamento.Total.ToString("C2")</strong><span>Valor formal deste documento</span></div>
-        <div><span class="section-eyebrow">EMISSÃO</span><strong>@(_orcamento.EmitidoEmUtc?.ToString("dd/MM/yyyy HH:mm") ?? "Ainda não emitido")</strong><span>@(_orcamento.Codigo ?? "Código gerado na emissão")</span></div>
-        <div><span class="section-eyebrow">VALIDADE</span><strong>@_orcamento.ValidoAte.ToString("dd/MM/yyyy")</strong><span>@NomeStatus(_orcamento.Status)</span></div>
+    <section class="detail-metrics detail-metrics-four" aria-label="Resumo do orçamento">
+        <CardMetrica Icone="@Icons.Material.Outlined.Paid" Rotulo="TOTAL NEGOCIADO" Valor="@_orcamento.Total.ToString("C2")" Descricao="Valor formal deste documento" Destaque="true" ValorSemQuebra="true" />
+        <CardMetrica Icone="@Icons.Material.Outlined.Publish" Rotulo="EMISSÃO" Valor="@(_orcamento.EmitidoEmUtc?.ToString("dd/MM/yyyy HH:mm") ?? "Ainda não emitido")" Descricao="@(_orcamento.Codigo ?? "Código gerado na emissão")" />
+        <CardMetrica Icone="@Icons.Material.Outlined.EventAvailable" Rotulo="VALIDADE" Valor="@_orcamento.ValidoAte.ToString("dd/MM/yyyy")" Descricao="@NomeStatus(_orcamento.Status)" />
+        <CardMetrica Icone="@Icons.Material.Outlined.AccountTree" Rotulo="ORIGEM" Valor="@NomeOrigem(_orcamento)" Descricao="Fluxo comercial preservado" />
     </section>
 
-    <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">ITENS OFERECIDOS</span><h2>@_orcamento.Itens.Count item(ns)</h2></div></div><div class="quotation-detail-items">
+    <section class="module-panel section-card"><div class="section-heading"><div><span class="section-eyebrow">ITENS OFERECIDOS</span><h2>@_orcamento.Itens.Count item(ns)</h2></div></div><div class="quotation-detail-items">
         @foreach (var item in _orcamento.Itens.OrderBy(x => x.Ordem))
         {
-            <article><span class="package-order">@item.Ordem</span><div><strong>@item.Nome</strong><span>@TipoItem(item.TipoItem) · @item.Quantidade × @item.ValorUnitario.ToString("C2")</span>@if (item.PrecoReferencia.HasValue) { <small>Referência interna: @Referencia(item)</small> } @if (!string.IsNullOrWhiteSpace(item.Observacao)) { <p>@item.Observacao</p> }</div><strong>@item.Subtotal.ToString("C2")</strong></article>
+            <article><span class="package-order">@item.Ordem</span><div><strong>@item.Nome</strong><span>@TipoItem(item.TipoItem) · @item.Quantidade × @item.ValorUnitario.ToString("C2")</span>@if (item.PrecoReferencia.HasValue) { <small>Referência interna: @Referencia(item)</small> } @if (!string.IsNullOrWhiteSpace(item.Observacao)) { <p>@item.Observacao</p> }</div><strong class="currency-value">@item.Subtotal.ToString("C2")</strong></article>
         }
     </div></section>
 
     <div class="quotation-bottom-grid">
-        <section class="module-panel quotation-notes"><div class="section-heading"><div><span class="section-eyebrow">COMUNICAÇÃO</span><h2>Condições e observações</h2></div></div><dl><dt>Condições</dt><dd>@TextoOuVazio(_orcamento.Condicoes)</dd><dt>Observações para o cliente</dt><dd>@TextoOuVazio(_orcamento.ObservacaoCliente)</dd><dt>Observação interna</dt><dd>@TextoOuVazio(_orcamento.ObservacaoInterna)<small>Não aparece no PDF.</small></dd></dl></section>
+        <section class="module-panel quotation-notes section-card"><div class="section-heading"><div><span class="section-eyebrow">COMUNICAÇÃO</span><h2>Condições e observações</h2></div></div><dl><dt>Condições</dt><dd>@TextoOuVazio(_orcamento.Condicoes)</dd><dt>Observações para o cliente</dt><dd>@TextoOuVazio(_orcamento.ObservacaoCliente)</dd><dt>Observação interna</dt><dd>@TextoOuVazio(_orcamento.ObservacaoInterna)<small>Não aparece no PDF.</small></dd></dl></section>
         <section class="module-panel quotation-values"><span class="section-eyebrow">RESUMO FINANCEIRO</span><div><span>Subtotal</span><strong>@_orcamento.Subtotal.ToString("C2")</strong></div><div><span>Desconto</span><strong>@_orcamento.Desconto.ToString("C2")</strong></div><div><span>Acréscimo</span><strong>@_orcamento.Acrescimo.ToString("C2")</strong></div><div class="quotation-total"><span>TOTAL</span><strong>@_orcamento.Total.ToString("C2")</strong></div></section>
     </div>
 
-    <section class="module-panel related-section quotation-history"><div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Trilha de status</h2></div></div>
+    <section class="module-panel section-card quotation-history"><div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Trilha de status</h2></div></div>
         @foreach (var h in _orcamento.Historico.OrderByDescending(x => x.DataUtc)) { <article><span class="history-dot @ClasseStatus(h.Status)"></span><div><strong>@NomeStatus(h.Status)</strong><span>@h.DataUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @h.UsuarioNome</span>@if (!string.IsNullOrWhiteSpace(h.Observacao)) { <p>@h.Observacao</p> }</div></article> }
     </section>
 
@@ -77,6 +81,8 @@ else
             @if (_orcamento.Status == StatusOrcamentoContrato.Emitido) { <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => SolicitarAcao("aprovar"))">Registrar aprovação</MudButton><MudButton Variant="Variant.Outlined" OnClick="@(() => SolicitarAcao("recusar"))">Registrar recusa</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcao("cancelar"))">Cancelar</MudButton> }
         </div></section>
     </Authorized></AuthorizeView>
+    </div>
+    </div>
 }
 
 @code {
@@ -97,6 +103,7 @@ else
     }
     private async Task BaixarPdfAsync() { var (conteudo, mensagem) = await OrcamentosApi.BaixarPdfAsync(Id); if (conteudo is null) { Mensagens.Mostrar(mensagem, true); return; } await Js.InvokeVoidAsync("detara.baixarArquivoBase64", $"{_orcamento?.Codigo ?? "orcamento"}.pdf", "application/pdf", Convert.ToBase64String(conteudo)); }
     private static string TextoOuVazio(string? texto) => string.IsNullOrWhiteSpace(texto) ? "Não informado." : texto;
+    private static string NomeOrigem(OrcamentoDetalheResponse orcamento) => orcamento.OrdemServicoOrigemId.HasValue ? "Ordem de serviço" : orcamento.AgendamentoOrigemId.HasValue ? "Agendamento" : "Atendimento direto";
     private static string NomeStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Substituido => "Substituído", StatusOrcamentoContrato.Expirado => "Expirado", _ => status.ToString() };
     private static string ClasseStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Rascunho => "status-neutral", StatusOrcamentoContrato.Emitido => "status-scheduled", StatusOrcamentoContrato.Aprovado => "status-running", StatusOrcamentoContrato.Recusado => "status-cancelled", StatusOrcamentoContrato.Cancelado => "status-cancelled", StatusOrcamentoContrato.Expirado => "status-waiting", _ => "status-neutral" };
     private static string TipoItem(TipoItemOrcamentoContrato tipo) => tipo switch { TipoItemOrcamentoContrato.Servico => "Serviço", TipoItemOrcamentoContrato.Pacote => "Pacote", _ => "Personalizado" };

@@ -9,86 +9,97 @@
 }
 else
 {
-    <EditForm Model="_modelo" OnValidSubmit="SalvarAsync" class="form-panel module-panel quotation-form-panel">
+    <EditForm Model="_modelo" OnValidSubmit="SalvarAsync" class="form-page-grid quotation-form">
         <DataAnnotationsValidator />
-        @if (_agendamentoOrigemId.HasValue || _ordemServicoOrigemId.HasValue)
-        {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="quotation-origin-note">@(_ordemServicoOrigemId.HasValue ? "Este é um orçamento adicional vinculado à OS. Só itens aprovados serão incorporados ao escopo autorizado." : "Este rascunho usa os snapshots apresentados no agendamento. Confirme os valores negociados sem alterar a Agenda.")</MudAlert>
-        }
-        <div class="section-heading"><div><span class="section-eyebrow">DESTINATÁRIO</span><h2>Cliente e veículo</h2></div></div>
-        <div class="form-grid">
-            <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="_clienteNome" Fixo="@OrigemFixa" SelecionadoChanged="ClienteSelecionadoAsync" />
-            <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || OrigemFixa)" Required="true">
-                @foreach (var veiculo in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)veiculo.Id)">@veiculo.Descricao · @veiculo.Placa</MudSelectItem> }
-            </MudSelect>
-        </div>
-
-        <section class="quotation-form-section">
-            <div class="section-heading"><div><span class="section-eyebrow">PROPOSTA</span><h2>Itens e valores negociados</h2></div><span class="selected-count">@_itens.Count item(ns)</span></div>
-            <div class="catalog-search-row">
-                <MudTextField T="string" @bind-Value="_pesquisaCatalogo" Label="Pesquisar serviços e pacotes" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="BuscarCatalogoAsync">Buscar catálogo</MudButton>
-                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarPersonalizado">Item personalizado</MudButton>
-            </div>
-            @if (_catalogo.Count > 0)
+        <main class="page-main-column">
+            @if (_agendamentoOrigemId.HasValue || _ordemServicoOrigemId.HasValue)
             {
-                <div class="quotation-catalog-picker">
-                    @foreach (var item in _catalogo)
-                    {
-                        <button type="button" class="quotation-catalog-item" @onclick="@(() => AdicionarCatalogo(item))">
-                            <MudIcon Icon="@(item.TipoItem == TipoItemOrcamentoContrato.Servico ? Icons.Material.Outlined.AutoFixHigh : Icons.Material.Outlined.Inventory2)" />
-                            <span><strong>@item.Nome</strong><small>@Referencia(item.TipoPrecificacao, item.PrecoReferencia)</small></span>
-                            <MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" />
-                        </button>
-                    }
-                </div>
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert quotation-origin-note">@(_ordemServicoOrigemId.HasValue ? "Este é um orçamento adicional vinculado à OS. Só itens aprovados serão incorporados ao escopo autorizado." : "Este rascunho usa os snapshots apresentados no agendamento. Confirme os valores negociados sem alterar a Agenda.")</MudAlert>
             }
-            <div class="quotation-items-editor">
-                @for (var indice = 0; indice < _itens.Count; indice++)
-                {
-                    var item = _itens[indice];
-                    <article>
-                        <div class="quotation-item-title">
-                            <span class="package-order">@(indice + 1)</span>
-                            <div>
-                                @if (item.TipoItem == TipoItemOrcamentoContrato.Personalizado)
-                                { <MudTextField T="string" @bind-Value="item.Nome" Label="Descrição do item *" Variant="Variant.Outlined" Required="true" /> }
-                                else
-                                { <strong>@item.Nome</strong><span>Referência interna: @Referencia(item.TipoPrecificacao, item.PrecoReferencia)</span> }
-                            </div>
-                            <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" OnClick="@(() => Remover(item))" aria-label="Remover item" />
-                        </div>
-                        <div class="quotation-item-values">
-                            <MudNumericField T="int" @bind-Value="item.Quantidade" Label="Quantidade" Variant="Variant.Outlined" Min="1" />
-                            <MudNumericField T="decimal" @bind-Value="item.ValorUnitario" Label="Valor neste orçamento" Variant="Variant.Outlined" Min="0" Format="C2" />
-                            <div class="quotation-item-subtotal"><span>Subtotal</span><strong>@((item.Quantidade * item.ValorUnitario).ToString("C2"))</strong></div>
-                        </div>
-                        <MudTextField T="string" @bind-Value="item.Observacao" Label="Observação do item (opcional)" Variant="Variant.Outlined" />
-                    </article>
-                }
-            </div>
-        </section>
 
-        <section class="quotation-form-section quotation-commercial-grid">
-            <div>
-                <div class="section-heading"><div><span class="section-eyebrow">CONDIÇÕES</span><h2>Validade e comunicação</h2></div></div>
+            <section class="module-panel section-card">
+                <CabecalhoSecao Sobretitulo="DESTINATÁRIO" Titulo="Cliente e veículo" Descricao="Identifique para quem a proposta será apresentada." Etapa="01" />
+                <div class="form-grid">
+                    <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="_clienteNome" Fixo="@OrigemFixa" SelecionadoChanged="ClienteSelecionadoAsync" />
+                    <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || OrigemFixa)" Required="true">
+                        @foreach (var veiculo in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)veiculo.Id)">@veiculo.Descricao · @veiculo.Placa</MudSelectItem> }
+                    </MudSelect>
+                </div>
+            </section>
+
+            <section class="module-panel section-card">
+                <CabecalhoSecao Sobretitulo="PROPOSTA" Titulo="Itens e valores negociados" Descricao="Use o catálogo como referência e registre o valor desta proposta." Etapa="02" />
+                <div class="catalog-tools">
+                    <MudTextField T="string" @bind-Value="_pesquisaCatalogo" Label="Pesquisar serviços e pacotes" Placeholder="Serviço ou pacote" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+                    <div class="catalog-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Search" OnClick="BuscarCatalogoAsync">Buscar catálogo</MudButton><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarPersonalizado">Item personalizado</MudButton></div>
+                </div>
+                @if (_catalogo.Count > 0)
+                {
+                    <div class="quotation-catalog-picker">
+                        @foreach (var item in _catalogo)
+                        {
+                            <button type="button" class="quotation-catalog-item" @onclick="@(() => AdicionarCatalogo(item))">
+                                <MudIcon Icon="@(item.TipoItem == TipoItemOrcamentoContrato.Servico ? Icons.Material.Outlined.AutoFixHigh : Icons.Material.Outlined.Inventory2)" />
+                                <span><strong>@item.Nome</strong><small>@Referencia(item.TipoPrecificacao, item.PrecoReferencia)</small></span>
+                                <MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" />
+                            </button>
+                        }
+                    </div>
+                }
+                @if (_itens.Count == 0)
+                {
+                    <div class="items-empty"><span><MudIcon Icon="@Icons.Material.Outlined.PlaylistAdd" /></span><div><strong>Nenhum item na proposta</strong><p>Pesquise o catálogo ou adicione um item personalizado para compor o orçamento.</p></div></div>
+                }
+                else
+                {
+                    <div class="quotation-items-editor">
+                        @for (var indice = 0; indice < _itens.Count; indice++)
+                        {
+                            var item = _itens[indice];
+                            <article>
+                                <div class="quotation-item-title">
+                                    <span class="package-order">@(indice + 1)</span>
+                                    <div>
+                                        @if (item.TipoItem == TipoItemOrcamentoContrato.Personalizado)
+                                        { <MudTextField T="string" @bind-Value="item.Nome" Label="Descrição do item *" Variant="Variant.Outlined" Required="true" /> }
+                                        else
+                                        { <strong>@item.Nome</strong><span>Referência interna: @Referencia(item.TipoPrecificacao, item.PrecoReferencia)</span> }
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Color="Color.Error" OnClick="@(() => Remover(item))" aria-label="Remover item" />
+                                </div>
+                                <div class="quotation-item-values">
+                                    <MudNumericField T="int" @bind-Value="item.Quantidade" Label="Quantidade" Variant="Variant.Outlined" Min="1" />
+                                    <MudNumericField T="decimal" @bind-Value="item.ValorUnitario" Label="Valor neste orçamento" Variant="Variant.Outlined" Min="0" Format="C2" />
+                                    <div class="quotation-item-subtotal"><span>Subtotal</span><strong class="currency-value">@((item.Quantidade * item.ValorUnitario).ToString("C2"))</strong></div>
+                                </div>
+                                <MudTextField T="string" @bind-Value="item.Observacao" Label="Observação do item (opcional)" Variant="Variant.Outlined" />
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="module-panel section-card">
+                <CabecalhoSecao Sobretitulo="CONDIÇÕES" Titulo="Validade e comunicação" Descricao="Defina o prazo e as informações apresentadas ao cliente." Etapa="03" />
                 <div class="form-grid">
                     <MudDatePicker @bind-Date="_validoAte" Label="Válido até *" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" />
                     <MudTextField T="string" @bind-Value="_modelo.Condicoes" Label="Condições comerciais" Variant="Variant.Outlined" Lines="3" Class="form-full" />
                     <MudTextField T="string" @bind-Value="_modelo.ObservacaoCliente" Label="Observações para o cliente" Variant="Variant.Outlined" Lines="3" Class="form-full" />
                     <MudTextField T="string" @bind-Value="_modelo.ObservacaoInterna" Label="Observação interna (não aparece no PDF)" Variant="Variant.Outlined" Lines="3" Class="form-full" />
                 </div>
-            </div>
-            <aside class="quotation-summary module-panel">
-                <span class="section-eyebrow">RESUMO FINANCEIRO</span>
-                <div><span>Subtotal</span><strong>@Subtotal.ToString("C2")</strong></div>
+            </section>
+        </main>
+
+        <ResumoLateral Icone="@Icons.Material.Outlined.RequestQuote" Sobretitulo="RESUMO DO ORÇAMENTO" Titulo="Total negociado">
+            <ChildContent>
+                <dl class="summary-list"><div><dt>Itens</dt><dd>@_itens.Count</dd></div><div><dt>Subtotal</dt><dd class="currency-value">@Subtotal.ToString("C2")</dd></div></dl>
                 <MudNumericField T="decimal" @bind-Value="_modelo.Desconto" Label="Desconto" Variant="Variant.Outlined" Min="0" Format="C2" />
                 <MudNumericField T="decimal" @bind-Value="_modelo.Acrescimo" Label="Acréscimo" Variant="Variant.Outlined" Min="0" Format="C2" />
-                <div class="quotation-total"><span>TOTAL</span><strong>@Total.ToString("C2")</strong></div>
-            </aside>
-        </section>
-
-        <div class="form-actions"><MudButton Href="@CancelarHref" Variant="Variant.Text">Cancelar</MudButton><MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvando">@(_salvando ? "Salvando..." : "Salvar rascunho")</MudButton></div>
+                <div class="summary-total"><span>TOTAL</span><strong class="currency-value">@Total.ToString("C2")</strong></div>
+                <p class="summary-note"><MudIcon Icon="@Icons.Material.Outlined.Info" /> O documento permanece editável enquanto estiver em rascunho.</p>
+            </ChildContent>
+            <Acoes><MudButton Href="@CancelarHref" Variant="Variant.Text">Cancelar</MudButton><MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvando">@(_salvando ? "Salvando..." : "Salvar rascunho")</MudButton></Acoes>
+        </ResumoLateral>
     </EditForm>
 }
 

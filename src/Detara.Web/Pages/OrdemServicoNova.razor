@@ -6,7 +6,7 @@
 @inject NavigationManager Navegacao
 
 <PageTitle>Nova Ordem de Serviço | Detara</PageTitle>
-<div class="service-order-page service-order-create-page">
+<div class="page-container service-order-create-page">
     <CabecalhoPagina Titulo="Nova ordem de serviço" Descricao="Confirme a origem e o valor autorizado antes de iniciar o atendimento." Sobretitulo="ATENDIMENTO" />
 
     @if (_carregando)
@@ -27,16 +27,16 @@
 
         @if (_orcamento is not null)
         {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="service-order-notice">
+            <div class="detail-stack">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert">
                 Os itens, descontos, acréscimos e valores são snapshots do orçamento aprovado e não serão recalculados pelo catálogo.
             </MudAlert>
-            <div class="service-order-create-grid service-order-approved-grid">
-                <main class="service-order-main-column">
-                    <section class="module-panel service-order-section">
-                        <div class="section-heading service-order-section-heading">
-                            <div><span class="section-eyebrow">ORÇAMENTO APROVADO</span><h2>@_orcamento.Codigo</h2><p>Escopo comercial autorizado pelo cliente.</p></div>
-                            <strong class="service-order-section-total">@_orcamento.Total.ToString("C2")</strong>
-                        </div>
+            <div class="form-page-grid service-order-approved-grid">
+                <main class="page-main-column">
+                    <section class="module-panel section-card">
+                        <CabecalhoSecao Sobretitulo="ORÇAMENTO APROVADO" Titulo="@_orcamento.Codigo" Descricao="Escopo comercial autorizado pelo cliente.">
+                            <Complemento><strong class="section-total currency-value">@_orcamento.Total.ToString("C2")</strong></Complemento>
+                        </CabecalhoSecao>
                         <div class="appointment-items">
                             @foreach (var item in _orcamento.Itens.OrderBy(item => item.Ordem))
                             {
@@ -45,37 +45,35 @@
                         </div>
                     </section>
                 </main>
-                <aside class="module-panel service-order-summary-card">
-                    <div class="service-order-summary-heading"><span><MudIcon Icon="@Icons.Material.Outlined.Verified" /></span><div><span class="section-eyebrow">RESUMO DA OS</span><h2>Valor autorizado</h2></div></div>
-                    <dl class="service-order-summary-list"><div><dt>Itens</dt><dd>@_orcamento.Itens.Count</dd></div><div><dt>Desconto</dt><dd>@_orcamento.Desconto.ToString("C2")</dd></div><div><dt>Acréscimo</dt><dd>@_orcamento.Acrescimo.ToString("C2")</dd></div></dl>
-                    <div class="service-order-summary-total"><span>TOTAL AUTORIZADO</span><strong>@_orcamento.Total.ToString("C2")</strong></div>
-                    <p class="service-order-summary-note"><MudIcon Icon="@Icons.Material.Outlined.Lock" /> O valor seguirá preservado na execução.</p>
-                    <div class="service-order-summary-actions"><MudButton Href="@($"/orcamentos/{_orcamento.Id}")" Variant="Variant.Text">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck" OnClick="CriarAsync" Disabled="_salvando">@(_salvando ? "Criando..." : "Criar ordem de serviço")</MudButton></div>
-                </aside>
+                <ResumoLateral Icone="@Icons.Material.Outlined.Verified" Sobretitulo="RESUMO DA OS" Titulo="Valor autorizado">
+                    <ChildContent><dl class="summary-list"><div><dt>Itens</dt><dd>@_orcamento.Itens.Count</dd></div><div><dt>Desconto</dt><dd class="currency-value">@_orcamento.Desconto.ToString("C2")</dd></div><div><dt>Acréscimo</dt><dd class="currency-value">@_orcamento.Acrescimo.ToString("C2")</dd></div></dl><div class="summary-total"><span>TOTAL AUTORIZADO</span><strong class="currency-value">@_orcamento.Total.ToString("C2")</strong></div><p class="summary-note"><MudIcon Icon="@Icons.Material.Outlined.Lock" /> O valor seguirá preservado na execução.</p></ChildContent>
+                    <Acoes><MudButton Href="@($"/orcamentos/{_orcamento.Id}")" Variant="Variant.Text">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck" OnClick="CriarAsync" Disabled="_salvando">@(_salvando ? "Criando..." : "Criar ordem de serviço")</MudButton></Acoes>
+                </ResumoLateral>
+            </div>
             </div>
         }
         else
         {
-            <div class="service-order-create-grid">
-                <main class="service-order-main-column">
-                    <section class="module-panel service-order-section">
-                        <div class="section-heading service-order-section-heading"><div><span class="section-eyebrow">CLIENTE E VEÍCULO</span><h2>Dados do atendimento</h2><p>Identifique quem será atendido e o veículo recebido.</p></div><span class="service-order-step">01</span></div>
+            <div class="form-page-grid">
+                <main class="page-main-column">
+                    <section class="module-panel section-card">
+                        <CabecalhoSecao Sobretitulo="CLIENTE E VEÍCULO" Titulo="Dados do atendimento" Descricao="Identifique quem será atendido e o veículo recebido." Etapa="01" />
                         <div class="form-grid">
                             <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
                             <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@v.Descricao · @v.Placa</MudSelectItem> }</MudSelect>
                         </div>
-                        <div class="service-order-form-divider"></div>
+                        <div class="form-divider"></div>
                         <div class="form-grid service-order-operational-fields">
                             <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada em minutos (opcional)" Variant="Variant.Outlined" Min="1" />
                             <MudTextField T="string" @bind-Value="_observacaoAutorizacao" Label="Registro da autorização direta (opcional)" HelperText="Ex.: cliente aprovou presencialmente o valor informado." Variant="Variant.Outlined" Lines="2" />
                         </div>
                     </section>
 
-                    <section class="module-panel service-order-section">
-                        <div class="section-heading service-order-section-heading"><div><span class="section-eyebrow">ESCOPO AUTORIZADO</span><h2>Serviços e valores</h2><p>Use o catálogo como referência e confirme o valor negociado.</p></div><span class="service-order-step">02</span></div>
-                        <div class="service-order-catalog-tools">
+                    <section class="module-panel section-card">
+                        <CabecalhoSecao Sobretitulo="ESCOPO AUTORIZADO" Titulo="Serviços e valores" Descricao="Use o catálogo como referência e confirme o valor negociado." Etapa="02" />
+                        <div class="catalog-tools">
                             <MudTextField T="string" @bind-Value="_pesquisaCatalogo" Label="Pesquisar no catálogo" Placeholder="Serviço ou pacote" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
-                            <div class="service-order-catalog-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Search" OnClick="BuscarCatalogoAsync">Buscar</MudButton><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarPersonalizado">Item personalizado</MudButton></div>
+                            <div class="catalog-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Search" OnClick="BuscarCatalogoAsync">Buscar</MudButton><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarPersonalizado">Item personalizado</MudButton></div>
                         </div>
                         @if (_catalogo.Count > 0)
                         {
@@ -83,7 +81,7 @@
                         }
                         @if (_itens.Count == 0)
                         {
-                            <div class="service-order-items-empty"><span><MudIcon Icon="@Icons.Material.Outlined.PlaylistAdd" /></span><div><strong>Nenhum item autorizado</strong><p>Pesquise o catálogo ou adicione um item personalizado para compor a OS.</p></div></div>
+                            <div class="items-empty"><span><MudIcon Icon="@Icons.Material.Outlined.PlaylistAdd" /></span><div><strong>Nenhum item autorizado</strong><p>Pesquise o catálogo ou adicione um item personalizado para compor a OS.</p></div></div>
                         }
                         else
                         {
@@ -92,13 +90,10 @@
                     </section>
                 </main>
 
-                <aside class="module-panel service-order-summary-card">
-                    <div class="service-order-summary-heading"><span><MudIcon Icon="@Icons.Material.Outlined.ReceiptLong" /></span><div><span class="section-eyebrow">RESUMO DA OS</span><h2>Total autorizado</h2></div></div>
-                    <dl class="service-order-summary-list"><div><dt>Origem</dt><dd>@RotuloOrigem</dd></div><div><dt>Itens</dt><dd>@_itens.Count</dd></div><div><dt>Subtotal</dt><dd>@Subtotal.ToString("C2")</dd></div></dl>
-                    <div class="service-order-summary-total"><span>TOTAL AUTORIZADO</span><strong>@Subtotal.ToString("C2")</strong></div>
-                    <p class="service-order-summary-note"><MudIcon Icon="@Icons.Material.Outlined.Info" /> Confirme os valores com o cliente antes de criar.</p>
-                    <div class="service-order-summary-actions"><MudButton Href="/ordens-servico" Variant="Variant.Text">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck" OnClick="CriarAsync" Disabled="_salvando">@(_salvando ? "Criando..." : "Criar ordem de serviço")</MudButton></div>
-                </aside>
+                <ResumoLateral Icone="@Icons.Material.Outlined.ReceiptLong" Sobretitulo="RESUMO DA OS" Titulo="Total autorizado">
+                    <ChildContent><dl class="summary-list"><div><dt>Origem</dt><dd>@RotuloOrigem</dd></div><div><dt>Itens</dt><dd>@_itens.Count</dd></div><div><dt>Subtotal</dt><dd class="currency-value">@Subtotal.ToString("C2")</dd></div></dl><div class="summary-total"><span>TOTAL AUTORIZADO</span><strong class="currency-value">@Subtotal.ToString("C2")</strong></div><p class="summary-note"><MudIcon Icon="@Icons.Material.Outlined.Info" /> Confirme os valores com o cliente antes de criar.</p></ChildContent>
+                    <Acoes><MudButton Href="/ordens-servico" Variant="Variant.Text">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck" OnClick="CriarAsync" Disabled="_salvando">@(_salvando ? "Criando..." : "Criar ordem de serviço")</MudButton></Acoes>
+                </ResumoLateral>
             </div>
         }
     }

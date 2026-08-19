@@ -1,0 +1,34 @@
+<article class="module-panel metric-summary @(Destaque ? "metric-summary-primary" : null) @Classe">
+    <span class="metric-summary-icon"><MudIcon Icon="@Icone" /></span>
+    <div>
+        <span class="section-eyebrow">@Rotulo</span>
+        <strong class="@(ValorSemQuebra ? "currency-value" : null)">@Valor</strong>
+        @if (!string.IsNullOrWhiteSpace(Descricao))
+        {
+            <small>@Descricao</small>
+        }
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Icone { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Rotulo { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Valor { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Descricao { get; set; }
+
+    [Parameter]
+    public bool Destaque { get; set; }
+
+    [Parameter]
+    public bool ValorSemQuebra { get; set; }
+
+    [Parameter]
+    public string? Classe { get; set; }
+}

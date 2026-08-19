@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>Ordens de Serviço | Detara</PageTitle>
+<div class="page-container list-page">
 <CabecalhoPagina Titulo="Ordens de Serviço" Descricao="Check-in, execução, evidências e escopo autorizado do atendimento." Sobretitulo="ATENDIMENTO">
     <Acoes><AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="/ordens-servico/nova" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Nova ordem de serviço</MudButton></Authorized></AuthorizeView></Acoes>
 </CabecalhoPagina>
@@ -29,6 +30,7 @@ else
     <section class="mobile-list">@foreach (var item in _pagina.Itens) { <a class="mobile-record service-order-mobile" href="@($"/ordens-servico/{item.Id}")"><div class="mobile-record-main"><strong>@item.Codigo</strong><span>@item.ClienteNome</span><span>@item.VeiculoDescricao · @item.VeiculoPlaca</span><strong>@item.TotalAutorizado.ToString("C2")</strong></div><span class="status-badge @ClasseStatus(item.Status)">@NomeStatus(item.Status)</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }</section>
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="@(() => MoverAsync(-1))" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="@(() => MoverAsync(1))" /></div></div>
 }
+</div>
 
 @code {
     private PaginaResponse<OrdemServicoListaResponse>? _pagina; private bool _carregando = true; private int _paginaAtual = 1; private string? _pesquisa; private StatusOrdemServicoContrato? _status;

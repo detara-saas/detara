@@ -7,20 +7,17 @@
 
 <PageTitle>@Titulo | Detara</PageTitle>
 
-<section class="page-heading">
-    <div>
-        <MudText Typo="Typo.h4">@Titulo</MudText>
-        <MudText Typo="Typo.body1" Color="Color.Secondary">@Descricao</MudText>
-    </div>
-</section>
+<div class="page-container">
+    <CabecalhoPagina Titulo="@Titulo" Descricao="@Descricao" Sobretitulo="ADMINISTRAÇÃO" />
 
-<MudPaper Elevation="0" Class="empty-state">
-    <div class="empty-icon"><MudIcon Icon="@Icons.Material.Outlined.Construction" Size="Size.Large" /></div>
-    <MudText Typo="Typo.h6">Módulo preparado para a próxima etapa</MudText>
-    <MudText Typo="Typo.body2" Color="Color.Secondary">
-        A navegação e o espaço visual já estão definidos. As regras e operações serão implementadas após a revisão da fundação.
-    </MudText>
-</MudPaper>
+    <MudPaper Elevation="0" Class="empty-state">
+        <div class="empty-icon"><MudIcon Icon="@Icons.Material.Outlined.Construction" Size="Size.Large" /></div>
+        <MudText Typo="Typo.h6">Módulo preparado para a próxima etapa</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            A navegação e o espaço visual já estão definidos. As regras e operações serão implementadas após a revisão da fundação.
+        </MudText>
+    </MudPaper>
+</div>
 
 @code {
     private static readonly IReadOnlyDictionary<string, (string Titulo, string Descricao)> Conteudo =
