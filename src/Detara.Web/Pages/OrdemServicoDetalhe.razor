@@ -5,6 +5,7 @@
 @inject FinanceiroServico FinanceiroApi
 @inject IAuthorizationService Authorization
 @inject AuthenticationStateProvider AuthenticationState
+@inject NotificacoesServico NotificacoesApi
 
 <PageTitle>@(_ordem?.Codigo ?? "Ordem de Serviço") | Detara</PageTitle>
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
@@ -59,6 +60,26 @@ else
         </section>
     }
 
+    @if (_ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida)
+    {
+        <section class="module-panel section-card service-order-communication"><div class="section-heading section-card-heading"><div><span class="section-eyebrow">COMUNICAÇÃO</span><h2>Notificação de veículo pronto</h2><p>Aceite pelo provedor significa envio aceito, não confirmação de entrega ao destinatário.</p></div>@if (_notificacao?.Existe == true && _notificacao.Notificacao is not null) { <span class="status-badge @ClasseNotificacao(_notificacao.Notificacao.Status)">@NomeNotificacao(_notificacao.Notificacao.Status)</span> }</div>
+            @if (_notificacao?.Existe != true || _notificacao.Notificacao is null)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Nenhuma notificação foi criada. O envio automático pode estar desativado nas configurações da empresa.</MudAlert>
+            }
+            else
+            {
+                var email = _notificacao.Notificacao;
+                <div class="communication-summary"><span><MudIcon Icon="@Icons.Material.Outlined.Person" /><span><small>DESTINATÁRIO</small><strong>@(email.DestinatarioEmail ?? "E-mail não cadastrado")</strong></span></span><span><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span><small>CRIADA EM</small><strong>@email.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</strong></span></span><span><MudIcon Icon="@Icons.Material.Outlined.MarkEmailRead" /><span><small>ACEITA EM</small><strong>@(email.EnviadaEmUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Ainda não aceita")</strong></span></span></div>
+                @if (!string.IsNullOrWhiteSpace(email.UltimoErroSeguro)) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@email.UltimoErroSeguro</MudAlert> }
+                @if (email.Status is StatusNotificacaoEmailContrato.Falhou or StatusNotificacaoEmailContrato.SemDestinatario)
+                {
+                    <AuthorizeView Policy="@Permissoes.NotificacoesReenviar"><Authorized><div class="form-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Refresh" Disabled="_reenviandoNotificacao" OnClick="ReenviarNotificacaoAsync">@(_reenviandoNotificacao ? "Colocando na fila..." : "Tentar novamente")</MudButton></div></Authorized></AuthorizeView>
+                }
+            }
+        </section>
+    }
+
     <section class="module-panel section-card quotation-history"><div class="section-heading section-card-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Trilha operacional</h2><p>Status, data e responsável por cada transição.</p></div></div>@foreach (var h in _ordem.Historico.OrderByDescending(item => item.DataUtc)) { <article><span class="history-dot @ClasseStatus(h.Status)"></span><div><strong>@NomeStatus(h.Status)</strong><span>@h.DataUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @h.UsuarioNome</span>@if (!string.IsNullOrWhiteSpace(h.Observacao)) { <p>@h.Observacao</p> }</div></article> }</section>
 
     <AuthorizeView Policy="@Permissoes.OrdemServicoFinalizar"><Authorized>@if (!EhTerminal) { <section class="appointment-actions module-panel service-order-action-panel"><div><span class="section-eyebrow">EXECUÇÃO</span><h2>Próxima etapa operacional</h2></div><div class="appointment-action-buttons">@if (_ordem.Status == StatusOrdemServicoContrato.Aberta) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => ExecutarTransicaoAsync("iniciar"))">Iniciar execução</MudButton> } @if (_ordem.Status == StatusOrdemServicoContrato.EmExecucao) { <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => ExecutarTransicaoAsync("finalizar"))">Serviços finalizados</MudButton> } @if (_ordem.Status == StatusOrdemServicoContrato.AguardandoRetirada) { <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => ExecutarTransicaoAsync("concluir"))">Concluir atendimento · veículo entregue</MudButton> } @if (_ordem.Status is StatusOrdemServicoContrato.Aberta or StatusOrdemServicoContrato.EmExecucao) { <MudTextField T="string" @bind-Value="_motivoCancelamento" Placeholder="Motivo para cancelar" Variant="Variant.Outlined" /><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="CancelarAsync">Cancelar OS</MudButton> }</div></section> }</Authorized></AuthorizeView>
@@ -68,11 +89,11 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    private OrdemServicoDetalheResponse? _ordem; private Guid? _contaReceberId; private bool _carregando = true; private int? _quilometragem; private string? _observacaoEntrada, _motivoCancelamento; private readonly List<RespostaEdicao> _respostas = []; private readonly Dictionary<Guid, string> _urlsFotos = [];
+    private OrdemServicoDetalheResponse? _ordem; private Guid? _contaReceberId; private NotificacaoOrdemServicoResponse? _notificacao; private bool _reenviandoNotificacao; private bool _carregando = true; private int? _quilometragem; private string? _observacaoEntrada, _motivoCancelamento; private readonly List<RespostaEdicao> _respostas = []; private readonly Dictionary<Guid, string> _urlsFotos = [];
     private bool EhTerminal => _ordem?.Status is StatusOrdemServicoContrato.Concluida or StatusOrdemServicoContrato.Cancelada;
     private string IndicadorCheckIn => _ordem?.CheckInEmUtc.HasValue == true ? $"Checklist {_ordem.Checklist?.Itens.Count(i => i.Resposta.HasValue) ?? 0}/{_ordem.Checklist?.Itens.Count ?? 0} · Fotos entrada {_ordem.Fotos.Count(f => f.Categoria == CategoriaFotoOrdemServicoContrato.Entrada)}" : "Necessário antes da execução";
     protected override Task OnParametersSetAsync() => CarregarAsync();
-    private async Task CarregarAsync() { _carregando = true; var r = await OrdensApi.ObterAsync(Id); _ordem = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _respostas.Clear(); if (_ordem?.Checklist is not null) _respostas.AddRange(_ordem.Checklist.Itens.OrderBy(i => i.Ordem).Select(i => new RespostaEdicao(i))); _contaReceberId = null; if (_ordem is not null) { var estado = await AuthenticationState.GetAuthenticationStateAsync(); if ((await Authorization.AuthorizeAsync(estado.User, Permissoes.FinanceiroVisualizar)).Succeeded) { var financeiro = await FinanceiroApi.ObterPorOrdemServicoAsync(Id); if (financeiro.Resultado?.Existe == true) _contaReceberId = financeiro.Resultado.Id; } } await CarregarFotosAsync(); _carregando = false; }
+    private async Task CarregarAsync() { _carregando = true; var r = await OrdensApi.ObterAsync(Id); _ordem = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _respostas.Clear(); if (_ordem?.Checklist is not null) _respostas.AddRange(_ordem.Checklist.Itens.OrderBy(i => i.Ordem).Select(i => new RespostaEdicao(i))); _contaReceberId = null; _notificacao = null; if (_ordem is not null) { var estado = await AuthenticationState.GetAuthenticationStateAsync(); if ((await Authorization.AuthorizeAsync(estado.User, Permissoes.FinanceiroVisualizar)).Succeeded) { var financeiro = await FinanceiroApi.ObterPorOrdemServicoAsync(Id); if (financeiro.Resultado?.Existe == true) _contaReceberId = financeiro.Resultado.Id; } if (_ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida) { var comunicacao = await NotificacoesApi.ObterPorOrdemServicoAsync(Id); if (comunicacao.Sucesso) _notificacao = comunicacao.Resultado; } } await CarregarFotosAsync(); _carregando = false; }
     private async Task CarregarFotosAsync() { _urlsFotos.Clear(); if (_ordem is null) return; foreach (var foto in _ordem.Fotos) { var r = await OrdensApi.ObterFotoAsync(Id, foto.Id); if (r.Resultado is not null) _urlsFotos[foto.Id] = $"data:{r.Resultado.ContentType};base64,{Convert.ToBase64String(r.Resultado.Bytes)}"; } }
     private async Task RealizarCheckInAsync() { var r = await OrdensApi.CheckInAsync(Id, new(_quilometragem, _observacaoEntrada)); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
     private async Task SalvarChecklistAsync() { var r = await OrdensApi.AtualizarChecklistAsync(Id, new(_respostas.Where(i => i.Resposta.HasValue).Select(i => new RespostaChecklistOrdemServicoRequest(i.Id, i.Resposta!.Value, i.Observacao)).ToArray())); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
@@ -80,6 +101,7 @@ else
     private async Task ExcluirFotoAsync(Guid fotoId) { var r = await OrdensApi.ExcluirFotoAsync(Id, fotoId); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
     private async Task ExecutarTransicaoAsync(string acao) { var r = acao switch { "iniciar" => await OrdensApi.IniciarAsync(Id, null), "finalizar" => await OrdensApi.FinalizarAsync(Id, null), _ => await OrdensApi.ConcluirAsync(Id, null) }; Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
     private async Task CancelarAsync() { if (string.IsNullOrWhiteSpace(_motivoCancelamento)) { Mensagens.Mostrar("Informe o motivo do cancelamento.", true); return; } var r = await OrdensApi.CancelarAsync(Id, _motivoCancelamento); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
+    private async Task ReenviarNotificacaoAsync() { _reenviandoNotificacao = true; var r = await NotificacoesApi.ReenviarAsync(Id); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); _reenviandoNotificacao = false; if (r.Sucesso) await CarregarAsync(); }
     private bool PodeEnviar(CategoriaFotoOrdemServicoContrato c) => !EhTerminal && (c == CategoriaFotoOrdemServicoContrato.Entrada ? _ordem?.Status == StatusOrdemServicoContrato.Aberta && _ordem.FotosEntradaSnapshot != NivelExigenciaOperacionalContrato.Desabilitado : _ordem?.Status == StatusOrdemServicoContrato.EmExecucao && (c == CategoriaFotoOrdemServicoContrato.Durante || _ordem.FotosSaidaSnapshot != NivelExigenciaOperacionalContrato.Desabilitado));
     private bool PodeExcluir(OrdemServicoFotoResponse f) => PodeEnviar(f.Categoria);
     private static string NomeOrigem(OrdemServicoDetalheResponse o) => o.Origem switch { OrigemOrdemServicoContrato.Orcamento => "Orçamento aprovado", OrigemOrdemServicoContrato.Agendamento => "Agendamento", _ => "Atendimento direto" };
@@ -92,5 +114,7 @@ else
     private static string FormatarTamanho(long b) => b >= 1024 * 1024 ? $"{b / 1024d / 1024d:N1} MiB" : $"{b / 1024d:N0} KiB";
     private static string ClasseAdicional(StatusOrcamentoContrato s) => s == StatusOrcamentoContrato.Aprovado ? "status-running" : s is StatusOrcamentoContrato.Recusado or StatusOrcamentoContrato.Cancelado ? "status-cancelled" : "status-waiting";
     private static string NomeStatusOrcamento(StatusOrcamentoContrato s) => s == StatusOrcamentoContrato.Expirado ? "Expirado" : s.ToString();
+    private static string NomeNotificacao(StatusNotificacaoEmailContrato s) => s switch { StatusNotificacaoEmailContrato.Pendente => "Na fila", StatusNotificacaoEmailContrato.Processando => "Processando", StatusNotificacaoEmailContrato.Enviada => "Aceita pelo provedor", StatusNotificacaoEmailContrato.SemDestinatario => "Sem destinatário", _ => "Falhou" };
+    private static string ClasseNotificacao(StatusNotificacaoEmailContrato s) => s switch { StatusNotificacaoEmailContrato.Enviada => "status-confirmed", StatusNotificacaoEmailContrato.Falhou => "status-cancelled", StatusNotificacaoEmailContrato.SemDestinatario => "status-waiting", StatusNotificacaoEmailContrato.Processando => "status-running", _ => "status-scheduled" };
     private sealed class RespostaEdicao(OrdemServicoChecklistItemResponse i) { public Guid Id { get; } = i.Id; public string Descricao { get; } = i.Descricao; public int Ordem { get; } = i.Ordem; public RespostaChecklistOrdemServicoContrato? Resposta { get; set; } = i.Resposta; public string? Observacao { get; set; } = i.Observacao; }
 }

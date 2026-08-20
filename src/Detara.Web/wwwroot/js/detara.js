@@ -31,5 +31,46 @@ window.detara = {
     limparInputArquivo: (id) => {
         const input = document.getElementById(id);
         if (input) input.value = "";
+    },
+    editorEmail: {
+        inicializar: (id, html, dotnetRef) => {
+            const editor = document.getElementById(id);
+            if (!editor) return;
+            editor.innerHTML = html || "";
+            const listener = () => dotnetRef.invokeMethodAsync('AtualizarHtml', editor.innerHTML);
+            editor.detaraListener = listener;
+            editor.addEventListener('input', listener);
+        },
+        definir: (id, html) => {
+            const editor = document.getElementById(id);
+            if (editor && editor.innerHTML !== (html || "")) editor.innerHTML = html || "";
+        },
+        formatar: (id, comando) => {
+            const editor = document.getElementById(id);
+            if (!editor) return;
+            editor.focus();
+            document.execCommand(comando, false, null);
+            editor.dispatchEvent(new Event('input'));
+        },
+        adicionarLink: (id) => {
+            const editor = document.getElementById(id);
+            if (!editor) return;
+            const endereco = window.prompt('Endereço seguro do link (https:// ou mailto:):');
+            if (!endereco) return;
+            editor.focus();
+            document.execCommand('createLink', false, endereco);
+            editor.dispatchEvent(new Event('input'));
+        },
+        cor: (id, cor) => {
+            const editor = document.getElementById(id);
+            if (!editor || !cor) return;
+            editor.focus();
+            document.execCommand('foreColor', false, cor);
+            editor.dispatchEvent(new Event('input'));
+        },
+        destruir: (id) => {
+            const editor = document.getElementById(id);
+            if (editor?.detaraListener) editor.removeEventListener('input', editor.detaraListener);
+        }
     }
 };

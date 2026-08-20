@@ -110,6 +110,13 @@
 .service-order-photo-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .service-order-photo-heading > span { margin-right: auto; color: var(--detara-text-secondary); font-size: .76rem; }
 .service-order-action-panel { padding: 22px 24px; margin-top: 0; border-color: color-mix(in srgb, var(--detara-primary) 24%, var(--detara-border-soft)); }
+.service-order-communication { display: grid; gap: 18px; }
+.communication-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.communication-summary > span { min-width: 0; display: flex; align-items: center; gap: 11px; padding: 14px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
+.communication-summary > span > .mud-icon-root { color: var(--detara-primary-dark); }
+.communication-summary > span > span { min-width: 0; display: grid; gap: 3px; }
+.communication-summary small { color: var(--detara-text-secondary); font-size: .65rem; font-weight: 700; letter-spacing: .06em; }
+.communication-summary strong { overflow: hidden; color: var(--detara-text); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 1199px) {
     .page-container { max-width: 980px; }
@@ -144,6 +151,7 @@
     .service-order-origin > .status-badge { grid-column: 2; }
     .service-order-detail-page .appointment-items article > strong:last-child { grid-column: 2; }
     .service-order-checkin-meta, .service-order-checklist { grid-template-columns: 1fr; }
+    .communication-summary { grid-template-columns: 1fr; }
     .service-order-checklist article > div { grid-template-columns: 1fr; }
     .service-order-checklist strong { grid-column: auto; }
     .service-order-photo-heading { align-items: flex-start; flex-direction: column; }
@@ -325,6 +333,41 @@ h1:focus { outline: none; }
 .future-card span { color: var(--detara-text-secondary); font-size: .78rem; }
 .settings-layout { display: grid; grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
 .settings-panel { padding: 24px; }
+.settings-panel-wide { grid-column: 1 / -1; }
+.notification-settings { display: grid; gap: 26px; }
+.compact-loading { min-height: 8rem; }
+.notification-config-grid { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 24px; align-items: end; padding: 18px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
+.notification-config-copy { display: grid; grid-template-columns: minmax(280px,1fr) minmax(280px,.8fr); gap: 20px; align-items: center; }
+.setting-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.setting-switch-row > div { display: grid; gap: 4px; }
+.setting-switch-row strong { color: var(--detara-text); }
+.setting-switch-row span, .notification-template-heading p { color: var(--detara-text-secondary); font-size: .78rem; line-height: 1.5; }
+.notification-config-action { margin: 0; }
+.notification-template-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-top: 24px; border-top: 1px solid var(--detara-border-soft); }
+.notification-template-heading > div { display: grid; gap: 4px; }
+.notification-template-heading h3, .notification-template-heading p { margin: 0; }
+.notification-template-layout { display: grid; grid-template-columns: minmax(0,1.08fr) minmax(320px,.92fr); gap: 22px; align-items: start; }
+.notification-template-editor { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr); gap: 18px; }
+.notification-template-editor > * { min-width: 0; max-width: 100%; }
+.field-label { display: block; margin: 0 0 7px; color: var(--detara-text-secondary); font-size: .76rem; font-weight: 600; }
+.email-editor-shell { overflow: hidden; background: var(--detara-surface); border: 1px solid var(--detara-border); border-radius: var(--detara-radius-md); }
+.email-editor-shell:focus-within { border-color: var(--detara-primary); box-shadow: 0 0 0 1px var(--detara-primary); }
+.email-editor-toolbar { min-height: 48px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 5px 8px; background: var(--detara-surface-alt); border-bottom: 1px solid var(--detara-border-soft); }
+.email-toolbar-separator { width: 1px; height: 24px; margin-inline: 4px; background: var(--detara-border); }
+.email-color-control { width: 40px; height: 40px; display: grid; place-items: center; position: relative; cursor: pointer; color: var(--detara-text-secondary); }
+.email-color-control input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.email-editor { min-height: 260px; padding: 18px; outline: none; color: var(--detara-text); line-height: 1.65; overflow-wrap: anywhere; }
+.email-editor[contenteditable="false"] { background: var(--detara-surface-alt); cursor: not-allowed; }
+.email-variables { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.email-variables > span { width: 100%; color: var(--detara-text-secondary); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.token-chip { min-height: 32px; padding: 5px 9px; color: var(--detara-primary-dark); background: color-mix(in srgb,var(--detara-primary) 9%,var(--detara-surface)); border: 1px solid color-mix(in srgb,var(--detara-primary) 22%,var(--detara-border-soft)); border-radius: 999px; font: 600 .7rem ui-monospace,monospace; cursor: pointer; }
+.notification-template-actions { margin: 0; }
+.email-preview-panel { min-width: 0; overflow: hidden; position: sticky; top: 20px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); }
+.email-preview-heading { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--detara-border-soft); }
+.email-preview-heading > div { min-width: 0; display: grid; gap: 3px; }
+.email-preview-heading strong { overflow: hidden; color: var(--detara-text); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.email-preview-frame { display: block; width: 100%; height: 560px; border: 0; background: #f5f6f8; }
+.email-preview-empty { min-height: 320px; margin: 16px; }
 .settings-heading { align-items: flex-start; }
 .settings-heading p, .vehicle-photos-heading p { max-width: 680px; margin: 6px 0 0; color: var(--detara-text-secondary); font-size: .82rem; line-height: 1.55; }
 .settings-heading > .mud-icon-root { padding: 10px; box-sizing: content-box; background: color-mix(in srgb, var(--detara-primary) 10%, transparent); border-radius: var(--detara-radius-md); }
@@ -563,6 +606,8 @@ h1:focus { outline: none; }
     .week-grid { grid-template-columns: repeat(7, minmax(170px, 1fr)); }
     .quotation-bottom-grid { grid-template-columns: 1fr; }
     .settings-layout { grid-template-columns: 1fr; }
+    .notification-config-grid, .notification-template-layout, .notification-config-copy { grid-template-columns: 1fr; }
+    .email-preview-panel { position: static; }
     .vehicle-photo-gallery { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 
@@ -676,6 +721,16 @@ h1:focus { outline: none; }
     .quotation-notes dl { grid-template-columns: 1fr; gap: 5px; }
     .quotation-notes dd { margin-bottom: 12px; }
     .settings-panel, .vehicle-photos-section { padding: 18px; }
+    .notification-settings { gap: 20px; }
+    .notification-config-grid { padding: 15px; }
+    .setting-switch-row { align-items: flex-start; }
+    .notification-template-heading { flex-direction: column; }
+    .notification-template-actions { display: grid; grid-template-columns: 1fr; }
+    .notification-template-actions .mud-button-root { width: 100%; min-height: 44px; }
+    .email-editor-toolbar { gap: 0; padding: 4px; }
+    .email-toolbar-separator { margin-inline: 1px; }
+    .email-editor { min-height: 230px; padding: 14px; }
+    .email-preview-frame { height: 480px; }
     .settings-fields, .checklist-settings-list li, .vehicle-main-photo { grid-template-columns: 1fr; }
     .checklist-order { display: none; }
     .checklist-item-actions { justify-content: flex-end; }

@@ -1,0 +1,55 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="email-editor-shell">
+    <div class="email-editor-toolbar" role="toolbar" aria-label="Formatação do e-mail">
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatBold" Size="Size.Small" OnClick="@(() => FormatarAsync("bold"))" title="Negrito" />
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatItalic" Size="Size.Small" OnClick="@(() => FormatarAsync("italic"))" title="Itálico" />
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatUnderlined" Size="Size.Small" OnClick="@(() => FormatarAsync("underline"))" title="Sublinhado" />
+        <span class="email-toolbar-separator"></span>
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatAlignLeft" Size="Size.Small" OnClick="@(() => FormatarAsync("justifyLeft"))" title="Alinhar à esquerda" />
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatAlignCenter" Size="Size.Small" OnClick="@(() => FormatarAsync("justifyCenter"))" title="Centralizar" />
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatAlignRight" Size="Size.Small" OnClick="@(() => FormatarAsync("justifyRight"))" title="Alinhar à direita" />
+        <span class="email-toolbar-separator"></span>
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatListBulleted" Size="Size.Small" OnClick="@(() => FormatarAsync("insertUnorderedList"))" title="Lista com marcadores" />
+        <MudIconButton Icon="@Icons.Material.Outlined.FormatListNumbered" Size="Size.Small" OnClick="@(() => FormatarAsync("insertOrderedList"))" title="Lista numerada" />
+        <MudIconButton Icon="@Icons.Material.Outlined.InsertLink" Size="Size.Small" OnClick="AdicionarLinkAsync" title="Adicionar link" />
+        <label class="email-color-control" title="Cor do texto"><MudIcon Icon="@Icons.Material.Outlined.FormatColorText" /><input type="color" value="#172033" @onchange="AlterarCorAsync" aria-label="Cor do texto" /></label>
+    </div>
+    <div id="@_id" class="email-editor" contenteditable="@(!Disabled)" role="textbox" aria-multiline="true" aria-label="Corpo do e-mail"></div>
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    private readonly string _id = $"email-editor-{Guid.NewGuid():N}";
+    private DotNetObjectReference<EditorEmail>? _reference;
+    private bool _inicializado;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _reference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("detara.editorEmail.inicializar", _id, Value, _reference);
+        _inicializado = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_inicializado) await JS.InvokeVoidAsync("detara.editorEmail.definir", _id, Value);
+    }
+
+    [JSInvokable]
+    public Task AtualizarHtml(string html) => ValueChanged.InvokeAsync(html);
+
+    private Task FormatarAsync(string comando) => JS.InvokeVoidAsync("detara.editorEmail.formatar", _id, comando).AsTask();
+    private Task AdicionarLinkAsync() => JS.InvokeVoidAsync("detara.editorEmail.adicionarLink", _id).AsTask();
+    private Task AlterarCorAsync(ChangeEventArgs args) => JS.InvokeVoidAsync("detara.editorEmail.cor", _id, args.Value?.ToString()).AsTask();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_inicializado) await JS.InvokeVoidAsync("detara.editorEmail.destruir", _id);
+        _reference?.Dispose();
+    }
+}
