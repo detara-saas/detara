@@ -4,6 +4,9 @@
 @inject IMensagemServico Mensagens
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IAuthorizationService AuthorizationService
+@inject NotificacoesServico NotificacoesApi
+@inject IDialogService Dialogs
+@inject IJSRuntime JS
 
 <PageTitle>Configurações | Detara</PageTitle>
 
@@ -99,6 +102,87 @@ else
                 </Authorized>
             </AuthorizeView>
         </section>
+
+        <section class="module-panel settings-panel settings-panel-wide notification-settings" aria-labelledby="notificacoes-heading">
+            <div class="section-heading settings-heading">
+                <div>
+                    <span class="section-eyebrow">COMUNICAÇÃO · E-MAIL</span>
+                    <h2 id="notificacoes-heading">Veículo pronto para retirada</h2>
+                    <p>Avise o cliente quando a execução da Ordem de Serviço for finalizada. O envio acontece em segundo plano.</p>
+                </div>
+                <MudIcon Icon="@Icons.Material.Outlined.MarkEmailRead" Color="Color.Primary" />
+            </div>
+
+            @if (_carregandoNotificacoes)
+            {
+                <div class="module-loading compact-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+            }
+            else if (_configuracaoNotificacao is null || _templateEmail is null)
+            {
+                <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.CloudOff" /><div><strong>Comunicação indisponível</strong><span>Não foi possível carregar as configurações de e-mail.</span></div></div>
+            }
+            else
+            {
+                <div class="notification-config-grid">
+                    <div class="notification-config-copy">
+                        <div class="setting-switch-row">
+                            <div><strong>Envio automático</strong><span>Cria uma notificação durável ao mudar a OS de “Em execução” para “Aguardando retirada”.</span></div>
+                            <MudSwitch T="bool" @bind-Value="_envioAutomatico" Color="Color.Primary" Disabled="@(!_podeEditar)" aria-label="Ativar envio automático de veículo pronto" />
+                        </div>
+                        <MudTextField T="string" @bind-Value="_responderPara" Label="Responder para (opcional)" Placeholder="contato@suaempresa.com.br" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="200" HelperText="As respostas do cliente irão para este endereço. O remetente é administrado pela infraestrutura Detara." />
+                    </div>
+                    <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar"><Authorized>
+                        <div class="settings-actions notification-config-action">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvandoNotificacoes" OnClick="SalvarConfiguracaoNotificacaoAsync">@(_salvandoNotificacoes ? "Salvando..." : "Salvar comunicação")</MudButton>
+                        </div>
+                    </Authorized></AuthorizeView>
+                </div>
+
+                <div class="notification-template-heading">
+                    <div><span class="section-eyebrow">TEMPLATE TRANSACIONAL</span><h3>Mensagem enviada ao cliente</h3><p>O conteúdo é sanitizado no servidor antes de ser salvo, pré-visualizado ou enviado.</p></div>
+                    <span class="status-badge @(_templateEmail.Origem == OrigemTemplateEmailContrato.PadraoDetara ? "status-neutral" : "status-running")">@(_templateEmail.Origem == OrigemTemplateEmailContrato.PadraoDetara ? "Padrão Detara" : "Personalizado")</span>
+                </div>
+
+                <div class="notification-template-layout">
+                    <div class="notification-template-editor">
+                        <MudTextField T="string" @bind-Value="_assuntoEmail" Label="Assunto" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="200" Counter="200" />
+                        <div>
+                            <label class="field-label">Corpo do e-mail</label>
+                            <EditorEmail @bind-Value="_corpoEmail" Disabled="@(!_podeEditar)" />
+                        </div>
+                        <div class="email-variables" aria-label="Variáveis disponíveis">
+                            <span>Variáveis disponíveis</span>
+                            @foreach (var variavel in _variaveisEmail)
+                            {
+                                <button type="button" class="token-chip" title="Copiar variável" @onclick="@(() => CopiarVariavelAsync(variavel))">@variavel</button>
+                            }
+                        </div>
+                        <div class="settings-actions notification-template-actions">
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Visibility" Disabled="_gerandoPreview" OnClick="GerarPreviewAsync">Visualizar</MudButton>
+                            <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar"><Authorized>
+                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Send" Disabled="_enviandoTeste" OnClick="EnviarTesteAsync">@(_enviandoTeste ? "Enviando..." : "Enviar teste")</MudButton>
+                                @if (_templateEmail.Origem == OrigemTemplateEmailContrato.PersonalizadoEmpresa)
+                                {
+                                    <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Outlined.Restore" OnClick="RestaurarTemplateAsync">Restaurar padrão</MudButton>
+                                }
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvandoTemplate" OnClick="SalvarTemplateAsync">@(_salvandoTemplate ? "Salvando..." : "Salvar template")</MudButton>
+                            </Authorized></AuthorizeView>
+                        </div>
+                    </div>
+                    <aside class="email-preview-panel" aria-label="Pré-visualização do e-mail">
+                        <div class="email-preview-heading"><div><span class="section-eyebrow">PRÉ-VISUALIZAÇÃO SEGURA</span><strong>@(_previewAssunto ?? "Gere uma visualização")</strong></div><MudIcon Icon="@Icons.Material.Outlined.DesktopWindows" /></div>
+                        @if (string.IsNullOrWhiteSpace(_previewHtml))
+                        {
+                            <div class="compact-empty email-preview-empty"><MudIcon Icon="@Icons.Material.Outlined.MarkEmailUnread" /><div><strong>Conteúdo ainda não renderizado</strong><span>Use “Visualizar” para aplicar os dados de exemplo e o mesmo shell do envio real.</span></div></div>
+                        }
+                        else
+                        {
+                            <iframe class="email-preview-frame" sandbox="" title="Pré-visualização do e-mail" srcdoc="@_previewHtml"></iframe>
+                        }
+                    </aside>
+                </div>
+            }
+        </section>
     </div>
 }
 
@@ -114,6 +198,20 @@ else
     private bool _podeEditar;
     private bool _salvandoOperacao;
     private bool _salvandoChecklist;
+    private ConfiguracaoNotificacaoResponse? _configuracaoNotificacao;
+    private TemplateEmailResponse? _templateEmail;
+    private bool _envioAutomatico;
+    private string? _responderPara;
+    private string _assuntoEmail = string.Empty;
+    private string _corpoEmail = string.Empty;
+    private string? _previewAssunto;
+    private string? _previewHtml;
+    private bool _carregandoNotificacoes = true;
+    private bool _salvandoNotificacoes;
+    private bool _salvandoTemplate;
+    private bool _gerandoPreview;
+    private bool _enviandoTeste;
+    private readonly string[] _variaveisEmail = ["{{EmpresaNome}}", "{{ClienteNome}}", "{{ClientePrimeiroNome}}", "{{VeiculoDescricao}}", "{{Placa}}", "{{OrdemServicoCodigo}}"];
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,7 +219,7 @@ else
         _podeEditar = (await AuthorizationService.AuthorizeAsync(
             autenticacao.User,
             Permissoes.ConfiguracoesEditar)).Succeeded;
-        await CarregarAsync();
+        await Task.WhenAll(CarregarAsync(), CarregarNotificacoesAsync());
     }
 
     private async Task CarregarAsync()
@@ -201,6 +299,84 @@ else
         }
 
         (_itens[indice], _itens[destino]) = (_itens[destino], _itens[indice]);
+    }
+
+    private async Task CarregarNotificacoesAsync()
+    {
+        _carregandoNotificacoes = true;
+        var configuracao = await NotificacoesApi.ObterConfiguracaoAsync();
+        var template = await NotificacoesApi.ObterTemplateAsync();
+        if (configuracao.Sucesso && configuracao.Resultado is not null && template.Sucesso && template.Resultado is not null)
+        {
+            _configuracaoNotificacao = configuracao.Resultado;
+            _templateEmail = template.Resultado;
+            _envioAutomatico = configuracao.Resultado.EnviarVeiculoProntoAutomaticamente;
+            _responderPara = configuracao.Resultado.ResponderParaEmail;
+            AplicarTemplate(template.Resultado);
+        }
+        else Mensagens.Mostrar(configuracao.Sucesso ? template.Mensagem : configuracao.Mensagem, true);
+        _carregandoNotificacoes = false;
+    }
+
+    private void AplicarTemplate(TemplateEmailResponse template)
+    {
+        _templateEmail = template;
+        _assuntoEmail = template.Assunto;
+        _corpoEmail = template.CorpoHtml;
+        _previewAssunto = null;
+        _previewHtml = null;
+    }
+
+    private async Task SalvarConfiguracaoNotificacaoAsync()
+    {
+        _salvandoNotificacoes = true;
+        var r = await NotificacoesApi.SalvarConfiguracaoAsync(new(_envioAutomatico, _responderPara));
+        if (r.Sucesso && r.Resultado is not null) _configuracaoNotificacao = r.Resultado;
+        Mensagens.Mostrar(r.Mensagem, !r.Sucesso);
+        _salvandoNotificacoes = false;
+    }
+
+    private async Task SalvarTemplateAsync()
+    {
+        _salvandoTemplate = true;
+        var r = await NotificacoesApi.SalvarTemplateAsync(new(_assuntoEmail, _corpoEmail));
+        if (r.Sucesso && r.Resultado is not null) AplicarTemplate(r.Resultado);
+        Mensagens.Mostrar(r.Mensagem, !r.Sucesso);
+        _salvandoTemplate = false;
+    }
+
+    private async Task RestaurarTemplateAsync()
+    {
+        var confirmar = await Dialogs.ShowMessageBoxAsync("Restaurar template padrão?",
+            "A personalização atual será removida. Notificações já criadas manterão seus snapshots.",
+            yesText: "Restaurar padrão", cancelText: "Cancelar");
+        if (confirmar != true) return;
+        var r = await NotificacoesApi.RestaurarTemplateAsync();
+        if (r.Sucesso && r.Resultado is not null) AplicarTemplate(r.Resultado);
+        Mensagens.Mostrar(r.Mensagem, !r.Sucesso);
+    }
+
+    private async Task GerarPreviewAsync()
+    {
+        _gerandoPreview = true;
+        var r = await NotificacoesApi.PreviewAsync(new(_assuntoEmail, _corpoEmail));
+        if (r.Sucesso && r.Resultado is not null) { _previewAssunto = r.Resultado.Assunto; _previewHtml = r.Resultado.CorpoHtmlCompleto; }
+        else Mensagens.Mostrar(r.Mensagem, true);
+        _gerandoPreview = false;
+    }
+
+    private async Task EnviarTesteAsync()
+    {
+        _enviandoTeste = true;
+        var r = await NotificacoesApi.EnviarTesteAsync();
+        Mensagens.Mostrar(r.Mensagem, !r.Sucesso);
+        _enviandoTeste = false;
+    }
+
+    private async Task CopiarVariavelAsync(string variavel)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", variavel);
+        Mensagens.Mostrar($"Variável {variavel} copiada.");
     }
 
     private sealed class ItemChecklistEdicao(string descricao)

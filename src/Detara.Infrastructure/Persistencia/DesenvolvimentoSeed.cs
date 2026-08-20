@@ -40,6 +40,7 @@ public static class DesenvolvimentoSeed
         ("Financeiro.Editar", "Editar vencimentos financeiros"),
         ("Financeiro.RegistrarPagamento", "Registrar pagamentos"),
         ("Financeiro.EstornarPagamento", "Estornar pagamentos"),
+        ("Notificacoes.Reenviar", "Reenviar notificações por e-mail"),
         ("Administracao.Usuario", "Administrar usuários")
     ];
 

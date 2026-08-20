@@ -49,6 +49,7 @@ builder.Services.AddScoped<OrcamentosServico>();
 builder.Services.AddScoped<OrdensServicoServico>();
 builder.Services.AddScoped<ConfiguracoesServico>();
 builder.Services.AddScoped<FinanceiroServico>();
+builder.Services.AddScoped<NotificacoesServico>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<PreferenciasInterfaceServico>().InicializarAsync();

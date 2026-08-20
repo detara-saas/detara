@@ -151,6 +151,19 @@ Os índices de status, competência, vencimento, cliente, veículo, criação e 
 começam por `EmpresaId`. O dashboard agrega no SQL Server faturamento por competência e
 pagamentos confirmados por data de recebimento; pagamentos estornados são excluídos.
 
+## Notificações — e-mail transacional
+
+A migration `AddNotificacoesEmail` adiciona:
+
+- `ConfiguracoesNotificacaoEmpresa`, única por `EmpresaId`, com opt-in explícito para o envio automático e Reply-To opcional;
+- `TemplatesEmailEmpresa`, único por `(EmpresaId, Tipo)`, contendo somente assunto e HTML já sanitizado;
+- `NotificacoesEmail`, com destinatário, nome, assunto, corpo HTML completo, Reply-To e origem do template preservados como snapshots;
+- `TentativasNotificacaoEmail`, com número, origem automática/manual, responsável opcional, resultado, instante, ID do provedor e erro seguro;
+- unicidade `(EmpresaId, Tipo, OrdemServicoId)` e índice de fila `(EmpresaId, Status, ProximaTentativaEmUtc)`;
+- FK composta tenant-safe de Tentativa para Notificação, interna ao módulo e com delete `Restrict`.
+
+A ausência de configuração significa envio automático desabilitado; GET não cria registros. O template padrão também não é seed: é materializado dinamicamente pela aplicação, e restaurar o padrão remove a customização do tenant. Não existem FKs para Empresa, OS, Cliente ou Usuário. `NotificacaoEmail.Versao` protege o claim otimista da fila, enquanto a idempotência externa usa `notificacao-email/{Id}`.
+
 Aplicação de migration:
 
 ```powershell

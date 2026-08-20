@@ -58,6 +58,14 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));
+    options.AddPolicy("notificacao-teste", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        $"{httpContext.User.FindFirst("empresa_id")?.Value}:{httpContext.User.FindFirst("sub")?.Value}",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 3,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0
+        }));
     options.OnRejected = async (context, cancellationToken) =>
     {
         await context.HttpContext.Response.WriteAsJsonAsync(
@@ -132,8 +140,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("Web");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();

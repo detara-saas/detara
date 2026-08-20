@@ -2,6 +2,7 @@ using Detara.Application.Abstracoes;
 using Detara.Application.Agenda;
 using Detara.Application.Atendimento;
 using Detara.Application.Financeiro;
+using Detara.Application.Notificacoes;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Entidades;
 using Detara.Domain.Financeiro;
@@ -53,7 +54,7 @@ public sealed class FinanceiroPersistenciaTests : IAsyncLifetime
         var handler = new FinalizarExecucaoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
             new OrdensServicoRepositorio(contexto), new PlataformaAtendimentoConsulta(contexto),
             new IntegracaoFinanceiroOrdensServico(repositorio, new PlataformaFinanceiroConsulta(contexto),
-                new ConversorFusoHorario()));
+                new ConversorFusoHorario()), new IntegracaoNotificacoesNula());
 
         await handler.Handle(new(ordem.Id, "Serviços concluídos"), default);
 
@@ -284,5 +285,11 @@ public sealed class FinanceiroPersistenciaTests : IAsyncLifetime
         public Guid UsuarioId { get; } = autenticado ? usuarioId : Guid.Empty;
         public Guid EmpresaId { get; } = empresaId;
         public bool EstaAutenticado { get; } = autenticado;
+    }
+
+    private sealed class IntegracaoNotificacoesNula : IIntegracaoNotificacoesOrdensServico
+    {
+        public Task PrepararNotificacaoAsync(OrdemServicoFinalizadaNotificacoes evento, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 }
