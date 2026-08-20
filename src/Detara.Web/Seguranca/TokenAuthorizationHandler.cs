@@ -1,11 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
+using Detara.Web.Servicos;
 
 namespace Detara.Web.Seguranca;
 
 public sealed class TokenAuthorizationHandler(
     TokenStorage tokenStorage,
-    JwtAuthenticationStateProvider authenticationStateProvider)
+    JwtAuthenticationStateProvider authenticationStateProvider,
+    PwaServico pwa)
     : DelegatingHandler
 {
     public Uri? ApiBaseAddress { get; set; }
@@ -21,7 +23,27 @@ public sealed class TokenAuthorizationHandler(
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
 
-        var response = await base.SendAsync(request, cancellationToken);
+        HttpResponseMessage response;
+        try
+        {
+            response = await base.SendAsync(request, cancellationToken);
+            if (destinoDaApi)
+            {
+                pwa.RegistrarRespostaApi();
+            }
+        }
+        catch (HttpRequestException) when (destinoDaApi)
+        {
+            pwa.RegistrarFalhaApi();
+            throw;
+        }
+        catch (TaskCanceledException exception) when (
+            destinoDaApi && !cancellationToken.IsCancellationRequested)
+        {
+            pwa.RegistrarFalhaApi();
+            throw new HttpRequestException("A API não respondeu dentro do tempo esperado.", exception);
+        }
+
         if (response.StatusCode == HttpStatusCode.Unauthorized &&
             !string.IsNullOrWhiteSpace(token) &&
             destinoDaApi)

@@ -2,6 +2,8 @@
 @implements IDisposable
 @inject AutenticacaoServico Autenticacao
 @inject PreferenciasInterfaceServico Preferencias
+@inject PwaServico Pwa
+@inject IMensagemServico Mensagens
 @inject NavigationManager Navigation
 
 <MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
@@ -45,6 +47,10 @@
                        Disabled="true"
                        aria-label="Notificações — em breve" />
         <MudMenu Icon="@Icons.Material.Outlined.AccountCircle" AnchorOrigin="Origin.BottomRight" aria-label="Menu da conta">
+            @if (Pwa.PodeInstalar)
+            {
+                <MudMenuItem Icon="@Icons.Material.Outlined.InstallDesktop" OnClick="InstalarAsync">Instalar Detara</MudMenuItem>
+            }
             <MudMenuItem Icon="@Icons.Material.Outlined.PersonOutline" Disabled="true">Minha conta — em breve</MudMenuItem>
             <MudMenuItem Icon="@Icons.Material.Outlined.Logout" OnClick="SairAsync">Sair</MudMenuItem>
         </MudMenu>
@@ -73,6 +79,7 @@
     </MudDrawer>
 
     <MudMainContent Class="detara-content">
+        <PwaStatus />
         @Body
     </MudMainContent>
 </MudLayout>
@@ -89,7 +96,11 @@
         _ => Icons.Material.Outlined.SettingsBrightness
     };
 
-    protected override void OnInitialized() => Preferencias.Alterado += Atualizar;
+    protected override void OnInitialized()
+    {
+        Preferencias.Alterado += Atualizar;
+        Pwa.Alterado += Atualizar;
+    }
 
     private async Task AlternarSidebar()
     {
@@ -107,6 +118,14 @@
 
     private Task DefinirTemaAsync(string tema) => Preferencias.DefinirTemaAsync(tema);
 
+    private async Task InstalarAsync()
+    {
+        if (await Pwa.InstalarAsync())
+        {
+            Mensagens.Mostrar("Detara instalada com sucesso.");
+        }
+    }
+
     private async Task SairAsync()
     {
         await Autenticacao.SairAsync();
@@ -114,5 +133,9 @@
     }
 
     private void Atualizar() => InvokeAsync(StateHasChanged);
-    public void Dispose() => Preferencias.Alterado -= Atualizar;
+    public void Dispose()
+    {
+        Preferencias.Alterado -= Atualizar;
+        Pwa.Alterado -= Atualizar;
+    }
 }

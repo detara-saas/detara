@@ -27,6 +27,16 @@ Não utilize um único `max-width` para todas as páginas. Antes de criar uma te
 
 Dashboards, listagens, analytics, calendários e telas operacionais densas devem priorizar a área útil do shell e não devem nascer artificialmente centralizadas em containers estreitos.
 
+## PWA
+
+O Service Worker da Detara pode cachear somente o app shell e assets estáticos versionados. Não cacheie respostas da API, autenticação, JWT, dados comerciais ou financeiros para uso offline sem uma decisão arquitetural explícita.
+
+Funcionalidades PWA devem ser testadas com o build publicado. O Service Worker de Development não oferece suporte offline deliberadamente, para que alterações locais não fiquem presas em cache.
+
+Atualizações da PWA não devem recarregar automaticamente a aplicação enquanto o usuário pode estar executando trabalho não salvo. A ativação de uma nova versão exige ação explícita do usuário.
+
+Não introduza fila offline, Background Sync, IndexedDB de negócio ou reenvio automático de comandos. Depois de reconectar, o usuário deve tentar a operação novamente.
+
 ## Multi-tenancy
 
 Segurança entre tenants é crítica. Nunca confie em `EmpresaId` vindo do frontend quando o tenant puder ser obtido do usuário autenticado. Toda entidade comercial multi-tenant deve respeitar isolamento de leitura e escrita. Preferências e favoritos pertencem ao usuário autenticado; URLs ou identificadores arbitrários enviados pelo browser devem ser rejeitados.

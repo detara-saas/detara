@@ -175,6 +175,16 @@ Desktop: sidebar de 248 px, recolhível para 72 px; no modo compacto, exibe some
 
 Seções previstas: Favoritos, Principal, Atendimento, Cadastros, Financeiro e Administração. Favoritos usam identificadores conhecidos e persistem por usuário; não aceite URL arbitrária.
 
+### Experiência PWA
+
+A versão instalada reutiliza o mesmo shell responsivo, temas e estratégias `Fluid`, `Wide` e `Focused`. Não existe layout alternativo para PWA.
+
+- **Instalação:** a ação `Instalar Detara` é discreta, usa ícone Material e só aparece quando o browser oferece `beforeinstallprompt`. No shell autenticado, pertence ao menu da conta; no login, aparece como ação secundária.
+- **Conectividade:** perda de rede ou indisponibilidade real da API usa banner global não bloqueante, com texto claro e sem prometer dados offline. Reconexão não recarrega a página nem apaga formulários.
+- **Atualização:** nova versão usa banner persistente com a ação `Atualizar agora`. O reload só acontece depois da escolha do usuário e no máximo uma vez após o novo worker assumir.
+- **Standalone e safe areas:** topbar, drawer, conteúdo, login, mensagens globais e áreas inferiores respeitam `safe-area-inset-*`. Alvos de toque e composição responsiva permanecem idênticos aos do navegador.
+- **Temas:** o manifest define fallback de marca; a meta `theme-color` acompanha o tema efetivo Claro, Escuro ou Sistema.
+
 ## Dashboard
 
 O dashboard responde: o que acontece hoje, o que exige atenção, quais veículos estão em atendimento/prontos, qual valor está previsto e o que está atrasado. Use poucos indicadores, agenda e operação; dados temporários devem ser marcados como demonstrativos. Evite excesso de gráficos.
