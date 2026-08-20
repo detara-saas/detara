@@ -1,0 +1,70 @@
+@page "/plataforma/empresas"
+@layout PlatformLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+
+<PageTitle>Empresas | Detara Platform</PageTitle>
+
+<div class="platform-page platform-page-fluid">
+    <header class="platform-page-header">
+        <div><span class="platform-eyebrow">GESTÃO DE TENANTS</span><h1>Empresas</h1><p>Consulte o estado do tenant, administrador inicial e convite de ativação.</p></div>
+        <MudButton Href="/plataforma/empresas/nova" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.AddBusiness">Nova empresa</MudButton>
+    </header>
+
+    <section class="platform-toolbar" aria-label="Filtros de empresas">
+        <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Nome, documento, slug ou administrador"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Outlined.Search" Class="platform-search" />
+        <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelectItem Value="@("todas")">Todas</MudSelectItem><MudSelectItem Value="@("ativas")">Ativas</MudSelectItem><MudSelectItem Value="@("suspensas")">Suspensas</MudSelectItem>
+        </MudSelect>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="PesquisarAsync" StartIcon="@Icons.Material.Outlined.FilterAlt">Aplicar</MudButton>
+    </section>
+
+    @if (_carregando)
+    {
+        <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else if (_pagina is null || _pagina.Itens.Count == 0)
+    {
+        <EstadoVazio Titulo="Nenhuma empresa encontrada" Descricao="Ajuste os filtros ou provisione o primeiro tenant." Icone="@Icons.Material.Outlined.DomainDisabled">
+            <Acao><MudButton Href="/plataforma/empresas/nova" Variant="Variant.Filled" Color="Color.Primary">Provisionar empresa</MudButton></Acao>
+        </EstadoVazio>
+    }
+    else
+    {
+        <section class="platform-table-panel desktop-list" aria-label="Lista de empresas">
+            <table class="module-table platform-table"><thead><tr><th>Empresa</th><th>Administrador inicial</th><th>Convite</th><th>Criada em</th><th>Status</th><th></th></tr></thead>
+            <tbody>@foreach (var empresa in _pagina.Itens) {
+                <tr><td><a class="primary-link" href="@($"/plataforma/empresas/{empresa.Id}")">@empresa.NomeFantasia</a><span class="cell-caption">@empresa.Slug · @FormatarDocumento(empresa.CpfCnpj)</span></td>
+                    <td>@empresa.AdministradorNome<span class="cell-caption">@empresa.AdministradorEmail</span></td>
+                    <td><span class="status-badge @ClasseConvite(empresa.StatusConvite)">@TextoStatus(empresa.StatusConvite)</span></td>
+                    <td>@empresa.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                    <td><span class="status-badge @(empresa.EhAtivo ? "status-running" : "status-cancelled")">@(empresa.EhAtivo ? "Ativa" : "Suspensa")</span></td>
+                    <td><MudIconButton Href="@($"/plataforma/empresas/{empresa.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" aria-label="Abrir empresa" /></td></tr>
+            }</tbody></table>
+        </section>
+        <section class="mobile-list">@foreach (var empresa in _pagina.Itens) {
+            <a class="mobile-record platform-mobile-record" href="@($"/plataforma/empresas/{empresa.Id}")"><div class="mobile-record-main"><strong>@empresa.NomeFantasia</strong><span>@empresa.AdministradorEmail</span><span>@TextoStatus(empresa.StatusConvite)</span></div><span class="status-badge @(empresa.EhAtivo ? "status-running" : "status-cancelled")">@(empresa.EhAtivo ? "Ativa" : "Suspensa")</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+        }</section>
+        <div class="module-pagination"><span>@_pagina.TotalItens empresa(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="AnteriorAsync" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaAsync" /></div></div>
+    }
+</div>
+
+@code {
+    private PaginaResponse<EmpresaPlataformaResumoResponse>? _pagina;
+    private string? _pesquisa;
+    private string _status = "todas";
+    private int _paginaAtual = 1;
+    private bool _carregando = true;
+
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var r = await Plataforma.ListarEmpresasAsync(_paginaAtual, _pesquisa, _status == "todas" ? null : _status == "ativas"); _pagina = r.Resultado; _carregando = false; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); }
+    private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
+    private async Task AnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
+    private async Task ProximaAsync() { _paginaAtual++; await CarregarAsync(); }
+    private static string ClasseConvite(string s) => s is "FalhaEnvio" ? "status-cancelled" : s is "Aceito" ? "status-running" : "status-pending";
+    private static string TextoStatus(string s) => s switch { "FalhaEnvio" => "Falha no envio", "Aceito" => "Aceito", "Enviado" => "Enviado", "Pendente" => "Na fila", "Processando" => "Enviando", "Expirado" => "Expirado", _ => s };
+    private static string FormatarDocumento(string s) => s.Length == 14 ? Convert.ToUInt64(s).ToString(@"00\.000\.000\/0000\-00") : s;
+}

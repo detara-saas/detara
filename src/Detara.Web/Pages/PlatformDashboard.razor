@@ -1,0 +1,54 @@
+@page "/plataforma"
+@layout PlatformLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+
+<PageTitle>Visão geral | Detara Platform</PageTitle>
+
+<div class="platform-page platform-page-fluid">
+    <header class="platform-page-header">
+        <div><span class="platform-eyebrow">PLATAFORMA DETARA</span><h1>Visão geral</h1><p>Acompanhe empresas, ativações e sinais operacionais do ambiente.</p></div>
+        <MudButton Href="/plataforma/empresas/nova" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.AddBusiness">Nova empresa</MudButton>
+    </header>
+
+    @if (_carregando)
+    {
+        <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else if (_dashboard is not null)
+    {
+        <section class="platform-metrics" aria-label="Indicadores da plataforma">
+            <a href="/plataforma/empresas?status=ativas" class="platform-metric-card metric-positive"><MudIcon Icon="@Icons.Material.Outlined.DomainVerification" /><div><span>Empresas ativas</span><strong>@_dashboard.EmpresasAtivas</strong><small>operando no ambiente</small></div></a>
+            <a href="/plataforma/empresas?status=suspensas" class="platform-metric-card"><MudIcon Icon="@Icons.Material.Outlined.DomainDisabled" /><div><span>Empresas suspensas</span><strong>@_dashboard.EmpresasSuspensas</strong><small>acesso interrompido</small></div></a>
+            <a href="/plataforma/empresas" class="platform-metric-card"><MudIcon Icon="@Icons.Material.Outlined.MarkEmailUnread" /><div><span>Convites pendentes</span><strong>@_dashboard.ConvitesPendentes</strong><small>aguardando ativação</small></div></a>
+            <a href="/plataforma/empresas" class="platform-metric-card metric-attention"><MudIcon Icon="@Icons.Material.Outlined.ReportProblem" /><div><span>Falhas de envio</span><strong>@_dashboard.ConvitesComFalha</strong><small>requerem atenção</small></div></a>
+        </section>
+
+        <section class="platform-dashboard-grid">
+            <MudPaper Elevation="0" Class="platform-panel platform-primary-action">
+                <div class="platform-panel-icon"><MudIcon Icon="@Icons.Material.Outlined.AddBusiness" /></div>
+                <div><MudText Typo="Typo.h5">Provisionar uma empresa</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Crie o tenant, o perfil administrativo e o convite inicial em um fluxo transacional.</MudText></div>
+                <MudButton Href="/plataforma/empresas/nova" Variant="Variant.Filled" Color="Color.Primary">Começar</MudButton>
+            </MudPaper>
+            <MudPaper Elevation="0" Class="platform-panel platform-security-panel">
+                <div><MudIcon Icon="@Icons.Material.Outlined.Shield" Color="Color.Success" /><MudText Typo="Typo.h6">Ambiente protegido</MudText></div>
+                <ul><li>Identidade administrativa segregada</li><li>MFA obrigatório em todas as sessões</li><li>Ações críticas registradas em auditoria</li></ul>
+                <MudButton Href="/plataforma/auditoria" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver auditoria</MudButton>
+            </MudPaper>
+        </section>
+    }
+</div>
+
+@code {
+    private DashboardPlataformaResponse? _dashboard;
+    private bool _carregando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var resultado = await Plataforma.ObterDashboardAsync();
+        _dashboard = resultado.Resultado;
+        _carregando = false;
+        if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true);
+    }
+}

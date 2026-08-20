@@ -1,0 +1,33 @@
+@page "/plataforma/seguranca"
+@layout PlatformLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+
+<PageTitle>Segurança | Detara Platform</PageTitle>
+
+<div class="platform-page platform-page-wide">
+    <header class="platform-page-header"><div><span class="platform-eyebrow">CONTA ADMINISTRATIVA</span><h1>Segurança</h1><p>Gerencie os recursos de recuperação da sua identidade de plataforma.</p></div></header>
+    <div class="platform-security-grid">
+        <MudPaper Elevation="0" Class="platform-panel platform-security-overview"><div class="platform-security-hero"><MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" Color="Color.Success" /><div><MudText Typo="Typo.h5">MFA obrigatório ativo</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Toda sessão de Platform Admin depende de uma segunda etapa.</MudText></div></div><ul><li>Token administrativo de curta duração</li><li>Replay de TOTP bloqueado</li><li>Recovery codes de uso único e armazenados somente como hash</li></ul></MudPaper>
+        <MudPaper Elevation="0" Class="platform-panel">
+            <div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.VpnKey" /><span><strong>Regenerar códigos de recuperação</strong><small>Os códigos atuais serão invalidados</small></span></div></div>
+            @if (_novosCodigos is null) {
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-5">Confirme sua senha e um código TOTP atual. Os novos códigos serão exibidos apenas uma vez.</MudText>
+                <MudTextField T="string" @bind-Value="_senha" Label="Senha atual" InputType="InputType.Password" Variant="Variant.Outlined" autocomplete="current-password" />
+                <MudTextField T="string" @bind-Value="_codigoTotp" Label="Código TOTP" Variant="Variant.Outlined" Class="mt-3" MaxLength="6" autocomplete="one-time-code" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-5" Disabled="@_processando" OnClick="RegenerarAsync">Regenerar códigos</MudButton>
+            } else {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4">Salve estes códigos agora. Eles não serão exibidos novamente.</MudAlert><div class="platform-recovery-codes">@foreach (var codigo in _novosCodigos) { <code>@codigo</code> }</div><MudButton Variant="Variant.Outlined" FullWidth="true" Class="mt-4" OnClick="@(() => _novosCodigos = null)">Concluí</MudButton>
+            }
+        </MudPaper>
+    </div>
+</div>
+
+@code {
+    private string _senha = string.Empty;
+    private string _codigoTotp = string.Empty;
+    private bool _processando;
+    private IReadOnlyCollection<string>? _novosCodigos;
+    private async Task RegenerarAsync() { if (string.IsNullOrWhiteSpace(_senha) || _codigoTotp.Trim().Length != 6) { Mensagens.Mostrar("Informe sua senha e o código TOTP.", true); return; } _processando = true; var r = await Plataforma.RegenerarCodigosAsync(new(_senha, _codigoTotp)); _senha = string.Empty; _codigoTotp = string.Empty; _processando = false; if (r is { Sucesso: true, Resultado: not null }) _novosCodigos = r.Resultado.Codigos; else Mensagens.Mostrar(r.Mensagem, true); }
+}

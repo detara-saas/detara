@@ -1,0 +1,82 @@
+@page "/plataforma/login"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject PreferenciasInterfaceServico Preferencias
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Administração da plataforma | Detara</PageTitle>
+
+<section class="platform-login-brand" aria-label="Detara Platform">
+    <img src="brand/detara-logo-on-dark.png" alt="Detara" />
+    <div>
+        <span class="login-eyebrow">CONTROLE DA PLATAFORMA</span>
+        <MudText Typo="Typo.h1">Operação global,<br />acesso restrito.</MudText>
+        <MudText Typo="Typo.body1">Provisionamento de empresas, segurança e auditoria em um ambiente segregado.</MudText>
+    </div>
+    <div class="platform-login-assurance"><MudIcon Icon="@Icons.Material.Outlined.EnhancedEncryption" /><span>MFA obrigatório · sessão administrativa isolada</span></div>
+</section>
+
+<section class="platform-login-form">
+    <div class="login-theme-picker">
+        <MudMenu Icon="@Icons.Material.Outlined.SettingsBrightness" AnchorOrigin="Origin.BottomRight">
+            <MudMenuItem OnClick="@(() => Preferencias.DefinirTemaAsync("Sistema"))">Sistema</MudMenuItem>
+            <MudMenuItem OnClick="@(() => Preferencias.DefinirTemaAsync("Claro"))">Claro</MudMenuItem>
+            <MudMenuItem OnClick="@(() => Preferencias.DefinirTemaAsync("Escuro"))">Escuro</MudMenuItem>
+        </MudMenu>
+    </div>
+    <MudPaper Elevation="0" Class="platform-login-card">
+        <div class="platform-login-mobile-brand"><img src="brand/detara-logo-on-light.png" alt="Detara" /><span>PLATFORM</span></div>
+        <MudText Typo="Typo.overline" Color="Color.Primary">ACESSO ADMINISTRATIVO</MudText>
+        <MudText Typo="Typo.h2">Entre na plataforma</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">Use sua identidade exclusiva de Platform Admin.</MudText>
+        <MudForm @ref="_form">
+            <MudTextField T="string" @bind-Value="_email" Label="E-mail administrativo" InputType="InputType.Email"
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe o e-mail." autocomplete="username" />
+            <MudTextField T="string" @bind-Value="_senha" Label="Senha" InputType="InputType.Password"
+                          Variant="Variant.Outlined" Required="true" RequiredError="Informe a senha."
+                          Class="mt-3" autocomplete="current-password" />
+            <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                       Disabled="@_processando" OnClick="EntrarAsync" Class="mt-6">
+                @if (_processando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Continuar com MFA
+            </MudButton>
+        </MudForm>
+        <div class="platform-security-note"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /><span>Este acesso não aceita credenciais de empresas.</span></div>
+    </MudPaper>
+</section>
+
+@code {
+    private MudForm _form = null!;
+    private string _email = string.Empty;
+    private string _senha = string.Empty;
+    private bool _processando;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrWhiteSpace(await Plataforma.ObterTokenAsync()))
+        {
+            Navigation.NavigateTo("/plataforma", replace: true);
+        }
+    }
+
+    private async Task EntrarAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid || _processando) return;
+        _processando = true;
+        var resultado = await Plataforma.EntrarAsync(new LoginPlataformaRequest(_email, _senha));
+        _senha = string.Empty;
+        _processando = false;
+        if (!resultado.Sucesso || resultado.Resultado is null)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+            return;
+        }
+
+        Navigation.NavigateTo(resultado.Resultado.MfaConfigurado
+            ? "/plataforma/mfa"
+            : "/plataforma/mfa/configurar");
+    }
+}

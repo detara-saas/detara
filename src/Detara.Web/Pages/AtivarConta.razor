@@ -1,0 +1,57 @@
+@page "/ativar-conta"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+@inject IJSRuntime Js
+@inject NavigationManager Navigation
+
+<PageTitle>Ativar conta | Detara</PageTitle>
+
+<div class="platform-auth-page tenant-invite-page">
+    <MudPaper Elevation="0" Class="platform-auth-card">
+        <div class="platform-auth-heading"><img src="brand/detara-logo-on-light.png" alt="Detara" /><MudIcon Icon="@Icons.Material.Outlined.MarkEmailRead" Color="Color.Primary" /></div>
+        @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+        else if (_convite is null) {
+            <div class="platform-invalid-invite"><MudIcon Icon="@Icons.Material.Outlined.LinkOff" Color="Color.Error" /><MudText Typo="Typo.h2">Convite indisponível</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Este link é inválido, expirou ou já foi utilizado. Solicite um novo convite ao suporte.</MudText></div>
+        } else if (_concluido) {
+            <div class="platform-recovery-success"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Color="Color.Success" /></div><MudText Typo="Typo.h2" Align="Align.Center">Conta ativada</MudText><MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="my-4">Sua senha foi definida com segurança. Entre usando a empresa informada no convite.</MudText><MudButton Href="/login" FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">Ir para o login</MudButton>
+        } else {
+            <MudText Typo="Typo.overline" Color="Color.Primary">CONVITE DE ADMINISTRADOR</MudText><MudText Typo="Typo.h2">Ative sua conta</MudText><MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2 mb-5">Você foi convidado para administrar <strong>@_convite.EmpresaNome</strong> com o e-mail @_convite.EmailMascarado.</MudText>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-5">Este convite expira em @_convite.ExpiraEmUtc.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm") e pode ser usado uma única vez.</MudAlert>
+            <MudTextField T="string" @bind-Value="_senha" Label="Crie uma senha" InputType="InputType.Password" Variant="Variant.Outlined" HelperText="Use uma passphrase com pelo menos 10 caracteres." autocomplete="new-password" />
+            <MudTextField T="string" @bind-Value="_confirmacao" Label="Confirme a senha" InputType="InputType.Password" Variant="Variant.Outlined" Class="mt-3" autocomplete="new-password" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-5" Disabled="@_processando" OnClick="AtivarAsync">Ativar minha conta</MudButton>
+        }
+    </MudPaper>
+</div>
+
+@code {
+    private string? _token;
+    private ConviteAdministradorValidadoResponse? _convite;
+    private string _senha = string.Empty;
+    private string _confirmacao = string.Empty;
+    private bool _carregando = true;
+    private bool _processando;
+    private bool _concluido;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _token = await Js.InvokeAsync<string?>("detara.obterFragmento", "token");
+        await Js.InvokeVoidAsync("detara.limparFragmento");
+        if (!string.IsNullOrWhiteSpace(_token))
+        {
+            var r = await Plataforma.ValidarConviteAsync(_token);
+            _convite = r.Resultado;
+        }
+        _carregando = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AtivarAsync()
+    {
+        if (_token is null || _senha.Length < 10 || _senha != _confirmacao) { Mensagens.Mostrar("Use uma senha com pelo menos 10 caracteres e confirme-a corretamente.", true); return; }
+        _processando = true; var r = await Plataforma.AceitarConviteAsync(_token, _senha); _senha = _confirmacao = string.Empty; _token = null; _processando = false; _concluido = r.Sucesso; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true);
+    }
+}

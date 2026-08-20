@@ -1,0 +1,99 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject PlataformaServico Plataforma
+@inject PreferenciasInterfaceServico Preferencias
+@inject NavigationManager Navigation
+
+<MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (_verificando)
+{
+    <div class="platform-session-loading" role="status">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        <MudText Typo="Typo.body2">Validando sessão administrativa…</MudText>
+    </div>
+}
+else
+{
+    <MudLayout Class="platform-shell">
+        <MudAppBar Elevation="0" Class="platform-topbar">
+            <MudIconButton Icon="@Icons.Material.Outlined.Menu" OnClick="AlternarMenu" aria-label="Abrir navegação" />
+            <div class="platform-topbar-context">
+                <span class="platform-scope-dot"></span>
+                <div><strong>Administração da plataforma</strong><span>Escopo global Detara</span></div>
+            </div>
+            <MudSpacer />
+            <MudMenu Icon="@IconeTema" AnchorOrigin="Origin.BottomRight" aria-label="Escolher aparência">
+                <MudMenuItem Icon="@Icons.Material.Outlined.SettingsBrightness" OnClick="@(() => Preferencias.DefinirTemaAsync("Sistema"))">Sistema</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Outlined.LightMode" OnClick="@(() => Preferencias.DefinirTemaAsync("Claro"))">Claro</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Outlined.DarkMode" OnClick="@(() => Preferencias.DefinirTemaAsync("Escuro"))">Escuro</MudMenuItem>
+            </MudMenu>
+            <MudMenu Icon="@Icons.Material.Outlined.AdminPanelSettings" AnchorOrigin="Origin.BottomRight" aria-label="Conta da plataforma">
+                <MudMenuItem Href="/plataforma/seguranca" Icon="@Icons.Material.Outlined.Security">Segurança</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Outlined.Logout" OnClick="SairAsync">Sair</MudMenuItem>
+            </MudMenu>
+        </MudAppBar>
+
+        <MudDrawer @bind-Open="_menuAberto" Variant="DrawerVariant.Responsive" Breakpoint="Breakpoint.Md"
+                   Elevation="0" Class="platform-sidebar">
+            <div class="platform-brand">
+                <img src="brand/detara-logo-on-dark.png" alt="Detara" />
+                <span>PLATFORM</span>
+            </div>
+            <MudNavMenu Class="platform-nav">
+                <MudNavLink Href="/plataforma" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.SpaceDashboard">Visão geral</MudNavLink>
+                <MudNavLink Href="/plataforma/empresas" Icon="@Icons.Material.Outlined.Domain">Empresas</MudNavLink>
+                <MudNavLink Href="/plataforma/auditoria" Icon="@Icons.Material.Outlined.FactCheck">Auditoria</MudNavLink>
+                <MudNavLink Href="/plataforma/seguranca" Icon="@Icons.Material.Outlined.Security">Segurança</MudNavLink>
+            </MudNavMenu>
+            <div class="platform-sidebar-note">
+                <MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" Size="Size.Small" />
+                <span>Identidade separada do tenant</span>
+            </div>
+        </MudDrawer>
+
+        <MudMainContent Class="platform-content">
+            @Body
+        </MudMainContent>
+    </MudLayout>
+}
+
+@code {
+    private bool _verificando = true;
+    private bool _menuAberto = true;
+    private string IconeTema => Preferencias.Atual.Tema switch
+    {
+        "Claro" => Icons.Material.Outlined.LightMode,
+        "Escuro" => Icons.Material.Outlined.DarkMode,
+        _ => Icons.Material.Outlined.SettingsBrightness
+    };
+
+    protected override void OnInitialized() => Preferencias.Alterado += Atualizar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (string.IsNullOrWhiteSpace(await Plataforma.ObterTokenAsync()))
+        {
+            Navigation.NavigateTo("/plataforma/login", replace: true);
+            return;
+        }
+
+        _verificando = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void AlternarMenu() => _menuAberto = !_menuAberto;
+
+    private async Task SairAsync()
+    {
+        await Plataforma.SairAsync();
+        Navigation.NavigateTo("/plataforma/login", replace: true);
+    }
+
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Preferencias.Alterado -= Atualizar;
+}

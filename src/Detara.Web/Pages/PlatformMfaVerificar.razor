@@ -1,0 +1,49 @@
+@page "/plataforma/mfa"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Confirmar MFA | Detara Platform</PageTitle>
+
+<div class="platform-auth-page">
+    <MudPaper Elevation="0" Class="platform-auth-card">
+        <div class="platform-auth-heading"><img src="brand/detara-logo-on-light.png" alt="Detara" /><MudIcon Icon="@Icons.Material.Outlined.Security" Color="Color.Primary" /></div>
+        <MudText Typo="Typo.overline" Color="Color.Primary">SEGUNDA ETAPA</MudText>
+        <MudText Typo="Typo.h2">Confirme sua identidade</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2 mb-6">
+            Informe o código do autenticador. Você também pode usar um código de recuperação.
+        </MudText>
+        <MudTextField T="string" @bind-Value="_codigo" Label="Código MFA ou de recuperação" Variant="Variant.Outlined"
+                      autocomplete="one-time-code" Immediate="true" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                   Disabled="@_processando" OnClick="ConfirmarAsync" Class="mt-5">
+            @if (_processando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Confirmar e entrar
+        </MudButton>
+        <MudButton Variant="Variant.Text" FullWidth="true" Href="/plataforma/login" Class="mt-2">Voltar ao login</MudButton>
+        <div class="platform-security-note"><MudIcon Icon="@Icons.Material.Outlined.Timer" Size="Size.Small" /><span>O desafio é temporário e não cria uma sessão sem MFA.</span></div>
+    </MudPaper>
+</div>
+
+@code {
+    private string _codigo = string.Empty;
+    private bool _processando;
+
+    private async Task ConfirmarAsync()
+    {
+        if (_processando || string.IsNullOrWhiteSpace(_codigo)) return;
+        _processando = true;
+        var resultado = await Plataforma.ConcluirMfaAsync(_codigo, ativacao: false);
+        _processando = false;
+        _codigo = string.Empty;
+        if (!resultado.Sucesso)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+            return;
+        }
+
+        Navigation.NavigateTo("/plataforma", replace: true);
+    }
+}

@@ -34,6 +34,8 @@ window.detara = {
         const input = document.getElementById(id);
         if (input) input.value = "";
     },
+    obterFragmento: (nome) => new URLSearchParams(window.location.hash.substring(1)).get(nome),
+    limparFragmento: () => window.history.replaceState(null, document.title, window.location.pathname + window.location.search),
     editorEmail: {
         inicializar: (id, html, dotnetRef) => {
             const editor = document.getElementById(id);

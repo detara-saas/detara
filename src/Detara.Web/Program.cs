@@ -27,16 +27,26 @@ builder.Services.AddAuthorizationCore(options =>
 builder.Services.AddLocalization();
 builder.Services.AddMudServices();
 builder.Services.AddScoped<TokenStorage>();
+builder.Services.AddScoped<PlatformTokenStorage>();
 builder.Services.AddScoped<JwtAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(provider =>
     provider.GetRequiredService<JwtAuthenticationStateProvider>());
 builder.Services.AddScoped<TokenAuthorizationHandler>();
+builder.Services.AddScoped<PlatformAuthorizationHandler>();
 builder.Services.AddScoped(provider =>
 {
     var authorizationHandler = provider.GetRequiredService<TokenAuthorizationHandler>();
     authorizationHandler.ApiBaseAddress = apiBaseAddress;
     authorizationHandler.InnerHandler = new HttpClientHandler();
     return new HttpClient(authorizationHandler) { BaseAddress = apiBaseAddress };
+});
+builder.Services.AddScoped(provider =>
+{
+    var authorizationHandler = provider.GetRequiredService<PlatformAuthorizationHandler>();
+    authorizationHandler.ApiBaseAddress = apiBaseAddress;
+    authorizationHandler.InnerHandler = new HttpClientHandler();
+    return new HttpClientPlataforma(
+        new HttpClient(authorizationHandler) { BaseAddress = apiBaseAddress });
 });
 builder.Services.AddScoped<AutenticacaoServico>();
 builder.Services.AddScoped<IMensagemServico, MensagemServico>();
@@ -51,6 +61,7 @@ builder.Services.AddScoped<OrdensServicoServico>();
 builder.Services.AddScoped<ConfiguracoesServico>();
 builder.Services.AddScoped<FinanceiroServico>();
 builder.Services.AddScoped<NotificacoesServico>();
+builder.Services.AddScoped<PlataformaServico>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<PreferenciasInterfaceServico>().InicializarAsync();

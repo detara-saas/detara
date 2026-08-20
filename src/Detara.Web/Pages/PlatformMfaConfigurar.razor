@@ -1,0 +1,106 @@
+@page "/plataforma/mfa/configurar"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Configurar MFA | Detara Platform</PageTitle>
+
+<div class="platform-auth-page">
+    <MudPaper Elevation="0" Class="platform-auth-card platform-auth-card-wide">
+        <div class="platform-auth-heading">
+            <img src="brand/detara-logo-on-light.png" alt="Detara" />
+            <MudIcon Icon="@Icons.Material.Outlined.AdminPanelSettings" Color="Color.Primary" />
+        </div>
+
+        @if (_carregando)
+        {
+            <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+        }
+        else if (_configuracao is not null && _codigos is null)
+        {
+            <MudText Typo="Typo.overline" Color="Color.Primary">PRIMEIRO ACESSO</MudText>
+            <MudText Typo="Typo.h2">Proteja sua conta com MFA</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2 mb-6">
+                Escaneie o QR code com seu autenticador. Depois, confirme com o código de seis dígitos.
+            </MudText>
+            <div class="platform-mfa-grid">
+                <div class="platform-qr-shell"><img src="@_configuracao.QrCodeSvgDataUrl" alt="QR code para configurar o autenticador" /></div>
+                <div class="platform-mfa-steps">
+                    <div><span>1</span><p>Abra seu aplicativo autenticador.</p></div>
+                    <div><span>2</span><p>Escaneie o QR code ou informe a chave manual.</p></div>
+                    <div><span>3</span><p>Digite abaixo o código gerado.</p></div>
+                    <MudTextField T="string" @bind-Value="_codigo" Label="Código de 6 dígitos" Variant="Variant.Outlined"
+                                  InputMode="InputMode.numeric" MaxLength="6" autocomplete="one-time-code" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true"
+                               Disabled="@_processando" OnClick="AtivarAsync">Ativar autenticação multifator</MudButton>
+                </div>
+            </div>
+            <MudExpansionPanels Class="mt-5" Elevation="0">
+                <MudExpansionPanel Text="Não consigo escanear o QR code">
+                    <MudText Typo="Typo.caption">Chave manual</MudText>
+                    <code class="platform-manual-key">@_configuracao.ChaveManual</code>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+        else if (_codigos is not null)
+        {
+            <div class="platform-recovery-success"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Color="Color.Success" /></div>
+            <MudText Typo="Typo.h2" Align="Align.Center">Salve seus códigos de recuperação</MudText>
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="my-5">
+                Eles serão exibidos somente agora. Cada código funciona uma única vez.
+            </MudAlert>
+            <div class="platform-recovery-codes" aria-label="Códigos de recuperação">
+                @foreach (var codigo in _codigos) { <code>@codigo</code> }
+            </div>
+            <MudCheckBox T="bool" @bind-Value="_confirmou" Label="Confirmo que salvei estes códigos em local seguro." Class="my-4" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                       Disabled="@(!_confirmou)" OnClick="@(() => Navigation.NavigateTo("/plataforma"))">Acessar plataforma</MudButton>
+        }
+    </MudPaper>
+</div>
+
+@code {
+    private ConfiguracaoMfaPlataformaResponse? _configuracao;
+    private IReadOnlyCollection<string>? _codigos;
+    private string _codigo = string.Empty;
+    private bool _carregando = true;
+    private bool _processando;
+    private bool _confirmou;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var resultado = await Plataforma.ObterConfiguracaoMfaAsync();
+        _carregando = false;
+        if (!resultado.Sucesso || resultado.Resultado is null)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+            Navigation.NavigateTo("/plataforma/login", replace: true);
+            return;
+        }
+
+        _configuracao = resultado.Resultado;
+    }
+
+    private async Task AtivarAsync()
+    {
+        if (_processando || _codigo.Trim().Length != 6)
+        {
+            Mensagens.Mostrar("Informe o código de seis dígitos.", true);
+            return;
+        }
+
+        _processando = true;
+        var resultado = await Plataforma.ConcluirMfaAsync(_codigo, ativacao: true);
+        _processando = false;
+        if (!resultado.Sucesso || resultado.Resultado is null)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+            return;
+        }
+
+        _codigo = string.Empty;
+        _codigos = resultado.Resultado.CodigosRecuperacao;
+    }
+}

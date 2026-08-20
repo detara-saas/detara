@@ -17,7 +17,8 @@ public sealed class TokenAuthorizationHandler(
         CancellationToken cancellationToken)
     {
         var token = await tokenStorage.ObterAsync();
-        var destinoDaApi = EhDestinoDaApi(request.RequestUri);
+        var destinoDaApi = EhDestinoDaApi(request.RequestUri) &&
+            !EhRotaDeIdentidadeSeparada(request.RequestUri);
         if (!string.IsNullOrWhiteSpace(token) && destinoDaApi)
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -64,4 +65,11 @@ public sealed class TokenAuthorizationHandler(
             UriComponents.SchemeAndServer,
             UriFormat.Unescaped,
             StringComparison.OrdinalIgnoreCase) == 0;
+
+    private static bool EhRotaDeIdentidadeSeparada(Uri? destino)
+    {
+        var caminho = destino?.AbsolutePath ?? string.Empty;
+        return caminho.StartsWith("/api/plataforma", StringComparison.OrdinalIgnoreCase) ||
+            caminho.StartsWith("/api/convites/administrador", StringComparison.OrdinalIgnoreCase);
+    }
 }
