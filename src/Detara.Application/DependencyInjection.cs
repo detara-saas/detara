@@ -1,5 +1,6 @@
 using Detara.Application.Comportamentos;
 using Detara.Application.Agenda;
+using Detara.Application.Financeiro;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidacaoBehavior<,>));
         services.AddSingleton<IConversorFusoHorario, ConversorFusoHorario>();
+        services.AddScoped<IIntegracaoFinanceiroOrdensServico, IntegracaoFinanceiroOrdensServico>();
 
         return services;
     }

@@ -26,6 +26,10 @@ public static class Permissoes
     public const string OrdemServicoCriar = "OrdemServico.Criar";
     public const string OrdemServicoEditar = "OrdemServico.Editar";
     public const string OrdemServicoFinalizar = "OrdemServico.Finalizar";
+    public const string FinanceiroVisualizar = "Financeiro.Visualizar";
+    public const string FinanceiroEditar = "Financeiro.Editar";
+    public const string FinanceiroRegistrarPagamento = "Financeiro.RegistrarPagamento";
+    public const string FinanceiroEstornarPagamento = "Financeiro.EstornarPagamento";
 
     public static readonly IReadOnlyCollection<string> Todas =
     [
@@ -52,6 +56,10 @@ public static class Permissoes
         OrdemServicoVisualizar,
         OrdemServicoCriar,
         OrdemServicoEditar,
-        OrdemServicoFinalizar
+        OrdemServicoFinalizar,
+        FinanceiroVisualizar,
+        FinanceiroEditar,
+        FinanceiroRegistrarPagamento,
+        FinanceiroEstornarPagamento
     ];
 }

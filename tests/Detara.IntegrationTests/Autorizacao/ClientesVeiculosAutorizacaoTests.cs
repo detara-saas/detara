@@ -357,6 +357,36 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task UsuarioSemFinanceiroVisualizar_Recebe403()
+    {
+        var response = await _client.GetAsync("/api/financeiro/resumo");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UsuarioComFinanceiroVisualizar_ConsultaPermitida()
+    {
+        UsarPermissoes(Permissoes.FinanceiroVisualizar);
+        var response = await _client.GetAsync("/api/financeiro/resumo");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("POST", "/api/financeiro/contas-receber/00000000-0000-0000-0000-000000000001/pagamentos", Permissoes.FinanceiroRegistrarPagamento)]
+    [InlineData("POST", "/api/financeiro/contas-receber/00000000-0000-0000-0000-000000000001/pagamentos/00000000-0000-0000-0000-000000000002/estornar", Permissoes.FinanceiroEstornarPagamento)]
+    [InlineData("PATCH", "/api/financeiro/contas-receber/00000000-0000-0000-0000-000000000001/vencimento", Permissoes.FinanceiroEditar)]
+    public async Task UsuarioSemPermissaoFinanceiraDeMutacao_Recebe403(string metodo, string rota, string permissao)
+    {
+        UsarPermissoes(Permissoes.FinanceiroVisualizar);
+        Assert.DoesNotContain(permissao,
+            _client.DefaultRequestHeaders.GetValues(TestAuthHandler.PermissionsHeader).Single());
+        using var request = new HttpRequestMessage(new HttpMethod(metodo), rota)
+        { Content = JsonContent.Create(new { }) };
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private void UsarPermissoes(params string[] permissoes)
     {
         _client.DefaultRequestHeaders.Remove(TestAuthHandler.PermissionsHeader);
