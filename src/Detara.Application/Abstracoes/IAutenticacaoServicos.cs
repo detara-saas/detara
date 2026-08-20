@@ -11,7 +11,22 @@ public interface ISenhaServico
 {
     string GerarHash(Usuario usuario, string senha);
     bool Verificar(Usuario usuario, string senhaHash, string senha);
+    void VerificarContraHashFicticio(string senha);
 }
+
+public interface IValidadorIdentidadeAutenticada
+{
+    Task<bool> EhValidaAsync(
+        IdentidadeToken identidade,
+        CancellationToken cancellationToken);
+}
+
+public sealed record IdentidadeToken(
+    Guid UsuarioId,
+    Guid EmpresaId,
+    Guid PerfilId,
+    long UsuarioAtualizadoEmTicks,
+    IReadOnlyCollection<string> Permissoes);
 
 public interface ITokenServico
 {

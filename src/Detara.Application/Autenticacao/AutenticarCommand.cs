@@ -30,8 +30,14 @@ internal sealed class AutenticarCommandHandler(
             request.Email.Trim().ToLowerInvariant(),
             cancellationToken);
 
-        if (usuario is null || !usuario.EhAtivo || !usuario.Perfil.EhAtivo ||
-            !senhaServico.Verificar(usuario, usuario.SenhaHash, request.Senha))
+        if (usuario is null)
+        {
+            senhaServico.VerificarContraHashFicticio(request.Senha);
+            throw new CredenciaisInvalidasException();
+        }
+
+        var senhaValida = senhaServico.Verificar(usuario, usuario.SenhaHash, request.Senha);
+        if (!usuario.EhAtivo || !usuario.Perfil.EhAtivo || !senhaValida)
         {
             throw new CredenciaisInvalidasException();
         }

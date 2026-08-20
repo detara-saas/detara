@@ -22,6 +22,8 @@ internal sealed class JwtTokenServico(IOptions<JwtOptions> options) : ITokenServ
             new(JwtRegisteredClaimNames.Name, usuario.Nome),
             new(JwtRegisteredClaimNames.Email, usuario.Email),
             new("empresa_id", usuario.EmpresaId.ToString()),
+            new("perfil_id", usuario.PerfilId.ToString()),
+            new("usuario_atualizado_ticks", (usuario.AtualizadoEmUtc?.Ticks ?? 0).ToString()),
             new("perfil", usuario.Perfil.Nome)
         };
 

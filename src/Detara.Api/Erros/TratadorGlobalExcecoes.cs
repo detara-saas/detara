@@ -19,14 +19,16 @@ internal sealed class TratadorGlobalExcecoes(ILogger<TratadorGlobalExcecoes> log
 
         if (status >= StatusCodes.Status500InternalServerError)
         {
-            logger.LogError(exception, "Erro inesperado ao processar {Metodo} {Caminho}",
+            logger.LogError(exception, "Erro inesperado {TraceId} ao processar {Metodo} {Caminho}",
+                httpContext.TraceIdentifier,
                 httpContext.Request.Method,
                 httpContext.Request.Path);
         }
         else
         {
-            logger.LogWarning("Requisição rejeitada: {Codigo} em {Metodo} {Caminho}",
+            logger.LogWarning("Requisição rejeitada: {Codigo}; trace {TraceId}; {Metodo} {Caminho}",
                 codigo,
+                httpContext.TraceIdentifier,
                 httpContext.Request.Method,
                 httpContext.Request.Path);
         }
