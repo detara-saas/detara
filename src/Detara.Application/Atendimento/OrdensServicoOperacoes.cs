@@ -1,5 +1,6 @@
 using Detara.Application.Abstracoes;
 using Detara.Domain.Atendimento;
+using Detara.Application.Financeiro;
 using FluentValidation;
 using MediatR;
 
@@ -189,14 +190,18 @@ internal sealed class AtualizarChecklistOrdemServicoHandler(IUsuarioContexto usu
 internal abstract class TransicaoOrdemServicoHandlerBase(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
     IPlataformaAtendimentoConsulta plataforma)
 {
+    protected IUsuarioContexto Usuario { get; } = usuario;
+
     protected async Task<OrdemServicoDetalheVisualizacao> Executar(Guid id, string? observacao,
-        Action<OrdemServico, Guid, string?> acao, CancellationToken ct)
+        Action<OrdemServico, Guid, string?> acao, CancellationToken ct,
+        Func<OrdemServico, CancellationToken, Task>? antesDeSalvar = null)
     {
         var ordem = await OrdemServicoFluxo.ExigirAsync(ordens, id, true, ct);
-        OrdemServicoFluxo.ExecutarRegra(() => acao(ordem, usuario.UsuarioId, observacao));
+        OrdemServicoFluxo.ExecutarRegra(() => acao(ordem, Usuario.UsuarioId, observacao));
         ordens.AdicionarUltimoHistorico(ordem);
+        if (antesDeSalvar is not null) await antesDeSalvar(ordem, ct);
         await ordens.SalvarAsync(ct);
-        return await OrdemServicoFluxo.ObterDetalheAsync(id, usuario.EmpresaId, ordens, plataforma, ct);
+        return await OrdemServicoFluxo.ObterDetalheAsync(id, Usuario.EmpresaId, ordens, plataforma, ct);
     }
 }
 internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
@@ -207,11 +212,17 @@ internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensSe
         Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.IniciarExecucao(usuarioId, obs), ct);
 }
 internal sealed class FinalizarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
-    IPlataformaAtendimentoConsulta plataforma) : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
+    IPlataformaAtendimentoConsulta plataforma, IIntegracaoFinanceiroOrdensServico financeiro)
+    : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
     IRequestHandler<FinalizarExecucaoOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
     public Task<OrdemServicoDetalheVisualizacao> Handle(FinalizarExecucaoOrdemServicoCommand request, CancellationToken ct) =>
-        Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.FinalizarExecucao(usuarioId, obs), ct);
+        Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.FinalizarExecucao(usuarioId, obs), ct,
+            (ordem, token) => financeiro.PrepararContaReceberAsync(new(Usuario.EmpresaId, ordem.Id, ordem.Codigo,
+                ordem.ClienteId, ordem.ClienteNomeSnapshot, ordem.VeiculoId, ordem.VeiculoDescricaoSnapshot,
+                ordem.VeiculoPlacaSnapshot, ordem.SubtotalAutorizado, ordem.DescontoAutorizado,
+                ordem.AcrescimoAutorizado, ordem.TotalAutorizado,
+                ordem.ExecucaoFinalizadaEmUtc ?? throw new InvalidOperationException("A finalização da execução não foi registrada.")), token));
 }
 public sealed record FinalizarExecucaoOrdemServicoCommand(Guid Id, string? Observacao) : IRequest<OrdemServicoDetalheVisualizacao>;
 public sealed record ConcluirOrdemServicoCommand(Guid Id, string? Observacao) : IRequest<OrdemServicoDetalheVisualizacao>;

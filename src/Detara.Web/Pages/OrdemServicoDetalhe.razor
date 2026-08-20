@@ -2,6 +2,9 @@
 @attribute [Authorize(Policy = Permissoes.OrdemServicoVisualizar)]
 @inject OrdensServicoServico OrdensApi
 @inject IMensagemServico Mensagens
+@inject FinanceiroServico FinanceiroApi
+@inject IAuthorizationService Authorization
+@inject AuthenticationStateProvider AuthenticationState
 
 <PageTitle>@(_ordem?.Codigo ?? "Ordem de Serviço") | Detara</PageTitle>
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
@@ -11,7 +14,7 @@ else
     <div class="page-container service-order-detail-page">
         <div class="service-order-detail-header">
             <CabecalhoPagina Titulo="@_ordem.Codigo" Descricao="@($"{_ordem.ClienteNome} · {_ordem.VeiculoDescricao} · {_ordem.VeiculoPlaca}")" Sobretitulo="ORDEM DE SERVIÇO">
-                <Acoes><span class="status-badge @ClasseStatus(_ordem.Status)">@NomeStatus(_ordem.Status)</span></Acoes>
+                <Acoes><span class="status-badge @ClasseStatus(_ordem.Status)">@NomeStatus(_ordem.Status)</span>@if (_contaReceberId.HasValue) { <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar"><Authorized><MudButton Href="@($"/financeiro/contas-receber/{_contaReceberId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.AccountBalanceWallet">Ver conta a receber</MudButton></Authorized></AuthorizeView> }</Acoes>
             </CabecalhoPagina>
         </div>
 
@@ -65,11 +68,11 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    private OrdemServicoDetalheResponse? _ordem; private bool _carregando = true; private int? _quilometragem; private string? _observacaoEntrada, _motivoCancelamento; private readonly List<RespostaEdicao> _respostas = []; private readonly Dictionary<Guid, string> _urlsFotos = [];
+    private OrdemServicoDetalheResponse? _ordem; private Guid? _contaReceberId; private bool _carregando = true; private int? _quilometragem; private string? _observacaoEntrada, _motivoCancelamento; private readonly List<RespostaEdicao> _respostas = []; private readonly Dictionary<Guid, string> _urlsFotos = [];
     private bool EhTerminal => _ordem?.Status is StatusOrdemServicoContrato.Concluida or StatusOrdemServicoContrato.Cancelada;
     private string IndicadorCheckIn => _ordem?.CheckInEmUtc.HasValue == true ? $"Checklist {_ordem.Checklist?.Itens.Count(i => i.Resposta.HasValue) ?? 0}/{_ordem.Checklist?.Itens.Count ?? 0} · Fotos entrada {_ordem.Fotos.Count(f => f.Categoria == CategoriaFotoOrdemServicoContrato.Entrada)}" : "Necessário antes da execução";
     protected override Task OnParametersSetAsync() => CarregarAsync();
-    private async Task CarregarAsync() { _carregando = true; var r = await OrdensApi.ObterAsync(Id); _ordem = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _respostas.Clear(); if (_ordem?.Checklist is not null) _respostas.AddRange(_ordem.Checklist.Itens.OrderBy(i => i.Ordem).Select(i => new RespostaEdicao(i))); await CarregarFotosAsync(); _carregando = false; }
+    private async Task CarregarAsync() { _carregando = true; var r = await OrdensApi.ObterAsync(Id); _ordem = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _respostas.Clear(); if (_ordem?.Checklist is not null) _respostas.AddRange(_ordem.Checklist.Itens.OrderBy(i => i.Ordem).Select(i => new RespostaEdicao(i))); _contaReceberId = null; if (_ordem is not null) { var estado = await AuthenticationState.GetAuthenticationStateAsync(); if ((await Authorization.AuthorizeAsync(estado.User, Permissoes.FinanceiroVisualizar)).Succeeded) { var financeiro = await FinanceiroApi.ObterPorOrdemServicoAsync(Id); if (financeiro.Resultado?.Existe == true) _contaReceberId = financeiro.Resultado.Id; } } await CarregarFotosAsync(); _carregando = false; }
     private async Task CarregarFotosAsync() { _urlsFotos.Clear(); if (_ordem is null) return; foreach (var foto in _ordem.Fotos) { var r = await OrdensApi.ObterFotoAsync(Id, foto.Id); if (r.Resultado is not null) _urlsFotos[foto.Id] = $"data:{r.Resultado.ContentType};base64,{Convert.ToBase64String(r.Resultado.Bytes)}"; } }
     private async Task RealizarCheckInAsync() { var r = await OrdensApi.CheckInAsync(Id, new(_quilometragem, _observacaoEntrada)); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
     private async Task SalvarChecklistAsync() { var r = await OrdensApi.AtualizarChecklistAsync(Id, new(_respostas.Where(i => i.Resposta.HasValue).Select(i => new RespostaChecklistOrdemServicoRequest(i.Id, i.Resposta!.Value, i.Observacao)).ToArray())); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }

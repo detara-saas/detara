@@ -4,6 +4,7 @@ using Detara.Domain.Entidades;
 using Detara.Domain.Agenda;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Clientes;
+using Detara.Domain.Financeiro;
 using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Persistencia;
@@ -40,6 +41,8 @@ public sealed class DetaraDbContext(
     public DbSet<ChecklistModelo> ChecklistModelos => Set<ChecklistModelo>();
     public DbSet<ChecklistModeloItem> ChecklistModeloItens => Set<ChecklistModeloItem>();
     public DbSet<VeiculoFoto> VeiculosFotos => Set<VeiculoFoto>();
+    public DbSet<ContaReceber> ContasReceber => Set<ContaReceber>();
+    public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

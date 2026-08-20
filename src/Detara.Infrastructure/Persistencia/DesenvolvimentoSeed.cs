@@ -37,6 +37,9 @@ public static class DesenvolvimentoSeed
         ("OrdemServico.Editar", "Editar check-in, evidências e adicionais da ordem de serviço"),
         ("OrdemServico.Finalizar", "Finalizar ordens de serviço"),
         ("Financeiro.Visualizar", "Visualizar financeiro"),
+        ("Financeiro.Editar", "Editar vencimentos financeiros"),
+        ("Financeiro.RegistrarPagamento", "Registrar pagamentos"),
+        ("Financeiro.EstornarPagamento", "Estornar pagamentos"),
         ("Administracao.Usuario", "Administrar usuários")
     ];
 

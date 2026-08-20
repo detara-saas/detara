@@ -13,6 +13,8 @@ using Detara.Application.Atendimento;
 using Detara.Infrastructure.Atendimento;
 using Detara.Application.Clientes;
 using Detara.Infrastructure.Storage;
+using Detara.Application.Financeiro;
+using Detara.Infrastructure.Financeiro;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -50,6 +52,8 @@ public static class DependencyInjection
         services.AddScoped<IAgendaAtendimentoConsulta, AgendaAtendimentoConsulta>();
         services.AddScoped<IPlataformaAtendimentoConsulta, PlataformaAtendimentoConsulta>();
         services.AddScoped<IConfiguracoesOperacionaisRepositorio, ConfiguracoesOperacionaisRepositorio>();
+        services.AddScoped<IFinanceiroRepositorio, FinanceiroRepositorio>();
+        services.AddScoped<IPlataformaFinanceiroConsulta, PlataformaFinanceiroConsulta>();
         services.AddScoped<IVeiculoFotosRepositorio, VeiculoFotosRepositorio>();
         services.AddSingleton<IOrcamentoPdfGenerator, PdfOrcamentoGenerator>();
         var storageOptions = configuration.GetSection(StorageOptions.Secao).Get<StorageOptions>()

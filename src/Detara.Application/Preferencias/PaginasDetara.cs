@@ -5,7 +5,7 @@ public static class PaginasDetara
     public static readonly IReadOnlySet<string> Permitidas = new HashSet<string>(
         [
             "dashboard", "agenda", "orcamentos", "ordens-servico", "clientes", "veiculos",
-            "servicos", "pacotes", "pagamentos", "usuarios", "perfis", "empresa", "configuracoes"
+            "servicos", "pacotes", "financeiro", "pagamentos", "usuarios", "perfis", "empresa", "configuracoes"
         ],
         StringComparer.OrdinalIgnoreCase);
 }
