@@ -57,7 +57,8 @@ O browser nunca é autoridade sobre `EmpresaId`, usuário, permissão, preço ca
 
 - `POST /api/autenticacao/login` (anônimo, limitado por origem);
 - `GET /health` (anônimo, somente GET e limitado por origem);
-- 93 endpoints protegidos de clientes, veículos, catálogo, agenda, orçamentos, OS, financeiro, notificações, preferências e configurações;
+- 102 endpoints protegidos: 93 de tenants e nove do plano de controle da plataforma;
+- oito endpoints anônimos na whitelist: login tenant, health, login/MFA da plataforma e validação/aceite de convite;
 - uploads multipart de fotos de veículo e ordem de serviço;
 - parâmetros de rota e query, especialmente GUIDs, busca, ordenação, paginação e períodos;
 - corpo JSON de comandos de criação, edição e transição;
@@ -99,6 +100,25 @@ O browser nunca é autoridade sobre `EmpresaId`, usuário, permissão, preço ca
 - A validação de imagem confirma assinatura e tipo permitido, mas não decodifica dimensões nem remove EXIF. O servidor não processa a imagem e a entrega com `nosniff`; transformação segura permanece no backlog.
 - TLS, trusted proxies, proteção de borda, secrets manager, backup/restore, storage de produção, monitoramento e DNS do Resend dependem da fase Production Readiness.
 - Google Fonts é uma dependência de disponibilidade/privacidade de terceiro; auto-hospedagem permanece recomendada antes de maior exigência de privacidade.
+
+## Extensão Task 11 — Platform Admin e provisionamento
+
+Novos ativos: chave JWT exclusiva da plataforma, segredo TOTP protegido, recovery codes, challenge MFA, token de convite, key ring, trilha de auditoria e capacidade de suspender/provisionar tenants.
+
+| Ameaça | Cenário | Controle |
+|---|---|---|
+| Elevação de privilégio | token tenant usado na API global ou token platform usado em dados tenant | schemes, audiences, signing keys e handlers separados; testes cruzados |
+| Bypass MFA | senha/challenge usado como sessão ou JWT sem `amr=mfa` | challenge Data Protection opaco, policy e revalidação obrigatória |
+| Replay/brute force | repetição de timestep, recovery code ou tentativas de challenge | timestep persistido, hashes single-use, cinco erros/challenge e rate limits |
+| Vazamento de segredo | QR/TOTP enviado a terceiro, key ring efêmero ou token no log/cache | QR local, purpose isolado, volume persistente, fragment URL, `no-store` e bypass PWA |
+| Abuso de provisionamento | mass assignment, CPF/CNPJ duplicado ou grafo parcial | DTO mínimo, IDs/slug server-side, unique indexes e transação única |
+| Cross-tenant global | `IgnoreQueryFilters` vira acesso operacional irrestrito | consultas explícitas somente a metadados e predicados EmpresaId/UsuarioId; sem impersonation |
+| Convite adulterado | token em claro, reuso, expiração, empresa suspensa ou usuário ativo | SHA-256, comparação fixa, single-use, 72h, reenvio invalida anterior e estado revalidado |
+| Falha externa | Resend falha ou worker cai após obter lease | commit tenant anterior ao e-mail, retry bounded, lease recuperável e idempotência |
+| XSS/header injection | nome malicioso entra no e-mail ou auditoria/UI | HTML encoding, Razor encoding e rejeição de CR/LF no e-mail |
+| Repudiation | operação global sem rastro ou rastro alterado | auditoria append-only com ator, alvo, UTC, trace ID e descrição segura |
+
+Riscos residuais específicos: limite por challenge é local ao processo e precisa de cache distribuído antes de múltiplas réplicas; key ring depende de KMS/volume seguro da infraestrutura; e-mail e confirmação no banco não são uma transação distribuída.
 
 ## Referências
 

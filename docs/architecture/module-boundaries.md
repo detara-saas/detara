@@ -1,5 +1,9 @@
 # Fronteiras dos módulos
 
+## Administração da plataforma
+
+A Administração da Plataforma é dona de `AdministradorPlataforma`, MFA/recovery, provisionamento, convites e `AuditoriaPlataforma`. Suas identidades não pertencem a tenants. Integrações com o domínio base usam IDs e o menor write path explícito necessário para criar ou alterar o estado de uma empresa; não autorizam navegação genérica pelo grafo operacional nem um contexto global sem filtros. O Platform Admin pode consultar somente metadados de empresa, usuário inicial e convite. Não há dependência inversa dos módulos tenant para a administração da plataforma.
+
 Este documento é a fonte principal para ownership, dependências e comunicação entre os módulos da Detara. A decisão que o sustenta está no [ADR 001](../adr/001-modular-monolith.md).
 
 ## Objetivo

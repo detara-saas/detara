@@ -69,6 +69,8 @@ Consulte `docs/architecture/module-boundaries.md` antes de criar ou integrar mó
 
 Nunca commite senha, JWT signing key, API key, connection string real, certificado/chave privada ou `.env` real. Nunca registre senha, JWT, secret ou connection string em logs.
 
+Platform Admin é uma identidade global separada do tenant: não pode possuir `EmpresaId`, reutilizar token/scheme/chave tenant, acessar dados operacionais ou oferecer impersonation. MFA TOTP é obrigatório antes de emitir token administrativo. Segredo TOTP deve usar Data Protection persistente; recovery codes e tokens de convite devem ser single-use, expirar e existir no banco somente como hash. Nunca adicione bootstrap HTTP, senha em argumento CLI, senha de cliente definida pelo Platform Admin ou token de convite em query string/log/storage do browser.
+
 Toda nova rota que recebe um ID pertencente a tenant deve possuir teste adversarial Empresa A versus Empresa B. Todo uso de `IgnoreQueryFilters` deve restringir explicitamente o tenant ou documentar por que é uma operação de sistema de menor privilégio.
 
 Toda nova ação protegida deve possuir autorização no backend e teste de usuário anônimo/sem permissão; esconder UI nunca é suficiente. Exceções `[AllowAnonymous]` pertencem a uma whitelist mínima e revisada.

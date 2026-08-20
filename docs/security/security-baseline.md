@@ -10,6 +10,9 @@ Esta baseline é obrigatória para código novo e manutenção. Exceções exige
 - Usuário, empresa, perfil e permissões atuais são revalidados no backend. Desativação, troca de perfil, troca de senha e revogação de permissão invalidam o token existente.
 - Login inválido usa mensagem genérica, custo de hash também para identidade inexistente e rate limit.
 - Claims de autorização não são aceitas apenas porque estão assinadas: devem continuar compatíveis com o estado atual persistido.
+- Platform Admin permanece sem `EmpresaId` e usa scheme, signing key, audience, contexto e storage separados do tenant. MFA TOTP e claim `amr=mfa` são obrigatórios antes de emitir sessão global.
+- Segredo TOTP usa Data Protection persistente com purpose dedicado. Timestep, recovery code e convite impedem replay; recovery e convite só persistem como hash single-use e expiram.
+- Bootstrap de Platform Admin é exclusivamente CLI interativo, cria somente o primeiro admin e nunca aceita senha em argumento. Não existe bootstrap HTTP ou seed.
 
 ## Autorização
 
@@ -26,6 +29,7 @@ Esta baseline é obrigatória para código novo e manutenção. Exceções exige
 - Toda nova rota que recebe ID de recurso tenant-owned recebe teste adversarial Empresa A versus Empresa B.
 - Referências cross-module e IDs relacionados são revalidados dentro do tenant antes de persistir.
 - Respostas para GUID de outro tenant não revelam existência nem dados do recurso.
+- Administração da plataforma consulta somente metadados mínimos. `IgnoreQueryFilters` nunca concede acesso a dados operacionais nem fundamenta impersonation.
 
 ## Contratos, validação e dados
 
@@ -52,6 +56,7 @@ Esta baseline é obrigatória para código novo e manutenção. Exceções exige
 - CSP e headers de defesa em profundidade devem permanecer compatíveis com o build publicado.
 - Service Worker pode cachear somente app shell e assets estáticos versionados. API, Authorization, JWT e dados comerciais/financeiros nunca entram no cache.
 - JWT não é persistido em cache offline. Alteração do modelo de sessão exige revisão de XSS e CSRF.
+- Token de convite usa fragment, permanece apenas em memória e é removido da URL; nunca entra em query string, storage ou cache. Platform JWT fica em chave própria de `sessionStorage` e não é anexado fora da API protegida da plataforma.
 
 ## Integrações externas
 
