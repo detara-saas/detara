@@ -59,6 +59,110 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ClienteDeOutroTenant_NaoPodeSerLidoNemEditadoPorId()
+    {
+        UsarPermissoes(Permissoes.ClientesVisualizar, Permissoes.ClientesEditar);
+
+        var leitura = await _client.GetAsync($"/api/clientes/{_factory.ClienteOutroTenantId}");
+        var edicao = await _client.PutAsJsonAsync(
+            $"/api/clientes/{_factory.ClienteOutroTenantId}",
+            new SalvarClienteRequest(
+                "Tentativa indevida",
+                "PessoaFisica",
+                "39053344705",
+                null,
+                null,
+                null,
+                null,
+                null));
+
+        Assert.Equal(HttpStatusCode.NotFound, leitura.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, edicao.StatusCode);
+        Assert.Equal("Cliente outro tenant", await _factory.ObterNomeClienteGlobalAsync(
+            _factory.ClienteOutroTenantId));
+    }
+
+    [Fact]
+    public async Task CamposProtegidosExtras_NaoControlamTenantNemEstadoDoCliente()
+    {
+        UsarPermissoes(Permissoes.ClientesCriar);
+        var payload = new
+        {
+            Nome = "Cliente mass assignment",
+            TipoPessoa = "PessoaFisica",
+            CpfCnpj = "39053344705",
+            Telefone = (string?)null,
+            WhatsApp = (string?)null,
+            Email = (string?)null,
+            DataNascimento = (DateOnly?)null,
+            Observacao = (string?)null,
+            EmpresaId = _factory.EmpresaOutroTenantId,
+            EhAtivo = false,
+            CriadoEmUtc = DateTime.UnixEpoch
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/clientes", payload);
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<ClienteDetalheResponse>>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(corpo?.Resultado);
+        var estado = await _factory.ObterEstadoClienteGlobalAsync(corpo.Resultado.Id);
+        Assert.Equal(_factory.EmpresaId, estado.EmpresaId);
+        Assert.True(estado.EhAtivo);
+        Assert.NotEqual(DateTime.UnixEpoch, estado.CriadoEmUtc);
+    }
+
+    [Fact]
+    public async Task Login_RepetidoExcessivamente_Retorna429NoLimite()
+    {
+        var payload = new
+        {
+            SlugEmpresa = "empresa-inexistente",
+            Email = "usuario-inexistente@detara.local",
+            Senha = "senha-incorreta"
+        };
+
+        for (var tentativa = 0; tentativa < 10; tentativa++)
+        {
+            var resposta = await _client.PostAsJsonAsync("/api/autenticacao/login", payload);
+            Assert.Equal(HttpStatusCode.Unauthorized, resposta.StatusCode);
+        }
+
+        var bloqueada = await _client.PostAsJsonAsync("/api/autenticacao/login", payload);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, bloqueada.StatusCode);
+        Assert.Equal("application/json", bloqueada.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task PesquisaComPayloadSql_NaoAlteraAQueryNemRetornaDados()
+    {
+        UsarPermissoes(Permissoes.ClientesVisualizar);
+
+        var response = await _client.GetAsync(
+            "/api/clientes?pesquisa=%27%20OR%201%3D1--&tamanhoPagina=25");
+        var corpo = await response.Content.ReadFromJsonAsync<
+            RespostaApi<PaginaResponse<ClienteListaResponse>>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(corpo?.Resultado);
+        Assert.Empty(corpo.Resultado.Itens);
+    }
+
+    [Fact]
+    public async Task OrdenacaoComComandoSql_EhRejeitadaEServicoPermaneceIntegro()
+    {
+        UsarPermissoes(Permissoes.ClientesVisualizar);
+
+        var ataque = await _client.GetAsync(
+            "/api/clientes?ordenacao=nome%3BDROP%20TABLE%20Clientes--");
+        var verificacao = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.BadRequest, ataque.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, verificacao.StatusCode);
+    }
+
+    [Fact]
     public async Task UsuarioSemClientesEditar_AlteracaoBloqueada()
     {
         UsarPermissoes(Permissoes.ClientesVisualizar);
@@ -398,7 +502,9 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         private readonly SqliteConnection _connection = new("Data Source=:memory:");
         private readonly Dictionary<string, string?> _environmentBeforeTest = new();
         public Guid EmpresaId { get; } = Guid.NewGuid();
+        public Guid EmpresaOutroTenantId { get; } = Guid.NewGuid();
         public Guid ClienteId { get; private set; }
+        public Guid ClienteOutroTenantId { get; private set; }
         public Guid VeiculoId { get; private set; }
         public Guid ServicoId { get; private set; }
         public Guid OrcamentoId { get; private set; }
@@ -441,8 +547,34 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             await systemContext.Database.EnsureCreatedAsync();
             var empresa = new Empresa("Empresa Teste", "Empresa Teste Ltda", "12345678000190", "empresa-teste");
             typeof(EntidadeBase).GetProperty(nameof(EntidadeBase.Id))!.SetValue(empresa, EmpresaId);
-            systemContext.Empresas.Add(empresa);
+            var empresaOutroTenant = new Empresa(
+                "Empresa Outro Tenant",
+                "Empresa Outro Tenant Ltda",
+                "98765432000198",
+                "empresa-outro-tenant");
+            typeof(EntidadeBase).GetProperty(nameof(EntidadeBase.Id))!
+                .SetValue(empresaOutroTenant, EmpresaOutroTenantId);
+            systemContext.Empresas.AddRange(empresa, empresaOutroTenant);
             await systemContext.SaveChangesAsync();
+
+            await using (var outroTenant = new DetaraDbContext(
+                options,
+                new TestUserContext(EmpresaOutroTenantId)))
+            {
+                var clienteOutroTenant = new Cliente(
+                    EmpresaOutroTenantId,
+                    "Cliente outro tenant",
+                    TipoPessoa.PessoaFisica,
+                    "52998224725",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
+                outroTenant.Clientes.Add(clienteOutroTenant);
+                await outroTenant.SaveChangesAsync();
+                ClienteOutroTenantId = clienteOutroTenant.Id;
+            }
 
             await using var tenantContext = new DetaraDbContext(options, new TestUserContext(EmpresaId));
             var cliente = new Cliente(
@@ -479,6 +611,23 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             tenantContext.Orcamentos.Add(orcamento);
             await tenantContext.SaveChangesAsync();
             OrcamentoId = orcamento.Id;
+        }
+
+        public async Task<string> ObterNomeClienteGlobalAsync(Guid id) =>
+            (await ObterClienteGlobalAsync(id)).Nome;
+
+        public async Task<(Guid EmpresaId, bool EhAtivo, DateTime CriadoEmUtc)>
+            ObterEstadoClienteGlobalAsync(Guid id)
+        {
+            var cliente = await ObterClienteGlobalAsync(id);
+            return (cliente.EmpresaId, cliente.EhAtivo, cliente.CriadoEmUtc);
+        }
+
+        private async Task<Cliente> ObterClienteGlobalAsync(Guid id)
+        {
+            using var scope = Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<DetaraDbContext>();
+            return await context.Clientes.IgnoreQueryFilters().SingleAsync(item => item.Id == id);
         }
 
         public new async ValueTask DisposeAsync()

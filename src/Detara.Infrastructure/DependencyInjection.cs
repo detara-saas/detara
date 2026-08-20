@@ -30,13 +30,17 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException(
-                "A connection string 'DefaultConnection' deve ser configurada.");
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "A connection string 'DefaultConnection' deve ser configurada por secret ou variável de ambiente.");
+        }
 
         services.AddDbContext<DetaraDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<IUsuarioAutenticacaoRepositorio, UsuarioAutenticacaoRepositorio>();
-        services.AddScoped<ISenhaServico, SenhaServico>();
+        services.AddSingleton<ISenhaServico, SenhaServico>();
+        services.AddScoped<IValidadorIdentidadeAutenticada, ValidadorIdentidadeAutenticada>();
         services.AddScoped<IPreferenciasUsuarioRepositorio, PreferenciasUsuarioRepositorio>();
         services.AddScoped<IClientesRepositorio, ClientesRepositorio>();
         services.AddScoped<IVeiculosRepositorio, VeiculosRepositorio>();
@@ -63,7 +67,11 @@ public static class DependencyInjection
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.Secao));
         services.Configure<FilaNotificacoesOptions>(configuration.GetSection(FilaNotificacoesOptions.Secao));
         services.AddHttpClient<IProvedorEmail, ResendEmailProvider>(client =>
-            client.BaseAddress = new Uri("https://api.resend.com/"));
+        {
+            client.BaseAddress = new Uri("https://api.resend.com/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.MaxResponseContentBufferSize = 64 * 1024;
+        });
         services.AddScoped<IFilaNotificacoesServico, FilaNotificacoesServico>();
         services.AddHostedService<NotificacoesWorker>();
         services.AddScoped<IVeiculoFotosRepositorio, VeiculoFotosRepositorio>();
@@ -78,7 +86,7 @@ public static class DependencyInjection
 
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.Secao));
         services.AddSingleton<IArquivoStorage, LocalArquivoStorage>();
-        services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
+        services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
         return services;
     }

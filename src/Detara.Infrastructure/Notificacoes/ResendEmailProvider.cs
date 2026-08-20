@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using Detara.Application.Notificacoes;
 using Microsoft.Extensions.Options;
 
@@ -40,7 +41,18 @@ internal sealed class ResendEmailProvider(HttpClient http, IOptions<EmailOptions
             var temporaria = response.StatusCode is HttpStatusCode.RequestTimeout or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests || (int)response.StatusCode >= 500;
             return new(false, temporaria, null, temporaria ? "Falha temporária no provedor de e-mail." : "O provedor rejeitou a mensagem.");
         }
-        catch (HttpRequestException) { return new(false, true, null, "Não foi possível acessar o provedor de e-mail."); }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return new(false, true, null, "O provedor de e-mail excedeu o tempo de resposta.");
+        }
+        catch (HttpRequestException)
+        {
+            return new(false, true, null, "Não foi possível acessar o provedor de e-mail.");
+        }
+        catch (JsonException)
+        {
+            return new(false, true, null, "O provedor de e-mail retornou uma resposta inválida.");
+        }
     }
     private sealed record ResendRequest([property: JsonPropertyName("from")] string From,
         [property: JsonPropertyName("to")] string[] To, [property: JsonPropertyName("subject")] string Subject,

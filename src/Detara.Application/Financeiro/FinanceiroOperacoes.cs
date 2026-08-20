@@ -35,6 +35,9 @@ internal sealed class ListarContasReceberValidator : AbstractValidator<ListarCon
         RuleFor(x => x.Pesquisa).MaximumLength(160);
         RuleFor(x => x).Must(x => !x.CompetenciaInicial.HasValue || !x.CompetenciaFinal.HasValue ||
             x.CompetenciaFinal >= x.CompetenciaInicial).WithMessage("O período de competência é inválido.");
+        RuleFor(x => x).Must(x => !x.CompetenciaInicial.HasValue || !x.CompetenciaFinal.HasValue ||
+            x.CompetenciaFinal.Value.DayNumber - x.CompetenciaInicial.Value.DayNumber <= 3660)
+            .WithMessage("O período de competência não pode exceder dez anos.");
     }
 }
 
@@ -45,8 +48,14 @@ internal sealed class ObterContaReceberValidator : AbstractValidator<ObterContaR
 
 internal sealed class ObterResumoFinanceiroValidator : AbstractValidator<ObterResumoFinanceiroQuery>
 {
-    public ObterResumoFinanceiroValidator() => RuleFor(x => x).Must(x => !x.Inicio.HasValue || !x.Fim.HasValue || x.Fim >= x.Inicio)
-        .WithMessage("O período financeiro é inválido.");
+    public ObterResumoFinanceiroValidator()
+    {
+        RuleFor(x => x).Must(x => !x.Inicio.HasValue || !x.Fim.HasValue || x.Fim >= x.Inicio)
+            .WithMessage("O período financeiro é inválido.");
+        RuleFor(x => x).Must(x => !x.Inicio.HasValue || !x.Fim.HasValue ||
+                x.Fim.Value.DayNumber - x.Inicio.Value.DayNumber <= 3660)
+            .WithMessage("O período financeiro não pode exceder dez anos.");
+    }
 }
 
 internal sealed class RegistrarPagamentoValidator : AbstractValidator<RegistrarPagamentoCommand>

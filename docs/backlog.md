@@ -12,8 +12,18 @@
 - Contas a receber, pagamentos, estornos e dashboard financeiro com dados reais — concluído na Task 07
 - Notificação transacional de veículo pronto por e-mail, template seguro e fila persistente — concluído na Task 08
 - PWA instalável, app shell seguro, atualização consentida e experiência controlada de conectividade — concluído na Task 09
+- Security hardening, threat model e baseline pré-produção — concluído na Task 10; blockers de infraestrutura permanecem abaixo
 
 ## Próxima versão
+
+- Platform Admin e provisionamento de empresas somente sobre a baseline da Task 10; incluir MFA obrigatório e fluxo seguro de recovery antes de acesso real privilegiado
+- Production Readiness: domínio/TLS, reverse proxy com trusted proxies, secrets manager, banco de menor privilégio, object storage privado, backup/restore testado, observabilidade e configuração/DNS do Resend
+- CI de segurança: secret scanning de histórico, dependency audit, SAST e publicação de evidências sem expor secrets
+- Staging production-like com DAST e pentest autenticado antes da primeira beta real
+- Pipeline de imagens com decoder seguro, limites de dimensão, thumbnails e política de EXIF quando houver processamento server-side
+- Reavaliar BFF/cookie HttpOnly e proteção CSRF antes de superfícies altamente privilegiadas ou públicas
+- Auto-hospedar fontes para reduzir dependência de terceiro e exposição de metadados
+- Automatizar nonce/hash da CSP do import map gerado pelo Blazor quando a hospedagem deixar de ser Nginx estritamente estático
 
 - Pós-venda adicional e WhatsApp (além do e-mail transacional de veículo pronto já entregue)
 - Comissões e estoque básico

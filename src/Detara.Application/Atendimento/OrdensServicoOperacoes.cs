@@ -73,6 +73,9 @@ internal sealed class ListarOrdensServicoValidator : AbstractValidator<ListarOrd
         RuleFor(item => item.Pesquisa).MaximumLength(160);
         RuleFor(item => item).Must(item => !item.DataInicial.HasValue || !item.DataFinal.HasValue || item.DataInicial <= item.DataFinal)
             .WithMessage("O período informado é inválido.");
+        RuleFor(item => item).Must(item => !item.DataInicial.HasValue || !item.DataFinal.HasValue ||
+                item.DataFinal.Value.DayNumber - item.DataInicial.Value.DayNumber <= 3660)
+            .WithMessage("O período informado não pode exceder dez anos.");
     }
 }
 

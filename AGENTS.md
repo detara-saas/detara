@@ -69,6 +69,16 @@ Consulte `docs/architecture/module-boundaries.md` antes de criar ou integrar mó
 
 Nunca commite senha, JWT signing key, API key, connection string real, certificado/chave privada ou `.env` real. Nunca registre senha, JWT, secret ou connection string em logs.
 
+Toda nova rota que recebe um ID pertencente a tenant deve possuir teste adversarial Empresa A versus Empresa B. Todo uso de `IgnoreQueryFilters` deve restringir explicitamente o tenant ou documentar por que é uma operação de sistema de menor privilégio.
+
+Toda nova ação protegida deve possuir autorização no backend e teste de usuário anônimo/sem permissão; esconder UI nunca é suficiente. Exceções `[AllowAnonymous]` pertencem a uma whitelist mínima e revisada.
+
+Nenhum input deve aceitar `EmpresaId`, auditoria, status interno ou valor derivado como fonte de autoridade quando esses dados puderem ser obtidos do contexto ou calculados no servidor. Use DTOs mínimos e mapeamento explícito; não faça bind de entidades EF.
+
+Uploads, HTML configurável, novas integrações externas, `MarkupString`, `innerHTML`, `srcdoc`, raw SQL e mudanças no armazenamento de token exigem revisão de segurança e testes adversariais proporcionais ao risco.
+
+Vulnerabilidade corrigida deve receber teste de regressão quando tecnicamente viável. Nenhum Critical ou High conhecido pode permanecer aberto para iniciar feature privilegiada.
+
 ## Git e qualidade
 
 Execute `git status` antes de modificar e preserve alterações locais do usuário. Prefira commits pequenos e semânticos. Antes de concluir tarefa relevante, execute:
