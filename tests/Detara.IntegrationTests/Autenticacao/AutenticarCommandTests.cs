@@ -43,13 +43,26 @@ public sealed class AutenticarCommandTests
         Assert.Empty(resultado.Permissoes);
     }
 
-    private static ServiceProvider CriarServicos(Usuario usuario)
+    [Fact]
+    public async Task UsuarioInexistente_ExecutaVerificacaoFicticia()
+    {
+        var senha = new SenhaRastreavel();
+        using var provider = CriarServicos(null, senha);
+
+        await Assert.ThrowsAsync<CredenciaisInvalidasException>(() => AutenticarAsync(provider));
+
+        Assert.True(senha.VerificacaoFicticiaExecutada);
+    }
+
+    private static ServiceProvider CriarServicos(
+        Usuario? usuario,
+        ISenhaServico? senhaServico = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AdicionarApplication();
         services.AddSingleton<IUsuarioAutenticacaoRepositorio>(new RepositorioFixo(usuario));
-        services.AddSingleton<ISenhaServico, SenhaSempreValida>();
+        services.AddSingleton(senhaServico ?? new SenhaSempreValida());
         services.AddSingleton<ITokenServico, TokenFixo>();
         return services.BuildServiceProvider();
     }
@@ -72,7 +85,7 @@ public sealed class AutenticarCommandTests
         return usuario;
     }
 
-    private sealed class RepositorioFixo(Usuario usuario) : IUsuarioAutenticacaoRepositorio
+    private sealed class RepositorioFixo(Usuario? usuario) : IUsuarioAutenticacaoRepositorio
     {
         public Task<Usuario?> ObterParaLoginAsync(
             string slugEmpresa,
@@ -84,6 +97,15 @@ public sealed class AutenticarCommandTests
     {
         public string GerarHash(Usuario usuario, string senha) => "hash";
         public bool Verificar(Usuario usuario, string senhaHash, string senha) => true;
+        public void VerificarContraHashFicticio(string senha) { }
+    }
+
+    private sealed class SenhaRastreavel : ISenhaServico
+    {
+        public bool VerificacaoFicticiaExecutada { get; private set; }
+        public string GerarHash(Usuario usuario, string senha) => "hash";
+        public bool Verificar(Usuario usuario, string senhaHash, string senha) => false;
+        public void VerificarContraHashFicticio(string senha) => VerificacaoFicticiaExecutada = true;
     }
 
     private sealed class TokenFixo : ITokenServico

@@ -1,0 +1,284 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Detara.Application.Abstracoes;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
+
+namespace Detara.IntegrationTests.Security;
+
+[Collection("api-security")]
+public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
+{
+    private const string Emissor = "Detara.Security.Tests";
+    private const string Audiencia = "Detara.Security.Tests.Web";
+    private static readonly string Chave = Convert.ToBase64String(
+        SHA512.HashData(Encoding.UTF8.GetBytes("detara-security-tests-signing-key")));
+    private readonly ApiSecurityFactory _factory = new();
+    private HttpClient _client = null!;
+
+    public Task InitializeAsync()
+    {
+        _client = _factory.CreateClient();
+        return Task.CompletedTask;
+    }
+
+    public async Task DisposeAsync()
+    {
+        _client.Dispose();
+        await _factory.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task JwtHs256Valido_AutenticaMasRespeitaPermissao()
+    {
+        UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
+
+        var response = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(SecurityAlgorithms.HmacSha512)]
+    [InlineData(SecurityAlgorithms.HmacSha384)]
+    public async Task JwtComAlgoritmoNaoPermitido_EhRejeitado(string algoritmo)
+    {
+        UsarToken(CriarToken(algoritmo));
+
+        var response = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task JwtExpirado_EhRejeitado()
+    {
+        UsarToken(CriarToken(
+            SecurityAlgorithms.HmacSha256,
+            DateTime.UtcNow.AddMinutes(-10),
+            DateTime.UtcNow.AddMinutes(-5)));
+
+        var response = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task JwtAdulterado_EhRejeitado()
+    {
+        var token = CriarToken(SecurityAlgorithms.HmacSha256);
+        var partes = token.Split('.');
+        partes[1] = partes[1][..^1] + (partes[1][^1] == 'a' ? 'b' : 'a');
+        UsarToken(string.Join('.', partes));
+
+        var response = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task EndpointAnonimo_FicaRestritoAWhitelistAuditada()
+    {
+        var dataSource = _factory.Services.GetRequiredService<EndpointDataSource>();
+        var anonimos = dataSource.Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            .SelectMany(endpoint =>
+            {
+                var rota = "/" + endpoint.RoutePattern.RawText?.TrimStart('/');
+                var metodos = endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["ANY"];
+                return metodos.Select(metodo => $"{metodo} {rota}");
+            })
+            .OrderBy(item => item, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            ["GET /health", "POST /api/autenticacao/login"],
+            anonimos);
+        var autorizacao = _factory.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AuthorizationOptions>>();
+        Assert.NotNull(autorizacao.Value.FallbackPolicy);
+    }
+
+    [Fact]
+    public async Task RespostasDaApi_IncluemBaselineDeHeadersSeguros()
+    {
+        var response = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        Assert.True(response.Headers.Contains("X-Trace-Id"));
+        Assert.Contains("default-src 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [Fact]
+    public async Task OrigemCorsNaoPermitida_NaoRecebeCabecalhoDeLiberacao()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/clientes");
+        request.Headers.Add("Origin", "https://origem-maliciosa.example");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
+    }
+
+    [Fact]
+    public async Task ProductionComHostWildcard_FalhaNoStartup()
+    {
+        await using var factory = new ProductionFactory("*");
+
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+
+        Assert.Contains("AllowedHosts", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProductionComConfiguracaoCriticaExplicita_Inicia()
+    {
+        await using var factory = new ProductionFactory("api.detara.example");
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://api.detara.example")
+        });
+
+        var response = await client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private void UsarToken(string token)
+    {
+        _client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private static string CriarToken(
+        string algoritmo,
+        DateTime? validoAPartir = null,
+        DateTime? expiraEm = null)
+    {
+        var agora = DateTime.UtcNow;
+        var claims = new Claim[]
+        {
+            new(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+            new("empresa_id", Guid.NewGuid().ToString()),
+            new("perfil_id", Guid.NewGuid().ToString()),
+            new("usuario_atualizado_ticks", "0")
+        };
+        var token = new JwtSecurityToken(
+            Emissor,
+            Audiencia,
+            claims,
+            validoAPartir ?? agora.AddMinutes(-1),
+            expiraEm ?? agora.AddMinutes(5),
+            new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Chave)),
+                algoritmo));
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private sealed class ApiSecurityFactory : WebApplicationFactory<Program>, IAsyncDisposable
+    {
+        private readonly Dictionary<string, string?> _ambienteAnterior = new();
+
+        public ApiSecurityFactory()
+        {
+            DefinirAmbiente("Jwt__Emissor", Emissor);
+            DefinirAmbiente("Jwt__Audiencia", Audiencia);
+            DefinirAmbiente("Jwt__ChaveAssinatura", Chave);
+            DefinirAmbiente("Jwt__ExpiracaoMinutos", "60");
+            DefinirAmbiente("ConnectionStrings__DefaultConnection", "Server=localhost;Database=unused;Integrated Security=true;TrustServerCertificate=true");
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.UseEnvironment("Testing");
+            builder.ConfigureLogging(logging => logging.ClearProviders());
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IValidadorIdentidadeAutenticada>();
+                services.AddSingleton<IValidadorIdentidadeAutenticada, ValidadorSempreAtivo>();
+            });
+        }
+
+        public new async ValueTask DisposeAsync()
+        {
+            await base.DisposeAsync();
+            foreach (var (chave, valor) in _ambienteAnterior)
+            {
+                Environment.SetEnvironmentVariable(chave, valor);
+            }
+        }
+
+        private void DefinirAmbiente(string chave, string valor)
+        {
+            _ambienteAnterior[chave] = Environment.GetEnvironmentVariable(chave);
+            Environment.SetEnvironmentVariable(chave, valor);
+        }
+    }
+
+    private sealed class ValidadorSempreAtivo : IValidadorIdentidadeAutenticada
+    {
+        public Task<bool> EhValidaAsync(
+            IdentidadeToken identidade,
+            CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
+    private sealed class ProductionFactory : WebApplicationFactory<Program>, IAsyncDisposable
+    {
+        private readonly Dictionary<string, string?> _ambienteAnterior = new();
+
+        public ProductionFactory(string allowedHosts)
+        {
+            DefinirAmbiente("AllowedHosts", allowedHosts);
+            DefinirAmbiente("Cors__OrigensPermitidas__0", "https://app.detara.example");
+            DefinirAmbiente("Jwt__Emissor", Emissor);
+            DefinirAmbiente("Jwt__Audiencia", Audiencia);
+            DefinirAmbiente("Jwt__ChaveAssinatura", Chave);
+            DefinirAmbiente("Jwt__ExpiracaoMinutos", "60");
+            DefinirAmbiente("ConnectionStrings__DefaultConnection", "Server=localhost;Database=unused;Integrated Security=true;TrustServerCertificate=true");
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.UseEnvironment("Production");
+            builder.ConfigureLogging(logging => logging.ClearProviders());
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IValidadorIdentidadeAutenticada>();
+                services.AddSingleton<IValidadorIdentidadeAutenticada, ValidadorSempreAtivo>();
+            });
+        }
+
+        public new async ValueTask DisposeAsync()
+        {
+            await base.DisposeAsync();
+            foreach (var (chave, valor) in _ambienteAnterior)
+            {
+                Environment.SetEnvironmentVariable(chave, valor);
+            }
+        }
+
+        private void DefinirAmbiente(string chave, string valor)
+        {
+            _ambienteAnterior[chave] = Environment.GetEnvironmentVariable(chave);
+            Environment.SetEnvironmentVariable(chave, valor);
+        }
+    }
+}
+
+[CollectionDefinition("api-security", DisableParallelization = true)]
+public sealed class ApiSecurityCollection;
