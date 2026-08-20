@@ -1,5 +1,6 @@
 using Detara.Application.Abstracoes;
 using Detara.Application.Notificacoes;
+using Detara.Application.Comunicacao;
 using Detara.Domain.Entidades;
 using Detara.Domain.Notificacoes;
 using Detara.Infrastructure.Notificacoes;

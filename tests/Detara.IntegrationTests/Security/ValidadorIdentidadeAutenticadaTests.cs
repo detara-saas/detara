@@ -140,6 +140,7 @@ public sealed class ValidadorIdentidadeAutenticadaTests : IAsyncLifetime
         _empresa.Id,
         _perfil.Id,
         _usuario.AtualizadoEmUtc?.Ticks ?? 0,
+        _empresa.VersaoSeguranca,
         [_permissao.Codigo]);
 
     private async Task AssertTokenRevogadoAsync()

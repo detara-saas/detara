@@ -3,7 +3,9 @@ using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Net.Http.Json;
 using Detara.Application.Abstracoes;
+using Detara.Application.Plataforma;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -23,6 +25,8 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     private const string Audiencia = "Detara.Security.Tests.Web";
     private static readonly string Chave = Convert.ToBase64String(
         SHA512.HashData(Encoding.UTF8.GetBytes("detara-security-tests-signing-key")));
+    private static readonly string ChavePlataforma = Convert.ToBase64String(
+        SHA512.HashData(Encoding.UTF8.GetBytes("detara-platform-security-tests-signing-key")));
     private readonly ApiSecurityFactory _factory = new();
     private HttpClient _client = null!;
 
@@ -87,6 +91,91 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TokenTenant_NaoAutenticaEndpointPlataforma()
+    {
+        UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
+
+        var response = await _client.GetAsync("/api/plataforma/dashboard");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TokenPlataforma_NaoAutenticaEndpointTenant()
+    {
+        UsarToken(CriarTokenPlataforma(incluirMfa: true));
+
+        var response = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TokenPlataformaSemMfa_NaoCriaSessaoAdministrativa()
+    {
+        UsarToken(CriarTokenPlataforma(incluirMfa: false));
+
+        var response = await _client.GetAsync("/api/plataforma/dashboard");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TokenPlataformaComAudienciaTenant_EhRejeitado()
+    {
+        UsarToken(CriarTokenPlataforma(incluirMfa: true, audiencia: Audiencia));
+
+        var response = await _client.GetAsync("/api/plataforma/dashboard");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TokenPlataformaExpirado_EhRejeitado()
+    {
+        UsarToken(CriarTokenPlataforma(
+            incluirMfa: true,
+            validoAPartir: DateTime.UtcNow.AddMinutes(-10),
+            expiraEm: DateTime.UtcNow.AddMinutes(-5)));
+
+        var response = await _client.GetAsync("/api/plataforma/dashboard");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TokenPlataformaComAssinaturaErrada_EhRejeitado()
+    {
+        UsarToken(CriarTokenPlataforma(
+            incluirMfa: true,
+            chave: Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))));
+
+        var response = await _client.GetAsync("/api/plataforma/dashboard");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/plataforma/autenticacao/login", 6)]
+    [InlineData("/api/plataforma/autenticacao/mfa/verificar", 9)]
+    [InlineData("/api/convites/administrador/validar", 11)]
+    public async Task EndpointsSensiveisAplicamRateLimitPorOrigem(string rota, int quantidade)
+    {
+        HttpResponseMessage? ultima = null;
+        for (var tentativa = 0; tentativa < quantidade; tentativa++)
+        {
+            ultima?.Dispose();
+            ultima = await _client.PostAsJsonAsync(rota, new { });
+        }
+
+        using (ultima)
+        {
+            Assert.NotNull(ultima);
+            Assert.Equal(HttpStatusCode.TooManyRequests, ultima.StatusCode);
+        }
+    }
+
+    [Fact]
     public async Task EndpointAnonimo_FicaRestritoAWhitelistAuditada()
     {
         var dataSource = _factory.Services.GetRequiredService<EndpointDataSource>();
@@ -103,10 +192,32 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             .ToArray();
 
         Assert.Equal(
-            ["GET /health", "POST /api/autenticacao/login"],
+            [
+                "GET /health",
+                "POST /api/autenticacao/login",
+                "POST /api/convites/administrador/aceitar",
+                "POST /api/convites/administrador/validar",
+                "POST /api/plataforma/autenticacao/login",
+                "POST /api/plataforma/autenticacao/mfa/ativar",
+                "POST /api/plataforma/autenticacao/mfa/configuracao",
+                "POST /api/plataforma/autenticacao/mfa/verificar"
+            ],
             anonimos);
         var autorizacao = _factory.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AuthorizationOptions>>();
         Assert.NotNull(autorizacao.Value.FallbackPolicy);
+    }
+
+    [Fact]
+    public void Bootstrap_NaoExisteNaSuperficieHttp()
+    {
+        var rotas = _factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Select(x => x.RoutePattern.RawText ?? string.Empty)
+            .ToArray();
+
+        Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(110, rotas.Length);
     }
 
     [Fact]
@@ -176,7 +287,8 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             new(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
             new("empresa_id", Guid.NewGuid().ToString()),
             new("perfil_id", Guid.NewGuid().ToString()),
-            new("usuario_atualizado_ticks", "0")
+            new("usuario_atualizado_ticks", "0"),
+            new("empresa_versao_seguranca", "1")
         };
         var token = new JwtSecurityToken(
             Emissor,
@@ -190,6 +302,37 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    private static string CriarTokenPlataforma(
+        bool incluirMfa,
+        string? audiencia = null,
+        string? chave = null,
+        DateTime? validoAPartir = null,
+        DateTime? expiraEm = null)
+    {
+        var agora = DateTime.UtcNow;
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+            new("identidade", "platform_admin"),
+            new("versao_seguranca", "1")
+        };
+        if (incluirMfa)
+        {
+            claims.Add(new Claim("amr", "mfa"));
+        }
+
+        var token = new JwtSecurityToken(
+            "Detara.Platform.Security.Tests",
+            audiencia ?? "detara-platform-tests",
+            claims,
+            validoAPartir ?? agora.AddMinutes(-1),
+            expiraEm ?? agora.AddMinutes(5),
+            new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chave ?? ChavePlataforma)),
+                SecurityAlgorithms.HmacSha256));
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
     private sealed class ApiSecurityFactory : WebApplicationFactory<Program>, IAsyncDisposable
     {
         private readonly Dictionary<string, string?> _ambienteAnterior = new();
@@ -200,6 +343,10 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             DefinirAmbiente("Jwt__Audiencia", Audiencia);
             DefinirAmbiente("Jwt__ChaveAssinatura", Chave);
             DefinirAmbiente("Jwt__ExpiracaoMinutos", "60");
+            DefinirAmbiente("PlatformJwt__Emissor", "Detara.Platform.Security.Tests");
+            DefinirAmbiente("PlatformJwt__Audiencia", "detara-platform-tests");
+            DefinirAmbiente("PlatformJwt__ChaveAssinatura", ChavePlataforma);
+            DefinirAmbiente("PlatformJwt__ExpiracaoMinutos", "45");
             DefinirAmbiente("ConnectionStrings__DefaultConnection", "Server=localhost;Database=unused;Integrated Security=true;TrustServerCertificate=true");
         }
 
@@ -211,6 +358,8 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             {
                 services.RemoveAll<IValidadorIdentidadeAutenticada>();
                 services.AddSingleton<IValidadorIdentidadeAutenticada, ValidadorSempreAtivo>();
+                services.RemoveAll<IAutenticacaoPlataformaServico>();
+                services.AddSingleton<IAutenticacaoPlataformaServico, ValidadorPlataformaSempreAtivo>();
             });
         }
 
@@ -237,6 +386,16 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             CancellationToken cancellationToken) => Task.FromResult(true);
     }
 
+    private sealed class ValidadorPlataformaSempreAtivo : IAutenticacaoPlataformaServico
+    {
+        public Task<bool> RevalidarAsync(Guid administradorPlataformaId, long versaoSeguranca, CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<InicioAutenticacaoPlataformaResultado> IniciarAsync(string email, string senha, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ConfiguracaoMfaPlataformaResultado> ObterConfiguracaoMfaAsync(string desafio, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AutenticacaoMfaPlataformaResultado> AtivarMfaAsync(string desafio, string codigo, string? traceId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AutenticacaoMfaPlataformaResultado> VerificarMfaAsync(string desafio, string codigo, string? traceId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyCollection<string>> RegenerarCodigosRecuperacaoAsync(Guid administradorPlataformaId, string senhaAtual, string codigoTotp, string? traceId, CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
     private sealed class ProductionFactory : WebApplicationFactory<Program>, IAsyncDisposable
     {
         private readonly Dictionary<string, string?> _ambienteAnterior = new();
@@ -249,6 +408,12 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             DefinirAmbiente("Jwt__Audiencia", Audiencia);
             DefinirAmbiente("Jwt__ChaveAssinatura", Chave);
             DefinirAmbiente("Jwt__ExpiracaoMinutos", "60");
+            DefinirAmbiente("PlatformJwt__Emissor", "Detara.Platform.Security.Tests");
+            DefinirAmbiente("PlatformJwt__Audiencia", "detara-platform-tests");
+            DefinirAmbiente("PlatformJwt__ChaveAssinatura", Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)));
+            DefinirAmbiente("PlatformJwt__ExpiracaoMinutos", "45");
+            DefinirAmbiente("Web__PublicBaseUrl", "https://app.detara.example");
+            DefinirAmbiente("DataProtection__KeyRingPath", Path.GetFullPath("data/test-dp-keys"));
             DefinirAmbiente("ConnectionStrings__DefaultConnection", "Server=localhost;Database=unused;Integrated Security=true;TrustServerCertificate=true");
         }
 
