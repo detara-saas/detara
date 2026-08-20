@@ -71,15 +71,36 @@ Toda página autenticada deve começar pela escolha de um arquétipo. A composi�
 
 | Token CSS | Uso |
 |---|---|
-| `--detara-page-max-width` | largura máxima padrão de páginas operacionais (`1280px`) |
-| `--detara-page-wide-max-width` | exceções que precisam de mais área, como Agenda semanal (`1600px`) |
+| `--detara-page-gutter` | gutter lateral responsivo do conteúdo autenticado (`24–32px` no desktop, `24px` no tablet e `16px` no mobile) |
+| `--detara-page-wide-max-width` | limite de fluxos comerciais, detalhes densos e composições main + aside (`1720px`) |
+| `--detara-page-focused-max-width` | limite de formulários simples e conteúdo de leitura concentrada (`1040px`) |
 | `--detara-page-gap` | distância entre regiões principais da página (`24px`) |
 | `--detara-section-gap` | ritmo entre seções relacionadas (`20px`) |
 | `--detara-card-padding` | preenchimento padrão de card de seção (`24px`) |
 | `--detara-form-gap` | distância entre grupos de formulário (`20px`) |
 | `--detara-summary-width` | largura do resumo lateral no desktop (`350px`) |
 
-Use `.page-container` como container central e `.page-container-wide` apenas quando a operação justificar largura adicional. O conteúdo autenticado também recebe uma largura máxima segura por padrão. Valores monetários usam `.currency-value` para preservar valor e símbolo na mesma linha quando houver espaço.
+Use `.page-container` em toda página autenticada e escolha explicitamente uma estratégia de largura. O default estrutural é fluido: telas operacionais novas não devem nascer artificialmente estreitas. Valores monetários usam `.currency-value` para preservar valor e símbolo na mesma linha quando houver espaço.
+
+### Page Width Strategy
+
+Largura de página e largura interna de leitura são decisões diferentes. Uma página fluida pode conter helper text ou empty state com largura legível; uma página ampla pode manter campos curtos em grids controlados.
+
+| Variante | Classe | Quando usar | Comportamento |
+|---|---|---|---|
+| **Fluid** | `.page-container-fluid` | dashboards, analytics, financeiro, calendário, listagens e telas operacionais densas | ocupa toda a largura útil do shell, sem `max-width`, respeitando somente o gutter responsivo |
+| **Wide** | `.page-container-wide` | formulários comerciais complexos, detalhes densos e composição main + summary aside | cresce até `1720px`; em Full HD acompanha praticamente toda a área útil e, em ultrawide, preserva linhas e campos confortáveis |
+| **Focused** | `.page-container-focused` | formulários simples, configurações textuais isoladas, estados administrativos e edição concentrada | centraliza o fluxo em até `1040px`, sem alterar o gutter do shell |
+
+Mapa de arquétipos:
+
+- Dashboard / Operational Page, List Page, Calendar / Agenda e Analytics / Finance: **Fluid**.
+- Complex Form, Commercial Form + Summary Aside e Detail Page densa: **Wide**.
+- Simple Form, edição curta e conteúdo predominantemente vertical: **Focused**.
+- Settings Page: **Wide** quando combina painéis ou editor + preview; **Focused** apenas para uma preferência textual isolada.
+- Authentication: composição própria fora do shell autenticado.
+
+Não use `width: 100vw`, offsets calculados da sidebar nem tokens específicos por feature. A sidebar expandida ou recolhida altera naturalmente a largura disponível do `MudMainContent`. A variante define apenas o comportamento do conteúdo dentro dessa área.
 
 ### Cabeçalho de página
 
@@ -120,7 +141,7 @@ Configurações usam `CabecalhoPagina`, container padrão, grupos claros e cards
 
 ### Dashboard / Operational Page
 
-Dashboard e Agenda preservam sua composição operacional. Eles compartilham header, tipografia, spacing, cards, status e regras responsivas, mas não são forçados ao layout de formulário. Agenda semanal pode usar `.page-container-wide`; dashboards devem manter apenas indicadores úteis para decisão.
+Dashboard e Agenda usam a estratégia **Fluid** e preservam sua composição operacional. Eles compartilham header, tipografia, spacing, cards, status e regras responsivas, mas não são forçados ao layout de formulário. O espaço adicional deve melhorar grids, calendário e leitura de tabelas, sem aumentar artificialmente fonte, ícones ou altura de cards.
 
 ### Cards de seção e resumo lateral
 
@@ -130,7 +151,7 @@ Dashboard e Agenda preservam sua composição operacional. Eles compartilham hea
 
 ### Responsividade dos arquétipos
 
-- Desktop (`>=1200px`): container central; Form Page pode usar conteúdo + resumo lateral; métricas podem ocupar três ou quatro colunas.
+- Desktop (`>=1200px`): Fluid acompanha a área útil do shell; Wide limita fluxos complexos; Form Page pode usar conteúdo + resumo lateral; métricas recompõem conforme densidade.
 - Tablet (`768–1199px`): grids principais empilham; métricas recompõem em duas colunas; Agenda mantém área maior quando necessário.
 - Mobile (`<768px`): uma coluna, cards com padding reduzido, ações com alvo mínimo de 44 px, métricas empilhadas e listas recompostas.
 - Em todas as larguras: nenhum scroll horizontal acidental, sticky sem sobreposição, textos longos com quebra segura e valores monetários sem separação inadequada.
