@@ -11,6 +11,7 @@
 - Ordens de serviço, check-in, execução, adicionais e fotos transacionais — concluído na Task 06.2
 - Contas a receber, pagamentos, estornos e dashboard financeiro com dados reais — concluído na Task 07
 - Notificação transacional de veículo pronto por e-mail, template seguro e fila persistente — concluído na Task 08
+- PWA instalável, app shell seguro, atualização consentida e experiência controlada de conectividade — concluído na Task 09
 
 ## Próxima versão
 
@@ -30,6 +31,10 @@
 
 ## Futuro
 
+- Web Push Notifications, somente após decisão de produto, segurança e estratégia de consentimento
+- PWA shortcuts para operações frequentes, após validar os principais atalhos com usuários
+- Aplicativo nativo/MAUI somente após validação comercial da experiência PWA
+- Offline-first, sincronização e resolução de conflitos somente se demanda real justificar o risco e a complexidade
 - CRM, campanhas e fidelidade
 - Autoatendimento / Portal do Cliente como add-on comercial: catálogo público, agendar/reagendar/cancelar, aprovar orçamento e acompanhar atendimento
 - Link público da OS e avaliações
