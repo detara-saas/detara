@@ -4,7 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>Ordens de Serviço | Detara</PageTitle>
-<div class="page-container list-page">
+<div class="page-container page-container-fluid list-page">
 <CabecalhoPagina Titulo="Ordens de Serviço" Descricao="Check-in, execução, evidências e escopo autorizado do atendimento." Sobretitulo="ATENDIMENTO">
     <Acoes><AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="/ordens-servico/nova" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Nova ordem de serviço</MudButton></Authorized></AuthorizeView></Acoes>
 </CabecalhoPagina>

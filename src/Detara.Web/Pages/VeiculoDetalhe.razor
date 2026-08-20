@@ -7,6 +7,7 @@
 @inject IJSRuntime JS
 
 <PageTitle>@(_veiculo is null ? "Veículo" : $"{_veiculo.Marca} {_veiculo.Modelo}") | Detara</PageTitle>
+<div class="page-container page-container-wide">
 
 @if (_carregando)
 {
@@ -136,6 +137,8 @@ else
         <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.Event" /><div><strong>Próximo agendamento</strong><span>Nenhum agendamento futuro.</span></div></article>
     </section>
 }
+
+</div>
 
 @code {
     [Parameter] public Guid Id { get; set; }

@@ -2,7 +2,9 @@
 @attribute [Authorize(Policy = Permissoes.AgendaEditar)]
 
 <PageTitle>Editar agendamento | Detara</PageTitle>
+<div class="page-container page-container-wide">
 <CabecalhoPagina Titulo="Editar agendamento" Descricao="Ajuste o planejamento sem alterar os snapshots históricos mantidos." Sobretitulo="AGENDA" />
 <AgendamentoFormulario AgendamentoId="Id" />
+</div>
 
 @code { [Parameter] public Guid Id { get; set; } }

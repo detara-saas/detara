@@ -5,6 +5,7 @@
 
 <PageTitle>Serviços | Detara</PageTitle>
 
+<div class="page-container page-container-fluid list-page">
 <CabecalhoPagina Titulo="Serviços" Descricao="Organize o catálogo, preços e tempos da sua operação." Sobretitulo="CATÁLOGO">
     <Acoes>
         <AuthorizeView Policy="@Permissoes.ServicosEditar"><Authorized><MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Category" OnClick="AlternarCategorias">Categorias</MudButton></Authorized></AuthorizeView>
@@ -53,6 +54,8 @@ else
     </section>
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" aria-label="Próxima página" /></div></div>
 }
+
+</div>
 
 @code {
     private PaginaResponse<ServicoListaResponse>? _pagina;

@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 
 <PageTitle>@(_cliente?.Nome ?? "Cliente") | Detara</PageTitle>
+<div class="page-container page-container-wide">
 
 @if (_carregando)
 {
@@ -89,6 +90,8 @@ else
         <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhum atendimento registrado</strong><span>O histórico aparecerá aqui quando houver ordens de serviço.</span></div></div>
     </section>
 }
+
+</div>
 
 @code {
     [Parameter]

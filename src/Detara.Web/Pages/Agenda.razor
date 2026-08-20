@@ -4,7 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>Agenda | Detara</PageTitle>
-<div class="page-container page-container-wide operational-page">
+<div class="page-container page-container-fluid operational-page">
 <CabecalhoPagina Titulo="Agenda" Descricao="Planejamento operacional por horário, cliente e veículo." Sobretitulo="OPERAÇÃO">
     <Acoes><AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo agendamento</MudButton></Authorized></AuthorizeView></Acoes>
 </CabecalhoPagina>

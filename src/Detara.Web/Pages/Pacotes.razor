@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>Pacotes | Detara</PageTitle>
+<div class="page-container page-container-fluid list-page">
 <CabecalhoPagina Titulo="Pacotes" Descricao="Combine serviços em ofertas comerciais claras e rentáveis." Sobretitulo="CATÁLOGO"><Acoes><AuthorizeView Policy="@Permissoes.PacotesCriar"><Authorized><MudButton Href="/pacotes/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo pacote</MudButton></Authorized></AuthorizeView></Acoes></CabecalhoPagina>
 
 <section class="module-toolbar" aria-label="Filtros de pacotes">
@@ -36,6 +37,8 @@ else
     </section>
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" aria-label="Próxima página" /></div></div>
 }
+
+</div>
 
 @code {
     private PaginaResponse<PacoteListaResponse>? _pagina;

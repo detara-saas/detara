@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Reagendar | Detara</PageTitle>
+<div class="page-container page-container-focused">
 <CabecalhoPagina Titulo="Reagendar" Descricao="Altere somente o início e a duração planejada." Sobretitulo="AGENDA" />
 
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" /></div> }
@@ -18,6 +19,7 @@ else
     <div class="form-actions"><MudButton Variant="Variant.Text" Href="@($"/agenda/{Id}")">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_salvando" OnClick="SalvarAsync">@(_salvando ? "Salvando..." : _sobreposicoes > 0 && _confirmado ? "Reagendar mesmo assim" : "Reagendar")</MudButton></div>
 </section>
 }
+</div>
 
 @code {
     [Parameter] public Guid Id { get; set; }

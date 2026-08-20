@@ -3,6 +3,7 @@
 @attribute [Authorize]
 
 <PageTitle>@(Id.HasValue ? "Editar veículo" : "Novo veículo") | Detara</PageTitle>
+<div class="page-container page-container-focused">
 <AuthorizeView Policy="@Politica">
     <Authorized>
         <CabecalhoPagina Titulo="@(Id.HasValue ? "Editar veículo" : "Novo veículo")" Descricao="Identifique o veículo e vincule-o ao cliente responsável." Sobretitulo="CADASTROS" />
@@ -12,6 +13,7 @@
         <EstadoVazio Titulo="Acesso não autorizado" Descricao="Seu perfil não possui permissão para esta operação." Icone="@Icons.Material.Outlined.Lock" />
     </NotAuthorized>
 </AuthorizeView>
+</div>
 
 @code {
     [Parameter] public Guid? Id { get; set; }

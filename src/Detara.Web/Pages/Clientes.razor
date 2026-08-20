@@ -5,6 +5,7 @@
 
 <PageTitle>Clientes | Detara</PageTitle>
 
+<div class="page-container page-container-fluid list-page">
 <CabecalhoPagina Titulo="Clientes" Descricao="Gerencie seus clientes e os veículos vinculados." Sobretitulo="CADASTROS">
     <Acoes>
         <AuthorizeView Policy="@Permissoes.ClientesCriar">
@@ -99,6 +100,8 @@ else
         </div>
     </div>
 }
+
+</div>
 
 @code {
     private PaginaResponse<ClienteListaResponse>? _pagina;

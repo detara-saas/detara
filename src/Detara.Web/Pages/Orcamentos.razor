@@ -4,7 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>Orçamentos | Detara</PageTitle>
-<div class="page-container list-page">
+<div class="page-container page-container-fluid list-page">
 <CabecalhoPagina Titulo="Orçamentos" Descricao="Propostas comerciais formais, valores negociados e aprovações." Sobretitulo="ATENDIMENTO">
     <Acoes><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo orçamento</MudButton></Authorized></AuthorizeView></Acoes>
 </CabecalhoPagina>
