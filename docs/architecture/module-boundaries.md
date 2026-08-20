@@ -45,6 +45,7 @@ Não serão criados assemblies por módulo enquanto a quantidade de módulos, eq
 | Agenda | Atual, base | Agendamento, itens planejados, snapshots, reagendamento, status e consultas operacionais |
 | Atendimento | Atual, base | Orçamento, configuração operacional, ordem de serviço, check-in, execução, fotos transacionais e entrega |
 | Financeiro | Atual, base | Contas a receber, pagamentos, estornos e indicadores de recebimento |
+| Notificações | Atual, base | Preferências de comunicação, templates de e-mail, intenções duráveis, tentativas e integração com provedor |
 | Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
 | CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
 | Autoatendimento / Portal do Cliente | Futuro, add-on candidato | Experiência externa de catálogo, agenda, aprovações e acompanhamento, consumindo capacidades do Core |
@@ -173,6 +174,10 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `OrdensServicoHistoricosStatus` | Atendimento |
 | `ContasReceber` | Financeiro |
 | `Pagamentos` | Financeiro |
+| `ConfiguracoesNotificacaoEmpresa` | Notificações |
+| `TemplatesEmailEmpresa` | Notificações |
+| `NotificacoesEmail` | Notificações |
+| `TentativasNotificacaoEmail` | Notificações |
 
 Essa matriz deve ser atualizada quando uma tabela ou agregado for introduzido.
 
@@ -336,6 +341,14 @@ Financeiro é dono de `ContaReceber` e `Pagamento`. A conta nasce exatamente qua
 A infraestrutura atual não possui um Unit of Work separado. A integração usa a menor orquestração Application-level: `FinalizarExecucaoHandler` entrega um fato imutável a `IIntegracaoFinanceiroOrdensServico`; os repositórios de Atendimento e Financeiro compartilham o mesmo `DetaraDbContext` scoped, e um único `SaveChanges` confirma a transição da OS, seu histórico e a nova conta atomicamente. A chave única `(EmpresaId, OrdemServicoId)` e a verificação no repositório tornam o consumo idempotente. Não há broker, outbox ou dependência de `Detara.Domain.Atendimento` em Financeiro.
 
 `ContaReceber` referencia OS, Cliente e Veículo somente por IDs e snapshots, sem FKs cross-module. A relação conta → pagamentos é interna ao Financeiro e possui FK composta tenant-safe com delete restritivo. Pagamentos são imutáveis; correções usam estorno auditado. A conta mantém o saldo e uma versão de concorrência incrementada em cada mutação, impedindo overpayment por requests simultâneos.
+
+### Notificações por e-mail implementadas
+
+Notificações é dono de `ConfiguracaoNotificacaoEmpresa`, `TemplateEmailEmpresa`, `NotificacaoEmail` e `TentativaNotificacaoEmail`. Atendimento entrega somente o fato mínimo de que uma OS mudou de `EmExecucao` para `AguardandoRetirada`; Clientes e Plataforma são consultados por contratos internos estreitos para obter o e-mail atual do cliente, nome da empresa e e-mail do usuário autenticado. Nenhum agregado externo é modificado e não existem FKs cross-module.
+
+Quando o envio automático está habilitado, `FinalizarExecucaoHandler` prepara a intenção durável pelo contrato `IIntegracaoNotificacoesOrdensServico`. O mesmo `DetaraDbContext` scoped e o mesmo `SaveChanges` confirmam a transição da OS, histórico, conta a receber e intenção de e-mail. A chamada ao Resend nunca ocorre nessa transação. A unicidade `(EmpresaId, Tipo, OrdemServicoId)` torna o gatilho idempotente.
+
+O worker pertencente a Notificações processa a fila persistente em lotes, usa versão de concorrência para claim e envia com a chave estável `notificacao-email/{id}`. Conteúdo, destinatário, Reply-To e origem do template são snapshots; alterações posteriores em Cliente, configuração ou template não reescrevem o histórico. A única relação EF é Notificação → Tentativas, interna ao módulo e com delete restritivo.
 
 Concluir a OS não cria outra conta e não significa pagamento. Da mesma forma, pagar a conta não altera o estado operacional da OS. O módulo permanece no monólito; uma eventual extração futura depende dos critérios operacionais abaixo, não apenas de sua existência.
 

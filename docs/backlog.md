@@ -10,10 +10,11 @@
 - Fundação operacional, checklist configurável, storage privado e fotos permanentes do veículo — concluído na Task 06.1
 - Ordens de serviço, check-in, execução, adicionais e fotos transacionais — concluído na Task 06.2
 - Contas a receber, pagamentos, estornos e dashboard financeiro com dados reais — concluído na Task 07
+- Notificação transacional de veículo pronto por e-mail, template seguro e fila persistente — concluído na Task 08
 
 ## Próxima versão
 
-- Pós-venda por e-mail/WhatsApp
+- Pós-venda adicional e WhatsApp (além do e-mail transacional de veículo pronto já entregue)
 - Comissões e estoque básico
 - Melhorias de agenda e relatórios
 - Entitlements comerciais por empresa (`EmpresaModulo`) quando surgir o primeiro add-on real
