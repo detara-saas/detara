@@ -29,6 +29,7 @@ internal sealed class UsuarioAutenticacaoRepositorio(DetaraDbContext dbContext)
         return await dbContext.Usuarios
             .IgnoreQueryFilters()
             .AsNoTracking()
+            .Include(usuario => usuario.Empresa)
             .Include(usuario => usuario.Perfil)
             .ThenInclude(perfil => perfil.Permissoes)
             .SingleOrDefaultAsync(

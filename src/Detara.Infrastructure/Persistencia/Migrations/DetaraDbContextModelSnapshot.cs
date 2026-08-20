@@ -1180,6 +1180,12 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<long>("VersaoSeguranca")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
                     b.HasKey("Id");
 
                     b.HasIndex("CpfCnpj")
@@ -2038,6 +2044,237 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.ToTable("TentativasNotificacaoEmail", (string)null);
                 });
 
+            modelBuilder.Entity("Detara.Domain.Plataforma.AdministradorPlataforma", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("EmailNormalizado")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("MfaHabilitado")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("SegredoTotpProtegido")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("SenhaHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UltimoLoginEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("UltimoTimestepTotpAceito")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("VersaoSeguranca")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailNormalizado")
+                        .IsUnique();
+
+                    b.ToTable("AdministradoresPlataforma", (string)null);
+                });
+
+            modelBuilder.Entity("Detara.Domain.Plataforma.AuditoriaPlataforma", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AdministradorPlataformaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DescricaoSegura")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("EmpresaAlvoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("EntidadeAlvoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TipoAcao")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriadoEmUtc");
+
+                    b.HasIndex("AdministradorPlataformaId", "CriadoEmUtc");
+
+                    b.HasIndex("EmpresaAlvoId", "CriadoEmUtc");
+
+                    b.ToTable("AuditoriasPlataforma", (string)null);
+                });
+
+            modelBuilder.Entity("Detara.Domain.Plataforma.CodigoRecuperacaoAdministradorPlataforma", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AdministradorPlataformaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CodigoHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UtilizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdministradorPlataformaId", "CodigoHash")
+                        .IsUnique();
+
+                    b.ToTable("CodigosRecuperacaoAdministradoresPlataforma", (string)null);
+                });
+
+            modelBuilder.Entity("Detara.Domain.Plataforma.ConviteAdministradorEmpresa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AceitoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CriadoPorAdministradorPlataformaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("EmailDestinoSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("EnviadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpiraEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("InvalidadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ProcessamentoIniciadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProviderMessageId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ProximaTentativaEnvioEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("QuantidadeTentativasEnvio")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TokenHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("UltimoErroSeguro")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriadoPorAdministradorPlataformaId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasFilter("[TokenHash] IS NOT NULL");
+
+                    b.HasIndex("EmpresaId", "UsuarioId");
+
+                    b.HasIndex("Status", "ProximaTentativaEnvioEmUtc");
+
+                    b.ToTable("ConvitesAdministradoresEmpresa", (string)null);
+                });
+
             modelBuilder.Entity("PerfilPermissao", b =>
                 {
                     b.Property<Guid>("PerfilId")
@@ -2263,7 +2500,7 @@ namespace Detara.Infrastructure.Persistencia.Migrations
 
             modelBuilder.Entity("Detara.Domain.Entidades.Usuario", b =>
                 {
-                    b.HasOne("Detara.Domain.Entidades.Empresa", null)
+                    b.HasOne("Detara.Domain.Entidades.Empresa", "Empresa")
                         .WithMany()
                         .HasForeignKey("EmpresaId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -2275,6 +2512,8 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                         .HasPrincipalKey("EmpresaId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Empresa");
 
                     b.Navigation("Perfil");
                 });
@@ -2334,6 +2573,50 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.HasOne("Detara.Domain.Notificacoes.NotificacaoEmail", null)
                         .WithMany("Tentativas")
                         .HasForeignKey("EmpresaId", "NotificacaoEmailId")
+                        .HasPrincipalKey("EmpresaId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Detara.Domain.Plataforma.AuditoriaPlataforma", b =>
+                {
+                    b.HasOne("Detara.Domain.Plataforma.AdministradorPlataforma", null)
+                        .WithMany()
+                        .HasForeignKey("AdministradorPlataformaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Detara.Domain.Entidades.Empresa", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaAlvoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Detara.Domain.Plataforma.CodigoRecuperacaoAdministradorPlataforma", b =>
+                {
+                    b.HasOne("Detara.Domain.Plataforma.AdministradorPlataforma", null)
+                        .WithMany()
+                        .HasForeignKey("AdministradorPlataformaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Detara.Domain.Plataforma.ConviteAdministradorEmpresa", b =>
+                {
+                    b.HasOne("Detara.Domain.Plataforma.AdministradorPlataforma", null)
+                        .WithMany()
+                        .HasForeignKey("CriadoPorAdministradorPlataformaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Detara.Domain.Entidades.Empresa", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Detara.Domain.Entidades.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId", "UsuarioId")
                         .HasPrincipalKey("EmpresaId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

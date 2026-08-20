@@ -1,0 +1,37 @@
+@page "/plataforma/auditoria"
+@layout PlatformLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+
+<PageTitle>Auditoria | Detara Platform</PageTitle>
+
+<div class="platform-page platform-page-fluid">
+    <header class="platform-page-header"><div><span class="platform-eyebrow">RASTREABILIDADE</span><h1>Auditoria da plataforma</h1><p>Eventos administrativos imutáveis, sem dados operacionais dos tenants.</p></div></header>
+    <section class="platform-toolbar"><MudTextField T="string" @bind-Value="_tipo" Label="Tipo de ação" Placeholder="ex.: EmpresaProvisionada" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Class="platform-search" /><MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="PesquisarAsync">Aplicar filtro</MudButton></section>
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="platform-audit-note">A trilha registra identidade administrativa, ação, alvo, horário e trace ID. Segredos, tokens e conteúdo dos tenants não são registrados.</MudAlert>
+    @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+    else if (_pagina is null || _pagina.Itens.Count == 0) { <EstadoVazio Titulo="Nenhum evento encontrado" Descricao="Não há eventos para o filtro informado." Icone="@Icons.Material.Outlined.FactCheck" /> }
+    else {
+        <section class="platform-audit-list" aria-label="Eventos de auditoria">
+            @foreach (var item in _pagina.Itens) {
+                <article class="platform-audit-item"><div class="platform-audit-icon"><MudIcon Icon="@IconeAcao(item.TipoAcao)" /></div><div class="platform-audit-main"><div><strong>@FormatarAcao(item.TipoAcao)</strong><time>@item.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</time></div><p>@(item.DescricaoSegura ?? "Evento administrativo registrado.")</p><span>@(item.AdministradorNome ?? "Ferramenta de bootstrap") @if (!string.IsNullOrWhiteSpace(item.EmpresaNome)) { <text> · @item.EmpresaNome</text> }</span></div><code title="Trace ID">@(item.TraceId ?? "sem trace")</code></article>
+            }
+        </section>
+        <div class="module-pagination"><span>@_pagina.TotalItens evento(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="AnteriorAsync" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaAsync" /></div></div>
+    }
+</div>
+
+@code {
+    private PaginaResponse<AuditoriaPlataformaItemResponse>? _pagina;
+    private string? _tipo;
+    private int _paginaAtual = 1;
+    private bool _carregando = true;
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var r = await Plataforma.ListarAuditoriaAsync(_paginaAtual, _tipo); _pagina = r.Resultado; _carregando = false; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); }
+    private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
+    private async Task AnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
+    private async Task ProximaAsync() { _paginaAtual++; await CarregarAsync(); }
+    private static string FormatarAcao(string a) => a.Replace("Plataforma.", string.Empty).Replace('.', ' ');
+    private static string IconeAcao(string a) => a.Contains("Empresa", StringComparison.OrdinalIgnoreCase) ? Icons.Material.Outlined.Domain : a.Contains("Mfa", StringComparison.OrdinalIgnoreCase) ? Icons.Material.Outlined.Security : Icons.Material.Outlined.AdminPanelSettings;
+}

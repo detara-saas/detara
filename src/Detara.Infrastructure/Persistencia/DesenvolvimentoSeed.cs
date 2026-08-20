@@ -1,5 +1,6 @@
 using Detara.Application.Abstracoes;
 using Detara.Domain.Entidades;
+using Detara.Contracts.Autorizacao;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,40 +11,6 @@ namespace Detara.Infrastructure.Persistencia;
 
 public static class DesenvolvimentoSeed
 {
-    private static readonly (string Codigo, string Descricao)[] PermissoesAdministrador =
-    [
-        ("Clientes.Visualizar", "Visualizar clientes"),
-        ("Clientes.Criar", "Criar clientes"),
-        ("Clientes.Editar", "Editar clientes"),
-        ("Veiculos.Visualizar", "Visualizar veículos"),
-        ("Veiculos.Criar", "Criar veículos"),
-        ("Veiculos.Editar", "Editar veículos"),
-        ("Servicos.Visualizar", "Visualizar serviços"),
-        ("Servicos.Criar", "Criar serviços e categorias"),
-        ("Servicos.Editar", "Editar serviços e categorias"),
-        ("Pacotes.Visualizar", "Visualizar pacotes"),
-        ("Pacotes.Criar", "Criar pacotes"),
-        ("Pacotes.Editar", "Editar pacotes"),
-        ("Agenda.Visualizar", "Visualizar agenda"),
-        ("Agenda.Criar", "Criar agendamentos"),
-        ("Agenda.Editar", "Editar agenda"),
-        ("Orcamentos.Visualizar", "Visualizar orçamentos"),
-        ("Orcamentos.Criar", "Criar orçamentos"),
-        ("Orcamentos.Editar", "Editar e registrar transições de orçamentos"),
-        ("Configuracoes.Visualizar", "Visualizar configurações operacionais"),
-        ("Configuracoes.Editar", "Editar configurações operacionais e checklist"),
-        ("OrdemServico.Visualizar", "Visualizar ordens de serviço"),
-        ("OrdemServico.Criar", "Criar ordens de serviço"),
-        ("OrdemServico.Editar", "Editar check-in, evidências e adicionais da ordem de serviço"),
-        ("OrdemServico.Finalizar", "Finalizar ordens de serviço"),
-        ("Financeiro.Visualizar", "Visualizar financeiro"),
-        ("Financeiro.Editar", "Editar vencimentos financeiros"),
-        ("Financeiro.RegistrarPagamento", "Registrar pagamentos"),
-        ("Financeiro.EstornarPagamento", "Estornar pagamentos"),
-        ("Notificacoes.Reenviar", "Reenviar notificações por e-mail"),
-        ("Administracao.Usuario", "Administrar usuários")
-    ];
-
     public static async Task InicializarDesenvolvimentoAsync(
         this IServiceProvider services,
         IConfiguration configuration,
@@ -92,7 +59,7 @@ public static class DesenvolvimentoSeed
             contextTenant.Perfis.Add(perfil);
         }
 
-        foreach (var definicao in PermissoesAdministrador)
+        foreach (var definicao in Permissoes.Definicoes)
         {
             var permissao = await contextTenant.Permissoes
                 .SingleOrDefaultAsync(x => x.Codigo == definicao.Codigo, cancellationToken);

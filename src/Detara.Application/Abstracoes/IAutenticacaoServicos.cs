@@ -26,6 +26,7 @@ public sealed record IdentidadeToken(
     Guid EmpresaId,
     Guid PerfilId,
     long UsuarioAtualizadoEmTicks,
+    long EmpresaVersaoSeguranca,
     IReadOnlyCollection<string> Permissoes);
 
 public interface ITokenServico

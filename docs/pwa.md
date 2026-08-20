@@ -85,6 +85,10 @@ O QA PWA deve servir o conteúdo de `bin/Release/net10.0/publish/wwwroot` em `lo
 7. atualização Build A → Build B, banner, clique e um único reload;
 8. rotas principais, temas e larguras previstas no Design System.
 
+## Administração da plataforma
+
+Login Platform, MFA, provisionamento, auditoria e convite são network-only: as rotas `/api/` já são desviadas do Service Worker e todas as respostas usam `no-store`. O token administrativo fica somente em `sessionStorage` separado; o token de convite fica apenas em memória após ser lido do fragment. Não há fallback offline, fila de gravação, install CTA ou silent refresh nesses fluxos privilegiados.
+
 ## Troubleshooting
 
 - **A PWA não instala:** confirme HTTPS ou localhost, manifest válido, ícones acessíveis, Service Worker ativo e suporte do browser ao fluxo de instalação.

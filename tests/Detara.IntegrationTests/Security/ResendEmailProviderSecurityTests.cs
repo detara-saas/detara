@@ -1,5 +1,6 @@
 using System.Net;
 using Detara.Application.Notificacoes;
+using Detara.Application.Comunicacao;
 using Detara.Infrastructure.Notificacoes;
 using Microsoft.Extensions.Options;
 

@@ -68,6 +68,64 @@ public sealed class TokenAuthorizationHandlerTests
         Assert.True(pwa.ServidorDisponivel);
     }
 
+    [Theory]
+    [InlineData("api/plataforma/dashboard")]
+    [InlineData("api/convites/administrador/validar")]
+    public async Task TokenTenant_NuncaEhEnviadoAIdentidadesSeparadas(string rota)
+    {
+        var captura = new CapturaAuthorizationHandler();
+        var contexto = CriarContexto(captura);
+        await contexto.Storage.SalvarAsync("token-tenant");
+
+        await contexto.Http.GetAsync(rota);
+
+        Assert.Null(captura.Authorization);
+        Assert.Equal("token-tenant", await contexto.Storage.ObterAsync());
+    }
+
+    [Fact]
+    public async Task TokenPlataforma_EhEnviadoSomenteAoEspacoProtegidoDaPlataforma()
+    {
+        var js = new StorageJsRuntime();
+        var storage = new PlatformTokenStorage(js);
+        await storage.SalvarTokenAsync("token-platform");
+        var captura = new CapturaAuthorizationHandler();
+        var handler = new PlatformAuthorizationHandler(storage)
+        {
+            ApiBaseAddress = ApiBaseAddress,
+            InnerHandler = captura
+        };
+        using var http = new HttpClient(handler) { BaseAddress = ApiBaseAddress };
+
+        await http.GetAsync("api/plataforma/dashboard");
+        Assert.Equal("Bearer token-platform", captura.Authorization);
+
+        captura.Authorization = null;
+        await http.PostAsync("api/plataforma/autenticacao/login", null);
+        Assert.Null(captura.Authorization);
+
+        await http.PostAsync("api/convites/administrador/validar", null);
+        Assert.Null(captura.Authorization);
+    }
+
+    [Fact]
+    public async Task Resposta401Plataforma_RemoveSomenteTokenPlataforma()
+    {
+        var js = new StorageJsRuntime();
+        var storage = new PlatformTokenStorage(js);
+        await storage.SalvarTokenAsync("token-platform");
+        var handler = new PlatformAuthorizationHandler(storage)
+        {
+            ApiBaseAddress = ApiBaseAddress,
+            InnerHandler = new RespostaHandler(HttpStatusCode.Unauthorized)
+        };
+        using var http = new HttpClient(handler) { BaseAddress = ApiBaseAddress };
+
+        await http.GetAsync("api/plataforma/dashboard");
+
+        Assert.Null(await storage.ObterTokenAsync());
+    }
+
     private static ContextoTeste CriarContexto(HttpMessageHandler innerHandler)
     {
         var js = new StorageJsRuntime();
@@ -109,9 +167,22 @@ public sealed class TokenAuthorizationHandlerTests
             throw new TaskCanceledException("Timeout simulado");
     }
 
+    private sealed class CapturaAuthorizationHandler : HttpMessageHandler
+    {
+        public string? Authorization { get; set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Authorization = request.Headers.Authorization?.ToString();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        }
+    }
+
     private sealed class StorageJsRuntime : IJSRuntime
     {
-        private string? _token;
+        private readonly Dictionary<string, string?> _valores = new(StringComparer.Ordinal);
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
             InvokeAsync<TValue>(identifier, CancellationToken.None, args);
@@ -124,12 +195,13 @@ public sealed class TokenAuthorizationHandlerTests
             switch (identifier)
             {
                 case "sessionStorage.getItem":
-                    return ValueTask.FromResult((TValue)(object?)_token!);
+                    _valores.TryGetValue(args?[0]?.ToString() ?? string.Empty, out var valor);
+                    return ValueTask.FromResult((TValue)(object?)valor!);
                 case "sessionStorage.setItem":
-                    _token = args?[1]?.ToString();
+                    _valores[args?[0]?.ToString() ?? string.Empty] = args?[1]?.ToString();
                     break;
                 case "sessionStorage.removeItem":
-                    _token = null;
+                    _valores.Remove(args?[0]?.ToString() ?? string.Empty);
                     break;
             }
 

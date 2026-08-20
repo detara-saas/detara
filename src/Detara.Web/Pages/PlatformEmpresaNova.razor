@@ -1,0 +1,94 @@
+@page "/plataforma/empresas/nova"
+@layout PlatformLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Nova empresa | Detara Platform</PageTitle>
+
+<div class="platform-page platform-page-wide">
+    <header class="platform-page-header compact"><div><a href="/plataforma/empresas" class="platform-back-link"><MudIcon Icon="@Icons.Material.Outlined.ArrowBack" Size="Size.Small" /> Empresas</a><span class="platform-eyebrow">PROVISIONAMENTO SEGURO</span><h1>Nova empresa</h1><p>Crie o tenant e prepare o acesso do administrador inicial.</p></div></header>
+
+    <MudForm @ref="_form">
+        <div class="platform-form-layout">
+            <div class="platform-form-main">
+                <MudPaper Elevation="0" Class="platform-form-section">
+                    <div class="platform-section-heading"><span>01</span><div><MudText Typo="Typo.h5">Identidade da empresa</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Dados canônicos que identificam o tenant.</MudText></div></div>
+                    <div class="platform-field-grid">
+                        <MudTextField T="string" @bind-Value="_nomeFantasia" Label="Nome fantasia" Variant="Variant.Outlined" Required="true" RequiredError="Informe o nome fantasia." />
+                        <MudTextField T="string" @bind-Value="_razaoSocial" Label="Razão social" Variant="Variant.Outlined" Required="true" RequiredError="Informe a razão social." />
+                        <MudTextField T="string" @bind-Value="_cpfCnpj" Label="CPF ou CNPJ" Variant="Variant.Outlined" Required="true" RequiredError="Informe o documento." HelperText="Somente números ou com formatação." />
+                        <MudSelect T="string" @bind-Value="_fusoHorario" Label="Fuso horário" Variant="Variant.Outlined" Required="true">
+                            <MudSelectItem Value="@("America/Sao_Paulo")">Brasília (America/Sao_Paulo)</MudSelectItem>
+                            <MudSelectItem Value="@("America/Manaus")">Manaus (America/Manaus)</MudSelectItem>
+                            <MudSelectItem Value="@("America/Cuiaba")">Cuiabá (America/Cuiaba)</MudSelectItem>
+                            <MudSelectItem Value="@("America/Rio_Branco")">Rio Branco (America/Rio_Branco)</MudSelectItem>
+                        </MudSelect>
+                        <MudTextField T="string" @bind-Value="_emailContato" Label="E-mail comercial (opcional)" InputType="InputType.Email" Variant="Variant.Outlined" />
+                        <MudTextField T="string" @bind-Value="_telefone" Label="Telefone (opcional)" Variant="Variant.Outlined" />
+                    </div>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="platform-form-section">
+                    <div class="platform-section-heading"><span>02</span><div><MudText Typo="Typo.h5">Administrador inicial</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">A conta nasce inativa e só será liberada após aceitar o convite.</MudText></div></div>
+                    <div class="platform-field-grid">
+                        <MudTextField T="string" @bind-Value="_administradorNome" Label="Nome completo" Variant="Variant.Outlined" Required="true" RequiredError="Informe o nome." />
+                        <MudTextField T="string" @bind-Value="_administradorEmail" Label="E-mail de acesso" InputType="InputType.Email" Variant="Variant.Outlined" Required="true" RequiredError="Informe o e-mail." />
+                    </div>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-5">
+                        Nenhuma senha é definida aqui. O administrador escolherá a própria senha no fluxo de ativação.
+                    </MudAlert>
+                </MudPaper>
+            </div>
+
+            <aside class="platform-form-summary">
+                <MudPaper Elevation="0" Class="platform-summary-card">
+                    <MudText Typo="Typo.overline" Color="Color.Primary">RESUMO DO PROVISIONAMENTO</MudText>
+                    <MudText Typo="Typo.h5" Class="mt-2">@(!string.IsNullOrWhiteSpace(_nomeFantasia) ? _nomeFantasia : "Nova empresa")</MudText>
+                    <div class="platform-summary-list">
+                        <div><MudIcon Icon="@Icons.Material.Outlined.Domain" /><span>Tenant e slug gerado pelo servidor</span></div>
+                        <div><MudIcon Icon="@Icons.Material.Outlined.ManageAccounts" /><span>Perfil com permissões canônicas</span></div>
+                        <div><MudIcon Icon="@Icons.Material.Outlined.MarkEmailUnread" /><span>Convite assíncrono e de uso único</span></div>
+                        <div><MudIcon Icon="@Icons.Material.Outlined.FactCheck" /><span>Registro em auditoria</span></div>
+                    </div>
+                    <MudDivider Class="my-5" />
+                    <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Disabled="@_processando" OnClick="ProvisionarAsync">
+                        @if (_processando) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Provisionar empresa
+                    </MudButton>
+                    <MudButton Href="/plataforma/empresas" FullWidth="true" Variant="Variant.Text" Disabled="@_processando" Class="mt-2">Cancelar</MudButton>
+                </MudPaper>
+            </aside>
+        </div>
+    </MudForm>
+</div>
+
+@code {
+    private MudForm _form = null!;
+    private string _nomeFantasia = string.Empty;
+    private string _razaoSocial = string.Empty;
+    private string _cpfCnpj = string.Empty;
+    private string? _emailContato;
+    private string? _telefone;
+    private string _fusoHorario = "America/Sao_Paulo";
+    private string _administradorNome = string.Empty;
+    private string _administradorEmail = string.Empty;
+    private bool _processando;
+
+    private async Task ProvisionarAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid || _processando) return;
+        _processando = true;
+        var resultado = await Plataforma.ProvisionarAsync(new ProvisionarEmpresaRequest(
+            _nomeFantasia, _razaoSocial, _cpfCnpj, _emailContato, _telefone, _fusoHorario,
+            _administradorNome, _administradorEmail));
+        _processando = false;
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        if (resultado is { Sucesso: true, Resultado: not null })
+        {
+            Navigation.NavigateTo($"/plataforma/empresas/{resultado.Resultado.Id}");
+        }
+    }
+}

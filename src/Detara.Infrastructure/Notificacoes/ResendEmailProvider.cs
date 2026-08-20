@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using Detara.Application.Notificacoes;
+using Detara.Application.Comunicacao;
 using Microsoft.Extensions.Options;
 
 namespace Detara.Infrastructure.Notificacoes;

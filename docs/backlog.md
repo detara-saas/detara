@@ -1,5 +1,13 @@
 # Backlog
 
+## Pós-Task 11 — Administração da plataforma
+
+- fluxo seguro para múltiplos Platform Admins e convite administrativo, sem reabrir bootstrap;
+- cache distribuído para limite de tentativas de MFA em implantação horizontal;
+- proteção do key ring por KMS/HSM e procedimento testado de backup/rotação;
+- billing/trial, self-signup e onboarding assistido em tarefas próprias;
+- avaliar support access auditado sem impersonation; impersonation permanece proibido até decisão arquitetural e threat model próprios;
+
 ## MVP
 
 - Fundação, autenticação, empresa e usuários

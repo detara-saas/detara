@@ -20,6 +20,9 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=Detara;User Id=sa;Password=${DETARA_SQL_PASSWORD};TrustServerCertificate=True;Encrypt=True
       Jwt__ChaveAssinatura: ${DETARA_JWT_KEY:?Defina DETARA_JWT_KEY no arquivo .env}
+      PlatformJwt__ChaveAssinatura: ${DETARA_PLATFORM_JWT_KEY:?Defina DETARA_PLATFORM_JWT_KEY no arquivo .env}
+      Web__PublicBaseUrl: http://localhost:5080
+      DataProtection__KeyRingPath: /var/lib/detara/data-protection-keys
       Cors__OrigensPermitidas__0: http://localhost:5080
       Seed__Enabled: ${DETARA_SEED_ENABLED:-false}
       Seed__SenhaAdministrador: ${DETARA_SEED_PASSWORD:-}
@@ -29,6 +32,8 @@ services:
       Email__FromName: ${DETARA_EMAIL_FROM_NAME:-Detara}
     ports:
       - "5090:8080"
+    volumes:
+      - detara-data-protection-keys:/var/lib/detara/data-protection-keys
     depends_on:
       - sqlserver
     restart: unless-stopped
@@ -45,3 +50,4 @@ services:
 
 volumes:
   detara-sql-data:
+  detara-data-protection-keys:

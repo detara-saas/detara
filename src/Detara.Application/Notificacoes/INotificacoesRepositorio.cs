@@ -43,15 +43,6 @@ public interface IRenderizadorTemplateEmail
     EmailRenderizado Renderizar(ConteudoTemplateEmail template, DadosTemplateEmail dados);
 }
 
-public sealed record MensagemEmailProvedor(string Destinatario, string Assunto, string CorpoHtml,
-    string? ResponderPara, string ChaveIdempotencia);
-public sealed record ResultadoEnvioEmail(bool Sucesso, bool FalhaTemporaria, string? MensagemId, string? ErroSeguro);
-
-public interface IProvedorEmail
-{
-    Task<ResultadoEnvioEmail> EnviarAsync(MensagemEmailProvedor mensagem, CancellationToken cancellationToken);
-}
-
 public sealed record OrdemServicoFinalizadaNotificacoes(Guid EmpresaId, Guid OrdemServicoId,
     string OrdemServicoCodigo, Guid ClienteId, string ClienteNome, string VeiculoDescricao, string VeiculoPlaca);
 

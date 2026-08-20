@@ -2,6 +2,8 @@ namespace Detara.Contracts.Autorizacao;
 
 public static class Permissoes
 {
+    public sealed record Definicao(string Codigo, string Descricao);
+
     public const string ClientesVisualizar = "Clientes.Visualizar";
     public const string ClientesCriar = "Clientes.Criar";
     public const string ClientesEditar = "Clientes.Editar";
@@ -31,37 +33,42 @@ public static class Permissoes
     public const string FinanceiroRegistrarPagamento = "Financeiro.RegistrarPagamento";
     public const string FinanceiroEstornarPagamento = "Financeiro.EstornarPagamento";
     public const string NotificacoesReenviar = "Notificacoes.Reenviar";
+    public const string AdministracaoUsuario = "Administracao.Usuario";
+
+    public static readonly IReadOnlyCollection<Definicao> Definicoes =
+    [
+        new(ClientesVisualizar, "Visualizar clientes"),
+        new(ClientesCriar, "Criar clientes"),
+        new(ClientesEditar, "Editar clientes"),
+        new(VeiculosVisualizar, "Visualizar veículos"),
+        new(VeiculosCriar, "Criar veículos"),
+        new(VeiculosEditar, "Editar veículos"),
+        new(ServicosVisualizar, "Visualizar serviços"),
+        new(ServicosCriar, "Criar serviços e categorias"),
+        new(ServicosEditar, "Editar serviços e categorias"),
+        new(PacotesVisualizar, "Visualizar pacotes"),
+        new(PacotesCriar, "Criar pacotes"),
+        new(PacotesEditar, "Editar pacotes"),
+        new(AgendaVisualizar, "Visualizar agenda"),
+        new(AgendaCriar, "Criar agendamentos"),
+        new(AgendaEditar, "Editar agenda"),
+        new(OrcamentosVisualizar, "Visualizar orçamentos"),
+        new(OrcamentosCriar, "Criar orçamentos"),
+        new(OrcamentosEditar, "Editar e registrar transições de orçamentos"),
+        new(ConfiguracoesVisualizar, "Visualizar configurações operacionais"),
+        new(ConfiguracoesEditar, "Editar configurações operacionais e checklist"),
+        new(OrdemServicoVisualizar, "Visualizar ordens de serviço"),
+        new(OrdemServicoCriar, "Criar ordens de serviço"),
+        new(OrdemServicoEditar, "Editar check-in, evidências e adicionais da ordem de serviço"),
+        new(OrdemServicoFinalizar, "Finalizar ordens de serviço"),
+        new(FinanceiroVisualizar, "Visualizar financeiro"),
+        new(FinanceiroEditar, "Editar vencimentos financeiros"),
+        new(FinanceiroRegistrarPagamento, "Registrar pagamentos"),
+        new(FinanceiroEstornarPagamento, "Estornar pagamentos"),
+        new(NotificacoesReenviar, "Reenviar notificações por e-mail"),
+        new(AdministracaoUsuario, "Administrar usuários")
+    ];
 
     public static readonly IReadOnlyCollection<string> Todas =
-    [
-        ClientesVisualizar,
-        ClientesCriar,
-        ClientesEditar,
-        VeiculosVisualizar,
-        VeiculosCriar,
-        VeiculosEditar,
-        ServicosVisualizar,
-        ServicosCriar,
-        ServicosEditar,
-        PacotesVisualizar,
-        PacotesCriar,
-        PacotesEditar,
-        AgendaVisualizar,
-        AgendaCriar,
-        AgendaEditar,
-        OrcamentosVisualizar,
-        OrcamentosCriar,
-        OrcamentosEditar,
-        ConfiguracoesVisualizar,
-        ConfiguracoesEditar,
-        OrdemServicoVisualizar,
-        OrdemServicoCriar,
-        OrdemServicoEditar,
-        OrdemServicoFinalizar,
-        FinanceiroVisualizar,
-        FinanceiroEditar,
-        FinanceiroRegistrarPagamento,
-        FinanceiroEstornarPagamento,
-        NotificacoesReenviar
-    ];
+        Definicoes.Select(x => x.Codigo).ToArray();
 }

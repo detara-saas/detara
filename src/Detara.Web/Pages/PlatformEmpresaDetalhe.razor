@@ -1,0 +1,73 @@
+@page "/plataforma/empresas/{Id:guid}"
+@layout PlatformLayout
+@attribute [AllowAnonymous]
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+@inject IDialogService Dialogs
+
+<PageTitle>Empresa | Detara Platform</PageTitle>
+
+<div class="platform-page platform-page-wide">
+    @if (_carregando)
+    {
+        <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else if (_empresa is not null)
+    {
+        <header class="platform-entity-header">
+            <div><a href="/plataforma/empresas" class="platform-back-link"><MudIcon Icon="@Icons.Material.Outlined.ArrowBack" Size="Size.Small" /> Empresas</a><div class="platform-title-line"><h1>@_empresa.NomeFantasia</h1><span class="status-badge @(_empresa.EhAtivo ? "status-running" : "status-cancelled")">@(_empresa.EhAtivo ? "Ativa" : "Suspensa")</span></div><p>@_empresa.RazaoSocial · @_empresa.Slug</p></div>
+            <div class="platform-header-actions">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Send" OnClick="ReenviarAsync" Disabled="@_processando">Reenviar convite</MudButton>
+                <MudButton Variant="Variant.Filled" Color="@(_empresa.EhAtivo ? Color.Error : Color.Success)" StartIcon="@(_empresa.EhAtivo ? Icons.Material.Outlined.PauseCircle : Icons.Material.Outlined.PlayCircle)" OnClick="AlterarStatusAsync" Disabled="@_processando">@(_empresa.EhAtivo ? "Suspender" : "Reativar")</MudButton>
+            </div>
+        </header>
+
+        <section class="platform-detail-metrics">
+            <div><MudIcon Icon="@Icons.Material.Outlined.Badge" /><span>Documento<strong>@_empresa.CpfCnpj</strong></span></div>
+            <div><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span>Fuso horário<strong>@_empresa.FusoHorario</strong></span></div>
+            <div><MudIcon Icon="@Icons.Material.Outlined.Event" /><span>Provisionada em<strong>@_empresa.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</strong></span></div>
+        </section>
+
+        <div class="platform-detail-grid">
+            <MudPaper Elevation="0" Class="platform-panel">
+                <div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.ManageAccounts" /><span><strong>Administrador inicial</strong><small>Conta vinculada ao tenant</small></span></div><span class="status-badge @(_empresa.AdministradorAtivo ? "status-running" : "status-pending")">@(_empresa.AdministradorAtivo ? "Ativo" : "Aguardando ativação")</span></div>
+                <dl class="platform-definition-list"><div><dt>Nome</dt><dd>@_empresa.AdministradorNome</dd></div><div><dt>E-mail</dt><dd>@_empresa.AdministradorEmail</dd></div><div><dt>Identificador</dt><dd><code>@_empresa.AdministradorUsuarioId</code></dd></div></dl>
+            </MudPaper>
+            <MudPaper Elevation="0" Class="platform-panel">
+                <div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.MarkEmailRead" /><span><strong>Convite de ativação</strong><small>Token nunca exposto nesta tela</small></span></div><span class="status-badge @ClasseConvite">@TextoConvite</span></div>
+                <dl class="platform-definition-list"><div><dt>Expiração</dt><dd>@(_empresa.ConviteExpiraEmUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Aguardando envio")</dd></div><div><dt>Tentativas</dt><dd>@_empresa.TentativasEnvio</dd></div>@if (!string.IsNullOrWhiteSpace(_empresa.UltimoErroEnvioSeguro)) { <div><dt>Último erro</dt><dd>@_empresa.UltimoErroEnvioSeguro</dd></div> }</dl>
+            </MudPaper>
+        </div>
+
+        <MudPaper Elevation="0" Class="platform-panel platform-contact-panel"><div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.ContactMail" /><span><strong>Contato comercial</strong><small>Metadados do cadastro da empresa</small></span></div></div><dl class="platform-definition-list inline"><div><dt>E-mail</dt><dd>@(_empresa.Email ?? "Não informado")</dd></div><div><dt>Telefone</dt><dd>@(_empresa.Telefone ?? "Não informado")</dd></div></dl></MudPaper>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private EmpresaPlataformaDetalheResponse? _empresa;
+    private bool _carregando = true;
+    private bool _processando;
+    private string ClasseConvite => _empresa?.StatusConvite is "Aceito" ? "status-running" : _empresa?.StatusConvite is "FalhaEnvio" or "Expirado" ? "status-cancelled" : "status-pending";
+    private string TextoConvite => _empresa?.StatusConvite switch { "FalhaEnvio" => "Falha no envio", "Aceito" => "Aceito", "Enviado" => "Enviado", "Pendente" => "Na fila", "Processando" => "Enviando", "Expirado" => "Expirado", _ => _empresa?.StatusConvite ?? "—" };
+    protected override Task OnParametersSetAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var r = await Plataforma.ObterEmpresaAsync(Id); _empresa = r.Resultado; _carregando = false; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); }
+    private async Task ReenviarAsync() { if (_empresa is null) return; _processando = true; var r = await Plataforma.ReenviarConviteAsync(Id); Mensagens.Mostrar(r.Sucesso ? "Convite colocado na fila de reenvio." : r.Mensagem, !r.Sucesso); _processando = false; if (r.Sucesso) await CarregarAsync(); }
+    private async Task AlterarStatusAsync()
+    {
+        if (_empresa is null) return;
+        var suspender = _empresa.EhAtivo;
+        var parametros = new DialogParameters<AlterarStatusEmpresaDialog> { { x => x.Suspender, suspender } };
+        var dialogo = await Dialogs.ShowAsync<AlterarStatusEmpresaDialog>(
+            suspender ? "Suspender empresa" : "Reativar empresa",
+            parametros,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true });
+        var confirmacao = await dialogo.Result;
+        if (confirmacao is null || confirmacao.Canceled || confirmacao.Data is not string motivo) return;
+        _processando = true;
+        var r = await Plataforma.AlterarStatusAsync(Id, suspender, motivo);
+        Mensagens.Mostrar(r.Sucesso ? (suspender ? "Empresa suspensa." : "Empresa reativada.") : r.Mensagem, !r.Sucesso);
+        _processando = false;
+        if (r.Sucesso) await CarregarAsync();
+    }
+}

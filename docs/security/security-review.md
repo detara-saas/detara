@@ -242,7 +242,7 @@ Dependente do reverse proxy:
 9. adicionar gitleaks (ou equivalente), SAST e dependency audit no CI;
 10. executar DAST/pentest autenticado em staging production-like antes da beta real;
 11. revisar auto-hospedagem de fontes e política de privacidade;
-12. planejar MFA obrigatório para o futuro Platform Admin, com recovery seguro.
+12. proteger o key ring de Data Protection do Platform Admin com KMS/secret store e validar backup/restore em staging.
 
 ## Security debt e decisões
 
@@ -256,3 +256,15 @@ Dependente do reverse proxy:
 - Migrations criadas na Task 10: **0**.
 - Packages novos/atualizados: **0**.
 - O hardening reutiliza ASP.NET Core, EF Core, PasswordHasher e sanitizador já existentes.
+
+## Revisão adicional — Task 11
+
+- **Critical/High conhecidos no código da Task 11: 0.** O gate de merge permanece condicionado à configuração production-like e ao MFA humano.
+- Identidade, scheme, signing key, audience, handler HTTP e session storage são separados. Tokens cruzados, token sem MFA, assinatura/audience erradas e expiração têm testes.
+- TOTP usa Otp.NET 1.4.1 e QR local usa QRCoder 1.8.0; ambas as dependências são MIT e não chamam internet no fluxo/teste.
+- Bootstrap não é HTTP, não usa seed, recusa a segunda criação e lê senha sem eco/argumento. Reset de senha/MFA revoga sessões e audita.
+- Provisionamento usa DTO mínimo e uma transação para empresa, perfil, permissões canônicas, usuário pendente, convite e auditoria. E-mail fica fora da transação.
+- Convite persiste somente hash, expira em 72 horas, é single-use e invalida token anterior no reenvio. O worker faz retry bounded, recupera lease e conserva tenant em falha externa.
+- Suspensão/reativação incrementam a versão da empresa, revogando JWT tenant antigo nos dois sentidos.
+- Auditoria é append-only e não aceita segredo; UI/API global não expõem dados operacionais ou impersonation.
+- Limitações aceitas antes de produção: cache distribuído para challenge em múltiplas réplicas, proteção KMS do key ring e QA humano de autenticador/e-mail real em staging.
