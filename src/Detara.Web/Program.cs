@@ -41,6 +41,7 @@ builder.Services.AddScoped(provider =>
 builder.Services.AddScoped<AutenticacaoServico>();
 builder.Services.AddScoped<IMensagemServico, MensagemServico>();
 builder.Services.AddScoped<PreferenciasInterfaceServico>();
+builder.Services.AddScoped<PwaServico>();
 builder.Services.AddScoped<ClientesServico>();
 builder.Services.AddScoped<VeiculosServico>();
 builder.Services.AddScoped<CatalogoServico>();
@@ -53,4 +54,5 @@ builder.Services.AddScoped<NotificacoesServico>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<PreferenciasInterfaceServico>().InicializarAsync();
+await host.Services.GetRequiredService<PwaServico>().InicializarAsync();
 await host.RunAsync();

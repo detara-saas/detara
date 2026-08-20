@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Detara.Domain\Detara.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Detara.Web\Detara.Web.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,9 +1,11 @@
 @page "/login"
 @layout LoginLayout
 @attribute [AllowAnonymous]
+@implements IDisposable
 @using Detara.Contracts.Autenticacao
 @inject AutenticacaoServico Autenticacao
 @inject PreferenciasInterfaceServico Preferencias
+@inject PwaServico Pwa
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navigation
 
@@ -32,6 +34,7 @@
         </MudMenu>
     </div>
     <MudPaper Elevation="0" Class="login-card">
+        <PwaStatus />
         <div class="login-mobile-brand">
             <img src="brand/detara-logo-on-light.png" alt="Detara" />
         </div>
@@ -62,6 +65,17 @@
             <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" />
             <MudText Typo="Typo.caption">Ambiente seguro e isolado para sua empresa.</MudText>
         </div>
+        @if (Pwa.PodeInstalar)
+        {
+            <MudButton FullWidth="true"
+                       Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Outlined.InstallMobile"
+                       OnClick="InstalarAsync"
+                       Class="login-install-button">
+                Instalar Detara
+            </MudButton>
+        }
         <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="login-help">
             Problemas para acessar? Fale com o administrador da sua empresa.
         </MudText>
@@ -84,6 +98,8 @@
     [SupplyParameterFromQuery]
     public string? Retorno { get; set; }
 
+    protected override void OnInitialized() => Pwa.Alterado += AtualizarPwa;
+
     private async Task EntrarAsync()
     {
         await _form.ValidateAsync();
@@ -104,7 +120,7 @@
         }
         catch (HttpRequestException)
         {
-            Mensagens.Mostrar("A API não está disponível no momento.", true);
+            Mensagens.Mostrar("Não foi possível conectar à Detara. Verifique sua conexão e tente novamente.", true);
         }
         finally
         {
@@ -125,4 +141,16 @@
 
         return Retorno;
     }
+
+    private async Task InstalarAsync()
+    {
+        if (await Pwa.InstalarAsync())
+        {
+            Mensagens.Mostrar("Detara instalada com sucesso.");
+        }
+    }
+
+    private void AtualizarPwa() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Pwa.Alterado -= AtualizarPwa;
 }

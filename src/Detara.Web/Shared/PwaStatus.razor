@@ -1,0 +1,61 @@
+@implements IDisposable
+@inject PwaServico Pwa
+@inject IMensagemServico Mensagens
+
+@if (Pwa.SemConexao || Pwa.AtualizacaoDisponivel)
+{
+    <div class="pwa-status-region" aria-live="polite">
+        @if (Pwa.SemConexao)
+        {
+            <section class="pwa-status-banner pwa-status-offline" role="status">
+                <span class="pwa-status-icon"><MudIcon Icon="@Icons.Material.Outlined.CloudOff" /></span>
+                <div>
+                    <strong>Sem conexão com o servidor</strong>
+                    <span>Algumas funcionalidades estão temporariamente indisponíveis.</span>
+                </div>
+            </section>
+        }
+
+        @if (Pwa.AtualizacaoDisponivel)
+        {
+            <section class="pwa-status-banner pwa-status-update" role="status">
+                <span class="pwa-status-icon"><MudIcon Icon="@Icons.Material.Outlined.SystemUpdateAlt" /></span>
+                <div>
+                    <strong>Nova versão da Detara disponível</strong>
+                    <span>Atualize quando puder recarregar a aplicação com segurança.</span>
+                </div>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="_atualizando"
+                           OnClick="AtualizarAsync">
+                    @(_atualizando ? "Atualizando..." : "Atualizar agora")
+                </MudButton>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private bool _atualizando;
+
+    protected override void OnInitialized() => Pwa.Alterado += Atualizar;
+
+    private async Task AtualizarAsync()
+    {
+        if (_atualizando)
+        {
+            return;
+        }
+
+        _atualizando = true;
+        if (!await Pwa.AtualizarAsync())
+        {
+            _atualizando = false;
+            Mensagens.Mostrar("Não foi possível ativar a atualização. Tente novamente em instantes.", true);
+        }
+    }
+
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Pwa.Alterado -= Atualizar;
+}

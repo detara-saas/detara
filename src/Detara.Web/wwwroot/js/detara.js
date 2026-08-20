@@ -14,6 +14,8 @@ window.detara = {
     aplicarTema: (escuro) => {
         document.documentElement.dataset.theme = escuro ? 'dark' : 'light';
         document.documentElement.style.colorScheme = escuro ? 'dark' : 'light';
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) themeColor.content = escuro ? '#111827' : '#FFFFFF';
     },
     baixarArquivoBase64: (nome, tipo, base64) => {
         const link = document.createElement('a');
