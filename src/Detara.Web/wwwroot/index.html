@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Detara</title>
     <base href="/" />
     <link rel="preload" id="webassembly" />
@@ -14,8 +14,7 @@
     <link rel="icon" href="brand/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="brand/detara-favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="brand/detara-app-icon-180.png" />
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link href="Detara.Web.styles.css" rel="stylesheet" />
+    <link rel="manifest" href="manifest.json" />
     <script type="importmap"></script>
 </head>
 
@@ -34,6 +33,7 @@
         <span class="dismiss">🗙</span>
     </div>
     <script src="js/detara.js"></script>
+    <script src="js/pwa.js"></script>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </body>
