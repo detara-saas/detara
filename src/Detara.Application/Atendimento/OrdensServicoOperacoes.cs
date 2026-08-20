@@ -1,6 +1,7 @@
 using Detara.Application.Abstracoes;
 using Detara.Domain.Atendimento;
 using Detara.Application.Financeiro;
+using Detara.Application.Notificacoes;
 using FluentValidation;
 using MediatR;
 
@@ -212,17 +213,24 @@ internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensSe
         Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.IniciarExecucao(usuarioId, obs), ct);
 }
 internal sealed class FinalizarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
-    IPlataformaAtendimentoConsulta plataforma, IIntegracaoFinanceiroOrdensServico financeiro)
+    IPlataformaAtendimentoConsulta plataforma, IIntegracaoFinanceiroOrdensServico financeiro,
+    IIntegracaoNotificacoesOrdensServico notificacoes)
     : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
     IRequestHandler<FinalizarExecucaoOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
     public Task<OrdemServicoDetalheVisualizacao> Handle(FinalizarExecucaoOrdemServicoCommand request, CancellationToken ct) =>
         Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.FinalizarExecucao(usuarioId, obs), ct,
-            (ordem, token) => financeiro.PrepararContaReceberAsync(new(Usuario.EmpresaId, ordem.Id, ordem.Codigo,
+            async (ordem, token) =>
+            {
+                await financeiro.PrepararContaReceberAsync(new(Usuario.EmpresaId, ordem.Id, ordem.Codigo,
                 ordem.ClienteId, ordem.ClienteNomeSnapshot, ordem.VeiculoId, ordem.VeiculoDescricaoSnapshot,
                 ordem.VeiculoPlacaSnapshot, ordem.SubtotalAutorizado, ordem.DescontoAutorizado,
                 ordem.AcrescimoAutorizado, ordem.TotalAutorizado,
-                ordem.ExecucaoFinalizadaEmUtc ?? throw new InvalidOperationException("A finalização da execução não foi registrada.")), token));
+                ordem.ExecucaoFinalizadaEmUtc ?? throw new InvalidOperationException("A finalização da execução não foi registrada.")), token);
+                await notificacoes.PrepararNotificacaoAsync(new(Usuario.EmpresaId, ordem.Id, ordem.Codigo,
+                    ordem.ClienteId, ordem.ClienteNomeSnapshot, ordem.VeiculoDescricaoSnapshot,
+                    ordem.VeiculoPlacaSnapshot), token);
+            });
 }
 public sealed record FinalizarExecucaoOrdemServicoCommand(Guid Id, string? Observacao) : IRequest<OrdemServicoDetalheVisualizacao>;
 public sealed record ConcluirOrdemServicoCommand(Guid Id, string? Observacao) : IRequest<OrdemServicoDetalheVisualizacao>;

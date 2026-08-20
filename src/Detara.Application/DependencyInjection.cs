@@ -4,6 +4,7 @@ using Detara.Application.Financeiro;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Detara.Application.Notificacoes;
 
 namespace Detara.Application;
 
@@ -18,6 +19,7 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidacaoBehavior<,>));
         services.AddSingleton<IConversorFusoHorario, ConversorFusoHorario>();
         services.AddScoped<IIntegracaoFinanceiroOrdensServico, IntegracaoFinanceiroOrdensServico>();
+        services.AddScoped<IIntegracaoNotificacoesOrdensServico, IntegracaoNotificacoesOrdensServico>();
 
         return services;
     }

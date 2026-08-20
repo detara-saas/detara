@@ -30,6 +30,7 @@ public static class Permissoes
     public const string FinanceiroEditar = "Financeiro.Editar";
     public const string FinanceiroRegistrarPagamento = "Financeiro.RegistrarPagamento";
     public const string FinanceiroEstornarPagamento = "Financeiro.EstornarPagamento";
+    public const string NotificacoesReenviar = "Notificacoes.Reenviar";
 
     public static readonly IReadOnlyCollection<string> Todas =
     [
@@ -60,6 +61,7 @@ public static class Permissoes
         FinanceiroVisualizar,
         FinanceiroEditar,
         FinanceiroRegistrarPagamento,
-        FinanceiroEstornarPagamento
+        FinanceiroEstornarPagamento,
+        NotificacoesReenviar
     ];
 }

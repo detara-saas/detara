@@ -5,6 +5,7 @@ using Detara.Domain.Agenda;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Clientes;
 using Detara.Domain.Financeiro;
+using Detara.Domain.Notificacoes;
 using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Persistencia;
@@ -43,6 +44,10 @@ public sealed class DetaraDbContext(
     public DbSet<VeiculoFoto> VeiculosFotos => Set<VeiculoFoto>();
     public DbSet<ContaReceber> ContasReceber => Set<ContaReceber>();
     public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
+    public DbSet<ConfiguracaoNotificacaoEmpresa> ConfiguracoesNotificacaoEmpresa => Set<ConfiguracaoNotificacaoEmpresa>();
+    public DbSet<TemplateEmailEmpresa> TemplatesEmailEmpresa => Set<TemplateEmailEmpresa>();
+    public DbSet<NotificacaoEmail> NotificacoesEmail => Set<NotificacaoEmail>();
+    public DbSet<TentativaNotificacaoEmail> TentativasNotificacaoEmail => Set<TentativaNotificacaoEmail>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

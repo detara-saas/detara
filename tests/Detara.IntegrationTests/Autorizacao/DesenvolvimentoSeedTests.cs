@@ -70,6 +70,8 @@ public sealed class DesenvolvimentoSeedTests
         Assert.Equal(1, contagensSegundaExecucao.PermissoesOrdemServicoEditarDoAdministrador);
         Assert.Equal(4, contagensSegundaExecucao.PermissoesFinanceiro);
         Assert.Equal(4, contagensSegundaExecucao.PermissoesFinanceiroDoAdministrador);
+        Assert.Equal(1, contagensSegundaExecucao.PermissoesNotificacoes);
+        Assert.Equal(1, contagensSegundaExecucao.PermissoesNotificacoesDoAdministrador);
         Assert.Equal(1, contagensSegundaExecucao.UsuariosAdministradores);
         Assert.Equal(
             contagensSegundaExecucao.TotalPermissoes,
@@ -98,6 +100,8 @@ public sealed class DesenvolvimentoSeedTests
             administrador.Permissoes.Count(permissao => permissao.Codigo == "OrdemServico.Editar"),
             await context.Permissoes.CountAsync(permissao => permissao.Codigo.StartsWith("Financeiro.")),
             administrador.Permissoes.Count(permissao => permissao.Codigo.StartsWith("Financeiro.")),
+            await context.Permissoes.CountAsync(permissao => permissao.Codigo == "Notificacoes.Reenviar"),
+            administrador.Permissoes.Count(permissao => permissao.Codigo == "Notificacoes.Reenviar"),
             await context.Usuarios.CountAsync(usuario => usuario.Email == "admin@seed.local"));
     }
 
@@ -110,6 +114,8 @@ public sealed class DesenvolvimentoSeedTests
         int PermissoesOrdemServicoEditarDoAdministrador,
         int PermissoesFinanceiro,
         int PermissoesFinanceiroDoAdministrador,
+        int PermissoesNotificacoes,
+        int PermissoesNotificacoesDoAdministrador,
         int UsuariosAdministradores);
 
     private sealed class UsuarioContextoTeste(Guid empresaId, bool estaAutenticado = true)

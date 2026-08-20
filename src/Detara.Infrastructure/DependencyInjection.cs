@@ -15,6 +15,8 @@ using Detara.Application.Clientes;
 using Detara.Infrastructure.Storage;
 using Detara.Application.Financeiro;
 using Detara.Infrastructure.Financeiro;
+using Detara.Application.Notificacoes;
+using Detara.Infrastructure.Notificacoes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -54,6 +56,16 @@ public static class DependencyInjection
         services.AddScoped<IConfiguracoesOperacionaisRepositorio, ConfiguracoesOperacionaisRepositorio>();
         services.AddScoped<IFinanceiroRepositorio, FinanceiroRepositorio>();
         services.AddScoped<IPlataformaFinanceiroConsulta, PlataformaFinanceiroConsulta>();
+        services.AddScoped<INotificacoesRepositorio, NotificacoesRepositorio>();
+        services.AddScoped<IPlataformaNotificacoesConsulta, PlataformaNotificacoesConsulta>();
+        services.AddScoped<IClientesNotificacoesConsulta, ClientesNotificacoesConsulta>();
+        services.AddSingleton<IRenderizadorTemplateEmail, RenderizadorTemplateEmail>();
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.Secao));
+        services.Configure<FilaNotificacoesOptions>(configuration.GetSection(FilaNotificacoesOptions.Secao));
+        services.AddHttpClient<IProvedorEmail, ResendEmailProvider>(client =>
+            client.BaseAddress = new Uri("https://api.resend.com/"));
+        services.AddScoped<IFilaNotificacoesServico, FilaNotificacoesServico>();
+        services.AddHostedService<NotificacoesWorker>();
         services.AddScoped<IVeiculoFotosRepositorio, VeiculoFotosRepositorio>();
         services.AddSingleton<IOrcamentoPdfGenerator, PdfOrcamentoGenerator>();
         var storageOptions = configuration.GetSection(StorageOptions.Secao).Get<StorageOptions>()
