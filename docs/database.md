@@ -125,8 +125,31 @@ comercial. Fotos transacionais usam o mesmo storage privado da aplicação, mas 
 metadados próprios e não se relacionam com `VeiculosFotos`.
 
 O total autorizado é derivado dos itens incorporados, descontos e acréscimos aprovados.
-Financeiro deverá consumir esse total e nunca reconstruí-lo a partir do Catálogo. Estoque
-deverá reagir ao consumo efetivamente executado quando o módulo existir.
+Financeiro consome esse total e nunca o reconstrói a partir do Catálogo. Estoque deverá
+reagir ao consumo efetivamente executado quando o módulo existir.
+
+## Financeiro — Contas a Receber e Pagamentos
+
+A migration `AddContasReceberEPagamentos` adiciona `ContasReceber` e `Pagamentos`.
+Uma conta é criada no mesmo `SaveChanges` que move a OS para `AguardandoRetirada`,
+desde que o total autorizado seja maior que zero. `(EmpresaId, OrdemServicoId)` é único,
+garantindo uma única cobrança por OS mesmo em reprocessamento.
+
+`ContasReceber` preserva código da OS, cliente, veículo, subtotal, desconto, acréscimo e
+valor original. Competência e vencimento inicial usam a data local da empresa na
+finalização. `Vencido` não é persistido: é calculado por saldo, vencimento e timezone.
+OS, Cliente e Veículo não possuem FKs cross-module; os snapshots tornam consultas
+financeiras independentes desses agregados.
+
+`Pagamentos` possui FK composta `(EmpresaId, ContaReceberId)` para `ContasReceber`, com
+delete `Restrict`. Valor, taxa, forma e parcelas são imutáveis depois do registro. Estorno
+preserva o pagamento original, responsável, data e motivo. `ContaReceber.Versao` é token
+de concorrência otimista incrementado em pagamentos, estornos e alteração de vencimento,
+impedindo que recebimentos simultâneos ultrapassem o saldo.
+
+Os índices de status, competência, vencimento, cliente, veículo, criação e recebimento
+começam por `EmpresaId`. O dashboard agrega no SQL Server faturamento por competência e
+pagamentos confirmados por data de recebimento; pagamentos estornados são excluídos.
 
 Aplicação de migration:
 

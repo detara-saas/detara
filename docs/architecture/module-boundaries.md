@@ -44,7 +44,7 @@ Não serão criados assemblies por módulo enquanto a quantidade de módulos, eq
 | Catálogo | Atual, base | O que a empresa oferece: categorias, serviços e pacotes |
 | Agenda | Atual, base | Agendamento, itens planejados, snapshots, reagendamento, status e consultas operacionais |
 | Atendimento | Atual, base | Orçamento, configuração operacional, ordem de serviço, check-in, execução, fotos transacionais e entrega |
-| Financeiro | Futuro | Pagamentos, recebimentos, fluxo e indicadores financeiros |
+| Financeiro | Atual, base | Contas a receber, pagamentos, estornos e indicadores de recebimento |
 | Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
 | CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
 | Autoatendimento / Portal do Cliente | Futuro, add-on candidato | Experiência externa de catálogo, agenda, aprovações e acompanhamento, consumindo capacidades do Core |
@@ -165,6 +165,14 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `ConfiguracoesOperacionaisAtendimento` | Atendimento |
 | `ChecklistModelos` | Atendimento |
 | `ChecklistModeloItens` | Atendimento |
+| `OrdensServico` | Atendimento |
+| `OrdensServicoItens` | Atendimento |
+| `OrdensServicoChecklist` | Atendimento |
+| `OrdensServicoChecklistItens` | Atendimento |
+| `OrdensServicoFotos` | Atendimento |
+| `OrdensServicoHistoricosStatus` | Atendimento |
+| `ContasReceber` | Financeiro |
+| `Pagamentos` | Financeiro |
 
 Essa matriz deve ser atualizada quando uma tabela ou agregado for introduzido.
 
@@ -321,9 +329,15 @@ Detara Estoque
 
 O Core continua operando se o serviço de Estoque estiver ausente ou desabilitado.
 
-### Financeiro
+### Financeiro implementado
 
-Financeiro pode permanecer no monólito e reagir a eventos como `OrcamentoAprovado`, `OrdemServicoConcluida` e `PagamentoRecebido`. Isso não o transforma automaticamente em candidato a microserviço.
+Financeiro é dono de `ContaReceber` e `Pagamento`. A conta nasce exatamente quando Atendimento finaliza a execução e a OS passa de `EmExecucao` para `AguardandoRetirada`; total zero não gera cobrança. A origem comercial é sempre `OrdemServico.TotalAutorizado`, preservada com subtotal, desconto, acréscimo e snapshots mínimos de OS, cliente e veículo. Financeiro não consulta Catálogo ou Orçamento para reconstruir valores.
+
+A infraestrutura atual não possui um Unit of Work separado. A integração usa a menor orquestração Application-level: `FinalizarExecucaoHandler` entrega um fato imutável a `IIntegracaoFinanceiroOrdensServico`; os repositórios de Atendimento e Financeiro compartilham o mesmo `DetaraDbContext` scoped, e um único `SaveChanges` confirma a transição da OS, seu histórico e a nova conta atomicamente. A chave única `(EmpresaId, OrdemServicoId)` e a verificação no repositório tornam o consumo idempotente. Não há broker, outbox ou dependência de `Detara.Domain.Atendimento` em Financeiro.
+
+`ContaReceber` referencia OS, Cliente e Veículo somente por IDs e snapshots, sem FKs cross-module. A relação conta → pagamentos é interna ao Financeiro e possui FK composta tenant-safe com delete restritivo. Pagamentos são imutáveis; correções usam estorno auditado. A conta mantém o saldo e uma versão de concorrência incrementada em cada mutação, impedindo overpayment por requests simultâneos.
+
+Concluir a OS não cria outra conta e não significa pagamento. Da mesma forma, pagar a conta não altera o estado operacional da OS. O módulo permanece no monólito; uma eventual extração futura depende dos critérios operacionais abaixo, não apenas de sua existência.
 
 ## Critérios para extração futura
 
