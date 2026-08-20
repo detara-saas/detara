@@ -1,6 +1,7 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography;
 using Detara.Api.Autenticacao;
 using Detara.Api.Erros;
 using Detara.Application;
@@ -8,11 +9,14 @@ using Detara.Application.Abstracoes;
 using Detara.Infrastructure;
 using Detara.Infrastructure.Persistencia;
 using Detara.Contracts.Autorizacao;
+using Detara.Application.Plataforma;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
@@ -45,12 +49,30 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Emissor) ||
         "Emissor, audiência e expiração JWT (entre 1 e 1440 minutos) devem ser configurados.");
 }
 
+var platformJwtOptions = ObterPlatformJwtOptions(builder);
+ValidarPlatformJwt(platformJwtOptions, jwtOptions);
+var keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+if (string.IsNullOrWhiteSpace(keyRingPath))
+{
+    keyRingPath = Path.Combine(builder.Environment.ContentRootPath, "data", "data-protection-keys");
+}
+else if (!Path.IsPathFullyQualified(keyRingPath))
+{
+    keyRingPath = Path.GetFullPath(keyRingPath, builder.Environment.ContentRootPath);
+}
+
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Secao));
+builder.Services.AddSingleton<IOptions<PlatformJwtOptions>>(Options.Create(platformJwtOptions));
+builder.Services.AddDataProtection()
+    .SetApplicationName("Detara.Platform")
+    .PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
 builder.Services.AdicionarApplication();
 builder.Services.AdicionarInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioContexto, HttpUsuarioContexto>();
+builder.Services.AddScoped<IContextoAdministradorPlataforma, HttpAdministradorPlataformaContexto>();
 builder.Services.AddScoped<ITokenServico, JwtTokenServico>();
+builder.Services.AddScoped<ITokenPlataformaServico, PlatformJwtTokenServico>();
 builder.Services.AddExceptionHandler<TratadorGlobalExcecoes>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHsts(options =>
@@ -91,6 +113,30 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));
+    options.AddPolicy("platform-login", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "origem-desconhecida",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    options.AddPolicy("platform-mfa", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "origem-desconhecida",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 8,
+            Window = TimeSpan.FromMinutes(5),
+            QueueLimit = 0
+        }));
+    options.AddPolicy("convite-administrador", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "origem-desconhecida",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(5),
+            QueueLimit = 0
+        }));
     options.OnRejected = async (context, cancellationToken) =>
     {
         if (context.Lease.TryGetMetadata(
@@ -108,8 +154,12 @@ builder.Services.AddRateLimiter(options =>
             cancellationToken);
     };
 });
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = EsquemasAutenticacao.Tenant;
+        options.DefaultChallengeScheme = EsquemasAutenticacao.Tenant;
+    })
+    .AddJwtBearer(EsquemasAutenticacao.Tenant, options =>
     {
         options.MapInboundClaims = false;
         options.IncludeErrorDetails = false;
@@ -148,6 +198,51 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
             }
         };
+    })
+    .AddJwtBearer(EsquemasAutenticacao.Plataforma, options =>
+    {
+        options.MapInboundClaims = false;
+        options.IncludeErrorDetails = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = platformJwtOptions.Emissor,
+            ValidateAudience = true,
+            ValidAudience = platformJwtOptions.Audiencia,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(platformJwtOptions.ChaveAssinatura)),
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+            ClockSkew = TimeSpan.FromMinutes(1),
+            NameClaimType = "name"
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                if (principal is null ||
+                    principal.FindFirst("identidade")?.Value != "platform_admin" ||
+                    principal.FindFirst("amr")?.Value != "mfa" ||
+                    !Guid.TryParse(principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out var administradorId) ||
+                    !long.TryParse(principal.FindFirst("versao_seguranca")?.Value, out var versao))
+                {
+                    context.Fail("Token inválido.");
+                    return;
+                }
+
+                var validador = context.HttpContext.RequestServices
+                    .GetRequiredService<IAutenticacaoPlataformaServico>();
+                if (!await validador.RevalidarAsync(
+                        administradorId,
+                        versao,
+                        context.HttpContext.RequestAborted))
+                {
+                    context.Fail("Token revogado.");
+                }
+            }
+        };
     });
 builder.Services.AddAuthorization(options =>
 {
@@ -156,8 +251,15 @@ builder.Services.AddAuthorization(options =>
         .Build();
     foreach (var permissao in Permissoes.Todas)
     {
-        options.AddPolicy(permissao, policy => policy.RequireClaim("permissao", permissao));
+        options.AddPolicy(permissao, policy => policy
+            .RequireAuthenticatedUser()
+            .RequireClaim("permissao", permissao));
     }
+    options.AddPolicy(EsquemasAutenticacao.PolicyAdministradorPlataforma, policy => policy
+        .AddAuthenticationSchemes(EsquemasAutenticacao.Plataforma)
+        .RequireAuthenticatedUser()
+        .RequireClaim("identidade", "platform_admin")
+        .RequireClaim("amr", "mfa"));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -238,7 +340,10 @@ static IdentidadeToken? ExtrairIdentidade(System.Security.Claims.ClaimsPrincipal
         !Guid.TryParse(principal.FindFirst("perfil_id")?.Value, out var perfilId) ||
         !long.TryParse(
             principal.FindFirst("usuario_atualizado_ticks")?.Value,
-            out var atualizadoEmTicks))
+            out var atualizadoEmTicks) ||
+        !long.TryParse(
+            principal.FindFirst("empresa_versao_seguranca")?.Value,
+            out var empresaVersaoSeguranca))
     {
         return null;
     }
@@ -251,7 +356,49 @@ static IdentidadeToken? ExtrairIdentidade(System.Security.Claims.ClaimsPrincipal
         empresaId,
         perfilId,
         atualizadoEmTicks,
+        empresaVersaoSeguranca,
         permissoes);
+}
+
+static PlatformJwtOptions ObterPlatformJwtOptions(WebApplicationBuilder builder)
+{
+    var configurado = builder.Configuration.GetSection(PlatformJwtOptions.Secao).Get<PlatformJwtOptions>()
+        ?? new PlatformJwtOptions();
+    var chave = configurado.ChaveAssinatura;
+    if (string.IsNullOrWhiteSpace(chave) && !builder.Environment.IsProduction())
+    {
+        chave = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+    }
+
+    return new PlatformJwtOptions
+    {
+        Emissor = configurado.Emissor,
+        Audiencia = configurado.Audiencia,
+        ChaveAssinatura = chave,
+        ExpiracaoMinutos = configurado.ExpiracaoMinutos
+    };
+}
+
+static void ValidarPlatformJwt(
+    PlatformJwtOptions platform,
+    JwtOptions tenant)
+{
+    if (string.IsNullOrWhiteSpace(platform.Emissor) ||
+        string.IsNullOrWhiteSpace(platform.Audiencia) ||
+        Encoding.UTF8.GetByteCount(platform.ChaveAssinatura) < 32 ||
+        platform.ExpiracaoMinutos is < 30 or > 60)
+    {
+        throw new InvalidOperationException(
+            "PlatformJwt exige emissor, audiência, chave com pelo menos 32 bytes e expiração entre 30 e 60 minutos.");
+    }
+
+    if (string.Equals(
+            platform.ChaveAssinatura,
+            tenant.ChaveAssinatura,
+            StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("As chaves JWT de Platform e tenant devem ser distintas.");
+    }
 }
 
 static void ValidarConfiguracaoDeProducao(
@@ -267,6 +414,23 @@ static void ValidarConfiguracaoDeProducao(
     if (!builder.Environment.IsProduction())
     {
         return;
+    }
+
+    var publicBaseUrl = builder.Configuration["Web:PublicBaseUrl"];
+    if (!Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out var publicUri) ||
+        publicUri.Scheme != Uri.UriSchemeHttps ||
+        publicUri.IsLoopback ||
+        publicUri.AbsolutePath != "/")
+    {
+        throw new InvalidOperationException(
+            "Web__PublicBaseUrl deve ser uma origem HTTPS pública em produção.");
+    }
+
+    var keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+    if (string.IsNullOrWhiteSpace(keyRingPath) || !Path.IsPathFullyQualified(keyRingPath))
+    {
+        throw new InvalidOperationException(
+            "DataProtection__KeyRingPath deve apontar para armazenamento persistente absoluto em produção.");
     }
 
     var hosts = builder.Configuration["AllowedHosts"];

@@ -32,11 +32,34 @@ public sealed class Empresa : EntidadeBase
     public string? Telefone { get; private set; }
     public string Slug { get; private set; } = string.Empty;
     public string FusoHorario { get; private set; } = "America/Sao_Paulo";
+    public long VersaoSeguranca { get; private set; } = 1;
 
     public void AlterarFusoHorario(string fusoHorario)
     {
         FusoHorario = Exigir(fusoHorario, nameof(fusoHorario));
         MarcarComoAtualizada();
+    }
+
+    public void Suspender()
+    {
+        if (!EhAtivo)
+        {
+            return;
+        }
+
+        Desativar();
+        VersaoSeguranca++;
+    }
+
+    public void Reativar()
+    {
+        if (EhAtivo)
+        {
+            return;
+        }
+
+        Ativar();
+        VersaoSeguranca++;
     }
 
     private static string Exigir(string valor, string parametro) =>

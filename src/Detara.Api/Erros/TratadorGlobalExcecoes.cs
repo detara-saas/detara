@@ -1,6 +1,7 @@
 using Detara.Application.Abstracoes;
 using Detara.Application.Autenticacao;
 using Detara.Contracts.Comum;
+using Detara.Application.Plataforma;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +62,21 @@ internal sealed class TratadorGlobalExcecoes(ILogger<TratadorGlobalExcecoes> log
                 StatusCodes.Status401Unauthorized,
                 exception.Message,
                 "credenciais_invalidas",
+                null),
+            CredenciaisPlataformaInvalidasException => (
+                StatusCodes.Status401Unauthorized,
+                exception.Message,
+                "credenciais_invalidas",
+                null),
+            CodigoMfaInvalidoException => (
+                StatusCodes.Status401Unauthorized,
+                exception.Message,
+                "codigo_mfa_invalido",
+                null),
+            ConviteAdministradorInvalidoException => (
+                StatusCodes.Status400BadRequest,
+                exception.Message,
+                "convite_invalido",
                 null),
             ViolacaoIsolamentoTenantException => (
                 StatusCodes.Status403Forbidden,

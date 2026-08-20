@@ -6,6 +6,7 @@ using Detara.Domain.Atendimento;
 using Detara.Domain.Clientes;
 using Detara.Domain.Financeiro;
 using Detara.Domain.Notificacoes;
+using Detara.Domain.Plataforma;
 using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Persistencia;
@@ -48,6 +49,11 @@ public sealed class DetaraDbContext(
     public DbSet<TemplateEmailEmpresa> TemplatesEmailEmpresa => Set<TemplateEmailEmpresa>();
     public DbSet<NotificacaoEmail> NotificacoesEmail => Set<NotificacaoEmail>();
     public DbSet<TentativaNotificacaoEmail> TentativasNotificacaoEmail => Set<TentativaNotificacaoEmail>();
+    public DbSet<AdministradorPlataforma> AdministradoresPlataforma => Set<AdministradorPlataforma>();
+    public DbSet<CodigoRecuperacaoAdministradorPlataforma> CodigosRecuperacaoAdministradoresPlataforma =>
+        Set<CodigoRecuperacaoAdministradorPlataforma>();
+    public DbSet<AuditoriaPlataforma> AuditoriasPlataforma => Set<AuditoriaPlataforma>();
+    public DbSet<ConviteAdministradorEmpresa> ConvitesAdministradoresEmpresa => Set<ConviteAdministradorEmpresa>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +79,12 @@ public sealed class DetaraDbContext(
 
     private void ValidarIsolamentoDeEscrita()
     {
+        if (ChangeTracker.Entries<AuditoriaPlataforma>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException("A auditoria da plataforma é append-only.");
+        }
+
         var alteracoesTenant = ChangeTracker.Entries<EntidadeEmpresaBase>()
             .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
 

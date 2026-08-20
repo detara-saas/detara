@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using Detara.Application.Abstracoes;
+using Detara.Application.Comunicacao;
 using Detara.Domain.Notificacoes;
 using FluentValidation;
 using MediatR;

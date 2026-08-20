@@ -32,3 +32,4 @@ docker-compose.override.yml
 
 # Storage privado local (Development/Testes/QA)
 **/data/storage/
+**/data/data-protection-keys/

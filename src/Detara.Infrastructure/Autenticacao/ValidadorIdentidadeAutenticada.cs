@@ -18,12 +18,14 @@ internal sealed class ValidadorIdentidadeAutenticada(DetaraDbContext dbContext)
             return false;
         }
 
-        var empresaAtiva = await dbContext.Empresas
+        var empresaValida = await dbContext.Empresas
             .AsNoTracking()
             .AnyAsync(
-                empresa => empresa.Id == identidade.EmpresaId && empresa.EhAtivo,
+                empresa => empresa.Id == identidade.EmpresaId &&
+                    empresa.EhAtivo &&
+                    empresa.VersaoSeguranca == identidade.EmpresaVersaoSeguranca,
                 cancellationToken);
-        if (!empresaAtiva)
+        if (!empresaValida)
         {
             return false;
         }

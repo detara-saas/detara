@@ -16,7 +16,10 @@ using Detara.Infrastructure.Storage;
 using Detara.Application.Financeiro;
 using Detara.Infrastructure.Financeiro;
 using Detara.Application.Notificacoes;
+using Detara.Application.Comunicacao;
+using Detara.Application.Plataforma;
 using Detara.Infrastructure.Notificacoes;
+using Detara.Domain.Plataforma;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -38,9 +41,17 @@ public static class DependencyInjection
         }
 
         services.AddDbContext<DetaraDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddMemoryCache();
         services.AddScoped<IUsuarioAutenticacaoRepositorio, UsuarioAutenticacaoRepositorio>();
         services.AddSingleton<ISenhaServico, SenhaServico>();
         services.AddScoped<IValidadorIdentidadeAutenticada, ValidadorIdentidadeAutenticada>();
+        services.AddScoped<IAutenticacaoPlataformaServico, AutenticacaoPlataformaServico>();
+        services.AddScoped<IAdministracaoPlataformaServico, AdministracaoPlataformaServico>();
+        services.AddScoped<IConvitesAdministradoresEmpresaServico, ConvitesAdministradoresEmpresaServico>();
+        services.AddScoped<IFilaConvitesAdministradoresEmpresaServico, FilaConvitesAdministradoresEmpresaServico>();
+        services.AddHostedService<ConvitesAdministradoresEmpresaWorker>();
+        services.Configure<PlataformaOptions>(configuration.GetSection(PlataformaOptions.Secao));
+        services.Configure<WebPublicaOptions>(configuration.GetSection(WebPublicaOptions.Secao));
         services.AddScoped<IPreferenciasUsuarioRepositorio, PreferenciasUsuarioRepositorio>();
         services.AddScoped<IClientesRepositorio, ClientesRepositorio>();
         services.AddScoped<IVeiculosRepositorio, VeiculosRepositorio>();
@@ -87,6 +98,7 @@ public static class DependencyInjection
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.Secao));
         services.AddSingleton<IArquivoStorage, LocalArquivoStorage>();
         services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
+        services.AddSingleton<IPasswordHasher<AdministradorPlataforma>, PasswordHasher<AdministradorPlataforma>>();
 
         return services;
     }

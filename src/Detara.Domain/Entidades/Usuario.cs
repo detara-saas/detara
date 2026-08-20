@@ -22,6 +22,7 @@ public sealed class Usuario : EntidadeEmpresaBase
     public string Email { get; private set; } = string.Empty;
     public string SenhaHash { get; private set; } = string.Empty;
     public Perfil Perfil { get; private set; } = null!;
+    public Empresa Empresa { get; private set; } = null!;
 
     public void AlterarSenhaHash(string senhaHash)
     {
