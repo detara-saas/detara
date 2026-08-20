@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>@(_pacote?.Nome ?? "Pacote") | Detara</PageTitle>
+<div class="page-container page-container-focused">
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
 else if (_pacote is null) { <EstadoVazio Titulo="Pacote não encontrado" Descricao="O pacote não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.Inventory2" /> }
 else
@@ -19,6 +20,8 @@ else
     </div></section>
     <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Aplicações do pacote</h2></div></div><div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhuma aplicação registrada</strong><span>O histórico aparecerá quando este pacote entrar em atendimentos.</span></div></div></section>
 }
+
+</div>
 
 @code {
     [Parameter] public Guid Id { get; set; }

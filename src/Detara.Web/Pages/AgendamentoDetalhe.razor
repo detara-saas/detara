@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>@(_agendamento is null ? "Agendamento" : $"{_agendamento.ClienteNome} | Agenda") | Detara</PageTitle>
+<div class="page-container page-container-wide">
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
 else if (_agendamento is null) { <EstadoVazio Titulo="Agendamento não encontrado" Descricao="O registro não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.EventBusy" /> }
 else
@@ -48,6 +49,8 @@ else
         }
     </Authorized></AuthorizeView>
 }
+
+</div>
 
 @code {
     [Parameter] public Guid Id { get; set; }

@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 
 <PageTitle>@(_servico?.Nome ?? "Serviço") | Detara</PageTitle>
+<div class="page-container page-container-focused">
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
 else if (_servico is null) { <EstadoVazio Titulo="Serviço não encontrado" Descricao="O serviço não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.HomeRepairService" /> }
 else
@@ -13,6 +14,8 @@ else
     <div class="detail-grid"><section class="module-panel detail-card"><div class="section-heading"><div><span class="section-eyebrow">RESUMO</span><h2>Dados comerciais</h2></div></div><dl class="detail-list"><div><dt>Categoria</dt><dd>@_servico.CategoriaNome</dd></div><div><dt>Preço de referência</dt><dd>@FormatacaoCatalogo.Preco(_servico.TipoPrecificacao, _servico.PrecoBase)</dd></div><div><dt>Duração estimada</dt><dd>@FormatarDuracao(_servico.DuracaoEstimadaMinutos)</dd></div><div><dt>Ordem</dt><dd>@_servico.Ordem</dd></div></dl></section><section class="module-panel detail-card detail-observation"><div class="section-heading"><div><span class="section-eyebrow">DESCRIÇÃO</span><h2>Escopo do serviço</h2></div></div><p>@(string.IsNullOrWhiteSpace(_servico.Descricao) ? "Nenhuma descrição registrada." : _servico.Descricao)</p></section></div>
     <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Execuções do serviço</h2></div></div><div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhuma execução registrada</strong><span>O histórico aparecerá quando este serviço entrar em atendimentos.</span></div></div></section>
 }
+
+</div>
 
 @code {
     [Parameter] public Guid Id { get; set; }

@@ -5,6 +5,7 @@
 
 <PageTitle>Veículos | Detara</PageTitle>
 
+<div class="page-container page-container-fluid list-page">
 <CabecalhoPagina Titulo="Veículos" Descricao="Consulte os veículos atendidos pela sua operação." Sobretitulo="CADASTROS">
     <Acoes>
         <AuthorizeView Policy="@Permissoes.VeiculosCriar">
@@ -70,6 +71,8 @@ else
 
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="PaginaAnteriorAsync" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="ProximaPaginaAsync" /></div></div>
 }
+
+</div>
 
 @code {
     private PaginaResponse<VeiculoListaResponse>? _pagina;

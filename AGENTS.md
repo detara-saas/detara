@@ -23,6 +23,10 @@ Prefira componentes e padrões Detara existentes antes de introduzir novas estru
 
 Não introduza spacing, cores, `max-width` ou layouts específicos de feature quando existir token ou padrão equivalente no Design System.
 
+Não utilize um único `max-width` para todas as páginas. Antes de criar uma tela, escolha a estratégia de largura definida pelo Design System (`Fluid`, `Wide` ou `Focused`) com base no arquétipo e na densidade da página.
+
+Dashboards, listagens, analytics, calendários e telas operacionais densas devem priorizar a área útil do shell e não devem nascer artificialmente centralizadas em containers estreitos.
+
 ## Multi-tenancy
 
 Segurança entre tenants é crítica. Nunca confie em `EmpresaId` vindo do frontend quando o tenant puder ser obtido do usuário autenticado. Toda entidade comercial multi-tenant deve respeitar isolamento de leitura e escrita. Preferências e favoritos pertencem ao usuário autenticado; URLs ou identificadores arbitrários enviados pelo browser devem ser rejeitados.

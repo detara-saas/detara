@@ -4,6 +4,7 @@
 
 <PageTitle>Dashboard | Detara</PageTitle>
 
+<div class="page-container page-container-fluid operational-page">
 <header class="page-heading dashboard-heading">
     <div>
         <MudText Typo="Typo.caption" Class="page-eyebrow">QUINTA-FEIRA, 13 DE AGOSTO</MudText>
@@ -104,6 +105,8 @@
         </div>
     </MudPaper>
 </section>
+
+</div>
 
 @code {
     private sealed record Indicador(string Titulo, string Valor, string Apoio, string Tendencia, string Icone, string Classe);

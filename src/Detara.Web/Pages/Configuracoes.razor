@@ -10,6 +10,7 @@
 
 <PageTitle>Configurações | Detara</PageTitle>
 
+<div class="page-container page-container-wide">
 <CabecalhoPagina Titulo="Configurações" Descricao="Defina como sua empresa conduz o atendimento sem impor um processo único." Sobretitulo="ADMINISTRAÇÃO" />
 
 @if (_carregando)
@@ -185,6 +186,8 @@ else
         </section>
     </div>
 }
+
+</div>
 
 @code {
     private ConfiguracaoOperacionalResponse? _configuracao;
