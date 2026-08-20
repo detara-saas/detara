@@ -1,0 +1,68 @@
+@page "/financeiro"
+@attribute [Authorize(Policy = Permissoes.FinanceiroVisualizar)]
+@inject FinanceiroServico FinanceiroApi
+@inject IMensagemServico Mensagens
+
+<PageTitle>Financeiro | Detara</PageTitle>
+<div class="page-container financial-dashboard-page">
+    <CabecalhoPagina Titulo="Visão financeira" Descricao="Recebimentos, taxas e saldos da operação em uma leitura confiável." Sobretitulo="FINANCEIRO">
+        <Acoes><MudButton Href="/financeiro/contas-receber" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.ReceiptLong">Contas a receber</MudButton></Acoes>
+    </CabecalhoPagina>
+
+    <section class="module-toolbar financial-period-toolbar">
+        <MudDatePicker @bind-Date="_inicio" Label="Início" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
+        <MudDatePicker @bind-Date="_fim" Label="Fim" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="CarregarAsync">Atualizar período</MudButton>
+    </section>
+
+    @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+    else if (_resumo is not null)
+    {
+        <section class="financial-metrics" aria-label="Resumo financeiro">
+            <CardMetrica Icone="@Icons.Material.Outlined.RequestQuote" Rotulo="FATURADO NO PERÍODO" Valor="@Moeda(_resumo.Faturado)" Descricao="Por competência" Destaque="true" ValorSemQuebra="true" />
+            <CardMetrica Icone="@Icons.Material.Outlined.Payments" Rotulo="RECEBIDO BRUTO" Valor="@Moeda(_resumo.RecebidoBruto)" Descricao="Pagamentos confirmados" ValorSemQuebra="true" />
+            <CardMetrica Icone="@Icons.Material.Outlined.Percent" Rotulo="TAXAS" Valor="@Moeda(_resumo.Taxas)" Descricao="Custos informados" ValorSemQuebra="true" />
+            <CardMetrica Icone="@Icons.Material.Outlined.AccountBalanceWallet" Rotulo="RECEITA LÍQUIDA RECEBIDA" Valor="@Moeda(_resumo.ReceitaLiquidaRecebida)" Descricao="Recebido bruto menos taxas — não é lucro" ValorSemQuebra="true" />
+            <CardMetrica Icone="@Icons.Material.Outlined.PendingActions" Rotulo="EM ABERTO ATUAL" Valor="@Moeda(_resumo.EmAbertoAtual)" Descricao="Todas as contas não pagas" ValorSemQuebra="true" />
+            <CardMetrica Icone="@Icons.Material.Outlined.WarningAmber" Rotulo="VENCIDO ATUAL" Valor="@Moeda(_resumo.VencidoAtual)" Descricao="No fuso da empresa" ValorSemQuebra="true" Classe="financial-overdue-card" />
+            <CardMetrica Icone="@Icons.Material.Outlined.Analytics" Rotulo="TICKET MÉDIO" Valor="@Moeda(_resumo.TicketMedio)" Descricao="Por conta gerada no período" ValorSemQuebra="true" />
+        </section>
+
+        <section class="financial-dashboard-grid">
+            <article class="module-panel section-card">
+                <div class="section-heading section-card-heading"><div><span class="section-eyebrow">RECEBIMENTOS</span><h2>Formas de pagamento</h2><p>Distribuição dos pagamentos confirmados no período.</p></div></div>
+                @if (_resumo.FormasPagamento.Count == 0)
+                { <div class="compact-empty-state"><span><MudIcon Icon="@Icons.Material.Outlined.Payments" /></span><div><strong>Nenhum recebimento no período</strong><p>Os pagamentos confirmados aparecerão aqui.</p></div></div> }
+                else
+                {
+                    <div class="payment-distribution">
+                        @foreach (var forma in _resumo.FormasPagamento.OrderByDescending(x => x.Valor))
+                        { <article><span class="payment-form-icon"><MudIcon Icon="@IconeForma(forma.FormaPagamento)" /></span><div><strong>@NomeForma(forma.FormaPagamento)</strong><span>@forma.Quantidade pagamento(s)</span></div><strong>@Moeda(forma.Valor)</strong></article> }
+                    </div>
+                }
+            </article>
+            <article class="module-panel financial-definition-card">
+                <span class="metric-summary-icon"><MudIcon Icon="@Icons.Material.Outlined.Info" /></span>
+                <div><span class="section-eyebrow">LEITURA DOS NÚMEROS</span><h2>Receita líquida recebida não é lucro</h2><p>O indicador considera apenas o valor recebido menos as taxas registradas. Custos operacionais, despesas e impostos não fazem parte deste módulo.</p><MudButton Href="/financeiro/contas-receber" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Explorar contas</MudButton></div>
+            </article>
+        </section>
+    }
+</div>
+
+@code {
+    private ResumoFinanceiroResponse? _resumo; private bool _carregando = true; private DateTime? _inicio, _fim;
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var r = await FinanceiroApi.ObterResumoAsync(_inicio.HasValue ? DateOnly.FromDateTime(_inicio.Value) : null,
+            _fim.HasValue ? DateOnly.FromDateTime(_fim.Value) : null);
+        _resumo = r.Resultado;
+        if (_resumo is not null) { _inicio = _resumo.Inicio.ToDateTime(TimeOnly.MinValue); _fim = _resumo.Fim.ToDateTime(TimeOnly.MinValue); }
+        if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true);
+        _carregando = false;
+    }
+    private static string Moeda(decimal valor) => valor.ToString("C2");
+    internal static string NomeForma(FormaPagamentoContrato forma) => forma switch { FormaPagamentoContrato.CartaoDebito => "Cartão de débito", FormaPagamentoContrato.CartaoCredito => "Cartão de crédito", FormaPagamentoContrato.Transferencia => "Transferência", _ => forma.ToString() };
+    private static string IconeForma(FormaPagamentoContrato forma) => forma switch { FormaPagamentoContrato.Pix => Icons.Material.Outlined.QrCode2, FormaPagamentoContrato.Dinheiro => Icons.Material.Outlined.Payments, FormaPagamentoContrato.CartaoDebito or FormaPagamentoContrato.CartaoCredito => Icons.Material.Outlined.CreditCard, FormaPagamentoContrato.Boleto => Icons.Material.Outlined.Receipt, FormaPagamentoContrato.Transferencia => Icons.Material.Outlined.AccountBalance, _ => Icons.Material.Outlined.MoreHoriz };
+}

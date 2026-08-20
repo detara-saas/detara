@@ -39,8 +39,7 @@
     <AuthorizeView Policy="@Permissoes.ServicosVisualizar"><Authorized><MudNavLink Href="/servicos" Icon="@Icons.Material.Outlined.AutoFixHigh"><span class="nav-label">Serviços</span></MudNavLink></Authorized></AuthorizeView>
     <AuthorizeView Policy="@Permissoes.PacotesVisualizar"><Authorized><MudNavLink Href="/pacotes" Icon="@Icons.Material.Outlined.Inventory2"><span class="nav-label">Pacotes</span></MudNavLink></Authorized></AuthorizeView>
 
-    <MudText Typo="Typo.overline" Class="nav-section">FINANCEIRO</MudText>
-    <MudNavLink Href="/pagamentos" Icon="@Icons.Material.Outlined.Payments"><span class="nav-label">Pagamentos</span></MudNavLink>
+    <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar"><Authorized><MudText Typo="Typo.overline" Class="nav-section">FINANCEIRO</MudText><MudNavLink Href="/financeiro" Icon="@Icons.Material.Outlined.AccountBalanceWallet"><span class="nav-label">Visão financeira</span></MudNavLink></Authorized></AuthorizeView>
 
     <MudText Typo="Typo.overline" Class="nav-section">ADMINISTRAÇÃO</MudText>
     <AuthorizeView Policy="@Permissoes.ConfiguracoesVisualizar"><Authorized><MudNavLink Href="/configuracoes" Icon="@Icons.Material.Outlined.Settings"><span class="nav-label">Configurações</span></MudNavLink></Authorized></AuthorizeView>
@@ -64,7 +63,8 @@
             ["veiculos"] = ("Veículos", "/veiculos"),
             ["servicos"] = ("Serviços", "/servicos"),
             ["pacotes"] = ("Pacotes", "/pacotes"),
-            ["pagamentos"] = ("Pagamentos", "/pagamentos"),
+            ["financeiro"] = ("Financeiro", "/financeiro"),
+            ["pagamentos"] = ("Financeiro", "/financeiro"),
             ["usuarios"] = ("Usuários", "/usuarios"),
             ["perfis"] = ("Perfis", "/perfis"),
             ["empresa"] = ("Empresa", "/empresa"),
