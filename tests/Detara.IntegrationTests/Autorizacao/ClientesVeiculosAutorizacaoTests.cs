@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using Detara.Application.Abstracoes;
 using Detara.Contracts.Atendimento;
+using Detara.Contracts.Autenticacao;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
@@ -137,11 +138,107 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Login_FalhasNaoPermitemEnumerarEmail()
+    {
+        var emailInexistente = await _client.PostAsJsonAsync(
+            "/api/autenticacao/login",
+            new LoginRequest("inexistente@detara.local", "senha-incorreta"));
+        var senhaIncorreta = await _client.PostAsJsonAsync(
+            "/api/autenticacao/login",
+            new LoginRequest(DetaraApiFactory.EmailLogin, "senha-incorreta"));
+        var respostaInexistente = await emailInexistente.Content
+            .ReadFromJsonAsync<RespostaApi<object>>();
+        var respostaIncorreta = await senhaIncorreta.Content
+            .ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, emailInexistente.StatusCode);
+        Assert.Equal(emailInexistente.StatusCode, senhaIncorreta.StatusCode);
+        Assert.Equal(respostaInexistente?.Info, respostaIncorreta?.Info);
+        Assert.Equal("credenciais_invalidas", respostaInexistente?.Erro?.Codigo);
+        Assert.Equal(respostaInexistente?.Erro?.Codigo, respostaIncorreta?.Erro?.Codigo);
+    }
+
+    [Fact]
+    public async Task LoginMembershipUnica_RetornaJwtTenantSemEtapaDeSelecao()
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/autenticacao/login",
+            new LoginRequest(DetaraApiFactory.EmailLogin, DetaraApiFactory.SenhaLogin));
+        var body = await response.Content.ReadFromJsonAsync<RespostaApi<LoginResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var sessao = Assert.IsType<LoginAutenticadoResponse>(body?.Resultado);
+        Assert.Equal(_factory.EmpresaId, sessao.EmpresaId);
+        Assert.False(string.IsNullOrWhiteSpace(sessao.Token));
+    }
+
+    [Fact]
+    public async Task LoginComMesmaSenhaEmDoisTenants_ExigeSelecaoEEmiteJwtDoEscolhido()
+    {
+        await _factory.AdicionarMembershipOutroTenantAsync(DetaraApiFactory.SenhaLogin);
+        var login = await _client.PostAsJsonAsync(
+            "/api/autenticacao/login",
+            new LoginRequest(DetaraApiFactory.EmailLogin, DetaraApiFactory.SenhaLogin));
+        var body = await login.Content.ReadFromJsonAsync<RespostaApi<LoginResponse>>();
+        var selecao = Assert.IsType<SelecaoEmpresaNecessariaResponse>(body?.Resultado);
+
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        Assert.Equal(2, selecao.Empresas.Count);
+        Assert.DoesNotContain(DetaraApiFactory.SenhaLogin, selecao.Challenge, StringComparison.Ordinal);
+
+        var escolha = await _client.PostAsJsonAsync(
+            "/api/autenticacao/selecionar-empresa",
+            new SelecionarEmpresaRequest(selecao.Challenge, _factory.EmpresaOutroTenantId));
+        var sessao = await escolha.Content
+            .ReadFromJsonAsync<RespostaApi<LoginAutenticadoResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, escolha.StatusCode);
+        Assert.Equal(_factory.EmpresaOutroTenantId, sessao?.Resultado?.EmpresaId);
+        Assert.False(string.IsNullOrWhiteSpace(sessao?.Resultado?.Token));
+    }
+
+    [Fact]
+    public async Task SelecaoEmpresaForaDoChallenge_Retorna401Generico()
+    {
+        await _factory.AdicionarMembershipOutroTenantAsync(DetaraApiFactory.SenhaLogin);
+        var login = await _client.PostAsJsonAsync(
+            "/api/autenticacao/login",
+            new LoginRequest(DetaraApiFactory.EmailLogin, DetaraApiFactory.SenhaLogin));
+        var body = await login.Content.ReadFromJsonAsync<RespostaApi<LoginResponse>>();
+        var selecao = Assert.IsType<SelecaoEmpresaNecessariaResponse>(body?.Resultado);
+
+        var escolha = await _client.PostAsJsonAsync(
+            "/api/autenticacao/selecionar-empresa",
+            new SelecionarEmpresaRequest(selecao.Challenge, Guid.NewGuid()));
+        var erro = await escolha.Content.ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, escolha.StatusCode);
+        Assert.Equal("selecao_empresa_invalida", erro?.Erro?.Codigo);
+    }
+
+    [Fact]
+    public async Task EmpresaDesativadaDepoisDoChallenge_NaoRecebeJwt()
+    {
+        await _factory.AdicionarMembershipOutroTenantAsync(DetaraApiFactory.SenhaLogin);
+        var login = await _client.PostAsJsonAsync(
+            "/api/autenticacao/login",
+            new LoginRequest(DetaraApiFactory.EmailLogin, DetaraApiFactory.SenhaLogin));
+        var body = await login.Content.ReadFromJsonAsync<RespostaApi<LoginResponse>>();
+        var selecao = Assert.IsType<SelecaoEmpresaNecessariaResponse>(body?.Resultado);
+        await _factory.DesativarEmpresaOutroTenantAsync();
+
+        var escolha = await _client.PostAsJsonAsync(
+            "/api/autenticacao/selecionar-empresa",
+            new SelecionarEmpresaRequest(selecao.Challenge, _factory.EmpresaOutroTenantId));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, escolha.StatusCode);
+    }
+
+    [Fact]
     public async Task Login_RepetidoExcessivamente_Retorna429NoLimite()
     {
         var payload = new
         {
-            SlugEmpresa = "empresa-inexistente",
             Email = "usuario-inexistente@detara.local",
             Senha = "senha-incorreta"
         };
@@ -523,6 +620,8 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
 
     private sealed class DetaraApiFactory : WebApplicationFactory<Program>, IAsyncDisposable
     {
+        public const string EmailLogin = "login@detara.local";
+        public const string SenhaLogin = "senha-segura-login";
         private readonly SqliteConnection _connection = new("Data Source=:memory:");
         private readonly Dictionary<string, string?> _environmentBeforeTest = new();
         public Guid EmpresaId { get; } = Guid.NewGuid();
@@ -601,6 +700,18 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             }
 
             await using var tenantContext = new DetaraDbContext(options, new TestUserContext(EmpresaId));
+            var perfilLogin = new Perfil(EmpresaId, "Administrador Login");
+            tenantContext.Perfis.Add(perfilLogin);
+            await tenantContext.SaveChangesAsync();
+            var usuarioLogin = new Usuario(
+                EmpresaId,
+                perfilLogin.Id,
+                "Usuário Login",
+                EmailLogin,
+                "hash-temporario");
+            var senhaServico = scope.ServiceProvider.GetRequiredService<ISenhaServico>();
+            usuarioLogin.AlterarSenhaHash(senhaServico.GerarHash(usuarioLogin, SenhaLogin));
+            tenantContext.Usuarios.Add(usuarioLogin);
             var cliente = new Cliente(
                 EmpresaId,
                 "Cliente Teste",
@@ -639,6 +750,37 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
 
         public async Task<string> ObterNomeClienteGlobalAsync(Guid id) =>
             (await ObterClienteGlobalAsync(id)).Nome;
+
+        public async Task AdicionarMembershipOutroTenantAsync(string senha)
+        {
+            using var scope = Services.CreateScope();
+            var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+            await using var context = new DetaraDbContext(
+                options,
+                new TestUserContext(EmpresaOutroTenantId));
+            var perfil = new Perfil(EmpresaOutroTenantId, "Administrador Outro Tenant");
+            context.Perfis.Add(perfil);
+            await context.SaveChangesAsync();
+            var usuario = new Usuario(
+                EmpresaOutroTenantId,
+                perfil.Id,
+                "Usuário Outro Tenant",
+                EmailLogin,
+                "hash-temporario");
+            var senhaServico = scope.ServiceProvider.GetRequiredService<ISenhaServico>();
+            usuario.AlterarSenhaHash(senhaServico.GerarHash(usuario, senha));
+            context.Usuarios.Add(usuario);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task DesativarEmpresaOutroTenantAsync()
+        {
+            using var scope = Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<DetaraDbContext>();
+            var empresa = await context.Empresas.SingleAsync(x => x.Id == EmpresaOutroTenantId);
+            empresa.Desativar();
+            await context.SaveChangesAsync();
+        }
 
         public async Task<(Guid EmpresaId, bool EhAtivo, DateTime CriadoEmUtc)>
             ObterEstadoClienteGlobalAsync(Guid id)

@@ -4,6 +4,7 @@ using Detara.Domain.Entidades;
 using Detara.Domain.Plataforma;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
+using Detara.Infrastructure.Autenticacao;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -81,6 +82,18 @@ public sealed class ConvitesAdministradorEmpresaTests : IAsyncLifetime
         Assert.Contains(
             await verificacao.AuditoriasPlataforma.ToListAsync(),
             x => x.TipoAcao == AcoesAuditoriaPlataforma.ConviteAceito && x.TraceId == "trace-aceite");
+        var candidatosLogin = await new UsuarioAutenticacaoRepositorio(verificacao)
+            .ObterCandidatosPorEmailAsync("tenant-admin@empresa.local", CancellationToken.None);
+        var candidatoLogin = Assert.Single(candidatosLogin);
+        Assert.True(candidatoLogin.Usuario.EhAtivo);
+        Assert.True(candidatoLogin.Empresa.EhAtiva);
+        Assert.True(candidatoLogin.Perfil.EhAtivo);
+        Assert.Equal(
+            PasswordVerificationResult.Success,
+            _hasher.VerifyHashedPassword(
+                candidatoLogin.Usuario,
+                candidatoLogin.Usuario.SenhaHash,
+                "passphrase-escolhida-pelo-tenant"));
 
         await Assert.ThrowsAsync<ConviteAdministradorInvalidoException>(() =>
             CriarServico(verificacao).AceitarAsync(token, "outra-passphrase-segura", null, CancellationToken.None));

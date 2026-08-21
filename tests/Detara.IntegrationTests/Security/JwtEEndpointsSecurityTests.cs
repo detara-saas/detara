@@ -198,6 +198,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData("/api/autenticacao/selecionar-empresa", 11)]
     [InlineData("/api/plataforma/autenticacao/login", 6)]
     [InlineData("/api/plataforma/autenticacao/mfa/verificar", 9)]
     [InlineData("/api/convites/administrador/validar", 11)]
@@ -238,6 +239,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
                 "GET /health/live",
                 "GET /health/ready",
                 "POST /api/autenticacao/login",
+                "POST /api/autenticacao/selecionar-empresa",
                 "POST /api/convites/administrador/aceitar",
                 "POST /api/convites/administrador/validar",
                 "POST /api/plataforma/autenticacao/login",
@@ -251,6 +253,24 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ChallengeSelecaoEmpresa_NaoEhAceitoComoJwtOperacional()
+    {
+        var challenge = _factory.Services
+            .GetRequiredService<IChallengeSelecaoEmpresaTenant>()
+            .Criar(
+            [
+                new(Guid.NewGuid(), Guid.NewGuid(), 1, 1, 1),
+                new(Guid.NewGuid(), Guid.NewGuid(), 1, 1, 1)
+            ]);
+        _client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", challenge.Valor);
+
+        using var response = await _client.GetAsync("/api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public void Bootstrap_NaoExisteNaSuperficieHttp()
     {
         var rotas = _factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
@@ -260,7 +280,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(112, rotas.Length);
+        Assert.Equal(113, rotas.Length);
     }
 
     [Fact]
