@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Detara.Contracts.AdministracaoTenant;
 using Detara.Contracts.Comum;
 
@@ -106,6 +107,11 @@ public sealed class AdministracaoTenantServico(HttpClient http)
         try
         {
             using var response = await enviar();
+            if (response.Content.Headers.ContentLength == 0)
+            {
+                return ResultadoServico<T>.Falha("Não foi possível concluir a operação.");
+            }
+
             var resposta = await response.Content.ReadFromJsonAsync<RespostaApi<T>>(ct);
             return response.IsSuccessStatusCode && resposta is { Sucesso: true, Resultado: not null }
                 ? ResultadoServico<T>.Ok(resposta.Resultado, resposta.Info)
@@ -118,6 +124,10 @@ public sealed class AdministracaoTenantServico(HttpClient http)
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
             return ResultadoServico<T>.Falha("A API não respondeu dentro do tempo esperado.");
+        }
+        catch (JsonException)
+        {
+            return ResultadoServico<T>.Falha("A API retornou uma resposta inválida.");
         }
     }
 

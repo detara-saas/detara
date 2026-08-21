@@ -6,6 +6,7 @@
 @inject IMensagemServico Mensagens
 @inject AdministracaoTenantServico AdministracaoTenant
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
 <MudPopoverProvider />
@@ -107,6 +108,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var autenticacao = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (autenticacao.User.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
         var conta = await AdministracaoTenant.ObterMinhaContaAsync();
         if (conta is { Sucesso: true, Resultado: not null })
         {

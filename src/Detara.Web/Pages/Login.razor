@@ -45,10 +45,10 @@
         <MudForm @ref="_form">
             <MudTextField T="string" @bind-Value="_email" Label="E-mail" InputType="InputType.Email"
                           Variant="Variant.Outlined" Required="true" RequiredError="Informe o e-mail."
-                          Class="login-field" autocomplete="username" />
+                          Immediate="true" Class="login-field" autocomplete="username" />
             <MudTextField T="string" @bind-Value="_senha" Label="Senha" InputType="InputType.Password"
                           Variant="Variant.Outlined" Required="true" RequiredError="Informe a senha."
-                          Class="login-field" autocomplete="current-password" />
+                          Immediate="true" Class="login-field" autocomplete="current-password" />
             <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
                        Disabled="@_processando" OnClick="EntrarAsync" Class="login-button">
                 @if (_processando)
