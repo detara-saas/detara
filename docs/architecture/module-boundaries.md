@@ -315,6 +315,14 @@ Clientes é dono de `VeiculoFoto`, pois a imagem permanente descreve o cadastro 
 
 A FK composta tenant-safe de `VeiculosFotos` para `Veiculos` é interna ao módulo Clientes e usa exclusão restritiva. Configuração e checklist não recebem FK para `Empresas`: o isolamento e a existência da empresa são protegidos pelo contexto autenticado e pelos índices únicos por `EmpresaId`, evitando acoplamento desnecessário entre Atendimento e Plataforma.
 
+## Onboarding inicial implementado
+
+Onboarding é uma composição transversal de leitura no Dashboard tenant e não possui aggregates próprios. O read model consulta somente estados booleanos através de contratos estreitos implementados pelos módulos Plataforma, Atendimento, Catálogo, Clientes e Agenda. Nenhum handler de onboarding usa o `DetaraDbContext` como API global e nenhum módulo externo é alterado pela composição.
+
+O `EmpresaId` vem exclusivamente de `IUsuarioContexto`. Empresa ativa e configurada, configuração operacional salva, serviço ativo, cliente ativo com veículo ativo e agendamento válido permanecem conceitos dos respectivos módulos. O progresso é recalculado a cada consulta, sem flags redundantes, eventos, cache ou persistência adicional.
+
+Permissões de ação são avaliadas no boundary HTTP com as policies canônicas e entregues ao read model apenas para compor CTAs. Isso não substitui a autorização dos endpoints de destino e não cria permissão específica de onboarding.
+
 ## Add-ons e exemplos de evolução
 
 ### Autoatendimento / Portal do Cliente
