@@ -8,6 +8,7 @@ using Detara.Contracts.Atendimento;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
+using Detara.Contracts.Onboarding;
 using Detara.Domain.Entidades;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
@@ -56,6 +57,29 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         UsarPermissoes(Permissoes.ClientesVisualizar);
         var response = await _client.GetAsync("/api/clientes");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OnboardingTenantAutenticado_NaoExigePermissaoNova()
+    {
+        var response = await _client.GetAsync("/api/onboarding");
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<OnboardingEmpresaResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(corpo?.Sucesso);
+        Assert.Equal(5, corpo?.Resultado?.QuantidadeTotal);
+        Assert.True(corpo?.Resultado?.Etapas.Single(x => x.Codigo == "empresa").Concluida);
+    }
+
+    [Fact]
+    public async Task OnboardingSemPermissao_NaoOfereceCtaProibidoECatalogoPermanece403()
+    {
+        var onboarding = await _client.GetFromJsonAsync<RespostaApi<OnboardingEmpresaResponse>>(
+            "/api/onboarding");
+        var tentativaCatalogo = await _client.PostAsJsonAsync("/api/servicos", new { });
+
+        Assert.False(onboarding?.Resultado?.Etapas.Single(x => x.Codigo == "catalogo").PodeExecutar);
+        Assert.Equal(HttpStatusCode.Forbidden, tentativaCatalogo.StatusCode);
     }
 
     [Fact]

@@ -112,6 +112,24 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TokenPlataforma_NaoAutenticaOnboardingTenant()
+    {
+        UsarToken(CriarTokenPlataforma(incluirMfa: true));
+
+        var response = await _client.GetAsync("/api/onboarding");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OnboardingSemToken_Retorna401()
+    {
+        var response = await _client.GetAsync("/api/onboarding");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task TokenPlataformaSemMfa_NaoCriaSessaoAdministrativa()
     {
         UsarToken(CriarTokenPlataforma(incluirMfa: false));
@@ -240,7 +258,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(110, rotas.Length);
+        Assert.Equal(111, rotas.Length);
     }
 
     [Fact]
