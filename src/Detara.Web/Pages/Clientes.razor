@@ -43,15 +43,16 @@
 }
 else if (_pagina is null || _pagina.Itens.Count == 0)
 {
-    <EstadoVazio Titulo="Nenhum cliente encontrado"
-                 Descricao="Cadastre seu primeiro cliente ou ajuste os filtros de pesquisa."
+    <EstadoVazio Titulo="@(TemFiltrosAtivos ? "Nenhum cliente corresponde aos filtros" : "Cadastre seu primeiro cliente")"
+                 Descricao="@(TemFiltrosAtivos ? "Revise a pesquisa, o status ou o tipo de pessoa para ampliar os resultados." : "Clientes concentram os dados de contato e os veículos atendidos pela sua operação.")"
                  Icone="@Icons.Material.Outlined.PeopleOutline">
         <Acao>
-            <AuthorizeView Policy="@Permissoes.ClientesCriar">
-                <Authorized>
-                    <MudButton Href="/clientes/novo" Variant="Variant.Filled" Color="Color.Primary">Cadastrar cliente</MudButton>
-                </Authorized>
-            </AuthorizeView>
+            @if (!TemFiltrosAtivos)
+            {
+                <AuthorizeView Policy="@Permissoes.ClientesCriar">
+                    <Authorized><MudButton Href="/clientes/novo" Variant="Variant.Filled" Color="Color.Primary">Cadastrar cliente</MudButton></Authorized>
+                </AuthorizeView>
+            }
         </Acao>
     </EstadoVazio>
 }
@@ -110,6 +111,7 @@ else
     private string _status = "todos";
     private string _tipoPessoa = "todos";
     private int _paginaAtual = 1;
+    private bool TemFiltrosAtivos => !string.IsNullOrWhiteSpace(_pesquisa) || _status != "todos" || _tipoPessoa != "todos";
 
     protected override Task OnInitializedAsync() => CarregarAsync();
 

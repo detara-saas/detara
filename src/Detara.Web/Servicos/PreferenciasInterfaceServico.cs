@@ -10,6 +10,7 @@ public sealed class PreferenciasInterfaceServico(HttpClient httpClient, IJSRunti
     : IAsyncDisposable
 {
     private const string ChaveCache = "detara.preferencias";
+    private const string ChaveOnboardingRecolhido = "detara.onboarding.recolhido";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private bool _sistemaEscuro;
     private DotNetObjectReference<PreferenciasInterfaceServico>? _referenciaJs;
@@ -61,6 +62,27 @@ public sealed class PreferenciasInterfaceServico(HttpClient httpClient, IJSRunti
     public Task DefinirTemaAsync(string tema) => AtualizarAsync(Atual with { Tema = tema });
     public Task DefinirSidebarAsync(bool recolhida) =>
         AtualizarAsync(Atual with { SidebarRecolhida = recolhida });
+
+    public async Task<bool> ObterOnboardingRecolhidoAsync(Guid usuarioId)
+    {
+        if (usuarioId == Guid.Empty)
+        {
+            return false;
+        }
+
+        var valor = await jsRuntime.InvokeAsync<string?>(
+            "localStorage.getItem",
+            $"{ChaveOnboardingRecolhido}.{usuarioId:N}");
+        return bool.TryParse(valor, out var recolhido) && recolhido;
+    }
+
+    public ValueTask DefinirOnboardingRecolhidoAsync(Guid usuarioId, bool recolhido) =>
+        usuarioId == Guid.Empty
+            ? ValueTask.CompletedTask
+            : jsRuntime.InvokeVoidAsync(
+                "localStorage.setItem",
+                $"{ChaveOnboardingRecolhido}.{usuarioId:N}",
+                recolhido.ToString());
 
     public async Task AtualizarAsync(
         PreferenciasUsuarioResponse preferencias,

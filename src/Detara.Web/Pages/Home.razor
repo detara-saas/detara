@@ -1,114 +1,171 @@
 @page "/"
 @page "/dashboard"
 @attribute [Authorize]
+@inject OnboardingServico OnboardingApi
+@inject PreferenciasInterfaceServico Preferencias
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Dashboard | Detara</PageTitle>
 
 <div class="page-container page-container-fluid operational-page">
-<header class="page-heading dashboard-heading">
-    <div>
-        <MudText Typo="Typo.caption" Class="page-eyebrow">QUINTA-FEIRA, 13 DE AGOSTO</MudText>
-        <MudText Typo="Typo.h1">Bom dia, Administrador</MudText>
-        <MudText Typo="Typo.body1" Color="Color.Secondary">Aqui está o ritmo da sua operação hoje.</MudText>
-    </div>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">
-        Novo atendimento
-    </MudButton>
-</header>
-
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mock-notice">
-    Visão demonstrativa: os indicadores serão conectados aos módulos operacionais nas próximas etapas.
-</MudAlert>
-
-<section class="metric-grid" aria-label="Indicadores de hoje">
-    @foreach (var indicador in _indicadores)
-    {
-        <MudPaper Elevation="0" Class="metric-card">
-            <div class="metric-card-head">
-                <div class="metric-icon @indicador.Classe"><MudIcon Icon="@indicador.Icone" /></div>
-                <MudText Typo="Typo.caption" Class="metric-trend">@indicador.Tendencia</MudText>
-            </div>
-            <MudText Typo="Typo.body2" Class="metric-label">@indicador.Titulo</MudText>
-            <MudText Typo="Typo.h2" Class="metric-value">@indicador.Valor</MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">@indicador.Apoio</MudText>
-        </MudPaper>
-    }
-</section>
-
-<section class="dashboard-grid">
-    <MudPaper Elevation="0" Class="operation-panel">
-        <div class="panel-header">
-            <div>
-                <MudText Typo="Typo.h3">Agenda de hoje</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Próximos atendimentos e andamento</MudText>
-            </div>
-            <MudButton Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton>
+    <header class="page-heading dashboard-heading">
+        <div>
+            <MudText Typo="Typo.caption" Class="page-eyebrow">@DataAtual</MudText>
+            <MudText Typo="Typo.h1">@Saudacao</MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary">@DescricaoDashboard</MudText>
         </div>
-        <div class="agenda-desktop">
-            <MudTable T="Atividade" Items="@_atividades" Hover="true" Elevation="0" Dense="true">
-                <HeaderContent>
-                    <MudTh>Horário</MudTh>
-                    <MudTh>Cliente e veículo</MudTh>
-                    <MudTh>Serviço</MudTh>
-                    <MudTh>Status</MudTh>
-                    <MudTh></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Horário"><strong>@context.Horario</strong></MudTd>
-                    <MudTd DataLabel="Cliente e veículo">
-                        <div class="vehicle-cell"><strong>@context.Cliente</strong><span>@context.Veiculo</span></div>
-                    </MudTd>
-                    <MudTd DataLabel="Serviço">@context.Servico</MudTd>
-                    <MudTd DataLabel="Status"><span class="status-badge @context.ClasseStatus">@context.Status</span></MudTd>
-                    <MudTd><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" aria-label="Abrir atendimento" /></MudTd>
-                </RowTemplate>
-            </MudTable>
-        </div>
-        <div class="agenda-mobile">
-            @foreach (var atividade in _atividades)
-            {
-                <article class="agenda-mobile-item">
-                    <div class="agenda-mobile-time">@atividade.Horario</div>
-                    <div class="agenda-mobile-main">
-                        <strong>@atividade.Cliente</strong>
-                        <span>@atividade.Veiculo · @atividade.Servico</span>
-                        <span class="status-badge @atividade.ClasseStatus">@atividade.Status</span>
-                    </div>
-                    <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
-                </article>
-            }
-        </div>
-    </MudPaper>
-
-    <MudPaper Elevation="0" Class="attention-panel">
-        <div class="panel-header compact">
-            <div>
-                <MudText Typo="Typo.h3">Precisa de atenção</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Pendências da operação</MudText>
-            </div>
-        </div>
-        @foreach (var alerta in _alertas)
+        @if (_onboarding?.Concluido is true)
         {
-            <div class="attention-item">
-                <div class="attention-icon @alerta.Classe"><MudIcon Icon="@alerta.Icone" /></div>
-                <div>
-                    <MudText Typo="Typo.body2"><strong>@alerta.Titulo</strong></MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">@alerta.Descricao</MudText>
-                </div>
-                <span class="attention-count">@alerta.Quantidade</span>
-            </div>
+            <AuthorizeView Policy="@Permissoes.AgendaCriar">
+                <Authorized>
+                    <MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">
+                        Novo agendamento
+                    </MudButton>
+                </Authorized>
+            </AuthorizeView>
         }
-        <div class="operation-summary">
-            <MudText Typo="Typo.caption" Color="Color.Secondary">CAPACIDADE DO DIA</MudText>
-            <div class="summary-row"><span>6 de 8 horários ocupados</span><strong>75%</strong></div>
-            <div class="summary-track"><span></span></div>
-        </div>
-    </MudPaper>
-</section>
+    </header>
 
+    @if (_carregando)
+    {
+        <section class="onboarding-loading" aria-label="Carregando configuração inicial">
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" />
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="72px" />
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="72px" />
+        </section>
+    }
+    else if (_onboarding is null)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="page-alert onboarding-error">
+            <div class="onboarding-error-content">
+                <span>Não foi possível carregar a configuração inicial. O restante do sistema continua disponível.</span>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="CarregarAsync">Tentar novamente</MudButton>
+            </div>
+        </MudAlert>
+    }
+    else
+    {
+        <OnboardingEmpresaCard Estado="_onboarding"
+                                Compacto="@(_onboardingRecolhido || _onboarding.Concluido && !_onboardingAbertoManualmente)"
+                                OnRecolher="RecolherOnboardingAsync"
+                                OnReabrir="ReabrirOnboardingAsync" />
+
+        @if (!_onboarding.Concluido)
+        {
+            <section class="dashboard-start-state" aria-labelledby="dashboard-start-title">
+                <span class="dashboard-start-icon"><MudIcon Icon="@Icons.Material.Outlined.SpaceDashboard" /></span>
+                <div>
+                    <span class="section-eyebrow">VISÃO OPERACIONAL</span>
+                    <h2 id="dashboard-start-title">Sua operação aparecerá aqui</h2>
+                    <p>Indicadores, agenda e pendências ganham contexto conforme sua empresa cadastra serviços, clientes e atendimentos reais.</p>
+                </div>
+            </section>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mock-notice">
+                Visão demonstrativa: os indicadores serão conectados aos módulos operacionais nas próximas etapas.
+            </MudAlert>
+
+            <section class="metric-grid" aria-label="Indicadores de hoje">
+                @foreach (var indicador in _indicadores)
+                {
+                    <MudPaper Elevation="0" Class="metric-card">
+                        <div class="metric-card-head">
+                            <div class="metric-icon @indicador.Classe"><MudIcon Icon="@indicador.Icone" /></div>
+                            <MudText Typo="Typo.caption" Class="metric-trend">@indicador.Tendencia</MudText>
+                        </div>
+                        <MudText Typo="Typo.body2" Class="metric-label">@indicador.Titulo</MudText>
+                        <MudText Typo="Typo.h2" Class="metric-value">@indicador.Valor</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@indicador.Apoio</MudText>
+                    </MudPaper>
+                }
+            </section>
+
+            <section class="dashboard-grid">
+                <MudPaper Elevation="0" Class="operation-panel">
+                    <div class="panel-header">
+                        <div><MudText Typo="Typo.h3">Agenda de hoje</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Próximos atendimentos e andamento</MudText></div>
+                        <MudButton Href="/agenda" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton>
+                    </div>
+                    <div class="agenda-desktop">
+                        <MudTable T="Atividade" Items="@_atividades" Hover="true" Elevation="0" Dense="true">
+                            <HeaderContent><MudTh>Horário</MudTh><MudTh>Cliente e veículo</MudTh><MudTh>Serviço</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Horário"><strong>@context.Horario</strong></MudTd>
+                                <MudTd DataLabel="Cliente e veículo"><div class="vehicle-cell"><strong>@context.Cliente</strong><span>@context.Veiculo</span></div></MudTd>
+                                <MudTd DataLabel="Serviço">@context.Servico</MudTd>
+                                <MudTd DataLabel="Status"><span class="status-badge @context.ClasseStatus">@context.Status</span></MudTd>
+                                <MudTd><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" aria-label="Abrir atendimento" /></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                    <div class="agenda-mobile">
+                        @foreach (var atividade in _atividades)
+                        {
+                            <article class="agenda-mobile-item"><div class="agenda-mobile-time">@atividade.Horario</div><div class="agenda-mobile-main"><strong>@atividade.Cliente</strong><span>@atividade.Veiculo · @atividade.Servico</span><span class="status-badge @atividade.ClasseStatus">@atividade.Status</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></article>
+                        }
+                    </div>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="attention-panel">
+                    <div class="panel-header compact"><div><MudText Typo="Typo.h3">Precisa de atenção</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Pendências da operação</MudText></div></div>
+                    @foreach (var alerta in _alertas)
+                    {
+                        <div class="attention-item"><div class="attention-icon @alerta.Classe"><MudIcon Icon="@alerta.Icone" /></div><div><MudText Typo="Typo.body2"><strong>@alerta.Titulo</strong></MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@alerta.Descricao</MudText></div><span class="attention-count">@alerta.Quantidade</span></div>
+                    }
+                    <div class="operation-summary"><MudText Typo="Typo.caption" Color="Color.Secondary">CAPACIDADE DO DIA</MudText><div class="summary-row"><span>6 de 8 horários ocupados</span><strong>75%</strong></div><div class="summary-track"><span></span></div></div>
+                </MudPaper>
+            </section>
+        }
+    }
 </div>
 
 @code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    private OnboardingEmpresaResponse? _onboarding;
+    private bool _carregando = true;
+    private bool _onboardingRecolhido;
+    private bool _onboardingAbertoManualmente;
+    private Guid _usuarioId;
+    private string _nomeUsuario = "Administrador";
+
+    private string DataAtual => DateTime.Now.ToString("dddd, d 'de' MMMM", Cultura).ToUpper(Cultura);
+    private string Saudacao => _onboarding?.Concluido is true ? $"Bom dia, {_nomeUsuario}" : $"Bem-vindo ao Detara, {_nomeUsuario}";
+    private string DescricaoDashboard => _onboarding?.Concluido is true ? "Aqui está o ritmo da sua operação hoje." : "Sua conta está pronta. Vamos organizar os primeiros passos.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var autenticacao = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var usuario = autenticacao.User;
+        _nomeUsuario = usuario.Identity?.Name?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Administrador";
+        Guid.TryParse(usuario.FindFirst("sub")?.Value, out _usuarioId);
+        _onboardingRecolhido = await Preferencias.ObterOnboardingRecolhidoAsync(_usuarioId);
+        await CarregarAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var resultado = await OnboardingApi.ObterAsync();
+        _onboarding = resultado.Sucesso ? resultado.Resultado : null;
+        _carregando = false;
+    }
+
+    private async Task RecolherOnboardingAsync()
+    {
+        _onboardingRecolhido = true;
+        _onboardingAbertoManualmente = false;
+        await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, true);
+    }
+
+    private async Task ReabrirOnboardingAsync()
+    {
+        _onboardingRecolhido = false;
+        _onboardingAbertoManualmente = true;
+        await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, false);
+    }
+
     private sealed record Indicador(string Titulo, string Valor, string Apoio, string Tendencia, string Icone, string Classe);
     private sealed record Atividade(string Horario, string Cliente, string Veiculo, string Servico, string Status, string ClasseStatus);
     private sealed record Alerta(string Titulo, string Descricao, string Quantidade, string Icone, string Classe);

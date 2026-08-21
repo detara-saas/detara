@@ -21,7 +21,7 @@
 
     @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
     else if (_pagina is null || _pagina.Itens.Count == 0)
-    { <EstadoVazio Titulo="Nenhuma conta encontrada" Descricao="As contas são criadas quando a execução de uma OS com valor é finalizada." Icone="@Icons.Material.Outlined.ReceiptLong"><Acao><MudButton Href="/ordens-servico" Variant="Variant.Outlined">Ver ordens de serviço</MudButton></Acao></EstadoVazio> }
+    { <EstadoVazio Titulo="@(TemFiltrosAtivos ? "Nenhuma conta corresponde aos filtros" : "Nenhuma conta a receber gerada")" Descricao="@(TemFiltrosAtivos ? "Revise a pesquisa, status, vencimento ou período para ampliar os resultados." : "As contas surgem automaticamente quando a execução de uma OS com valor autorizado é finalizada.")" Icone="@Icons.Material.Outlined.ReceiptLong"><Acao>@if (!TemFiltrosAtivos) { <AuthorizeView Policy="@Permissoes.OrdemServicoVisualizar"><Authorized><MudButton Href="/ordens-servico" Variant="Variant.Outlined">Ver ordens de serviço</MudButton></Authorized></AuthorizeView> }</Acao></EstadoVazio> }
     else
     {
         <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>OS</th><th>Cliente</th><th>Veículo</th><th>Competência</th><th>Vencimento</th><th>Valor</th><th>Recebido</th><th>Em aberto</th><th>Status</th><th></th></tr></thead><tbody>
@@ -34,6 +34,7 @@
 
 @code {
     private PaginaResponse<ContaReceberListaResponse>? _pagina; private bool _carregando = true; private int _paginaAtual = 1; private string? _pesquisa; private StatusContaReceberContrato? _status; private bool? _vencida; private DateTime? _inicio, _fim;
+    private bool TemFiltrosAtivos => !string.IsNullOrWhiteSpace(_pesquisa) || _status.HasValue || _vencida.HasValue || _inicio.HasValue || _fim.HasValue;
     protected override Task OnInitializedAsync() => CarregarAsync();
     private async Task CarregarAsync() { _carregando = true; var r = await FinanceiroApi.ListarAsync(_paginaAtual, 25, _pesquisa, _status, _vencida, _inicio.HasValue ? DateOnly.FromDateTime(_inicio.Value) : null, _fim.HasValue ? DateOnly.FromDateTime(_fim.Value) : null); _pagina = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
     private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }

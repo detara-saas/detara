@@ -20,7 +20,7 @@
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
 else if (_pagina is null || _pagina.Itens.Count == 0)
 {
-    <EstadoVazio Titulo="Nenhum orçamento encontrado" Descricao="Crie uma proposta ou ajuste os filtros." Icone="@Icons.Material.Outlined.RequestQuote"><Acao><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Filled" Color="Color.Primary">Novo orçamento</MudButton></Authorized></AuthorizeView></Acao></EstadoVazio>
+    <EstadoVazio Titulo="@(TemFiltrosAtivos ? "Nenhum orçamento corresponde aos filtros" : "Nenhum orçamento criado")" Descricao="@(TemFiltrosAtivos ? "Revise a pesquisa ou o status para ampliar os resultados." : "Use orçamentos quando precisar formalizar uma proposta e aprovação. Atendimentos diretos continuam disponíveis.")" Icone="@Icons.Material.Outlined.RequestQuote"><Acao>@if (!TemFiltrosAtivos) { <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Filled" Color="Color.Primary">Novo orçamento</MudButton></Authorized></AuthorizeView> }</Acao></EstadoVazio>
 }
 else
 {
@@ -37,6 +37,7 @@ else
 
 @code {
     private PaginaResponse<OrcamentoListaResponse>? _pagina; private bool _carregando = true; private int _paginaAtual = 1; private string? _pesquisa; private StatusOrcamentoContrato? _status;
+    private bool TemFiltrosAtivos => !string.IsNullOrWhiteSpace(_pesquisa) || _status.HasValue;
     protected override Task OnInitializedAsync() => CarregarAsync();
     private async Task CarregarAsync() { _carregando = true; var r = await OrcamentosApi.ListarAsync(_paginaAtual, 25, _pesquisa, _status); _pagina = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
     private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
