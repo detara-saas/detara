@@ -8,7 +8,10 @@ Esta baseline é obrigatória para código novo e manutenção. Exceções exige
 - Chaves JWT, senhas, API keys e connection strings reais nunca pertencem ao repositório, frontend ou logs.
 - Configuração crítica ausente ou insegura deve impedir o startup em Production.
 - Usuário, empresa, perfil e permissões atuais são revalidados no backend. Desativação, troca de perfil, troca de senha e revogação de permissão invalidam o token existente.
-- Login inválido usa mensagem genérica, custo de hash também para identidade inexistente e rate limit.
+- Login tenant recebe somente e-mail e senha. E-mail igual em tenants diferentes é permitido; nenhuma membership é escolhida arbitrariamente.
+- Login inválido usa mensagem genérica, custo de hash também para identidade inexistente, verifica todos os hashes candidatos sem parada antecipada e mantém rate limit de 10/minuto por origem.
+- Quando mais de uma membership aceita a senha, a escolha usa challenge Data Protection de cinco minutos, purpose exclusivo e allowlist mínima. Antes do JWT, usuário, empresa, perfil e versões de segurança são consultados novamente.
+- Senha e challenge de seleção não são persistidos pelo frontend; o challenge permanece em memória e não aparece em URL, `localStorage` ou `sessionStorage`.
 - Claims de autorização não são aceitas apenas porque estão assinadas: devem continuar compatíveis com o estado atual persistido.
 - Platform Admin permanece sem `EmpresaId` e usa scheme, signing key, audience, contexto e storage separados do tenant. MFA TOTP e claim `amr=mfa` são obrigatórios antes de emitir sessão global.
 - Segredo TOTP usa Data Protection persistente com purpose dedicado. Timestep, recovery code e convite impedem replay; recovery e convite só persistem como hash single-use e expiram.

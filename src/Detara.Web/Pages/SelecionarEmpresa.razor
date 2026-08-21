@@ -1,0 +1,149 @@
+@page "/selecionar-empresa"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@inject AutenticacaoServico Autenticacao
+@inject PreferenciasInterfaceServico Preferencias
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Escolher empresa | Detara</PageTitle>
+
+@if (_pendente is not null)
+{
+<section class="login-brand-panel" aria-label="Detara">
+    <img src="brand/detara-logo-on-dark.png"
+         alt="Detara — Gestão para estéticas automotivas"
+         class="login-brand-logo" />
+    <div class="login-message">
+        <span class="login-eyebrow">SEU ACESSO, SUA ESCOLHA</span>
+        <MudText Typo="Typo.h1">Onde vamos<br />trabalhar agora?</MudText>
+        <MudText Typo="Typo.body1">
+            Seu e-mail possui acesso a mais de uma empresa. Escolha o ambiente que deseja abrir.
+        </MudText>
+    </div>
+    <MudText Typo="Typo.caption" Class="login-signature">SEGURO · DIRETO · CONTEXTUAL</MudText>
+</section>
+
+<section class="login-form-panel">
+    <div class="login-theme-picker">
+        <MudMenu Icon="@IconeTema" AnchorOrigin="Origin.BottomRight" aria-label="Escolher aparência">
+            <MudMenuItem Icon="@Icons.Material.Outlined.SettingsBrightness" OnClick="@(() => Preferencias.DefinirTemaAsync("Sistema"))">Sistema</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.LightMode" OnClick="@(() => Preferencias.DefinirTemaAsync("Claro"))">Claro</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.DarkMode" OnClick="@(() => Preferencias.DefinirTemaAsync("Escuro"))">Escuro</MudMenuItem>
+        </MudMenu>
+    </div>
+    <MudPaper Elevation="0" Class="login-card company-selection-card">
+        <div class="login-mobile-brand">
+            <img src="brand/detara-logo-on-light.png" alt="Detara" />
+        </div>
+        <MudText Typo="Typo.h2">Escolha uma empresa</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="login-subtitle">
+            Você entrará somente no ambiente selecionado.
+        </MudText>
+
+        <div class="company-selection-list" role="list" aria-label="Empresas disponíveis">
+            @foreach (var empresa in _pendente!.Empresas)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Disabled="@_processando"
+                           OnClick="@(() => SelecionarAsync(empresa.EmpresaId))"
+                           Class="company-selection-item"
+                           aria-label="@($"Entrar em {empresa.NomeExibicao}")">
+                    <span class="company-selection-icon" aria-hidden="true">
+                        <MudIcon Icon="@Icons.Material.Outlined.Business" />
+                    </span>
+                    <span class="company-selection-copy">
+                        <strong>@empresa.NomeExibicao</strong>
+                        <small>Abrir ambiente da empresa</small>
+                    </span>
+                    @if (_processando && _empresaSelecionada == empresa.EmpresaId)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" />
+                    }
+                </MudButton>
+            }
+        </div>
+
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Secondary"
+                   FullWidth="true"
+                   Disabled="@_processando"
+                   OnClick="Cancelar"
+                   Class="company-selection-cancel">
+            Voltar ao login
+        </MudButton>
+        <div class="login-security-note">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" />
+            <MudText Typo="Typo.caption">A seleção é temporária e expira em poucos minutos.</MudText>
+        </div>
+    </MudPaper>
+</section>
+}
+
+@code {
+    private SelecaoEmpresaPendente? _pendente;
+    private bool _processando;
+    private Guid? _empresaSelecionada;
+    private string IconeTema => Preferencias.Atual.Tema switch
+    {
+        "Claro" => Icons.Material.Outlined.LightMode,
+        "Escuro" => Icons.Material.Outlined.DarkMode,
+        _ => Icons.Material.Outlined.SettingsBrightness
+    };
+
+    protected override void OnInitialized()
+    {
+        _pendente = Autenticacao.SelecaoPendente;
+        if (_pendente is null)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+        }
+    }
+
+    private async Task SelecionarAsync(Guid empresaId)
+    {
+        if (_processando || _pendente is null)
+        {
+            return;
+        }
+
+        _processando = true;
+        _empresaSelecionada = empresaId;
+        try
+        {
+            var resultado = await Autenticacao.SelecionarEmpresaAsync(empresaId);
+            Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+            if (resultado.Sucesso)
+            {
+                Navigation.NavigateTo(_pendente.Destino);
+                return;
+            }
+
+            if (Autenticacao.SelecaoPendente is null)
+            {
+                Navigation.NavigateTo("/login", replace: true);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            Mensagens.Mostrar("Não foi possível conectar à Detara. Tente novamente.", true);
+        }
+        finally
+        {
+            _processando = false;
+            _empresaSelecionada = null;
+        }
+    }
+
+    private void Cancelar()
+    {
+        Autenticacao.CancelarSelecaoEmpresa();
+        Navigation.NavigateTo("/login", replace: true);
+    }
+}

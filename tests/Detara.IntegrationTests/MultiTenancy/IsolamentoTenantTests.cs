@@ -157,20 +157,45 @@ public sealed class IsolamentoTenantTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EmpresaInativa_NaoEhResolvidaParaLogin()
+    public void Usuario_EmailTemIndiceGlobalNaoUnicoEUnicidadePermanecePorEmpresa()
+    {
+        using var context = CriarContexto(_empresaAId);
+        var tipo = context.Model.FindEntityType(typeof(Usuario))!;
+        var indices = tipo.GetIndexes().ToArray();
+        var indiceEmail = Assert.Single(indices, indice =>
+            indice.Properties.Select(propriedade => propriedade.Name).SequenceEqual([nameof(Usuario.Email)]));
+        var indiceTenantEmail = Assert.Single(indices, indice =>
+            indice.Properties.Select(propriedade => propriedade.Name).SequenceEqual(
+                [nameof(Usuario.EmpresaId), nameof(Usuario.Email)]));
+
+        Assert.False(indiceEmail.IsUnique);
+        Assert.True(indiceTenantEmail.IsUnique);
+    }
+
+    [Fact]
+    public async Task ConsultaLoginPorEmail_IncluiMembershipInativaParaValidacaoUniforme()
     {
         await using var contextB = CriarContexto(_empresaBId);
+        var usuario = new Usuario(
+            _empresaBId,
+            _perfilBId,
+            "Usuário Empresa B",
+            "mesmo@email.local",
+            "hash");
+        contextB.Usuarios.Add(usuario);
+        await contextB.SaveChangesAsync();
         var empresaB = await contextB.Empresas.SingleAsync(x => x.Id == _empresaBId);
         empresaB.Desativar();
         await contextB.SaveChangesAsync();
         var repositorio = new UsuarioAutenticacaoRepositorio(contextB);
 
-        var usuario = await repositorio.ObterParaLoginAsync(
-            "empresa-b",
-            "qualquer@detara.local",
+        var candidatos = await repositorio.ObterCandidatosPorEmailAsync(
+            "mesmo@email.local",
             CancellationToken.None);
 
-        Assert.Null(usuario);
+        var candidato = Assert.Single(candidatos);
+        Assert.False(candidato.Empresa.EhAtiva);
+        Assert.Equal(_empresaBId, candidato.Empresa.Id);
     }
 
     private DetaraDbContext CriarContexto(Guid empresaId) =>

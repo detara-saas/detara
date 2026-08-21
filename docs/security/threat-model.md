@@ -2,7 +2,7 @@
 
 ## Escopo e método
 
-Este modelo cobre a aplicação existente até a Task 09 e o hardening da Task 10: Blazor WebAssembly, API ASP.NET Core, SQL Server, storage privado e integração transacional com Resend. Platform Admin, provisionamento, self-signup, billing e infraestrutura definitiva de produção não fazem parte deste escopo.
+Este modelo cobre a aplicação existente até a Task 13.1: Blazor WebAssembly, API ASP.NET Core, SQL Server, storage privado, integração transacional com Resend, Platform Admin, provisionamento e login tenant por e-mail. Billing e infraestrutura definitiva de produção não fazem parte deste escopo.
 
 A revisão usa STRIDE como guia e prioriza OWASP ASVS 5.0 e OWASP API Security Top 10 2023, sobretudo API1 (BOLA), API2 (Broken Authentication), API3 (Broken Object Property Level Authorization), API4 (Unrestricted Resource Consumption), API5 (Broken Function Level Authorization), API8 (Security Misconfiguration) e API10 (Unsafe Consumption of APIs).
 
@@ -56,9 +56,9 @@ O browser nunca é autoridade sobre `EmpresaId`, usuário, permissão, preço ca
 ## Entry points
 
 - `POST /api/autenticacao/login` (anônimo, limitado por origem);
-- `GET /health` (anônimo, somente GET e limitado por origem);
-- 102 endpoints protegidos: 93 de tenants e nove do plano de controle da plataforma;
-- oito endpoints anônimos na whitelist: login tenant, health, login/MFA da plataforma e validação/aceite de convite;
+- `POST /api/autenticacao/selecionar-empresa` (anônimo, exige challenge protegido e é limitado por origem);
+- `GET /health/live` e `GET /health/ready` (anônimos, somente GET e limitados por origem);
+- 103 endpoints protegidos e dez endpoints anônimos na whitelist auditada;
 - uploads multipart de fotos de veículo e ordem de serviço;
 - parâmetros de rota e query, especialmente GUIDs, busca, ordenação, paginação e períodos;
 - corpo JSON de comandos de criação, edição e transição;
@@ -69,13 +69,14 @@ O browser nunca é autoridade sobre `EmpresaId`, usuário, permissão, preço ca
 
 ## Fluxos sensíveis
 
-1. Login resolve a empresa por slug ativo, busca o usuário dentro do tenant, verifica a senha e emite JWT HS256.
-2. Em cada requisição, a API valida assinatura, emissor, audiência, expiração e algoritmo; depois confirma empresa, usuário, perfil e permissões atuais no banco.
-3. O tenant vem de claims validadas e alimenta filtros globais EF e o write guard do `DbContext`.
-4. IDs recebidos são resolvidos dentro do tenant; ausência e tentativa cross-tenant convergem para não encontrado ou acesso negado.
-5. Upload é limitado, identificado por magic bytes, recebe chave aleatória server-side e é armazenado fora do `wwwroot`.
-6. HTML de e-mail é sanitizado e tokens são codificados; envio externo usa destino derivado do domínio, chave idempotente e endpoint fixo HTTPS.
-7. O Service Worker cacheia somente app shell/assets estáticos e desvia API, requisições autenticadas e origens externas diretamente para a rede.
+1. Login normaliza o e-mail e executa uma consulta cross-tenant encapsulada, projetando somente usuário, empresa, perfil e permissões necessários. Todos os hashes candidatos são verificados antes da decisão.
+2. Uma única membership válida recebe JWT tenant HS256 diretamente. Duas ou mais recebem um challenge Data Protection com purpose exclusivo e validade de cinco minutos; a escolha deve pertencer à lista protegida e toda a membership é revalidada antes do JWT.
+3. Em cada requisição, a API valida assinatura, emissor, audiência, expiração e algoritmo; depois confirma empresa, usuário, perfil e permissões atuais no banco.
+4. O tenant vem de claims validadas e alimenta filtros globais EF e o write guard do `DbContext`.
+5. IDs recebidos são resolvidos dentro do tenant; ausência e tentativa cross-tenant convergem para não encontrado ou acesso negado.
+6. Upload é limitado, identificado por magic bytes, recebe chave aleatória server-side e é armazenado fora do `wwwroot`.
+7. HTML de e-mail é sanitizado e tokens são codificados; envio externo usa destino derivado do domínio, chave idempotente e endpoint fixo HTTPS.
+8. O Service Worker cacheia somente app shell/assets estáticos e desvia API, requisições autenticadas e origens externas diretamente para a rede.
 
 ## Ameaças e controles
 
@@ -83,11 +84,13 @@ O browser nunca é autoridade sobre `EmpresaId`, usuário, permissão, preço ca
 |---|---|---|---|
 | Spoofing | JWT adulterado, expirado ou com algoritmo alternativo | validação estrita HS256, issuer, audience, lifetime e chave >= 32 bytes | testes `JwtEEndpointsSecurityTests` |
 | Spoofing | JWT antigo após desativação/revogação | revalidação do estado autenticado em cada requisição | `ValidadorIdentidadeAutenticadaTests` |
+| Spoofing | escolha de empresa forjada, alterada ou expirada | challenge Data Protection isolado, allowlist de memberships e revalidação antes do JWT | `ChallengeSelecaoEmpresaTenantTests` e testes HTTP multiempresa |
 | Tampering | cliente envia `EmpresaId`, `EhAtivo` ou auditoria | contratos de entrada mínimos, mapeamento explícito e tenant do contexto | teste de mass assignment HTTP |
 | Tampering | alteração de valor/status financeiro | permissões backend, comandos semânticos e invariantes de domínio | suíte Financeiro e autorização HTTP |
 | Repudiation | erro sem correlação | trace id em resposta e logs estruturados; sem payload/secrets | `TratadorGlobalExcecoes` |
 | Information disclosure | Empresa A usa GUID da Empresa B | query filters, predicados explícitos e write guard | suíte multi-tenancy + BOLA HTTP |
 | Information disclosure | stack trace ou detalhe do provedor chega ao cliente | erro global seguro, JWT sem error details e mensagens externas normalizadas | testes de API e Resend |
+| Information disclosure | login revela se o e-mail existe ou se a empresa está inativa | mesmo status/corpo genérico, hash fictício quando não há candidato e verificação de todos os hashes candidatos | testes de enumeração e `AutenticarCommandTests` |
 | Denial of service | brute force, health, e-mail, uploads e ranges | rate limit, 12 MiB global, 10 MiB por imagem, paginação e range máximo | testes de limite e validadores |
 | Elevation of privilege | endpoint sem policy ou permissão forjada | fallback autenticado, policies por claim, comparação da permissão com o banco e whitelist anônima testada | inventário automático de endpoints |
 | Stored XSS | HTML/event handler/URL perigosa em template | HtmlSanitizer allowlist, HtmlEncoder, CSP e iframe sandbox | `RenderizadorTemplateEmailTests` |
@@ -97,6 +100,7 @@ O browser nunca é autoridade sobre `EmpresaId`, usuário, permissão, preço ca
 ## Riscos residuais
 
 - O JWT permanece em `sessionStorage`; uma futura vulnerabilidade XSS na mesma origem poderia acessá-lo. Migrar para BFF/cookie HttpOnly exige decisão arquitetural e proteção CSRF correspondente.
+- O challenge de seleção é stateless e pode ser reapresentado durante seus cinco minutos de validade. Ele não autentica requisições operacionais, não é um Bearer token e sempre revalida usuário, empresa, perfil e versões antes de emitir JWT. O frontend o mantém somente em memória e o perde no refresh.
 - A validação de imagem confirma assinatura e tipo permitido, mas não decodifica dimensões nem remove EXIF. O servidor não processa a imagem e a entrega com `nosniff`; transformação segura permanece no backlog.
 - TLS, trusted proxies, proteção de borda, secrets manager, backup/restore, storage de produção, monitoramento e DNS do Resend dependem da fase Production Readiness.
 - Google Fonts é uma dependência de disponibilidade/privacidade de terceiro; auto-hospedagem permanece recomendada antes de maior exigência de privacidade.

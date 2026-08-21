@@ -46,7 +46,8 @@ public static class DependencyInjection
 
         services.AddDbContext<DetaraDbContext>(options => options.UseSqlServer(connectionString));
         services.AddMemoryCache();
-        services.AddScoped<IUsuarioAutenticacaoRepositorio, UsuarioAutenticacaoRepositorio>();
+        services.AddScoped<IConsultaIdentidadeLoginTenant, UsuarioAutenticacaoRepositorio>();
+        services.AddScoped<IChallengeSelecaoEmpresaTenant, ChallengeSelecaoEmpresaTenant>();
         services.AddSingleton<ISenhaServico, SenhaServico>();
         services.AddScoped<IValidadorIdentidadeAutenticada, ValidadorIdentidadeAutenticada>();
         services.AddScoped<IAutenticacaoPlataformaServico, AutenticacaoPlataformaServico>();

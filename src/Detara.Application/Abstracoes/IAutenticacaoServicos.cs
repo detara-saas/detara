@@ -2,10 +2,52 @@ using Detara.Domain.Entidades;
 
 namespace Detara.Application.Abstracoes;
 
-public interface IUsuarioAutenticacaoRepositorio
+public interface IConsultaIdentidadeLoginTenant
 {
-    Task<Usuario?> ObterParaLoginAsync(string slugEmpresa, string email, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<CandidatoLoginTenant>> ObterCandidatosPorEmailAsync(
+        string email,
+        CancellationToken cancellationToken);
+
+    Task<CandidatoLoginTenant?> ObterMembershipAsync(
+        Guid usuarioId,
+        Guid empresaId,
+        CancellationToken cancellationToken);
 }
+
+public sealed record CandidatoLoginTenant(
+    Usuario Usuario,
+    EmpresaLoginTenant Empresa,
+    PerfilLoginTenant Perfil);
+
+public sealed record EmpresaLoginTenant(
+    Guid Id,
+    string NomeExibicao,
+    bool EhAtiva,
+    long VersaoSeguranca);
+
+public sealed record PerfilLoginTenant(
+    Guid Id,
+    string Nome,
+    bool EhAtivo,
+    long AtualizadoEmTicks,
+    IReadOnlyCollection<string> PermissoesAtivas);
+
+public interface IChallengeSelecaoEmpresaTenant
+{
+    ChallengeSelecaoEmpresaCriado Criar(
+        IReadOnlyCollection<MembershipLoginTenantAutorizada> memberships);
+
+    IReadOnlyCollection<MembershipLoginTenantAutorizada> Validar(string challenge);
+}
+
+public sealed record MembershipLoginTenantAutorizada(
+    Guid UsuarioId,
+    Guid EmpresaId,
+    long UsuarioAtualizadoEmTicks,
+    long EmpresaVersaoSeguranca,
+    long PerfilAtualizadoEmTicks);
+
+public sealed record ChallengeSelecaoEmpresaCriado(string Valor, DateTime ExpiraEmUtc);
 
 public interface ISenhaServico
 {
@@ -31,7 +73,7 @@ public sealed record IdentidadeToken(
 
 public interface ITokenServico
 {
-    TokenGerado Gerar(Usuario usuario);
+    TokenGerado Gerar(CandidatoLoginTenant candidato);
 }
 
 public sealed record TokenGerado(string Valor, DateTime ExpiraEmUtc);

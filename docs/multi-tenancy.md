@@ -19,7 +19,11 @@ Os filtros não são considerados uma barreira suficiente: a validação de escr
 
 ## Exceção controlada
 
-O login é a única consulta que ignora filtros. Antes da autenticação, ela resolve uma empresa ativa pelo slug e limita explicitamente a consulta de usuário ao `EmpresaId` obtido. Isso permite e-mails iguais em empresas diferentes sem aceitar `EmpresaId` do cliente.
+O login tenant é a única consulta de identidade que ignora filtros antes da autenticação. Ela está encapsulada em `IConsultaIdentidadeLoginTenant`, parte do e-mail normalizado e projeta somente os candidatos e metadados necessários para validar a identidade. O contrato público não recebe slug nem `EmpresaId`.
+
+E-mails iguais permanecem permitidos em empresas diferentes. O handler verifica todos os hashes candidatos: uma membership válida emite o JWT daquele tenant; duas ou mais produzem um challenge protegido de curta duração. A empresa escolhida deve constar no challenge e a consulta final usa simultaneamente `UsuarioId` e `EmpresaId`, revalidando usuário, empresa, perfil e versões antes de emitir o token. Nenhuma empresa é selecionada por ordem, nome ou primeiro resultado.
+
+A consulta inicial é única e não usa `Include` nem N+1. O custo variável é a verificação de senha para cada membership encontrada, uma escolha deliberada para evitar enumeração e parada temporal antecipada. O cadastro de memberships continua sendo um fluxo administrativo controlado e o endpoint conserva limite de 10 tentativas por minuto por origem.
 
 Testes relacionais SQLite validam consulta, criação, edição e exclusão entre empresas.
 
@@ -27,6 +31,6 @@ Preferências e favoritos derivam de `EntidadeEmpresaBase`, recebem filtros glob
 
 ## Operações que exigem revisão explícita
 
-`IgnoreQueryFilters`, `ExecuteUpdate`, `ExecuteDelete` e SQL bruto podem contornar parte das proteções do `SaveChanges`. Não são usados nos módulos atuais, exceto o `IgnoreQueryFilters` limitado do login. Qualquer uso futuro deve filtrar `EmpresaId` explicitamente, permanecer encapsulado em infraestrutura e receber teste de isolamento.
+`IgnoreQueryFilters`, `ExecuteUpdate`, `ExecuteDelete` e SQL bruto podem contornar parte das proteções do `SaveChanges`. No login pré-tenant, a exceção parte exclusivamente do e-mail e retorna projeção mínima; na seleção, o predicado exige `UsuarioId` e `EmpresaId` autorizados pelo challenge. Qualquer uso futuro deve permanecer encapsulado em infraestrutura, aplicar o menor predicado possível e receber teste de isolamento.
 
 Operações administrativas da plataforma e provisionamento de produção ainda não possuem bypass genérico. Devem usar um fluxo separado, explícito e inacessível a usuários comuns quando forem implementadas.

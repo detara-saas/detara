@@ -2,7 +2,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Detara.Application.Abstracoes;
-using Detara.Domain.Entidades;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -12,8 +11,9 @@ internal sealed class JwtTokenServico(IOptions<JwtOptions> options) : ITokenServ
 {
     private readonly JwtOptions _options = options.Value;
 
-    public TokenGerado Gerar(Usuario usuario)
+    public TokenGerado Gerar(CandidatoLoginTenant candidato)
     {
+        var usuario = candidato.Usuario;
         var agora = DateTime.UtcNow;
         var expiracao = agora.AddMinutes(_options.ExpiracaoMinutos);
         var claims = new List<Claim>
@@ -21,15 +21,15 @@ internal sealed class JwtTokenServico(IOptions<JwtOptions> options) : ITokenServ
             new(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
             new(JwtRegisteredClaimNames.Name, usuario.Nome),
             new(JwtRegisteredClaimNames.Email, usuario.Email),
-            new("empresa_id", usuario.EmpresaId.ToString()),
-            new("perfil_id", usuario.PerfilId.ToString()),
+            new("empresa_id", candidato.Empresa.Id.ToString()),
+            new("perfil_id", candidato.Perfil.Id.ToString()),
             new("usuario_atualizado_ticks", (usuario.AtualizadoEmUtc?.Ticks ?? 0).ToString()),
-            new("empresa_versao_seguranca", usuario.Empresa.VersaoSeguranca.ToString()),
-            new("perfil", usuario.Perfil.Nome)
+            new("empresa_versao_seguranca", candidato.Empresa.VersaoSeguranca.ToString()),
+            new("perfil", candidato.Perfil.Nome)
         };
 
-        claims.AddRange(usuario.Perfil.Permissoes.Where(permissao => permissao.EhAtivo).Select(
-            permissao => new Claim("permissao", permissao.Codigo)));
+        claims.AddRange(candidato.Perfil.PermissoesAtivas.Select(
+            permissao => new Claim("permissao", permissao)));
 
         var credenciais = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.ChaveAssinatura)),
