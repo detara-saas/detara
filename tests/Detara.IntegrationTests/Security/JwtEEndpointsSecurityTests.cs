@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Net.Http.Json;
 using Detara.Application.Abstracoes;
@@ -234,7 +235,8 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.Equal(
             [
-                "GET /health",
+                "GET /health/live",
+                "GET /health/ready",
                 "POST /api/autenticacao/login",
                 "POST /api/convites/administrador/aceitar",
                 "POST /api/convites/administrador/validar",
@@ -258,7 +260,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(111, rotas.Length);
+        Assert.Equal(112, rotas.Length);
     }
 
     [Fact]
@@ -272,7 +274,57 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.True(response.Headers.Contains("X-Trace-Id"));
+        Assert.True(response.Headers.TryGetValues("X-Correlation-ID", out var values));
+        Assert.True(Guid.TryParseExact(values.Single(), "N", out _));
         Assert.Contains("default-src 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [Fact]
+    public async Task CorrelationIdValido_EhNormalizadoEPropagado()
+    {
+        var id = Guid.NewGuid();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/clientes");
+        request.Headers.Add("X-Correlation-ID", id.ToString("D"));
+
+        using var response = await _client.SendAsync(request);
+
+        Assert.Equal(id.ToString("N"), response.Headers.GetValues("X-Correlation-ID").Single());
+    }
+
+    [Fact]
+    public async Task CorrelationIdMalformado_NaoEhConfiado()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/clientes");
+        request.Headers.Add("X-Correlation-ID", "valor-nao-confiavel");
+
+        using var response = await _client.SendAsync(request);
+
+        var recebido = response.Headers.GetValues("X-Correlation-ID").Single();
+        Assert.NotEqual("valor-nao-confiavel", recebido);
+        Assert.True(Guid.TryParseExact(recebido, "N", out _));
+    }
+
+    [Fact]
+    public async Task HealthLive_NaoExpoeDetalhesInternos()
+    {
+        using var response = await _client.GetAsync("/health/live");
+        var corpo = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("{\"status\":\"healthy\"}", corpo);
+        Assert.DoesNotContain("database", corpo, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task HealthReady_ComBancoIndisponivel_FalhaSemExporDetalhes()
+    {
+        using var response = await _client.GetAsync("/health/ready");
+        var corpo = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("{\"status\":\"unhealthy\"}", corpo);
+        Assert.DoesNotContain("database", corpo, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("connection", corpo, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -309,6 +361,61 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         var response = await client.GetAsync("/api/clientes");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProductionSemCertificadoDataProtection_FalhaNoStartup()
+    {
+        await using var factory = new ProductionFactory(
+            "api.detara.example",
+            new Dictionary<string, string?> { ["DataProtection__CertificatePath"] = string.Empty });
+
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+
+        Assert.Contains("Data Protection", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProductionComStorageLocal_FalhaNoStartup()
+    {
+        await using var factory = new ProductionFactory(
+            "api.detara.example",
+            new Dictionary<string, string?> { ["Storage__Provider"] = "Local" });
+
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+
+        Assert.Contains("Storage Production", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProductionComUsuarioSa_FalhaNoStartup()
+    {
+        await using var factory = new ProductionFactory(
+            "api.detara.example",
+            new Dictionary<string, string?>
+            {
+                ["ConnectionStrings__DefaultConnection"] =
+                    "Server=localhost;Database=unused;User Id=sa;Password=test;Encrypt=True;TrustServerCertificate=True"
+            });
+
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+
+        Assert.Contains("usuário runtime dedicado", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProductionComPlaceholderDeSecret_FalhaNoStartup()
+    {
+        await using var factory = new ProductionFactory(
+            "api.detara.example",
+            new Dictionary<string, string?>
+            {
+                ["Jwt__ChaveAssinatura"] = "CHANGE_ME_RANDOM_AT_LEAST_32_BYTES_TENANT"
+            });
+
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+
+        Assert.Contains("secrets aleatórios reais", exception.ToString(), StringComparison.Ordinal);
     }
 
     private void UsarToken(string token)
@@ -440,9 +547,33 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     private sealed class ProductionFactory : WebApplicationFactory<Program>, IAsyncDisposable
     {
         private readonly Dictionary<string, string?> _ambienteAnterior = new();
+        private readonly string _diretorio = Path.Combine(
+            Path.GetTempPath(),
+            "detara-production-tests",
+            Guid.NewGuid().ToString("N"));
 
-        public ProductionFactory(string allowedHosts)
+        public ProductionFactory(
+            string allowedHosts,
+            IReadOnlyDictionary<string, string?>? overrides = null)
         {
+            Directory.CreateDirectory(_diretorio);
+            const string certificatePassword = "certificate-password-for-tests";
+            var certificatePath = Path.Combine(_diretorio, "data-protection.pfx");
+            using (var rsa = RSA.Create(2048))
+            {
+                var request = new CertificateRequest(
+                    "CN=Detara Production Tests",
+                    rsa,
+                    HashAlgorithmName.SHA256,
+                    RSASignaturePadding.Pkcs1);
+                using var certificate = request.CreateSelfSigned(
+                    DateTimeOffset.UtcNow.AddMinutes(-5),
+                    DateTimeOffset.UtcNow.AddDays(1));
+                File.WriteAllBytes(
+                    certificatePath,
+                    certificate.Export(X509ContentType.Pfx, certificatePassword));
+            }
+
             DefinirAmbiente("AllowedHosts", allowedHosts);
             DefinirAmbiente("Cors__OrigensPermitidas__0", "https://app.detara.example");
             DefinirAmbiente("Jwt__Emissor", Emissor);
@@ -454,8 +585,31 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             DefinirAmbiente("PlatformJwt__ChaveAssinatura", Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)));
             DefinirAmbiente("PlatformJwt__ExpiracaoMinutos", "45");
             DefinirAmbiente("Web__PublicBaseUrl", "https://app.detara.example");
-            DefinirAmbiente("DataProtection__KeyRingPath", Path.GetFullPath("data/test-dp-keys"));
-            DefinirAmbiente("ConnectionStrings__DefaultConnection", "Server=localhost;Database=unused;Integrated Security=true;TrustServerCertificate=true");
+            DefinirAmbiente("DataProtection__ApplicationName", "Detara.Platform");
+            DefinirAmbiente("DataProtection__KeyRingPath", Path.Combine(_diretorio, "keys"));
+            DefinirAmbiente("DataProtection__CertificatePath", certificatePath);
+            DefinirAmbiente("DataProtection__CertificatePassword", certificatePassword);
+            DefinirAmbiente("ForwardedHeaders__KnownProxies__0", "127.0.0.1");
+            DefinirAmbiente("Storage__Provider", "S3");
+            DefinirAmbiente("Storage__S3__ServiceUrl", "https://storage.detara.example");
+            DefinirAmbiente("Storage__S3__Bucket", "detara-tests-private");
+            DefinirAmbiente("Storage__S3__Region", "test-1");
+            DefinirAmbiente("Storage__S3__AccessKey", "test-access-key");
+            DefinirAmbiente("Storage__S3__SecretKey", "test-secret-key");
+            DefinirAmbiente("Email__Provider", "Resend");
+            DefinirAmbiente("Email__ApiKey", "test-resend-key");
+            DefinirAmbiente("Email__FromAddress", "nao-responda@detara.example");
+            DefinirAmbiente(
+                "ConnectionStrings__DefaultConnection",
+                "Server=localhost;Database=unused;User Id=detara_runtime;Password=test;Encrypt=True;TrustServerCertificate=True");
+
+            if (overrides is not null)
+            {
+                foreach (var (chave, valor) in overrides)
+                {
+                    DefinirAmbiente(chave, valor);
+                }
+            }
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -476,11 +630,20 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             {
                 Environment.SetEnvironmentVariable(chave, valor);
             }
+
+            if (Directory.Exists(_diretorio))
+            {
+                Directory.Delete(_diretorio, true);
+            }
         }
 
-        private void DefinirAmbiente(string chave, string valor)
+        private void DefinirAmbiente(string chave, string? valor)
         {
-            _ambienteAnterior[chave] = Environment.GetEnvironmentVariable(chave);
+            if (!_ambienteAnterior.ContainsKey(chave))
+            {
+                _ambienteAnterior[chave] = Environment.GetEnvironmentVariable(chave);
+            }
+
             Environment.SetEnvironmentVariable(chave, valor);
         }
     }

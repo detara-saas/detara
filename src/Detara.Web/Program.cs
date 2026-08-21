@@ -15,8 +15,11 @@ CultureInfo.DefaultThreadCurrentUICulture = culturaPadrao;
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+var apiBaseUrl = builder.Configuration["Api:BaseUrl"];
 var apiBaseAddress = new Uri(
-    builder.Configuration["Api:BaseUrl"] ?? builder.HostEnvironment.BaseAddress);
+    string.IsNullOrWhiteSpace(apiBaseUrl)
+        ? builder.HostEnvironment.BaseAddress
+        : apiBaseUrl);
 builder.Services.AddAuthorizationCore(options =>
 {
     foreach (var permissao in Permissoes.Todas)
