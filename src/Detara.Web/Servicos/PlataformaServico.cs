@@ -7,6 +7,7 @@ namespace Detara.Web.Servicos;
 
 public sealed class PlataformaServico(HttpClientPlataforma cliente, PlatformTokenStorage storage)
 {
+    private const int TamanhoPaginaPadrao = 25;
     private readonly HttpClient _http = cliente.Valor;
 
     public async Task<ResultadoServico<DesafioMfaPlataformaResponse>> EntrarAsync(
@@ -83,7 +84,7 @@ public sealed class PlataformaServico(HttpClientPlataforma cliente, PlatformToke
         bool? ativa,
         CancellationToken cancellationToken = default)
     {
-        var query = $"?pagina={pagina}&tamanhoPagina=20";
+        var query = $"?pagina={pagina}&tamanhoPagina={TamanhoPaginaPadrao}";
         if (!string.IsNullOrWhiteSpace(pesquisa))
         {
             query += $"&pesquisa={Uri.EscapeDataString(pesquisa.Trim())}";
@@ -138,7 +139,7 @@ public sealed class PlataformaServico(HttpClientPlataforma cliente, PlatformToke
         string? tipo,
         CancellationToken cancellationToken = default)
     {
-        var query = $"?pagina={pagina}&tamanhoPagina=25";
+        var query = $"?pagina={pagina}&tamanhoPagina={TamanhoPaginaPadrao}";
         if (!string.IsNullOrWhiteSpace(tipo))
         {
             query += $"&tipo={Uri.EscapeDataString(tipo.Trim())}";
