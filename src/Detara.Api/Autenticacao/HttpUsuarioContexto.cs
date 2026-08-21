@@ -5,11 +5,11 @@ namespace Detara.Api.Autenticacao;
 
 internal sealed class HttpUsuarioContexto(IHttpContextAccessor httpContextAccessor) : IUsuarioContexto
 {
-    private readonly System.Security.Claims.ClaimsPrincipal? _usuario =
+    private System.Security.Claims.ClaimsPrincipal? UsuarioAtual =>
         httpContextAccessor.HttpContext?.User;
 
     public bool EstaAutenticado =>
-        _usuario?.Identity?.IsAuthenticated is true &&
+        UsuarioAtual?.Identity?.IsAuthenticated is true &&
         UsuarioId != Guid.Empty &&
         EmpresaId != Guid.Empty;
 
@@ -19,7 +19,7 @@ internal sealed class HttpUsuarioContexto(IHttpContextAccessor httpContextAccess
 
     private Guid ObterGuid(string claim)
     {
-        var valor = _usuario?.FindFirst(claim)?.Value;
+        var valor = UsuarioAtual?.FindFirst(claim)?.Value;
         return Guid.TryParse(valor, out var id) ? id : Guid.Empty;
     }
 }

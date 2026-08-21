@@ -45,7 +45,10 @@ public sealed class OnboardingEmpresaTests : IAsyncLifetime
         Assert.False(resultado.Concluido);
         Assert.Equal(1, resultado.QuantidadeConcluida);
         Assert.Equal(5, resultado.QuantidadeTotal);
-        Assert.True(resultado.Etapas.Single(x => x.Codigo == "empresa").Concluida);
+        var etapaEmpresa = resultado.Etapas.Single(x => x.Codigo == "empresa");
+        Assert.True(etapaEmpresa.Concluida);
+        Assert.False(etapaEmpresa.PodeExecutar);
+        Assert.Null(etapaEmpresa.Destino);
         Assert.All(
             resultado.Etapas.Where(x => x.Codigo != "empresa"),
             etapa => Assert.False(etapa.Concluida));

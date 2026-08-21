@@ -50,7 +50,9 @@
                     <div class="onboarding-step-copy">
                         <strong>@etapa.Titulo</strong>
                         <span>@etapa.Descricao</span>
-                        @if (!etapa.Concluida && !etapa.PodeExecutar)
+                        @if (!etapa.Concluida &&
+                             !etapa.PodeExecutar &&
+                             !string.IsNullOrWhiteSpace(etapa.Destino))
                         {
                             <small><MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" /> Você não possui permissão para executar esta ação.</small>
                         }
