@@ -4,6 +4,7 @@
 @inject PreferenciasInterfaceServico Preferencias
 @inject PwaServico Pwa
 @inject IMensagemServico Mensagens
+@inject AdministracaoTenantServico AdministracaoTenant
 @inject NavigationManager Navigation
 
 <MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
@@ -30,7 +31,7 @@
         <MudSpacer />
         <div class="company-context">
             <span class="company-dot"></span>
-            <span>Empresa Demo</span>
+            <span>@_empresaNome</span>
         </div>
         <MudMenu Icon="@IconeTema" AnchorOrigin="Origin.BottomRight" aria-label="Escolher aparência">
             <MudMenuItem Icon="@Icons.Material.Outlined.SettingsBrightness" OnClick="@(() => DefinirTemaAsync("Sistema"))">
@@ -51,7 +52,7 @@
             {
                 <MudMenuItem Icon="@Icons.Material.Outlined.InstallDesktop" OnClick="InstalarAsync">Instalar Detara</MudMenuItem>
             }
-            <MudMenuItem Icon="@Icons.Material.Outlined.PersonOutline" Disabled="true">Minha conta — em breve</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.PersonOutline" Href="/minha-conta">Minha conta</MudMenuItem>
             <MudMenuItem Icon="@Icons.Material.Outlined.Logout" OnClick="SairAsync">Sair</MudMenuItem>
         </MudMenu>
     </MudAppBar>
@@ -86,6 +87,7 @@
 
 @code {
     private bool _menuAberto = true;
+    private string _empresaNome = "Empresa";
     private string SidebarClass => Preferencias.Atual.SidebarRecolhida
         ? "detara-sidebar sidebar-collapsed"
         : "detara-sidebar";
@@ -100,6 +102,16 @@
     {
         Preferencias.Alterado += Atualizar;
         Pwa.Alterado += Atualizar;
+        AdministracaoTenant.ContextoAlterado += AtualizarContexto;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var conta = await AdministracaoTenant.ObterMinhaContaAsync();
+        if (conta is { Sucesso: true, Resultado: not null })
+        {
+            _empresaNome = conta.Resultado.EmpresaNome;
+        }
     }
 
     private async Task AlternarSidebar()
@@ -133,9 +145,15 @@
     }
 
     private void Atualizar() => InvokeAsync(StateHasChanged);
+    private void AtualizarContexto()
+    {
+        _empresaNome = AdministracaoTenant.EmpresaNomeAtual;
+        Atualizar();
+    }
     public void Dispose()
     {
         Preferencias.Alterado -= Atualizar;
         Pwa.Alterado -= Atualizar;
+        AdministracaoTenant.ContextoAlterado -= AtualizarContexto;
     }
 }
