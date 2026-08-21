@@ -63,6 +63,11 @@ internal sealed class TratadorGlobalExcecoes(ILogger<TratadorGlobalExcecoes> log
                 exception.Message,
                 "credenciais_invalidas",
                 null),
+            ChallengeSelecaoEmpresaInvalidoException => (
+                StatusCodes.Status401Unauthorized,
+                exception.Message,
+                "selecao_empresa_invalida",
+                null),
             CredenciaisPlataformaInvalidasException => (
                 StatusCodes.Status401Unauthorized,
                 exception.Message,

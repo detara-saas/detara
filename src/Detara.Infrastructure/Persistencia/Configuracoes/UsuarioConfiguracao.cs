@@ -14,6 +14,7 @@ internal sealed class UsuarioConfiguracao : IEntityTypeConfiguration<Usuario>
         builder.Property(x => x.Nome).HasMaxLength(160).IsRequired();
         builder.Property(x => x.Email).HasMaxLength(200).IsRequired();
         builder.Property(x => x.SenhaHash).HasMaxLength(500).IsRequired();
+        builder.HasIndex(x => x.Email);
         builder.HasIndex(x => new { x.EmpresaId, x.Email }).IsUnique();
         builder.HasIndex(x => new { x.EmpresaId, x.PerfilId });
         builder.HasOne(x => x.Empresa)
