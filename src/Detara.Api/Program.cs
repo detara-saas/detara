@@ -402,8 +402,8 @@ static IdentidadeToken? ExtrairIdentidade(System.Security.Claims.ClaimsPrincipal
         !Guid.TryParse(principal.FindFirst("empresa_id")?.Value, out var empresaId) ||
         !Guid.TryParse(principal.FindFirst("perfil_id")?.Value, out var perfilId) ||
         !long.TryParse(
-            principal.FindFirst("usuario_atualizado_ticks")?.Value,
-            out var atualizadoEmTicks) ||
+            principal.FindFirst("usuario_versao_seguranca")?.Value,
+            out var usuarioVersaoSeguranca) ||
         !long.TryParse(
             principal.FindFirst("empresa_versao_seguranca")?.Value,
             out var empresaVersaoSeguranca))
@@ -418,7 +418,7 @@ static IdentidadeToken? ExtrairIdentidade(System.Security.Claims.ClaimsPrincipal
         usuarioId,
         empresaId,
         perfilId,
-        atualizadoEmTicks,
+        usuarioVersaoSeguranca,
         empresaVersaoSeguranca,
         permissoes);
 }

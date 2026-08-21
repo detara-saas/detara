@@ -15,6 +15,12 @@ public enum StatusConviteAdministradorEmpresa
     Invalidado = 7
 }
 
+public enum OrigemConviteAcessoEmpresa
+{
+    AdministradorInicialPlataforma = 1,
+    UsuarioTenant = 2
+}
+
 public sealed class ConviteAdministradorEmpresa : EntidadeBase
 {
     private ConviteAdministradorEmpresa()
@@ -33,6 +39,7 @@ public sealed class ConviteAdministradorEmpresa : EntidadeBase
         CriadoPorAdministradorPlataformaId = Exigir(
             criadoPorAdministradorPlataformaId,
             nameof(criadoPorAdministradorPlataformaId));
+        Origem = OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma;
         EmailDestinoSnapshot = NormalizarEmail(emailDestinoSnapshot);
         Status = StatusConviteAdministradorEmpresa.Pendente;
         ProximaTentativaEnvioEmUtc = DateTime.UtcNow;
@@ -42,18 +49,42 @@ public sealed class ConviteAdministradorEmpresa : EntidadeBase
     public Guid UsuarioId { get; private set; }
     public string EmailDestinoSnapshot { get; private set; } = string.Empty;
     public string? TokenHash { get; private set; }
+    public OrigemConviteAcessoEmpresa Origem { get; private set; }
     public StatusConviteAdministradorEmpresa Status { get; private set; }
     public DateTime? ExpiraEmUtc { get; private set; }
     public DateTime? ProcessamentoIniciadoEmUtc { get; private set; }
     public DateTime? EnviadoEmUtc { get; private set; }
     public DateTime? AceitoEmUtc { get; private set; }
     public DateTime? InvalidadoEmUtc { get; private set; }
-    public Guid CriadoPorAdministradorPlataformaId { get; private set; }
+    public Guid? CriadoPorAdministradorPlataformaId { get; private set; }
+    public Guid? CriadoPorUsuarioId { get; private set; }
     public int QuantidadeTentativasEnvio { get; private set; }
     public DateTime? ProximaTentativaEnvioEmUtc { get; private set; }
     public string? UltimoErroSeguro { get; private set; }
     public string? ProviderMessageId { get; private set; }
     public long Versao { get; private set; } = 1;
+
+    public static ConviteAdministradorEmpresa CriarParaUsuarioTenant(
+        Guid empresaId,
+        Guid usuarioId,
+        string emailDestinoSnapshot,
+        Guid criadoPorUsuarioId)
+    {
+        var convite = new ConviteAdministradorEmpresa
+        {
+            Id = Guid.NewGuid(),
+            CriadoEmUtc = DateTime.UtcNow,
+            EhAtivo = true,
+            EmpresaId = Exigir(empresaId, nameof(empresaId)),
+            UsuarioId = Exigir(usuarioId, nameof(usuarioId)),
+            EmailDestinoSnapshot = NormalizarEmail(emailDestinoSnapshot),
+            Origem = OrigemConviteAcessoEmpresa.UsuarioTenant,
+            CriadoPorUsuarioId = Exigir(criadoPorUsuarioId, nameof(criadoPorUsuarioId)),
+            Status = StatusConviteAdministradorEmpresa.Pendente,
+            ProximaTentativaEnvioEmUtc = DateTime.UtcNow
+        };
+        return convite;
+    }
 
     public void IniciarEnvio(string tokenHash, DateTime expiraEmUtc, DateTime agoraUtc)
     {
@@ -107,6 +138,11 @@ public sealed class ConviteAdministradorEmpresa : EntidadeBase
 
     public void PrepararReenvio(DateTime agoraUtc, Guid administradorPlataformaId)
     {
+        if (Origem != OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma)
+        {
+            throw new InvalidOperationException("O convite não pertence ao provisionamento Platform.");
+        }
+
         if (Status is StatusConviteAdministradorEmpresa.Aceito or
             StatusConviteAdministradorEmpresa.Invalidado)
         {
@@ -114,6 +150,30 @@ public sealed class ConviteAdministradorEmpresa : EntidadeBase
         }
 
         CriadoPorAdministradorPlataformaId = Exigir(administradorPlataformaId, nameof(administradorPlataformaId));
+        TokenHash = null;
+        ExpiraEmUtc = null;
+        Status = StatusConviteAdministradorEmpresa.Pendente;
+        ProximaTentativaEnvioEmUtc = agoraUtc;
+        ProcessamentoIniciadoEmUtc = null;
+        UltimoErroSeguro = null;
+        ProviderMessageId = null;
+        Versao++;
+        MarcarComoAtualizada();
+    }
+
+    public void PrepararReenvioTenant(DateTime agoraUtc, Guid usuarioId)
+    {
+        if (Origem != OrigemConviteAcessoEmpresa.UsuarioTenant)
+        {
+            throw new InvalidOperationException("O convite não pertence à administração Tenant.");
+        }
+
+        if (Status is StatusConviteAdministradorEmpresa.Aceito or StatusConviteAdministradorEmpresa.Invalidado)
+        {
+            throw new InvalidOperationException("O convite não pode ser reenviado neste estado.");
+        }
+
+        CriadoPorUsuarioId = Exigir(usuarioId, nameof(usuarioId));
         TokenHash = null;
         ExpiraEmUtc = null;
         Status = StatusConviteAdministradorEmpresa.Pendente;

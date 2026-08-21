@@ -18,6 +18,7 @@ internal sealed class EmpresaConfiguracao : IEntityTypeConfiguration<Empresa>
         builder.Property(x => x.Slug).HasMaxLength(100).IsRequired();
         builder.Property(x => x.FusoHorario).HasMaxLength(100).IsRequired().HasDefaultValue("America/Sao_Paulo");
         builder.Property(x => x.VersaoSeguranca).IsConcurrencyToken().HasDefaultValue(1L);
+        builder.Property(x => x.VersaoCadastro).IsConcurrencyToken().HasDefaultValue(1L);
         builder.HasIndex(x => x.CpfCnpj).IsUnique();
         builder.HasIndex(x => x.Slug).IsUnique();
     }

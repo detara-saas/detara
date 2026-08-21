@@ -74,13 +74,17 @@ internal sealed class ConvitesAdministradoresEmpresaServico(
         usuario.AlterarSenhaHash(passwordHasher.HashPassword(usuario, senha));
         usuario.Ativar();
         convite.MarcarAceito(DateTime.UtcNow);
-        contexto.AuditoriasPlataforma.Add(new AuditoriaPlataforma(
-            convite.CriadoPorAdministradorPlataformaId,
-            AcoesAuditoriaPlataforma.ConviteAceito,
-            convite.EmpresaId,
-            usuario.Id,
-            traceId,
-            "Convite aceito; senha definida pelo próprio administrador tenant."));
+        if (convite.Origem == OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma &&
+            convite.CriadoPorAdministradorPlataformaId.HasValue)
+        {
+            contexto.AuditoriasPlataforma.Add(new AuditoriaPlataforma(
+                convite.CriadoPorAdministradorPlataformaId.Value,
+                AcoesAuditoriaPlataforma.ConviteAceito,
+                convite.EmpresaId,
+                usuario.Id,
+                traceId,
+                "Convite aceito; senha definida pelo próprio administrador tenant."));
+        }
         await contexto.SaveChangesAsync(cancellationToken);
         await transacao.CommitAsync(cancellationToken);
     }

@@ -8,7 +8,7 @@ namespace Detara.Infrastructure.Autenticacao;
 
 internal sealed class ChallengeSelecaoEmpresaTenant : IChallengeSelecaoEmpresaTenant
 {
-    private const string Purpose = "Detara.Tenant.LoginEmpresaChallenge.v1";
+    private const string Purpose = "Detara.Tenant.LoginEmpresaChallenge.v2";
     private static readonly TimeSpan ValidadePadrao = TimeSpan.FromMinutes(5);
     private readonly ITimeLimitedDataProtector _protetor;
     private readonly TimeSpan _validade;
@@ -72,6 +72,7 @@ internal sealed class ChallengeSelecaoEmpresaTenant : IChallengeSelecaoEmpresaTe
     private static bool EhInvalida(MembershipLoginTenantAutorizada item) =>
         item.UsuarioId == Guid.Empty ||
         item.EmpresaId == Guid.Empty ||
+        item.UsuarioVersaoSeguranca <= 0 ||
         item.EmpresaVersaoSeguranca <= 0;
 
     private sealed record ChallengePayload(

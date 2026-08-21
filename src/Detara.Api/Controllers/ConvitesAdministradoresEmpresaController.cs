@@ -37,6 +37,6 @@ public sealed class ConvitesAdministradoresEmpresaController(ISender sender) : C
             request.Token,
             request.Senha,
             HttpContext.TraceIdentifier), cancellationToken);
-        return Ok(RespostaApi<object>.Ok(new { }, "Conta ativada. Entre com sua empresa, e-mail e nova senha."));
+        return Ok(RespostaApi<object>.Ok(new { }, "Conta ativada. Entre com seu e-mail e nova senha."));
     }
 }
