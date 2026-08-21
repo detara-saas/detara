@@ -6,6 +6,7 @@ using System.Text;
 using System.Net.Http.Json;
 using Detara.Application.Abstracoes;
 using Detara.Application.Plataforma;
+using Detara.Contracts.Comum;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -153,6 +154,28 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         var response = await _client.GetAsync("/api/plataforma/dashboard");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(20)]
+    [InlineData(int.MaxValue)]
+    public async Task ListagemEmpresasPlataforma_TamanhoPaginaInvalidoRetornaErroControlado(
+        int tamanhoPagina)
+    {
+        UsarToken(CriarTokenPlataforma(incluirMfa: true));
+
+        using var response = await _client.GetAsync(
+            $"/api/plataforma/empresas?tamanhoPagina={tamanhoPagina}");
+        var conteudo = await response.Content.ReadAsStringAsync();
+        var resposta = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(resposta);
+        Assert.False(resposta.Sucesso);
+        Assert.Equal("validacao", resposta.Erro?.Codigo);
+        Assert.Contains("TamanhoPagina", resposta.Erro?.Detalhes?.Keys ?? []);
+        Assert.DoesNotContain("ValidationException", conteudo, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("stack trace", conteudo, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
