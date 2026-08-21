@@ -20,6 +20,24 @@ dotnet user-secrets --project src/Detara.Api set Seed:Enabled true
 dotnet user-secrets --project src/Detara.Api set Seed:SenhaAdministrador "uma-senha-local-forte"
 ```
 
+## Resend em Development
+
+Os profiles `http` e `https` de `src/Detara.Api/Properties/launchSettings.json` já fornecem `DETARA_EMAIL_FROM_ADDRESS=onboarding@resend.dev` e `Web__PublicBaseUrl=http://localhost:5080`. O ASP.NET Core resolve a segunda variável como `Web:PublicBaseUrl`.
+
+A API key permanece fora do repositório e precisa ser configurada uma única vez no User Secrets da API:
+
+```powershell
+dotnet user-secrets set "DETARA_RESEND_API_KEY" "<API_KEY>" --project .\src\Detara.Api
+```
+
+Para confirmar que o secret existe:
+
+```powershell
+dotnet user-secrets list --project .\src\Detara.Api
+```
+
+Não compartilhe a saída desse comando, pois ela contém os valores reais armazenados. Depois da configuração inicial, pare e inicie novamente a solução pelo Visual Studio para que o profile de Development seja aplicado.
+
 O Web mantém o JWT somente em `sessionStorage`. Antes de produção, avaliar um BFF com cookie HttpOnly para reduzir ainda mais a exposição do token a código executado no navegador.
 
 ## Fluxo
