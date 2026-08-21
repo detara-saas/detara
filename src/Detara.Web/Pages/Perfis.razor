@@ -1,0 +1,118 @@
+@page "/perfis"
+@page "/perfis/novo"
+@page "/perfis/{Id:guid}"
+@attribute [Authorize(Policy = Permissoes.AdministracaoUsuario)]
+@inject AdministracaoTenantServico Api
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Perfis | Detara</PageTitle>
+
+<div class="page-container page-container-wide">
+    @if (EhEditor)
+    {
+        <CabecalhoPagina Titulo="@(_perfil is null ? "Novo perfil" : _perfil.Nome)" Descricao="Defina responsabilidades usando somente as permissões que você também possui." Sobretitulo="ADMINISTRAÇÃO · PERFIS">
+            <Acoes><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.ArrowBack" Href="/perfis">Voltar</MudButton></Acoes>
+        </CabecalhoPagina>
+        @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+        else
+        {
+            <div class="tenant-profile-layout">
+                <section class="module-panel tenant-form-panel">
+                    <div class="section-heading"><div><span class="section-eyebrow">IDENTIFICAÇÃO</span><h2>Dados do perfil</h2><p>Perfil é um conjunto de acessos, não um cargo da equipe.</p></div>@if (_perfil?.EhSistema == true) { <span class="status-badge status-running">Protegido</span> }</div>
+                    <div class="tenant-form-stack">
+                        <MudTextField T="string" @bind-Value="_nome" Label="Nome" Variant="Variant.Outlined" Required="true" MaxLength="100" Disabled="@(_perfil?.EhSistema == true)" />
+                        <MudTextField T="string" @bind-Value="_descricao" Label="Descrição (opcional)" Variant="Variant.Outlined" MaxLength="240" Lines="3" Disabled="@(_perfil?.EhSistema == true)" />
+                    </div>
+                    @if (_perfil?.EhSistema == true) { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Este é o perfil administrativo canônico da empresa. Ele não pode ser alterado ou inativado.</MudAlert> }
+                </section>
+                <section class="module-panel tenant-permissions-panel">
+                    <div class="section-heading"><div><span class="section-eyebrow">ACESSOS</span><h2>Permissões</h2><p>O servidor rejeita permissões desconhecidas e qualquer concessão acima do seu próprio acesso.</p></div><span class="tenant-count">@_selecionadas.Count selecionada(s)</span></div>
+                    @foreach (var grupo in _permissoes.GroupBy(x => x.Grupo))
+                    {
+                        <fieldset class="permission-group"><legend>@grupo.Key</legend>
+                            @foreach (var permissao in grupo)
+                            {
+                                <label class="permission-option @(!permissao.PodeConceder ? "permission-disabled" : "")">
+                                    <MudCheckBox T="bool" Value="@_selecionadas.Contains(permissao.Codigo)" ValueChanged="@(valor => Marcar(permissao.Codigo, valor))" Disabled="@(!permissao.PodeConceder || _perfil?.EhSistema == true)" Color="Color.Primary" />
+                                    <span><strong>@permissao.Descricao</strong><small>@permissao.Codigo</small></span>
+                                </label>
+                            }
+                        </fieldset>
+                    }
+                    @if (_perfil?.EhSistema != true) { <div class="tenant-form-actions"><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" OnClick="SalvarAsync" Disabled="_salvando">@(_salvando ? "Salvando..." : "Salvar perfil")</MudButton></div> }
+                </section>
+            </div>
+        }
+    }
+    else
+    {
+        <CabecalhoPagina Titulo="Perfis" Descricao="Organize permissões de acesso sem misturar perfis com cargos profissionais." Sobretitulo="ADMINISTRAÇÃO">
+            <Acoes><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" Href="/perfis/novo">Novo perfil</MudButton></Acoes>
+        </CabecalhoPagina>
+        @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+        else if (_lista.Count == 0) { <EstadoVazio Titulo="Nenhum perfil cadastrado" Descricao="Crie um perfil limitado para organizar os acessos da equipe." Icone="@Icons.Material.Outlined.AdminPanelSettings" /> }
+        else
+        {
+            <div class="tenant-profile-grid">
+                @foreach (var perfil in _lista)
+                {
+                    <article class="module-panel tenant-profile-card" @key="perfil.Id">
+                        <div class="tenant-profile-card-heading"><div class="tenant-profile-icon"><MudIcon Icon="@(perfil.EhSistema ? Icons.Material.Outlined.VerifiedUser : Icons.Material.Outlined.Badge)" /></div><span class="status-badge @(perfil.EhAtivo ? "status-success" : "status-neutral")">@(perfil.EhAtivo ? "Ativo" : "Inativo")</span></div>
+                        <div><h2>@perfil.Nome</h2><p>@(string.IsNullOrWhiteSpace(perfil.Descricao) ? "Sem descrição." : perfil.Descricao)</p></div>
+                        <div class="tenant-profile-metrics"><span><strong>@perfil.QuantidadeUsuarios</strong> usuário(s)</span><span><strong>@perfil.QuantidadePermissoes</strong> permissões</span></div>
+                        <div class="tenant-card-actions"><MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Visibility" Href="@($"/perfis/{perfil.Id}")">@(perfil.EhSistema ? "Visualizar" : "Editar")</MudButton>@if (!perfil.EhSistema) { <MudButton Variant="Variant.Text" Color="@(perfil.EhAtivo ? Color.Error : Color.Primary)" OnClick="@(() => AlterarStatusAsync(perfil))">@(perfil.EhAtivo ? "Inativar" : "Reativar")</MudButton> }</div>
+                    </article>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+    private bool EhEditor => Id.HasValue || Navigation.Uri.EndsWith("/novo", StringComparison.OrdinalIgnoreCase);
+    private bool _carregando = true, _salvando;
+    private IReadOnlyCollection<PerfilTenantResumoResponse> _lista = [];
+    private IReadOnlyCollection<PermissaoTenantResponse> _permissoes = [];
+    private PerfilTenantDetalheResponse? _perfil;
+    private string _nome = "";
+    private string? _descricao;
+    private readonly HashSet<string> _selecionadas = new(StringComparer.Ordinal);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _carregando = true;
+        if (!EhEditor)
+        {
+            var r = await Api.ListarPerfisAsync();
+            if (r is { Sucesso: true, Resultado: not null }) _lista = r.Resultado; else Mensagens.Mostrar(r.Mensagem, true);
+        }
+        else
+        {
+            var permissoes = await Api.ListarPermissoesAsync();
+            if (permissoes is { Sucesso: true, Resultado: not null }) _permissoes = permissoes.Resultado;
+            else Mensagens.Mostrar(permissoes.Mensagem, true);
+            _perfil = null; _nome = ""; _descricao = null; _selecionadas.Clear();
+            if (Id.HasValue)
+            {
+                var r = await Api.ObterPerfilAsync(Id.Value);
+                if (r is { Sucesso: true, Resultado: not null }) { _perfil = r.Resultado; _nome = _perfil.Nome; _descricao = _perfil.Descricao; foreach (var codigo in _perfil.Permissoes) _selecionadas.Add(codigo); }
+                else Mensagens.Mostrar(r.Mensagem, true);
+            }
+        }
+        _carregando = false;
+    }
+
+    private void Marcar(string codigo, bool valor) { if (valor) _selecionadas.Add(codigo); else _selecionadas.Remove(codigo); }
+    private async Task SalvarAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_nome)) { Mensagens.Mostrar("Informe o nome do perfil.", true); return; }
+        _salvando = true;
+        var request = new SalvarPerfilTenantRequest(_nome, _descricao, _selecionadas.ToArray(), _perfil?.Versao);
+        var r = _perfil is null ? await Api.CriarPerfilAsync(request) : await Api.AtualizarPerfilAsync(_perfil.Id, request);
+        if (r.Sucesso) { Mensagens.Mostrar(r.Mensagem); Navigation.NavigateTo("/perfis"); } else Mensagens.Mostrar(r.Mensagem, true);
+        _salvando = false;
+    }
+    private async Task AlterarStatusAsync(PerfilTenantResumoResponse perfil) { var r = await Api.AlterarStatusPerfilAsync(perfil.Id, !perfil.EhAtivo, perfil.Versao); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); await OnParametersSetAsync(); }
+}

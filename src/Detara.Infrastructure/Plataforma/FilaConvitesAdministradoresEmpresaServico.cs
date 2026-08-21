@@ -114,9 +114,9 @@ internal sealed class FilaConvitesAdministradoresEmpresaServico(
             <html lang="pt-BR"><body style="font-family:Arial,sans-serif;color:#111827;line-height:1.6">
             <div style="max-width:620px;margin:auto;padding:32px">
               <p style="color:#00a67e;font-weight:700;letter-spacing:.08em">DETARA</p>
-              <h1 style="font-size:24px">Ative seu acesso administrativo</h1>
+              <h1 style="font-size:24px">Ative seu acesso à Detara</h1>
               <p>Olá, {{usuarioNome}}.</p>
-              <p>A empresa <strong>{{empresaNome}}</strong> foi cadastrada na Detara.</p>
+              <p>Você recebeu acesso à empresa <strong>{{empresaNome}}</strong> na Detara.</p>
               <p>Defina sua própria senha e ative o acesso pelo botão abaixo.</p>
               <p style="margin:28px 0"><a href="{{linkSeguro}}" style="background:#00a67e;color:#fff;padding:12px 20px;text-decoration:none;border-radius:8px">Ativar minha conta</a></p>
               <p>Este convite expira em {{horas}} horas. Se você não esperava este convite, ignore esta mensagem.</p>
@@ -124,12 +124,15 @@ internal sealed class FilaConvitesAdministradoresEmpresaServico(
             </div></body></html>
             """;
         var tentativa = convite.QuantidadeTentativasEnvio + 1;
+        var assunto = convite.Origem == OrigemConviteAcessoEmpresa.UsuarioTenant
+            ? "Você recebeu acesso à Detara"
+            : "Você foi convidado para administrar sua empresa na Detara";
         ResultadoEnvioEmail resultado;
         try
         {
             resultado = await provedor.EnviarAsync(new MensagemEmailProvedor(
                 convite.EmailDestinoSnapshot,
-                "Você foi convidado para administrar sua empresa na Detara",
+                assunto,
                 corpo,
                 null,
                 $"convite-administrador/{convite.Id:N}/{tentativa}"), cancellationToken);

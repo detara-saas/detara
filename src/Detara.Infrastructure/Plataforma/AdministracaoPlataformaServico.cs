@@ -23,12 +23,14 @@ internal sealed class AdministracaoPlataformaServico(
         var empresasAtivas = await db.Empresas.CountAsync(x => x.EhAtivo, cancellationToken);
         var empresasSuspensas = await db.Empresas.CountAsync(x => !x.EhAtivo, cancellationToken);
         var convitesPendentes = await db.ConvitesAdministradoresEmpresa.CountAsync(
-            x => x.Status == StatusConviteAdministradorEmpresa.Pendente ||
+            x => x.Origem == OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma &&
+                (x.Status == StatusConviteAdministradorEmpresa.Pendente ||
                 x.Status == StatusConviteAdministradorEmpresa.Processando ||
-                x.Status == StatusConviteAdministradorEmpresa.Enviado,
+                x.Status == StatusConviteAdministradorEmpresa.Enviado),
             cancellationToken);
         var convitesComFalha = await db.ConvitesAdministradoresEmpresa.CountAsync(
-            x => x.Status == StatusConviteAdministradorEmpresa.FalhaEnvio,
+            x => x.Origem == OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma &&
+                x.Status == StatusConviteAdministradorEmpresa.FalhaEnvio,
             cancellationToken);
         return new(empresasAtivas, empresasSuspensas, convitesPendentes, convitesComFalha);
     }
@@ -44,6 +46,7 @@ internal sealed class AdministracaoPlataformaServico(
         var query =
             from empresa in db.Empresas.AsNoTracking()
             join convite in db.ConvitesAdministradoresEmpresa.AsNoTracking()
+                    .Where(x => x.Origem == OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma)
                 on empresa.Id equals convite.EmpresaId
             join usuario in usuarios
                 on new { EmpresaId = empresa.Id, Id = convite.UsuarioId }
@@ -100,7 +103,10 @@ internal sealed class AdministracaoPlataformaServico(
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new RecursoNaoEncontradoException("Empresa não encontrada.");
         var convite = await db.ConvitesAdministradoresEmpresa.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.EmpresaId == id, cancellationToken)
+            .SingleOrDefaultAsync(x =>
+                x.EmpresaId == id &&
+                x.Origem == OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma,
+                cancellationToken)
             ?? throw new RecursoNaoEncontradoException("Convite administrativo não encontrado.");
         var usuario = await db.Usuarios.IgnoreQueryFilters().AsNoTracking()
             .SingleOrDefaultAsync(
@@ -152,7 +158,11 @@ internal sealed class AdministracaoPlataformaServico(
             }
 
             contexto.Empresas.Add(empresa);
-            var perfil = new Perfil(empresa.Id, "Administrador");
+            var perfil = new Perfil(
+                empresa.Id,
+                "Administrador",
+                "Perfil administrativo protegido com acesso integral ao tenant.",
+                ehSistema: true);
             contexto.Perfis.Add(perfil);
             foreach (var definicao in Permissoes.Definicoes)
             {
@@ -261,7 +271,10 @@ internal sealed class AdministracaoPlataformaServico(
         CancellationToken cancellationToken)
     {
         var convite = await db.ConvitesAdministradoresEmpresa
-            .SingleOrDefaultAsync(x => x.EmpresaId == empresaId, cancellationToken)
+            .SingleOrDefaultAsync(x =>
+                x.EmpresaId == empresaId &&
+                x.Origem == OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma,
+                cancellationToken)
             ?? throw new RecursoNaoEncontradoException("Convite administrativo não encontrado.");
         convite.PrepararReenvio(DateTime.UtcNow, administradorPlataformaId);
         db.AuditoriasPlataforma.Add(new AuditoriaPlataforma(

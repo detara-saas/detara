@@ -1,0 +1,103 @@
+@page "/empresa"
+@attribute [Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
+@inject AdministracaoTenantServico Api
+@inject IMensagemServico Mensagens
+
+<PageTitle>Empresa | Detara</PageTitle>
+
+<div class="page-container page-container-focused">
+    <CabecalhoPagina Titulo="Empresa" Descricao="Mantenha os dados cadastrais usados na operação e na comunicação com seus clientes." Sobretitulo="ADMINISTRAÇÃO" />
+
+    @if (_carregando)
+    {
+        <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else if (_empresa is null)
+    {
+        <EstadoVazio Titulo="Dados indisponíveis" Descricao="Não foi possível carregar os dados da empresa." Icone="@Icons.Material.Outlined.Business" />
+    }
+    else
+    {
+        <section class="module-panel tenant-form-panel" aria-labelledby="company-data-heading">
+            <div class="section-heading">
+                <div>
+                    <span class="section-eyebrow">DADOS CADASTRAIS</span>
+                    <h2 id="company-data-heading">Identificação da empresa</h2>
+                    <p>O e-mail abaixo é comercial e não altera o acesso dos usuários.</p>
+                </div>
+                <MudIcon Icon="@Icons.Material.Outlined.Storefront" Color="Color.Primary" />
+            </div>
+            <div class="tenant-form-grid">
+                <MudTextField T="string" @bind-Value="_nomeFantasia" Label="Nome fantasia" Variant="Variant.Outlined" Required="true" MaxLength="160" Disabled="@(!_podeEditar)" />
+                <MudTextField T="string" @bind-Value="_razaoSocial" Label="Razão social" Variant="Variant.Outlined" Required="true" MaxLength="200" Disabled="@(!_podeEditar)" />
+                <MudTextField T="string" @bind-Value="_cpfCnpj" Label="CPF/CNPJ" Variant="Variant.Outlined" Required="true" MaxLength="20" Disabled="@(!_podeEditar)" />
+                <MudTextField T="string" @bind-Value="_email" Label="E-mail comercial" Variant="Variant.Outlined" InputType="InputType.Email" MaxLength="200" Disabled="@(!_podeEditar)" />
+                <MudTextField T="string" @bind-Value="_telefone" Label="Telefone" Variant="Variant.Outlined" MaxLength="30" Disabled="@(!_podeEditar)" />
+                <MudTextField T="string" @bind-Value="_fusoHorario" Label="Fuso horário" Variant="Variant.Outlined" Required="true" MaxLength="100" Disabled="@(!_podeEditar)" HelperText="Ex.: America/Sao_Paulo" />
+            </div>
+            <div class="tenant-readonly-strip">
+                <div><span>Identificador técnico</span><strong>@_empresa.Slug</strong></div>
+                <div><span>Provisionada em</span><strong>@_empresa.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy")</strong></div>
+                <div><span>Status</span><strong>@(_empresa.EhAtiva ? "Ativa" : "Suspensa")</strong></div>
+            </div>
+            <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar"><Authorized>
+                <div class="tenant-form-actions">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" OnClick="SalvarAsync" Disabled="_salvando">
+                        @(_salvando ? "Salvando..." : "Salvar dados")
+                    </MudButton>
+                </div>
+            </Authorized></AuthorizeView>
+        </section>
+    }
+</div>
+
+@code {
+    private EmpresaTenantResponse? _empresa;
+    private bool _carregando = true;
+    private bool _salvando;
+    private bool _podeEditar;
+    private string _nomeFantasia = "";
+    private string _razaoSocial = "";
+    private string _cpfCnpj = "";
+    private string? _email;
+    private string? _telefone;
+    private string _fusoHorario = "";
+
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+    [Inject] private IAuthorizationService AuthorizationService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _podeEditar = (await AuthorizationService.AuthorizeAsync(auth.User, Permissoes.ConfiguracoesEditar)).Succeeded;
+        var resultado = await Api.ObterEmpresaAsync();
+        if (resultado is { Sucesso: true, Resultado: not null }) Preencher(resultado.Resultado);
+        else Mensagens.Mostrar(resultado.Mensagem, true);
+        _carregando = false;
+    }
+
+    private void Preencher(EmpresaTenantResponse empresa)
+    {
+        _empresa = empresa;
+        _nomeFantasia = empresa.NomeFantasia;
+        _razaoSocial = empresa.RazaoSocial;
+        _cpfCnpj = empresa.CpfCnpj;
+        _email = empresa.Email;
+        _telefone = empresa.Telefone;
+        _fusoHorario = empresa.FusoHorario;
+    }
+
+    private async Task SalvarAsync()
+    {
+        if (_empresa is null || string.IsNullOrWhiteSpace(_nomeFantasia) || string.IsNullOrWhiteSpace(_razaoSocial) || string.IsNullOrWhiteSpace(_cpfCnpj) || string.IsNullOrWhiteSpace(_fusoHorario))
+        {
+            Mensagens.Mostrar("Preencha os campos obrigatórios.", true);
+            return;
+        }
+        _salvando = true;
+        var resultado = await Api.AtualizarEmpresaAsync(new(_nomeFantasia, _razaoSocial, _cpfCnpj, _email, _telefone, _fusoHorario, _empresa.Versao));
+        if (resultado is { Sucesso: true, Resultado: not null }) { Preencher(resultado.Resultado); Mensagens.Mostrar(resultado.Mensagem); }
+        else Mensagens.Mostrar(resultado.Mensagem, true);
+        _salvando = false;
+    }
+}

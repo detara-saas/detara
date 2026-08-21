@@ -43,7 +43,7 @@ public interface IChallengeSelecaoEmpresaTenant
 public sealed record MembershipLoginTenantAutorizada(
     Guid UsuarioId,
     Guid EmpresaId,
-    long UsuarioAtualizadoEmTicks,
+    long UsuarioVersaoSeguranca,
     long EmpresaVersaoSeguranca,
     long PerfilAtualizadoEmTicks);
 
@@ -67,7 +67,7 @@ public sealed record IdentidadeToken(
     Guid UsuarioId,
     Guid EmpresaId,
     Guid PerfilId,
-    long UsuarioAtualizadoEmTicks,
+    long UsuarioVersaoSeguranca,
     long EmpresaVersaoSeguranca,
     IReadOnlyCollection<string> Permissoes);
 

@@ -55,7 +55,11 @@ public static class DesenvolvimentoSeed
             .SingleOrDefaultAsync(x => x.Nome == "Administrador", cancellationToken);
         if (perfil is null)
         {
-            perfil = new Perfil(empresa.Id, "Administrador");
+            perfil = new Perfil(
+                empresa.Id,
+                "Administrador",
+                "Perfil administrativo protegido com acesso integral ao tenant.",
+                ehSistema: true);
             contextTenant.Perfis.Add(perfil);
         }
 

@@ -44,7 +44,7 @@ internal sealed class ValidadorIdentidadeAutenticada(DetaraDbContext dbContext)
             !usuario.EhAtivo ||
             !usuario.Perfil.EhAtivo ||
             usuario.PerfilId != identidade.PerfilId ||
-            (usuario.AtualizadoEmUtc?.Ticks ?? 0) != identidade.UsuarioAtualizadoEmTicks)
+            usuario.VersaoSeguranca != identidade.UsuarioVersaoSeguranca)
         {
             return false;
         }

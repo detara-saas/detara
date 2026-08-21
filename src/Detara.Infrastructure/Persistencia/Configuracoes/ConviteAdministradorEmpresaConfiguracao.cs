@@ -16,10 +16,14 @@ internal sealed class ConviteAdministradorEmpresaConfiguracao
         builder.Property(x => x.TokenHash).HasMaxLength(128);
         builder.Property(x => x.UltimoErroSeguro).HasMaxLength(500);
         builder.Property(x => x.ProviderMessageId).HasMaxLength(200);
+        builder.Property(x => x.Origem)
+            .HasConversion<int>()
+            .HasDefaultValue(OrigemConviteAcessoEmpresa.AdministradorInicialPlataforma)
+            .HasSentinel((OrigemConviteAcessoEmpresa)0);
         builder.Property(x => x.Versao).IsConcurrencyToken().HasDefaultValue(1L);
         builder.HasIndex(x => x.TokenHash).IsUnique().HasFilter("[TokenHash] IS NOT NULL");
         builder.HasIndex(x => new { x.Status, x.ProximaTentativaEnvioEmUtc });
-        builder.HasIndex(x => new { x.EmpresaId, x.UsuarioId });
+        builder.HasIndex(x => new { x.EmpresaId, x.UsuarioId, x.Origem }).IsUnique();
         builder.HasOne<Empresa>()
             .WithMany()
             .HasForeignKey(x => x.EmpresaId)
@@ -32,6 +36,11 @@ internal sealed class ConviteAdministradorEmpresaConfiguracao
         builder.HasOne<AdministradorPlataforma>()
             .WithMany()
             .HasForeignKey(x => x.CriadoPorAdministradorPlataformaId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Usuario>()
+            .WithMany()
+            .HasForeignKey(x => new { x.EmpresaId, x.CriadoPorUsuarioId })
+            .HasPrincipalKey(x => new { x.EmpresaId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

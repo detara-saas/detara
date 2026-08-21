@@ -1,0 +1,47 @@
+@page "/minha-conta"
+@attribute [Authorize]
+@inject AdministracaoTenantServico Api
+@inject AutenticacaoServico Autenticacao
+@inject IMensagemServico Mensagens
+@inject NavigationManager Navigation
+
+<PageTitle>Minha conta | Detara</PageTitle>
+
+<div class="page-container page-container-focused">
+    <CabecalhoPagina Titulo="Minha conta" Descricao="Atualize sua identidade de acesso. Alterações sensíveis encerram a sessão por segurança." Sobretitulo="CONTA" />
+    @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+    else if (_conta is null) { <EstadoVazio Titulo="Conta indisponível" Descricao="Não foi possível carregar seus dados." Icone="@Icons.Material.Outlined.PersonOff" /> }
+    else
+    {
+        <div class="tenant-account-summary module-panel"><div class="tenant-account-avatar">@Iniciais(_conta.Nome)</div><div><strong>@_conta.Nome</strong><span>@_conta.Email</span></div><div><span>Empresa</span><strong>@_conta.EmpresaNome</strong></div><div><span>Perfil</span><strong>@_conta.PerfilNome</strong></div></div>
+        <div class="tenant-account-grid">
+            <section class="module-panel tenant-form-panel">
+                <div class="section-heading"><div><span class="section-eyebrow">IDENTIFICAÇÃO</span><h2>Nome de exibição</h2><p>Usado nas telas operacionais e registros futuros.</p></div><MudIcon Icon="@Icons.Material.Outlined.PersonOutline" /></div>
+                <MudTextField T="string" @bind-Value="_nome" Label="Nome" Variant="Variant.Outlined" Required="true" MaxLength="160" />
+                <div class="tenant-form-actions"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SalvarNomeAsync" Disabled="_salvando">Salvar nome</MudButton></div>
+            </section>
+            <section class="module-panel tenant-form-panel">
+                <div class="section-heading"><div><span class="section-eyebrow">LOGIN</span><h2>Alterar e-mail</h2><p>Exige sua senha atual e encerra esta sessão.</p></div><MudIcon Icon="@Icons.Material.Outlined.AlternateEmail" /></div>
+                <div class="tenant-form-stack"><MudTextField T="string" @bind-Value="_novoEmail" Label="Novo e-mail" Variant="Variant.Outlined" InputType="InputType.Email" /><MudTextField T="string" @bind-Value="_senhaEmail" Label="Senha atual" Variant="Variant.Outlined" InputType="InputType.Password" /></div>
+                <div class="tenant-form-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="SalvarEmailAsync" Disabled="_salvando">Alterar e sair</MudButton></div>
+            </section>
+            <section class="module-panel tenant-form-panel tenant-account-password">
+                <div class="section-heading"><div><span class="section-eyebrow">SEGURANÇA</span><h2>Alterar senha</h2><p>A nova senha deve possuir ao menos 10 caracteres. Todas as sessões serão invalidadas.</p></div><MudIcon Icon="@Icons.Material.Outlined.Password" /></div>
+                <div class="tenant-form-grid"><MudTextField T="string" @bind-Value="_senhaAtual" Label="Senha atual" Variant="Variant.Outlined" InputType="InputType.Password" /><MudTextField T="string" @bind-Value="_novaSenha" Label="Nova senha" Variant="Variant.Outlined" InputType="InputType.Password" /><MudTextField T="string" @bind-Value="_confirmacaoSenha" Label="Confirmar nova senha" Variant="Variant.Outlined" InputType="InputType.Password" /></div>
+                <div class="tenant-form-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="SalvarSenhaAsync" Disabled="_salvando">Alterar senha e sair</MudButton></div>
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private MinhaContaResponse? _conta;
+    private bool _carregando = true, _salvando;
+    private string _nome = "", _novoEmail = "", _senhaEmail = "", _senhaAtual = "", _novaSenha = "", _confirmacaoSenha = "";
+    protected override async Task OnInitializedAsync() { var r = await Api.ObterMinhaContaAsync(); if (r is { Sucesso: true, Resultado: not null }) { _conta = r.Resultado; _nome = _conta.Nome; _novoEmail = _conta.Email; } else Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
+    private async Task SalvarNomeAsync() { if (_conta is null) return; _salvando = true; var r = await Api.AtualizarNomeAsync(new(_nome, _conta.Versao)); if (r is { Sucesso: true, Resultado: not null }) { _conta = r.Resultado; Mensagens.Mostrar(r.Mensagem); } else Mensagens.Mostrar(r.Mensagem, true); _salvando = false; }
+    private async Task SalvarEmailAsync() { if (_conta is null || string.IsNullOrWhiteSpace(_senhaEmail)) { Mensagens.Mostrar("Informe o novo e-mail e sua senha atual.", true); return; } _salvando = true; var r = await Api.AtualizarEmailAsync(new(_novoEmail, _senhaEmail, _conta.Versao)); if (r.Sucesso) await SairAsync(r.Mensagem); else { Mensagens.Mostrar(r.Mensagem, true); _salvando = false; } }
+    private async Task SalvarSenhaAsync() { if (_conta is null || _novaSenha != _confirmacaoSenha) { Mensagens.Mostrar("A confirmação da nova senha não confere.", true); return; } _salvando = true; var r = await Api.AlterarSenhaAsync(new(_senhaAtual, _novaSenha, _confirmacaoSenha, _conta.Versao)); if (r.Sucesso) await SairAsync(r.Mensagem); else { Mensagens.Mostrar(r.Mensagem, true); _salvando = false; } }
+    private async Task SairAsync(string mensagem) { Mensagens.Mostrar(mensagem); await Autenticacao.SairAsync(); Navigation.NavigateTo("/login", true); }
+    private static string Iniciais(string nome) => string.Join("", nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+}

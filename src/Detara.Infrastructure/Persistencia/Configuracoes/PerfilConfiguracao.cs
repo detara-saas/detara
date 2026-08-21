@@ -12,7 +12,11 @@ internal sealed class PerfilConfiguracao : IEntityTypeConfiguration<Perfil>
         builder.HasKey(x => x.Id);
         builder.HasAlternateKey(x => new { x.EmpresaId, x.Id });
         builder.Property(x => x.Nome).HasMaxLength(100).IsRequired();
-        builder.HasIndex(x => new { x.EmpresaId, x.Nome }).IsUnique();
+        builder.Property(x => x.NomeNormalizado).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Descricao).HasMaxLength(240);
+        builder.Property(x => x.EhSistema).HasDefaultValue(false);
+        builder.Property(x => x.Versao).IsConcurrencyToken().HasDefaultValue(1L);
+        builder.HasIndex(x => new { x.EmpresaId, x.NomeNormalizado }).IsUnique();
         builder.HasOne<Empresa>()
             .WithMany()
             .HasForeignKey(x => x.EmpresaId)

@@ -33,6 +33,31 @@ public sealed class Empresa : EntidadeBase
     public string Slug { get; private set; } = string.Empty;
     public string FusoHorario { get; private set; } = "America/Sao_Paulo";
     public long VersaoSeguranca { get; private set; } = 1;
+    public long VersaoCadastro { get; private set; } = 1;
+
+    public void AtualizarCadastro(
+        string nomeFantasia,
+        string razaoSocial,
+        string cpfCnpj,
+        string? email,
+        string? telefone,
+        string fusoHorario,
+        long versaoEsperada)
+    {
+        if (versaoEsperada != VersaoCadastro)
+        {
+            throw new InvalidOperationException("Os dados da empresa foram atualizados por outra operação.");
+        }
+
+        NomeFantasia = Exigir(nomeFantasia, nameof(nomeFantasia));
+        RazaoSocial = Exigir(razaoSocial, nameof(razaoSocial));
+        CpfCnpj = Exigir(cpfCnpj, nameof(cpfCnpj));
+        Email = NormalizarOpcional(email)?.ToLowerInvariant();
+        Telefone = NormalizarOpcional(telefone);
+        FusoHorario = Exigir(fusoHorario, nameof(fusoHorario));
+        VersaoCadastro++;
+        MarcarComoAtualizada();
+    }
 
     public void AlterarFusoHorario(string fusoHorario)
     {

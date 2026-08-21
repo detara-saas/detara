@@ -1,0 +1,87 @@
+@page "/usuarios"
+@attribute [Authorize(Policy = Permissoes.AdministracaoUsuario)]
+@inject AdministracaoTenantServico Api
+@inject IMensagemServico Mensagens
+
+<PageTitle>Usuários | Detara</PageTitle>
+
+<div class="page-container page-container-wide">
+    <CabecalhoPagina Titulo="Usuários" Descricao="Controle quem acessa esta empresa, o perfil atribuído e o estado de cada acesso." Sobretitulo="ADMINISTRAÇÃO">
+        <Acoes><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PersonAdd" OnClick="@(() => _mostrarConvite = !_mostrarConvite)">Convidar usuário</MudButton></Acoes>
+    </CabecalhoPagina>
+
+    @if (_mostrarConvite)
+    {
+        <section class="module-panel tenant-invite-panel" aria-labelledby="invite-heading">
+            <div class="section-heading"><div><span class="section-eyebrow">NOVO ACESSO</span><h2 id="invite-heading">Convidar usuário</h2><p>A pessoa receberá um link seguro e definirá a própria senha.</p></div><MudIconButton Icon="@Icons.Material.Outlined.Close" OnClick="@(() => _mostrarConvite = false)" aria-label="Fechar convite" /></div>
+            <div class="tenant-form-grid tenant-invite-grid">
+                <MudTextField T="string" @bind-Value="_conviteNome" Label="Nome" Variant="Variant.Outlined" Required="true" MaxLength="160" />
+                <MudTextField T="string" @bind-Value="_conviteEmail" Label="E-mail" Variant="Variant.Outlined" InputType="InputType.Email" Required="true" MaxLength="200" />
+                <MudSelect T="Guid" @bind-Value="_convitePerfilId" Label="Perfil" Variant="Variant.Outlined" Required="true">
+                    @foreach (var perfil in _perfis.Where(x => x.EhAtivo)) { <MudSelectItem T="Guid" Value="perfil.Id">@perfil.Nome</MudSelectItem> }
+                </MudSelect>
+            </div>
+            <div class="tenant-form-actions"><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Send" OnClick="ConvidarAsync" Disabled="_salvando">@(_salvando ? "Preparando..." : "Colocar convite na fila")</MudButton></div>
+        </section>
+    }
+
+    <section class="module-panel tenant-list-panel">
+        <div class="tenant-list-toolbar">
+            <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Buscar por nome ou e-mail" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Immediate="true" OnKeyDown="AoPressionarBusca" />
+            <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem T="string" Value="@("ativo")">Ativo</MudSelectItem><MudSelectItem T="string" Value="@("inativo")">Inativo</MudSelectItem><MudSelectItem T="string" Value="@("pendente")">Convite pendente</MudSelectItem><MudSelectItem T="string" Value="@("expirado")">Convite expirado</MudSelectItem>
+            </MudSelect>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FilterAlt" OnClick="CarregarAsync">Aplicar</MudButton>
+        </div>
+
+        @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+        else if (_pagina is null || _pagina.Itens.Count == 0) { <EstadoVazio Titulo="Nenhum usuário encontrado" Descricao="Ajuste os filtros ou convide a primeira pessoa da equipe." Icone="@Icons.Material.Outlined.GroupOff" /> }
+        else
+        {
+            <div class="tenant-entity-list">
+                @foreach (var usuario in _pagina.Itens)
+                {
+                    <article class="tenant-entity-row" @key="usuario.Id">
+                        <div class="tenant-entity-avatar">@Iniciais(usuario.Nome)</div>
+                        <div class="tenant-entity-main"><strong>@usuario.Nome</strong><span>@usuario.Email</span><span class="status-badge @ClasseStatus(usuario.Status)">@usuario.Status</span></div>
+                        <div class="tenant-entity-field"><span>Perfil</span><MudSelect T="Guid" Value="usuario.PerfilId" ValueChanged="@(id => AlterarPerfilAsync(usuario, id))" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="@(usuario.EhUsuarioAtual || _processando == usuario.Id)">@foreach (var perfil in _perfis.Where(x => x.EhAtivo)) { <MudSelectItem T="Guid" Value="perfil.Id">@perfil.Nome</MudSelectItem> }</MudSelect></div>
+                        <div class="tenant-row-actions">
+                            @if (usuario.PodeReenviarConvite) { <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.ForwardToInbox" OnClick="@(() => ReenviarAsync(usuario))" Disabled="@(_processando == usuario.Id)">Reenviar</MudButton> }
+                            @if (!usuario.EhUsuarioAtual && usuario.Status == "Ativo") { <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error" OnClick="@(() => AlterarStatusAsync(usuario, false))" Disabled="@(_processando == usuario.Id)">Inativar</MudButton> }
+                            else if (usuario.Status == "Inativo") { <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => AlterarStatusAsync(usuario, true))" Disabled="@(_processando == usuario.Id)">Reativar</MudButton> }
+                        </div>
+                    </article>
+                }
+            </div>
+            <div class="tenant-pagination"><MudText Typo="Typo.caption">@_pagina.TotalItens usuário(s)</MudText><MudPagination Count="@Math.Max(1, _pagina.TotalPaginas)" Selected="_paginaAtual" SelectedChanged="MudarPaginaAsync" Color="Color.Primary" /></div>
+        }
+    </section>
+</div>
+
+@code {
+    private PaginaResponse<UsuarioTenantListaResponse>? _pagina;
+    private IReadOnlyCollection<PerfilTenantResumoResponse> _perfis = [];
+    private bool _carregando = true, _mostrarConvite, _salvando;
+    private Guid? _processando;
+    private int _paginaAtual = 1;
+    private string? _pesquisa, _status;
+    private string _conviteNome = "", _conviteEmail = "";
+    private Guid _convitePerfilId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var perfis = await Api.ListarPerfisAsync();
+        if (perfis is { Sucesso: true, Resultado: not null }) { _perfis = perfis.Resultado; _convitePerfilId = _perfis.FirstOrDefault(x => x.EhAtivo)?.Id ?? Guid.Empty; }
+        await CarregarAsync();
+    }
+
+    private async Task CarregarAsync() { _carregando = true; var r = await Api.ListarUsuariosAsync(_paginaAtual, _pesquisa, _status); if (r is { Sucesso: true, Resultado: not null }) _pagina = r.Resultado; else Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
+    private async Task MudarPaginaAsync(int pagina) { _paginaAtual = pagina; await CarregarAsync(); }
+    private async Task AoPressionarBusca(KeyboardEventArgs e) { if (e.Key == "Enter") { _paginaAtual = 1; await CarregarAsync(); } }
+    private async Task ConvidarAsync() { if (string.IsNullOrWhiteSpace(_conviteNome) || string.IsNullOrWhiteSpace(_conviteEmail) || _convitePerfilId == Guid.Empty) { Mensagens.Mostrar("Informe nome, e-mail e perfil.", true); return; } _salvando = true; var r = await Api.ConvidarUsuarioAsync(new(_conviteNome, _conviteEmail, _convitePerfilId)); if (r.Sucesso) { Mensagens.Mostrar(r.Mensagem); _mostrarConvite = false; _conviteNome = _conviteEmail = ""; await CarregarAsync(); } else Mensagens.Mostrar(r.Mensagem, true); _salvando = false; }
+    private async Task AlterarPerfilAsync(UsuarioTenantListaResponse usuario, Guid perfilId) { if (perfilId == usuario.PerfilId) return; _processando = usuario.Id; var r = await Api.AlterarPerfilUsuarioAsync(usuario.Id, new(perfilId, usuario.Versao)); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); await CarregarAsync(); _processando = null; }
+    private async Task AlterarStatusAsync(UsuarioTenantListaResponse usuario, bool ativar) { _processando = usuario.Id; var r = await Api.AlterarStatusUsuarioAsync(usuario.Id, ativar, usuario.Versao); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); await CarregarAsync(); _processando = null; }
+    private async Task ReenviarAsync(UsuarioTenantListaResponse usuario) { _processando = usuario.Id; var r = await Api.ReenviarConviteAsync(usuario.Id); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); await CarregarAsync(); _processando = null; }
+    private static string Iniciais(string nome) => string.Join("", nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+    private static string ClasseStatus(string status) => status switch { "Ativo" => "status-success", "Convite pendente" => "status-running", "Convite expirado" => "status-warning", _ => "status-neutral" };
+}

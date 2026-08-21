@@ -1087,3 +1087,83 @@ h1:focus { outline: none; }
     .platform-qr-shell { width: min(100%,270px); margin-inline: auto; }
     .platform-login-form { padding: 16px; }
 }
+
+/* Administração básica do tenant */
+.tenant-form-panel, .tenant-invite-panel, .tenant-list-panel, .tenant-permissions-panel { padding: var(--detara-card-padding); }
+.tenant-form-panel > .section-heading, .tenant-invite-panel > .section-heading, .tenant-permissions-panel > .section-heading { margin-bottom: 24px; }
+.tenant-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--detara-form-gap); }
+.tenant-form-stack { display: grid; gap: var(--detara-form-gap); }
+.tenant-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--detara-border-soft); }
+.tenant-readonly-strip { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1px; margin-top: 24px; overflow: hidden; background: var(--detara-border-soft); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
+.tenant-readonly-strip > div { display: grid; gap: 4px; padding: 14px 16px; background: var(--detara-surface-alt); }
+.tenant-readonly-strip span, .tenant-entity-field > span, .tenant-account-summary > div > span { color: var(--detara-text-secondary); font-size: .68rem; }
+.tenant-readonly-strip strong { color: var(--detara-text); font-size: .78rem; overflow-wrap: anywhere; }
+.tenant-invite-panel { margin-bottom: 18px; background: linear-gradient(145deg,color-mix(in srgb,var(--detara-primary) 6%,var(--detara-surface)),var(--detara-surface)); }
+.tenant-invite-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(210px,.65fr); }
+.tenant-list-panel { padding: 0; overflow: hidden; }
+.tenant-list-toolbar { display: grid; grid-template-columns: minmax(280px,1fr) minmax(170px,220px) auto; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--detara-border-soft); }
+.tenant-entity-list { display: grid; }
+.tenant-entity-row { display: grid; grid-template-columns: 44px minmax(220px,1fr) minmax(180px,240px) auto; align-items: center; gap: 14px; min-height: 92px; padding: 15px 18px; border-bottom: 1px solid var(--detara-border-soft); }
+.tenant-entity-row:last-child { border-bottom: 0; }
+.tenant-entity-avatar, .tenant-account-avatar { display: grid; place-items: center; width: 44px; height: 44px; color: var(--detara-primary-dark); background: color-mix(in srgb,var(--detara-primary) 13%,var(--detara-surface)); border-radius: 50%; font-size: .75rem; font-weight: 800; }
+.tenant-entity-main { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 3px 10px; min-width: 0; }
+.tenant-entity-main > strong { color: var(--detara-text); font-size: .82rem; }
+.tenant-entity-main > span:not(.status-badge) { grid-column: 1; color: var(--detara-text-secondary); font-size: .72rem; overflow: hidden; text-overflow: ellipsis; }
+.tenant-entity-main > .status-badge { grid-column: 2; grid-row: 1 / span 2; }
+.tenant-entity-field { display: grid; gap: 4px; }
+.tenant-row-actions, .tenant-card-actions { display: flex; justify-content: flex-end; gap: 5px; }
+.tenant-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 18px; background: var(--detara-surface-alt); border-top: 1px solid var(--detara-border-soft); }
+.tenant-profile-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+.tenant-profile-card { min-height: 250px; display: flex; flex-direction: column; gap: 18px; padding: 21px; }
+.tenant-profile-card-heading { display: flex; align-items: center; justify-content: space-between; }
+.tenant-profile-icon { display: grid; place-items: center; width: 42px; height: 42px; color: var(--detara-primary-dark); background: color-mix(in srgb,var(--detara-primary) 11%,transparent); border-radius: var(--detara-radius-md); }
+.tenant-profile-card h2 { margin: 0 0 6px; color: var(--detara-text); font-size: 1rem; }
+.tenant-profile-card p { min-height: 38px; margin: 0; color: var(--detara-text-secondary); font-size: .74rem; }
+.tenant-profile-metrics { display: flex; gap: 18px; color: var(--detara-text-secondary); font-size: .7rem; }
+.tenant-profile-metrics strong { color: var(--detara-text); }
+.tenant-profile-card .tenant-card-actions { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--detara-border-soft); }
+.tenant-profile-layout { display: grid; grid-template-columns: minmax(280px,.65fr) minmax(0,1.35fr); gap: 18px; align-items: start; }
+.tenant-profile-layout > .tenant-form-panel { position: sticky; top: calc(var(--detara-topbar-height) + 22px); }
+.tenant-count { color: var(--detara-text-secondary); font-size: .7rem; }
+.permission-group { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin: 0 0 18px; padding: 14px; border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
+.permission-group legend { padding-inline: 7px; color: var(--detara-text-secondary); font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.permission-option { display: flex; align-items: flex-start; gap: 5px; padding: 9px; border-radius: var(--detara-radius-sm); }
+.permission-option:hover { background: var(--detara-surface-alt); }
+.permission-option > span { display: grid; gap: 2px; padding-top: 5px; }
+.permission-option strong { color: var(--detara-text); font-size: .72rem; }
+.permission-option small { color: var(--detara-text-secondary); font-size: .61rem; overflow-wrap: anywhere; }
+.permission-disabled { opacity: .58; }
+.tenant-account-summary { display: grid; grid-template-columns: 54px minmax(0,1fr) minmax(150px,.5fr) minmax(130px,.4fr); align-items: center; gap: 18px; padding: 19px 22px; margin-bottom: 18px; }
+.tenant-account-summary .tenant-account-avatar { width: 54px; height: 54px; }
+.tenant-account-summary > div { display: grid; gap: 4px; }
+.tenant-account-summary > div:nth-child(2) span { color: var(--detara-text-secondary); font-size: .72rem; }
+.tenant-account-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.tenant-account-password { grid-column: 1 / -1; }
+
+@media (max-width: 1099px) {
+    .tenant-profile-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .tenant-profile-layout { grid-template-columns: 1fr; }
+    .tenant-profile-layout > .tenant-form-panel { position: static; }
+    .tenant-entity-row { grid-template-columns: 44px minmax(0,1fr) minmax(170px,220px); }
+    .tenant-row-actions { grid-column: 2 / -1; justify-content: flex-start; }
+}
+
+@media (max-width: 799px) {
+    .tenant-form-grid, .tenant-invite-grid, .tenant-account-grid { grid-template-columns: 1fr; }
+    .tenant-account-password { grid-column: auto; }
+    .tenant-list-toolbar { grid-template-columns: 1fr 180px auto; }
+    .tenant-readonly-strip { grid-template-columns: 1fr; }
+    .tenant-account-summary { grid-template-columns: 54px minmax(0,1fr); }
+    .tenant-account-summary > div:nth-child(n+3) { grid-column: 2; }
+}
+
+@media (max-width: 599px) {
+    .tenant-form-panel, .tenant-invite-panel, .tenant-permissions-panel { padding: 19px; }
+    .tenant-profile-grid, .permission-group, .tenant-list-toolbar { grid-template-columns: 1fr; }
+    .tenant-list-toolbar .mud-button-root, .tenant-form-actions .mud-button-root { width: 100%; min-height: 44px; }
+    .tenant-form-actions { flex-direction: column; }
+    .tenant-entity-row { grid-template-columns: 42px minmax(0,1fr); align-items: start; padding: 15px; }
+    .tenant-entity-field, .tenant-row-actions { grid-column: 1 / -1; }
+    .tenant-row-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .tenant-pagination { align-items: stretch; flex-direction: column; }
+}

@@ -10,7 +10,9 @@ SQL Server com EF Core Code First. `InitialCreate` cria:
 
 O banco é compartilhado entre os módulos, mas cada tabela possui um módulo proprietário. Shared database é uma decisão de infraestrutura e não autoriza acesso indiscriminado entre módulos. A matriz completa de ownership e as regras para FKs cross-module estão em [Fronteiras dos módulos](architecture/module-boundaries.md).
 
-Índices únicos: `Empresa.Slug`, `Empresa.CpfCnpj`, `Permissao.Codigo`, `Perfil(EmpresaId, Nome)` e `Usuario(EmpresaId, Email)`. `Usuario.Email` também possui índice não exclusivo para a busca de login pré-tenant.
+Índices únicos: `Empresa.Slug`, `Empresa.CpfCnpj`, `Permissao.Codigo`, `Perfil(EmpresaId, NomeNormalizado)` e `Usuario(EmpresaId, Email)`. `Usuario.Email` também possui índice não exclusivo para a busca de login pré-tenant.
+
+`AdministracaoBasicaTenant` adiciona versões de concorrência separadas para cadastro da empresa, usuário e perfil; versão de segurança explícita do usuário; descrição/flag de sistema/nome normalizado do perfil; e origem/criador Tenant opcional no convite compartilhado. O índice de convite inclui `(EmpresaId, UsuarioId, Origem)` e a FK composta do criador Tenant impede referência entre empresas.
 
 A associação de usuário com perfil usa FK composta `(EmpresaId, PerfilId)`, impedindo associação entre tenants no próprio banco. Novas entidades comerciais devem herdar `EntidadeEmpresaBase` e adotar índices com `EmpresaId` quando a unicidade ou consulta for local à empresa.
 

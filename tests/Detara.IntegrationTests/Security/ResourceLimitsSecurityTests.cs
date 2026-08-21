@@ -1,6 +1,7 @@
 using Detara.Application.Atendimento;
 using Detara.Application.Financeiro;
 using Detara.Application.Plataforma;
+using Detara.Application.AdministracaoTenant;
 
 namespace Detara.IntegrationTests.Security;
 
@@ -23,6 +24,22 @@ public sealed class ResourceLimitsSecurityTests
 
         Assert.Equal(esperadoValido, empresas.IsValid);
         Assert.Equal(esperadoValido, auditoria.IsValid);
+    }
+
+    [Theory]
+    [InlineData(10, true)]
+    [InlineData(25, true)]
+    [InlineData(50, true)]
+    [InlineData(20, false)]
+    [InlineData(int.MaxValue, false)]
+    public void ListagemUsuariosTenant_AceitaSomenteWhitelistComDefault25(
+        int tamanhoPagina,
+        bool esperadoValido)
+    {
+        var query = new ListarUsuariosTenantQuery(TamanhoPagina: tamanhoPagina);
+
+        Assert.Equal(esperadoValido, new ListarUsuariosTenantValidator().Validate(query).IsValid);
+        Assert.Equal(25, new ListarUsuariosTenantQuery().TamanhoPagina);
     }
 
     [Fact]

@@ -2,7 +2,7 @@
 
 ## Escopo e método
 
-Este modelo cobre a aplicação existente até a Task 13.1: Blazor WebAssembly, API ASP.NET Core, SQL Server, storage privado, integração transacional com Resend, Platform Admin, provisionamento e login tenant por e-mail. Billing e infraestrutura definitiva de produção não fazem parte deste escopo.
+Este modelo cobre a aplicação existente até a Task 13.2: Blazor WebAssembly, API ASP.NET Core, SQL Server, storage privado, integração transacional com Resend, Platform Admin, provisionamento, login tenant por e-mail e administração básica do próprio tenant. Billing e infraestrutura definitiva de produção não fazem parte deste escopo.
 
 A revisão usa STRIDE como guia e prioriza OWASP ASVS 5.0 e OWASP API Security Top 10 2023, sobretudo API1 (BOLA), API2 (Broken Authentication), API3 (Broken Object Property Level Authorization), API4 (Unrestricted Resource Consumption), API5 (Broken Function Level Authorization), API8 (Security Misconfiguration) e API10 (Unsafe Consumption of APIs).
 
@@ -93,6 +93,10 @@ O browser nunca é autoridade sobre `EmpresaId`, usuário, permissão, preço ca
 | Information disclosure | login revela se o e-mail existe ou se a empresa está inativa | mesmo status/corpo genérico, hash fictício quando não há candidato e verificação de todos os hashes candidatos | testes de enumeração e `AutenticarCommandTests` |
 | Denial of service | brute force, health, e-mail, uploads e ranges | rate limit, 12 MiB global, 10 MiB por imagem, paginação e range máximo | testes de limite e validadores |
 | Elevation of privilege | endpoint sem policy ou permissão forjada | fallback autenticado, policies por claim, comparação da permissão com o banco e whitelist anônima testada | inventário automático de endpoints |
+| Elevation of privilege | gestor cria ou atribui perfil com acesso superior ao próprio | catálogo canônico, regra server-side de subconjunto, perfil tenant-scoped e bloqueio de troca do próprio perfil | testes de permissão desconhecida, cross-tenant e grant acima do caller |
+| Denial of service / lockout | último administrador é inativado ou perde a permissão administrativa | transação serializável e contagem de outros administradores ativos; perfil canônico protegido | testes do último administrador e perfil sistema |
+| Spoofing / replay | convite Tenant reutilizado ou token anterior aceito após reenvio | token aleatório, somente hash, expiração, single-use e substituição do hash no resend | testes do primitive compartilhado de convites |
+| Elevation of privilege | sessão antiga sobrevive a senha, e-mail, perfil ou status alterado | `Usuario.VersaoSeguranca` explícita no JWT e revalidação em cada chamada | testes de revogação e identidade corrente |
 | Stored XSS | HTML/event handler/URL perigosa em template | HtmlSanitizer allowlist, HtmlEncoder, CSP e iframe sandbox | `RenderizadorTemplateEmailTests` |
 | Unsafe external consumption | timeout/JSON hostil do Resend | host HTTPS fixo, timeout, resposta limitada, erro seguro e retry bounded | `ResendEmailProviderSecurityTests` |
 | Cache disclosure | Service Worker armazena API/JWT/dados | bypass explícito de API, Authorization e cross-origin; cache apenas de assets | testes PWA e revisão do worker |

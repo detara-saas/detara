@@ -139,7 +139,7 @@ public sealed class ValidadorIdentidadeAutenticadaTests : IAsyncLifetime
         _usuario.Id,
         _empresa.Id,
         _perfil.Id,
-        _usuario.AtualizadoEmUtc?.Ticks ?? 0,
+        _usuario.VersaoSeguranca,
         _empresa.VersaoSeguranca,
         [_permissao.Codigo]);
 

@@ -43,9 +43,13 @@
 
     <MudText Typo="Typo.overline" Class="nav-section">ADMINISTRAÇÃO</MudText>
     <AuthorizeView Policy="@Permissoes.ConfiguracoesVisualizar"><Authorized><MudNavLink Href="/configuracoes" Icon="@Icons.Material.Outlined.Settings"><span class="nav-label">Configurações</span></MudNavLink></Authorized></AuthorizeView>
-    <MudNavLink Href="/usuarios" Icon="@Icons.Material.Outlined.ManageAccounts"><span class="nav-label">Usuários</span></MudNavLink>
-    <MudNavLink Href="/perfis" Icon="@Icons.Material.Outlined.AdminPanelSettings"><span class="nav-label">Perfis</span></MudNavLink>
-    <MudNavLink Href="/empresa" Icon="@Icons.Material.Outlined.Business"><span class="nav-label">Empresa</span></MudNavLink>
+    <AuthorizeView Policy="@Permissoes.AdministracaoUsuario"><Authorized>
+        <MudNavLink Href="/usuarios" Icon="@Icons.Material.Outlined.ManageAccounts"><span class="nav-label">Usuários</span></MudNavLink>
+        <MudNavLink Href="/perfis" Icon="@Icons.Material.Outlined.AdminPanelSettings"><span class="nav-label">Perfis</span></MudNavLink>
+    </Authorized></AuthorizeView>
+    <AuthorizeView Policy="@Permissoes.ConfiguracoesVisualizar"><Authorized>
+        <MudNavLink Href="/empresa" Icon="@Icons.Material.Outlined.Business"><span class="nav-label">Empresa</span></MudNavLink>
+    </Authorized></AuthorizeView>
 </MudNavMenu>
 
 @code {

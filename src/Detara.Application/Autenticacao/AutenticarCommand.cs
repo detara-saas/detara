@@ -111,7 +111,7 @@ internal sealed class AutenticarCommandHandler(
         CandidatoLoginTenant candidato) => new(
             candidato.Usuario.Id,
             candidato.Empresa.Id,
-            candidato.Usuario.AtualizadoEmUtc?.Ticks ?? 0,
+            candidato.Usuario.VersaoSeguranca,
             candidato.Empresa.VersaoSeguranca,
             candidato.Perfil.AtualizadoEmTicks);
 }
@@ -137,7 +137,7 @@ internal sealed class SelecionarEmpresaCommandHandler(
             !candidato.Usuario.EhAtivo ||
             !candidato.Empresa.EhAtiva ||
             !candidato.Perfil.EhAtivo ||
-            (candidato.Usuario.AtualizadoEmUtc?.Ticks ?? 0) != autorizada.UsuarioAtualizadoEmTicks ||
+            candidato.Usuario.VersaoSeguranca != autorizada.UsuarioVersaoSeguranca ||
             candidato.Empresa.VersaoSeguranca != autorizada.EmpresaVersaoSeguranca ||
             candidato.Perfil.AtualizadoEmTicks != autorizada.PerfilAtualizadoEmTicks)
         {
