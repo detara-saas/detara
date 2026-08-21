@@ -1,0 +1,20 @@
+{
+    admin off
+    email {$DETARA_ACME_EMAIL}
+    http_port 8080
+    https_port 8443
+}
+
+{$DETARA_PUBLIC_HOST} {
+    encode zstd gzip
+
+    request_body {
+        max_size 12MB
+    }
+
+    @backend path /api/* /health/*
+    reverse_proxy @backend api:8080
+    reverse_proxy web:8080
+
+    header -Server
+}

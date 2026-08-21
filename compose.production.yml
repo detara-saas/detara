@@ -1,0 +1,172 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  reverse-proxy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    cpus: 0.50
+    mem_limit: 256m
+    pids_limit: 100
+    read_only: true
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    ports:
+      - "80:8080"
+      - "443:8443"
+    environment:
+      DETARA_PUBLIC_HOST: ${DETARA_PUBLIC_HOST:?Informe o host público}
+      DETARA_ACME_EMAIL: ${DETARA_ACME_EMAIL:?Informe o e-mail ACME}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - detara-caddy-data:/data
+      - detara-caddy-config:/config
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    networks:
+      edge:
+        ipv4_address: 172.30.0.2
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+
+  web:
+    image: ${DETARA_WEB_IMAGE:?Informe a imagem Web imutável}
+    restart: unless-stopped
+    cpus: 0.50
+    mem_limit: 256m
+    pids_limit: 100
+    read_only: true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    expose:
+      - "8080"
+    networks:
+      edge:
+        ipv4_address: 172.30.0.4
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+
+  api:
+    image: ${DETARA_API_IMAGE:?Informe a imagem API imutável}
+    restart: unless-stopped
+    cpus: 1.50
+    mem_limit: 1536m
+    pids_limit: 300
+    read_only: true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    expose:
+      - "8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      AllowedHosts: ${DETARA_PUBLIC_HOST}
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=Detara;User Id=detara_runtime;Password=${DETARA_SQL_RUNTIME_PASSWORD:?Informe a senha SQL runtime};Encrypt=True;TrustServerCertificate=True
+      Jwt__ChaveAssinatura: ${DETARA_JWT_KEY:?Informe a chave JWT tenant}
+      PlatformJwt__ChaveAssinatura: ${DETARA_PLATFORM_JWT_KEY:?Informe a chave JWT Platform}
+      Web__PublicBaseUrl: https://${DETARA_PUBLIC_HOST}
+      DataProtection__ApplicationName: Detara.Platform
+      DataProtection__KeyRingPath: /var/lib/detara/data-protection-keys
+      DataProtection__CertificatePath: /run/secrets/detara-data-protection.pfx
+      DataProtection__CertificatePassword: ${DETARA_DATA_PROTECTION_PASSWORD:?Informe a senha do certificado}
+      ForwardedHeaders__ForwardLimit: 1
+      ForwardedHeaders__KnownProxies__0: 172.30.0.2
+      Storage__Provider: S3
+      Storage__S3__ServiceUrl: ${DETARA_S3_ENDPOINT:?Informe o endpoint S3 HTTPS}
+      Storage__S3__Bucket: ${DETARA_S3_BUCKET:?Informe o bucket privado}
+      Storage__S3__Region: ${DETARA_S3_REGION:?Informe a região S3}
+      Storage__S3__AccessKey: ${DETARA_S3_ACCESS_KEY:?Informe a credencial S3}
+      Storage__S3__SecretKey: ${DETARA_S3_SECRET_KEY:?Informe o segredo S3}
+      Storage__S3__ForcePathStyle: ${DETARA_S3_FORCE_PATH_STYLE:-true}
+      Email__Provider: Resend
+      Email__ApiKey: ${DETARA_RESEND_API_KEY:?Informe a API key Resend}
+      Email__FromAddress: ${DETARA_EMAIL_FROM_ADDRESS:?Informe um remetente verificado}
+      Email__FromName: ${DETARA_EMAIL_FROM_NAME:-Detara}
+    volumes:
+      - detara-data-protection-keys:/var/lib/detara/data-protection-keys
+    secrets:
+      - detara-data-protection
+    networks:
+      edge:
+        ipv4_address: 172.30.0.3
+      data:
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04@sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89
+    restart: unless-stopped
+    cpus: 2.50
+    mem_limit: 4096m
+    pids_limit: 512
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: ${DETARA_SQL_PID:-Express}
+      MSSQL_SA_PASSWORD: ${DETARA_SQL_ADMIN_PASSWORD:?Informe a senha administrativa SQL}
+      MSSQL_MEMORY_LIMIT_MB: 3072
+    expose:
+      - "1433"
+    volumes:
+      - detara-sql-data:/var/opt/mssql
+      - detara-sql-backups:/var/opt/mssql/backups
+      - ./scripts/production:/opt/detara/scripts:ro
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -Q \"SELECT 1\" >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+  data:
+    internal: true
+
+volumes:
+  detara-sql-data:
+  detara-sql-backups:
+  detara-data-protection-keys:
+  detara-caddy-data:
+  detara-caddy-config:
+
+secrets:
+  detara-data-protection:
+    file: ./secrets/detara-data-protection.pfx
