@@ -25,6 +25,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Amazon.Runtime;
+using Amazon.S3;
 
 namespace Detara.Infrastructure;
 
@@ -96,18 +98,51 @@ public static class DependencyInjection
         services.AddSingleton<IOrcamentoPdfGenerator, PdfOrcamentoGenerator>();
         var storageOptions = configuration.GetSection(StorageOptions.Secao).Get<StorageOptions>()
             ?? throw new InvalidOperationException("A configuração Storage deve ser informada.");
-        if (!string.Equals(storageOptions.Provider, "Local", StringComparison.OrdinalIgnoreCase))
+        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.Secao));
+        if (string.Equals(storageOptions.Provider, "Local", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IArquivoStorage, LocalArquivoStorage>();
+        }
+        else if (string.Equals(storageOptions.Provider, "S3", StringComparison.OrdinalIgnoreCase))
+        {
+            ValidarStorageS3(storageOptions.S3);
+            var s3Config = new AmazonS3Config
+            {
+                ServiceURL = storageOptions.S3.ServiceUrl,
+                AuthenticationRegion = storageOptions.S3.Region,
+                ForcePathStyle = storageOptions.S3.ForcePathStyle,
+                Timeout = TimeSpan.FromSeconds(15),
+                MaxErrorRetry = 2
+            };
+            services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
+                new BasicAWSCredentials(storageOptions.S3.AccessKey, storageOptions.S3.SecretKey),
+                s3Config));
+            services.AddSingleton<IS3ObjectClient, AwsS3ObjectClient>();
+            services.AddSingleton<IArquivoStorage, S3ArquivoStorage>();
+        }
+        else
         {
             throw new InvalidOperationException(
-                $"O provider de storage '{storageOptions.Provider}' não é suportado nesta versão.");
+                $"O provider de storage '{storageOptions.Provider}' não é suportado.");
         }
-
-        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.Secao));
-        services.AddSingleton<IArquivoStorage, LocalArquivoStorage>();
         services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
         services.AddSingleton<IPasswordHasher<AdministradorPlataforma>, PasswordHasher<AdministradorPlataforma>>();
 
         return services;
+    }
+
+    private static void ValidarStorageS3(S3StorageOptions options)
+    {
+        if (!Uri.TryCreate(options.ServiceUrl, UriKind.Absolute, out var endpoint) ||
+            endpoint.Scheme != Uri.UriSchemeHttps ||
+            string.IsNullOrWhiteSpace(options.Bucket) ||
+            string.IsNullOrWhiteSpace(options.Region) ||
+            string.IsNullOrWhiteSpace(options.AccessKey) ||
+            string.IsNullOrWhiteSpace(options.SecretKey))
+        {
+            throw new InvalidOperationException(
+                "Storage:S3 exige endpoint HTTPS, bucket, região e credenciais.");
+        }
     }
 
     private static void AplicarAliasesConfiguracaoEmail(IConfiguration configuration)

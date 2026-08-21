@@ -112,18 +112,9 @@ internal sealed class LocalArquivoStorage : IArquivoStorage
 
     private string ResolverCaminho(string chave)
     {
-        if (string.IsNullOrWhiteSpace(chave) ||
-            Path.IsPathRooted(chave) ||
-            chave.Contains('\\'))
-        {
-            throw new ArgumentException("A chave de storage é inválida.", nameof(chave));
-        }
-
+        StorageChave.Validar(chave);
         var segmentos = chave.Split('/', StringSplitOptions.None);
-        if (segmentos.Length == 0 || segmentos.Any(segmento =>
-                string.IsNullOrWhiteSpace(segmento) ||
-                segmento is "." or ".." ||
-                segmento.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
+        if (segmentos.Any(segmento => segmento.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
         {
             throw new ArgumentException("A chave de storage é inválida.", nameof(chave));
         }

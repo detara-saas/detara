@@ -29,7 +29,19 @@ Exemplo de configuração:
 }
 ```
 
-`LocalArquivoStorage` serve ao desenvolvimento e QA local e não deve ser considerado estratégia definitiva de produção. A raiz local é ignorada pelo Git.
+`LocalArquivoStorage` serve ao desenvolvimento e QA local. O startup de Production rejeita esse provider. A raiz local é ignorada pelo Git.
+
+## Provider S3-compatible
+
+`S3ArquivoStorage` implementa o mesmo contrato sobre object storage S3-compatible privado. A configuração exige endpoint HTTPS, bucket, região e credencial. Nenhuma ACL pública ou URL de objeto faz parte do contrato; leitura continua mediada pela API e por sua autorização.
+
+Em produção:
+
+- bloquear acesso público no provedor;
+- limitar a credencial ao bucket/prefixo e às operações necessárias;
+- manter credenciais fora do código, imagem e Git;
+- habilitar criptografia em repouso e política de ciclo de vida compatível com privacidade;
+- monitorar falhas e capacidade no provedor.
 
 ## Segurança de imagens
 
@@ -41,4 +53,4 @@ Não há URL pública, base64 persistido, binário no banco ou exposição da ch
 
 No upload, o veículo e o tenant são validados antes da escrita. Se a persistência dos metadados falhar, o arquivo recém-criado é removido em compensação. Na exclusão, os metadados são removidos primeiro e a exclusão física é tentada explicitamente; uma falha física é reportada e pode produzir órfão, opção preferida a manter uma referência quebrada no banco.
 
-Não existe job de limpeza preventiva nesta etapa. Reconciliação de órfãos, thumbnails, transformação de imagem, HEIC, EXIF e um adapter futuro de Object Storage permanecem no backlog.
+Não existe job de limpeza preventiva nesta etapa. Reconciliação de órfãos, thumbnails, transformação de imagem, HEIC e EXIF permanecem no backlog.

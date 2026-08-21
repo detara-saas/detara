@@ -1,9 +1,13 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Detara.Api.Autenticacao;
 using Detara.Api.Erros;
+using Detara.Api.Operacao;
 using Detara.Application;
 using Detara.Application.Abstracoes;
 using Detara.Infrastructure;
@@ -13,12 +17,26 @@ using Detara.Application.Plataforma;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Data.SqlClient;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsProduction())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddJsonConsole(options =>
+    {
+        options.IncludeScopes = true;
+        options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+        options.UseUtcTimestamp = true;
+    });
+}
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.AddServerHeader = false;
@@ -63,9 +81,40 @@ else if (!Path.IsPathFullyQualified(keyRingPath))
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Secao));
 builder.Services.AddSingleton<IOptions<PlatformJwtOptions>>(Options.Create(platformJwtOptions));
-builder.Services.AddDataProtection()
-    .SetApplicationName("Detara.Platform")
+var dataProtectionApplicationName = builder.Configuration["DataProtection:ApplicationName"];
+if (string.IsNullOrWhiteSpace(dataProtectionApplicationName))
+{
+    dataProtectionApplicationName = "Detara.Platform";
+}
+
+var dataProtectionBuilder = builder.Services.AddDataProtection()
+    .SetApplicationName(dataProtectionApplicationName)
     .PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
+if (builder.Environment.IsProduction())
+{
+    var certificatePath = builder.Configuration["DataProtection:CertificatePath"]!;
+    var certificatePassword = builder.Configuration["DataProtection:CertificatePassword"]!;
+    var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+        certificatePath,
+        certificatePassword,
+        X509KeyStorageFlags.EphemeralKeySet);
+    dataProtectionBuilder.ProtectKeysWithCertificate(certificate);
+}
+
+var forwardedProxies = ObterProxiesConfiaveis(builder.Configuration);
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                               ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = builder.Configuration.GetValue<int?>("ForwardedHeaders:ForwardLimit") ?? 1;
+    options.RequireHeaderSymmetry = true;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+    foreach (var proxy in forwardedProxies)
+    {
+        options.KnownProxies.Add(proxy);
+    }
+});
 builder.Services.AdicionarApplication();
 builder.Services.AdicionarInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
@@ -81,7 +130,7 @@ builder.Services.AddHsts(options =>
 });
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<DetaraDbContext>("database");
+    .AddDbContextCheck<DetaraDbContext>("database", tags: ["ready"]);
 builder.Services.AddCors(options => options.AddPolicy("Web", policy => policy
     .WithOrigins(origensCors)
     .AllowAnyHeader()
@@ -288,6 +337,8 @@ if (app.Environment.IsDevelopment())
     await app.Services.InicializarDesenvolvimentoAsync(app.Configuration);
 }
 
+app.UseForwardedHeaders();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
@@ -325,7 +376,19 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health")
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = RespostaHealthCheck.EscreverAsync
+})
+    .WithMetadata(new HttpMethodMetadata([HttpMethods.Get]))
+    .AllowAnonymous()
+    .RequireRateLimiting("health");
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready"),
+    ResponseWriter = RespostaHealthCheck.EscreverAsync
+})
     .WithMetadata(new HttpMethodMetadata([HttpMethods.Get]))
     .AllowAnonymous()
     .RequireRateLimiting("health");
@@ -433,6 +496,19 @@ static void ValidarConfiguracaoDeProducao(
             "DataProtection__KeyRingPath deve apontar para armazenamento persistente absoluto em produção.");
     }
 
+    var applicationName = builder.Configuration["DataProtection:ApplicationName"];
+    var certificatePath = builder.Configuration["DataProtection:CertificatePath"];
+    var certificatePassword = builder.Configuration["DataProtection:CertificatePassword"];
+    if (!string.Equals(applicationName, "Detara.Platform", StringComparison.Ordinal) ||
+        string.IsNullOrWhiteSpace(certificatePath) ||
+        !Path.IsPathFullyQualified(certificatePath) ||
+        !File.Exists(certificatePath) ||
+        EhPlaceholder(certificatePassword))
+    {
+        throw new InvalidOperationException(
+            "Data Protection em produção exige application name estável, key ring persistente e certificado configurado.");
+    }
+
     var hosts = builder.Configuration["AllowedHosts"];
     if (string.IsNullOrWhiteSpace(hosts) ||
         hosts.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -450,6 +526,100 @@ static void ValidarConfiguracaoDeProducao(
         throw new InvalidOperationException(
             "CORS em produção aceita somente origens HTTPS não locais.");
     }
+
+
+    var origemPublica = publicUri.GetLeftPart(UriPartial.Authority);
+    if (origensCors.Count > 1 || origensCors.Any(origem =>
+            !string.Equals(origem, origemPublica, StringComparison.OrdinalIgnoreCase)))
+    {
+        throw new InvalidOperationException(
+            "CORS em produção deve permanecer vazio ou limitado à origem pública única.");
+    }
+
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    try
+    {
+        var sql = new SqlConnectionStringBuilder(connectionString ?? string.Empty);
+        var encrypt = sql.Encrypt.ToString();
+        if (string.IsNullOrWhiteSpace(sql.UserID) ||
+            string.Equals(sql.UserID, "sa", StringComparison.OrdinalIgnoreCase) ||
+            EhPlaceholder(sql.Password) ||
+            encrypt.Equals("False", StringComparison.OrdinalIgnoreCase) ||
+            encrypt.Equals("Optional", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException();
+        }
+    }
+    catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+    {
+        throw new InvalidOperationException(
+            "DefaultConnection em produção exige usuário runtime dedicado e conexão criptografada.");
+    }
+
+    var storageProvider = builder.Configuration["Storage:Provider"];
+    var storageServiceUrl = builder.Configuration["Storage:S3:ServiceUrl"];
+    if (!string.Equals(storageProvider, "S3", StringComparison.OrdinalIgnoreCase) ||
+        !Uri.TryCreate(storageServiceUrl, UriKind.Absolute, out var storageUri) ||
+        storageUri.Scheme != Uri.UriSchemeHttps ||
+        EhPlaceholder(builder.Configuration["Storage:S3:Bucket"]) ||
+        EhPlaceholder(builder.Configuration["Storage:S3:Region"]) ||
+        EhPlaceholder(builder.Configuration["Storage:S3:AccessKey"]) ||
+        EhPlaceholder(builder.Configuration["Storage:S3:SecretKey"]))
+    {
+        throw new InvalidOperationException(
+            "Storage Production exige provider S3 privado com endpoint HTTPS, bucket, região e credenciais.");
+    }
+
+    var emailProvider = builder.Configuration["Email:Provider"];
+    var emailApiKey = builder.Configuration["Email:ApiKey"];
+    var emailFromAddress = builder.Configuration["Email:FromAddress"];
+    if (!string.Equals(emailProvider, "Resend", StringComparison.OrdinalIgnoreCase) ||
+        EhPlaceholder(emailApiKey) ||
+        !MailAddress.TryCreate(emailFromAddress, out var fromAddress) ||
+        fromAddress.Host.Equals("resend.dev", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            "Email Production exige Resend configurado com remetente de domínio verificado, fora de resend.dev.");
+    }
+
+    var proxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+    if (proxies.Length == 0 ||
+        proxies.Any(proxy => !IPAddress.TryParse(proxy, out var address) ||
+                             IPAddress.Any.Equals(address) ||
+                             IPAddress.IPv6Any.Equals(address)))
+    {
+        throw new InvalidOperationException(
+            "ForwardedHeaders__KnownProxies deve listar explicitamente o reverse proxy confiável em produção.");
+    }
+
+    if (EhPlaceholder(builder.Configuration["Jwt:ChaveAssinatura"]) ||
+        EhPlaceholder(builder.Configuration["PlatformJwt:ChaveAssinatura"]))
+    {
+        throw new InvalidOperationException(
+            "As chaves JWT de Production devem ser secrets aleatórios reais e distintos.");
+    }
+}
+
+static IReadOnlyCollection<IPAddress> ObterProxiesConfiaveis(IConfiguration configuration)
+{
+    var configurados = configuration
+        .GetSection("ForwardedHeaders:KnownProxies")
+        .Get<string[]>() ?? [];
+    var resultado = new List<IPAddress>(configurados.Length);
+    foreach (var configurado in configurados)
+    {
+        if (!IPAddress.TryParse(configurado, out var address) ||
+            IPAddress.Any.Equals(address) ||
+            IPAddress.IPv6Any.Equals(address))
+        {
+            throw new InvalidOperationException(
+                "ForwardedHeaders contém endereço de proxy inválido.");
+        }
+
+        resultado.Add(address);
+    }
+
+    return resultado;
 }
 
 static bool EhOrigemCorsValida(string origem)
@@ -468,5 +638,9 @@ static bool EhOrigemCorsValida(string origem)
 
     return uri.AbsolutePath == "/" && !origem.EndsWith('/');
 }
+
+static bool EhPlaceholder(string? valor) =>
+    string.IsNullOrWhiteSpace(valor) ||
+    valor.Contains("CHANGE_ME", StringComparison.OrdinalIgnoreCase);
 
 public partial class Program;
