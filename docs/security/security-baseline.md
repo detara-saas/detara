@@ -32,6 +32,9 @@ Esta baseline é obrigatória para código novo e manutenção. Exceções exige
 - Toda nova rota que recebe ID de recurso tenant-owned recebe teste adversarial Empresa A versus Empresa B.
 - Referências cross-module e IDs relacionados são revalidados dentro do tenant antes de persistir.
 - Respostas para GUID de outro tenant não revelam existência nem dados do recurso.
+- Administração Tenant deriva empresa e usuário do contexto autenticado. O caller não pode alterar o próprio perfil, inativar a si mesmo, conceder permissão que não possui ou remover o último acesso administrativo ativo.
+- Perfil administrativo canônico é marcado como sistema e protegido contra edição/inativação. Perfil recebido em atribuição deve ser ativo e pertencer ao mesmo tenant.
+- Alterações de e-mail e senha exigem senha atual e incrementam a versão de segurança; inativação, reativação e troca de perfil também revogam sessões anteriores.
 - Administração da plataforma consulta somente metadados mínimos. `IgnoreQueryFilters` nunca concede acesso a dados operacionais nem fundamenta impersonation.
 
 ## Contratos, validação e dados

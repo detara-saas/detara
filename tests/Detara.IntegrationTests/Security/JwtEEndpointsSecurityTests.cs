@@ -55,6 +55,19 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData("/api/empresa")]
+    [InlineData("/api/usuarios")]
+    [InlineData("/api/perfis")]
+    public async Task AdministracaoTenant_SemPermissaoRetorna403(string rota)
+    {
+        UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
+
+        using var response = await _client.GetAsync(rota);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
     [InlineData(SecurityAlgorithms.HmacSha512)]
     [InlineData(SecurityAlgorithms.HmacSha384)]
     public async Task JwtComAlgoritmoNaoPermitido_EhRejeitado(string algoritmo)
@@ -118,6 +131,32 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         UsarToken(CriarTokenPlataforma(incluirMfa: true));
 
         var response = await _client.GetAsync("/api/onboarding");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/empresa")]
+    [InlineData("/api/usuarios")]
+    [InlineData("/api/perfis")]
+    [InlineData("/api/minha-conta")]
+    public async Task TokenPlataforma_NaoAutenticaAdministracaoTenant(string rota)
+    {
+        UsarToken(CriarTokenPlataforma(incluirMfa: true));
+
+        using var response = await _client.GetAsync(rota);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/empresa")]
+    [InlineData("/api/usuarios")]
+    [InlineData("/api/perfis")]
+    [InlineData("/api/minha-conta")]
+    public async Task AdministracaoTenantSemToken_Retorna401(string rota)
+    {
+        using var response = await _client.GetAsync(rota);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -280,7 +319,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(113, rotas.Length);
+        Assert.Equal(133, rotas.Length);
     }
 
     [Fact]
@@ -455,7 +494,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
             new(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
             new("empresa_id", Guid.NewGuid().ToString()),
             new("perfil_id", Guid.NewGuid().ToString()),
-            new("usuario_atualizado_ticks", "0"),
+            new("usuario_versao_seguranca", "0"),
             new("empresa_versao_seguranca", "1")
         };
         var token = new JwtSecurityToken(
