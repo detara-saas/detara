@@ -33,6 +33,7 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        AplicarAliasesConfiguracaoEmail(configuration);
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
@@ -101,5 +102,23 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher<AdministradorPlataforma>, PasswordHasher<AdministradorPlataforma>>();
 
         return services;
+    }
+
+    private static void AplicarAliasesConfiguracaoEmail(IConfiguration configuration)
+    {
+        AplicarAlias(configuration, "DETARA_RESEND_API_KEY", "Email:ApiKey");
+        AplicarAlias(configuration, "DETARA_EMAIL_FROM_ADDRESS", "Email:FromAddress");
+    }
+
+    private static void AplicarAlias(
+        IConfiguration configuration,
+        string origem,
+        string destino)
+    {
+        var valor = configuration[origem];
+        if (!string.IsNullOrWhiteSpace(valor))
+        {
+            configuration[destino] = valor;
+        }
     }
 }
