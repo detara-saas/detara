@@ -20,7 +20,7 @@
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
 else if (_pagina is null || _pagina.Itens.Count == 0)
 {
-    <EstadoVazio Titulo="Nenhuma ordem de serviço encontrada" Descricao="Crie uma OS diretamente ou a partir de um orçamento aprovado/agendamento." Icone="@Icons.Material.Outlined.FactCheck"><Acao><AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="/ordens-servico/nova" Variant="Variant.Filled" Color="Color.Primary">Nova ordem de serviço</MudButton></Authorized></AuthorizeView></Acao></EstadoVazio>
+    <EstadoVazio Titulo="@(TemFiltrosAtivos ? "Nenhuma ordem corresponde aos filtros" : "Nenhuma ordem de serviço iniciada")" Descricao="@(TemFiltrosAtivos ? "Revise a pesquisa ou o status para ampliar os resultados." : "A Ordem de Serviço organiza check-in, execução, evidências e o escopo autorizado do atendimento.")" Icone="@Icons.Material.Outlined.FactCheck"><Acao>@if (!TemFiltrosAtivos) { <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="/ordens-servico/nova" Variant="Variant.Filled" Color="Color.Primary">Nova ordem de serviço</MudButton></Authorized></AuthorizeView> }</Acao></EstadoVazio>
 }
 else
 {
@@ -34,6 +34,7 @@ else
 
 @code {
     private PaginaResponse<OrdemServicoListaResponse>? _pagina; private bool _carregando = true; private int _paginaAtual = 1; private string? _pesquisa; private StatusOrdemServicoContrato? _status;
+    private bool TemFiltrosAtivos => !string.IsNullOrWhiteSpace(_pesquisa) || _status.HasValue;
     protected override Task OnInitializedAsync() => CarregarAsync();
     private async Task CarregarAsync() { _carregando = true; var r = await OrdensApi.ListarAsync(_paginaAtual, 25, _pesquisa, _status); _pagina = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
     private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }

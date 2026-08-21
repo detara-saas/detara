@@ -36,7 +36,7 @@
 }
 else if (_pagina is null || _pagina.Itens.Count == 0)
 {
-    <EstadoVazio Titulo="Nenhum serviço encontrado" Descricao="Cadastre o primeiro serviço ou ajuste os filtros." Icone="@Icons.Material.Outlined.HomeRepairService"><Acao><AuthorizeView Policy="@Permissoes.ServicosCriar"><Authorized><MudButton Href="/servicos/novo" Variant="Variant.Filled" Color="Color.Primary">Cadastrar serviço</MudButton></Authorized></AuthorizeView></Acao></EstadoVazio>
+    <EstadoVazio Titulo="@(TemFiltrosAtivos ? "Nenhum serviço corresponde aos filtros" : "Cadastre seu primeiro serviço")" Descricao="@(TemFiltrosAtivos ? "Revise a pesquisa, categoria ou status para ampliar os resultados." : "O catálogo organiza o que sua empresa oferece com preço fixo, a partir de ou sob consulta.")" Icone="@Icons.Material.Outlined.HomeRepairService"><Acao>@if (!TemFiltrosAtivos) { <AuthorizeView Policy="@Permissoes.ServicosCriar"><Authorized><MudButton Href="/servicos/novo" Variant="Variant.Filled" Color="Color.Primary">Cadastrar serviço</MudButton></Authorized></AuthorizeView> }</Acao></EstadoVazio>
 }
 else
 {
@@ -66,6 +66,7 @@ else
     private Guid? _categoriaId;
     private string _status = "todos";
     private int _paginaAtual = 1;
+    private bool TemFiltrosAtivos => !string.IsNullOrWhiteSpace(_pesquisa) || _categoriaId.HasValue || _status != "todos";
 
     protected override async Task OnInitializedAsync()
     {

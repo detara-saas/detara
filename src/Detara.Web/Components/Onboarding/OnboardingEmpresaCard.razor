@@ -1,0 +1,97 @@
+@using Detara.Contracts.Onboarding
+
+<section class="onboarding-card @(Compacto ? "onboarding-card-compact" : null)" aria-labelledby="onboarding-title">
+    @if (Compacto)
+    {
+        <div class="onboarding-compact-copy">
+            <span class="onboarding-compact-icon"><MudIcon Icon="@(Estado.Concluido ? Icons.Material.Outlined.TaskAlt : Icons.Material.Outlined.Route)" /></span>
+            <div>
+                <strong id="onboarding-title">@(Estado.Concluido ? "Configuração inicial concluída" : "Configuração inicial")</strong>
+                <span>@Estado.QuantidadeConcluida de @Estado.QuantidadeTotal etapas concluídas</span>
+            </div>
+        </div>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Outlined.ExpandMore" OnClick="OnReabrir">
+            Ver etapas
+        </MudButton>
+    }
+    else
+    {
+        <header class="onboarding-header">
+            <div class="onboarding-heading-copy">
+                <span class="section-eyebrow">CONFIGURAÇÃO INICIAL</span>
+                <h2 id="onboarding-title">Vamos deixar sua operação pronta</h2>
+                <p>Conclua as etapas na ordem que fizer sentido. O restante do Detara continua disponível.</p>
+            </div>
+            <div class="onboarding-progress-summary" aria-label="@($"{Estado.QuantidadeConcluida} de {Estado.QuantidadeTotal} etapas concluídas")">
+                <strong>@Estado.QuantidadeConcluida/@Estado.QuantidadeTotal</strong>
+                <span>etapas concluídas</span>
+            </div>
+        </header>
+
+        <div class="onboarding-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percentual" style="@($"--onboarding-progress: {Percentual}%")">
+            <span></span>
+        </div>
+
+        <ol class="onboarding-steps">
+            @for (var indice = 0; indice < Estado.Etapas.Count; indice++)
+            {
+                var etapa = Estado.Etapas.ElementAt(indice);
+                <li class="onboarding-step @(etapa.Concluida ? "is-complete" : etapa.PodeExecutar ? "is-actionable" : "is-readonly")">
+                    <span class="onboarding-step-status" aria-hidden="true">
+                        @if (etapa.Concluida)
+                        {
+                            <MudIcon Icon="@Icons.Material.Outlined.Check" />
+                        }
+                        else
+                        {
+                            <span>@(indice + 1)</span>
+                        }
+                    </span>
+                    <div class="onboarding-step-copy">
+                        <strong>@etapa.Titulo</strong>
+                        <span>@etapa.Descricao</span>
+                        @if (!etapa.Concluida && !etapa.PodeExecutar)
+                        {
+                            <small><MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" /> Você não possui permissão para executar esta ação.</small>
+                        }
+                    </div>
+                    @if (!etapa.Concluida && etapa.PodeExecutar && !string.IsNullOrWhiteSpace(etapa.Destino))
+                    {
+                        <MudButton Href="@etapa.Destino" Variant="Variant.Outlined" Color="Color.Primary" EndIcon="@Icons.Material.Outlined.ArrowForward">
+                            Continuar
+                        </MudButton>
+                    }
+                    else if (etapa.Concluida)
+                    {
+                        <span class="onboarding-step-label">Concluída</span>
+                    }
+                </li>
+            }
+        </ol>
+
+        <footer class="onboarding-footer">
+            <span>O progresso é atualizado automaticamente com os dados reais da sua empresa.</span>
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.VisibilityOff" OnClick="OnRecolher">
+                Ocultar por enquanto
+            </MudButton>
+        </footer>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public OnboardingEmpresaResponse Estado { get; set; } = null!;
+
+    [Parameter]
+    public bool Compacto { get; set; }
+
+    [Parameter]
+    public EventCallback OnRecolher { get; set; }
+
+    [Parameter]
+    public EventCallback OnReabrir { get; set; }
+
+    private int Percentual => Estado.QuantidadeTotal == 0
+        ? 0
+        : (int)Math.Round(Estado.QuantidadeConcluida * 100d / Estado.QuantidadeTotal);
+}
