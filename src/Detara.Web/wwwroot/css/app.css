@@ -634,6 +634,17 @@ h1:focus { outline: none; }
 .login-install-button { min-height: 44px; margin-top: 14px; }
 .login-help { display: block; margin-top: 28px !important; }
 .login-mobile-brand { display: none; }
+:root[data-theme="dark"] .login-mobile-brand img { content: url('../brand/detara-logo-on-dark.png'); }
+.company-selection-card { width: min(100%, 480px); }
+.company-selection-list { display: grid; gap: 12px; }
+.company-selection-item { min-height: 72px; padding: 11px 14px !important; border-color: var(--detara-border-soft) !important; border-radius: var(--detara-radius-lg) !important; text-transform: none !important; }
+.company-selection-item .mud-button-label { width: 100%; display: flex; align-items: center; gap: 13px; text-align: left; }
+.company-selection-item:hover { border-color: var(--detara-primary) !important; background: color-mix(in srgb, var(--detara-primary) 7%, var(--detara-surface)) !important; }
+.company-selection-icon { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; color: var(--detara-primary-dark); background: color-mix(in srgb, var(--detara-primary) 11%, transparent); border-radius: var(--detara-radius-md); }
+.company-selection-copy { min-width: 0; flex: 1; display: grid; gap: 2px; color: var(--detara-text); }
+.company-selection-copy strong { overflow: hidden; text-overflow: ellipsis; font-size: .95rem; }
+.company-selection-copy small { color: var(--detara-text-secondary); font-size: .75rem; font-weight: 500; }
+.company-selection-cancel { min-height: 44px; margin-top: 18px !important; text-transform: none !important; }
 
 #blazor-error-ui { display: none; position: fixed; z-index: 1000; left: 0; right: 0; bottom: 0; padding: .8rem calc(1.25rem + var(--detara-safe-right)) calc(.8rem + var(--detara-safe-bottom)) calc(1.25rem + var(--detara-safe-left)); color: #7c2d12; background: #fffbeb; border-top: 1px solid #f59e0b; }
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: .75rem; top: .5rem; }
