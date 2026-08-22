@@ -6,7 +6,7 @@
 <MudForm @ref="_form" Class="module-form">
     <div class="form-grid">
         <div class="form-full">
-            <ClienteAutocomplete ClienteId="_modelo.ClienteId" ClienteNome="_clienteNome" Fixo="ClienteFixo" SelecionadoChanged="SelecionarCliente" />
+            <ClienteAutocomplete ClienteId="_modelo.ClienteId" ClienteNome="@_clienteNome" Fixo="ClienteFixo" SelecionadoChanged="SelecionarCliente" />
         </div>
         <MudTextField T="string" @bind-Value="_modelo.Placa" Label="Placa *" Required="true" Variant="Variant.Outlined" HelperText="ABC1234 ou ABC1D23" />
         <MudTextField T="string" @bind-Value="_modelo.Marca" Label="Marca *" Required="true" Variant="Variant.Outlined" />

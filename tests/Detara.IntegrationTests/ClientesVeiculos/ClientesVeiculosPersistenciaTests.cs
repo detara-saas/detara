@@ -179,6 +179,64 @@ public sealed class ClientesVeiculosPersistenciaTests : IAsyncLifetime
         Assert.Equal(_veiculoAId, Assert.Single(pagina.Itens).Id);
     }
 
+    [Fact]
+    public async Task EdicaoVeiculo_CarregaNomeDoClienteEPreservaVinculoSemAlteracao()
+    {
+        await using var context = CriarContexto(_empresaAId);
+        var veiculos = new VeiculosRepositorio(context);
+        var detalhe = await new ObterVeiculoQueryHandler(veiculos)
+            .Handle(new ObterVeiculoQuery(_veiculoAId), CancellationToken.None);
+
+        Assert.Equal(_clienteAId, detalhe.ClienteId);
+        Assert.Equal("Cliente A", detalhe.ClienteNome);
+
+        var atualizado = await new AtualizarVeiculoCommandHandler(
+            new UsuarioContextoTeste(_empresaAId),
+            new ClientesRepositorio(context),
+            veiculos).Handle(
+                new AtualizarVeiculoCommand(
+                    detalhe.Id,
+                    detalhe.ClienteId,
+                    detalhe.Placa,
+                    detalhe.Marca,
+                    detalhe.Modelo,
+                    detalhe.Versao,
+                    detalhe.AnoFabricacao,
+                    detalhe.AnoModelo,
+                    detalhe.Cor,
+                    detalhe.Quilometragem,
+                    detalhe.Observacao),
+                CancellationToken.None);
+
+        Assert.Equal(_clienteAId, atualizado.ClienteId);
+        Assert.Equal("Cliente A", atualizado.ClienteNome);
+    }
+
+    [Fact]
+    public async Task EdicaoVeiculo_RejeitaClienteDeOutroTenant()
+    {
+        await using var context = CriarContexto(_empresaAId);
+        var handler = new AtualizarVeiculoCommandHandler(
+            new UsuarioContextoTeste(_empresaAId),
+            new ClientesRepositorio(context),
+            new VeiculosRepositorio(context));
+
+        await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() => handler.Handle(
+            new AtualizarVeiculoCommand(
+                _veiculoAId,
+                _clienteBId,
+                "ABC1D23",
+                "Honda",
+                "Civic",
+                null,
+                2024,
+                2024,
+                "Preto",
+                1000,
+                null),
+            CancellationToken.None));
+    }
+
     private DetaraDbContext CriarContexto(Guid empresaId) =>
         new(_options, new UsuarioContextoTeste(empresaId));
 
