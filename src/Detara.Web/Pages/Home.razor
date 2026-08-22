@@ -2,6 +2,7 @@
 @page "/dashboard"
 @attribute [Authorize]
 @inject OnboardingServico OnboardingApi
+@inject DashboardServico DashboardApi
 @inject PreferenciasInterfaceServico Preferencias
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -14,7 +15,7 @@
             <MudText Typo="Typo.h1">@Saudacao</MudText>
             <MudText Typo="Typo.body1" Color="Color.Secondary">@DescricaoDashboard</MudText>
         </div>
-        @if (_onboarding?.Concluido is true)
+        @if (_onboarding?.Concluido is true && _dashboard?.Agenda is not null)
         {
             <AuthorizeView Policy="@Permissoes.AgendaCriar">
                 <Authorized>
@@ -28,29 +29,43 @@
 
     @if (_carregando)
     {
-        <section class="onboarding-loading" aria-label="Carregando configuração inicial">
-            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" />
-            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="72px" />
-            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="72px" />
-        </section>
-    }
-    else if (_onboarding is null)
-    {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="page-alert onboarding-error">
-            <div class="onboarding-error-content">
-                <span>Não foi possível carregar a configuração inicial. O restante do sistema continua disponível.</span>
-                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="CarregarAsync">Tentar novamente</MudButton>
+        <section class="dashboard-loading" aria-label="Carregando Dashboard operacional">
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="96px" />
+            <div class="dashboard-loading-metrics">
+                @for (var indice = 0; indice < 4; indice++)
+                {
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="164px" />
+                }
             </div>
-        </MudAlert>
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="280px" />
+        </section>
     }
     else
     {
-        <OnboardingEmpresaCard Estado="_onboarding"
-                                Compacto="@(_onboardingRecolhido || _onboarding.Concluido && !_onboardingAbertoManualmente)"
-                                OnRecolher="RecolherOnboardingAsync"
-                                OnReabrir="ReabrirOnboardingAsync" />
+        @if (_onboarding is null)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="page-alert onboarding-error">
+                Não foi possível carregar a configuração inicial. Os dados operacionais continuam disponíveis abaixo.
+            </MudAlert>
+        }
+        else
+        {
+            <OnboardingEmpresaCard Estado="_onboarding"
+                                    Compacto="@(_onboardingRecolhido || _onboarding.Concluido && !_onboardingAbertoManualmente)"
+                                    OnRecolher="RecolherOnboardingAsync"
+                                    OnReabrir="ReabrirOnboardingAsync" />
+        }
 
-        @if (!_onboarding.Concluido)
+        @if (_dashboard is null)
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="page-alert dashboard-error">
+                <div class="onboarding-error-content">
+                    <span>@_erroDashboard</span>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="CarregarAsync">Tentar novamente</MudButton>
+                </div>
+            </MudAlert>
+        }
+        else if (_onboarding?.Concluido is false)
         {
             <section class="dashboard-start-state" aria-labelledby="dashboard-start-title">
                 <span class="dashboard-start-icon"><MudIcon Icon="@Icons.Material.Outlined.SpaceDashboard" /></span>
@@ -61,61 +76,85 @@
                 </div>
             </section>
         }
+        else if (!PossuiAlgumPainel)
+        {
+            <EstadoVazio Titulo="Nenhum painel operacional disponível"
+                         Descricao="Seu perfil não possui acesso aos módulos que alimentam o Dashboard."
+                         Icone="@Icons.Material.Outlined.Lock" />
+        }
         else
         {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mock-notice">
-                Visão demonstrativa: os indicadores serão conectados aos módulos operacionais nas próximas etapas.
-            </MudAlert>
-
-            <section class="metric-grid" aria-label="Indicadores de hoje">
-                @foreach (var indicador in _indicadores)
+            <section class="metric-grid" aria-label="Indicadores operacionais">
+                @foreach (var indicador in Indicadores)
                 {
                     <MudPaper Elevation="0" Class="metric-card">
                         <div class="metric-card-head">
                             <div class="metric-icon @indicador.Classe"><MudIcon Icon="@indicador.Icone" /></div>
-                            <MudText Typo="Typo.caption" Class="metric-trend">@indicador.Tendencia</MudText>
+                            <MudText Typo="Typo.caption" Class="metric-trend">@indicador.Periodo</MudText>
                         </div>
                         <MudText Typo="Typo.body2" Class="metric-label">@indicador.Titulo</MudText>
-                        <MudText Typo="Typo.h2" Class="metric-value">@indicador.Valor</MudText>
+                        <MudText Typo="Typo.h2" Class="@($"metric-value{(indicador.Monetario ? " currency-value" : string.Empty)}")">@indicador.Valor</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@indicador.Apoio</MudText>
                     </MudPaper>
                 }
             </section>
 
-            <section class="dashboard-grid">
-                <MudPaper Elevation="0" Class="operation-panel">
-                    <div class="panel-header">
-                        <div><MudText Typo="Typo.h3">Agenda de hoje</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Próximos atendimentos e andamento</MudText></div>
-                        <MudButton Href="/agenda" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton>
-                    </div>
-                    <div class="agenda-desktop">
-                        <MudTable T="Atividade" Items="@_atividades" Hover="true" Elevation="0" Dense="true">
-                            <HeaderContent><MudTh>Horário</MudTh><MudTh>Cliente e veículo</MudTh><MudTh>Serviço</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Horário"><strong>@context.Horario</strong></MudTd>
-                                <MudTd DataLabel="Cliente e veículo"><div class="vehicle-cell"><strong>@context.Cliente</strong><span>@context.Veiculo</span></div></MudTd>
-                                <MudTd DataLabel="Serviço">@context.Servico</MudTd>
-                                <MudTd DataLabel="Status"><span class="status-badge @context.ClasseStatus">@context.Status</span></MudTd>
-                                <MudTd><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" aria-label="Abrir atendimento" /></MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </div>
-                    <div class="agenda-mobile">
-                        @foreach (var atividade in _atividades)
+            <section class="dashboard-grid @(_dashboard.Agenda is null ? "dashboard-grid-attention-only" : null)">
+                @if (_dashboard.Agenda is not null)
+                {
+                    <MudPaper Elevation="0" Class="operation-panel">
+                        <div class="panel-header">
+                            <div>
+                                <MudText Typo="Typo.h3">Agenda de hoje</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Até 5 compromissos válidos, em ordem de horário</MudText>
+                            </div>
+                            <MudButton Href="/agenda" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton>
+                        </div>
+                        @if (_dashboard.Agenda.Itens.Count == 0)
                         {
-                            <article class="agenda-mobile-item"><div class="agenda-mobile-time">@atividade.Horario</div><div class="agenda-mobile-main"><strong>@atividade.Cliente</strong><span>@atividade.Veiculo · @atividade.Servico</span><span class="status-badge @atividade.ClasseStatus">@atividade.Status</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></article>
+                            <div class="dashboard-panel-empty">
+                                <MudIcon Icon="@Icons.Material.Outlined.EventAvailable" />
+                                <div><strong>Nenhum agendamento válido hoje</strong><span>Cancelados e não comparecimentos não entram nesta visão.</span></div>
+                            </div>
                         }
-                    </div>
-                </MudPaper>
+                        else
+                        {
+                            <div class="agenda-desktop">
+                                <MudTable T="DashboardAgendamentoResponse" Items="@_dashboard.Agenda.Itens" Hover="true" Elevation="0" Dense="true">
+                                    <HeaderContent><MudTh>Horário</MudTh><MudTh>Cliente e veículo</MudTh><MudTh>Serviço</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Horário"><strong>@context.InicioLocal.ToString("HH:mm")</strong></MudTd>
+                                        <MudTd DataLabel="Cliente e veículo"><div class="vehicle-cell"><strong>@context.ClienteNome</strong><span>@context.VeiculoDescricao · @context.VeiculoPlaca</span></div></MudTd>
+                                        <MudTd DataLabel="Serviço">@(context.ItemPrincipal ?? "Sem item informado")</MudTd>
+                                        <MudTd DataLabel="Status"><span class="status-badge @ClasseStatus(context.Status)">@NomeStatus(context.Status)</span></MudTd>
+                                        <MudTd><MudIconButton Href="@($"/agendamentos/{context.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" aria-label="Abrir agendamento" /></MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </div>
+                            <div class="agenda-mobile">
+                                @foreach (var atividade in _dashboard.Agenda.Itens)
+                                {
+                                    <a class="agenda-mobile-item" href="@($"/agendamentos/{atividade.Id}")">
+                                        <div class="agenda-mobile-time">@atividade.InicioLocal.ToString("HH:mm")</div>
+                                        <div class="agenda-mobile-main"><strong>@atividade.ClienteNome</strong><span>@atividade.VeiculoDescricao · @(atividade.ItemPrincipal ?? "Sem item informado")</span><span class="status-badge @ClasseStatus(atividade.Status)">@NomeStatus(atividade.Status)</span></div>
+                                        <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                                    </a>
+                                }
+                            </div>
+                        }
+                    </MudPaper>
+                }
 
-                <MudPaper Elevation="0" Class="attention-panel">
-                    <div class="panel-header compact"><div><MudText Typo="Typo.h3">Precisa de atenção</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Pendências da operação</MudText></div></div>
-                    @foreach (var alerta in _alertas)
-                    {
-                        <div class="attention-item"><div class="attention-icon @alerta.Classe"><MudIcon Icon="@alerta.Icone" /></div><div><MudText Typo="Typo.body2"><strong>@alerta.Titulo</strong></MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@alerta.Descricao</MudText></div><span class="attention-count">@alerta.Quantidade</span></div>
-                    }
-                    <div class="operation-summary"><MudText Typo="Typo.caption" Color="Color.Secondary">CAPACIDADE DO DIA</MudText><div class="summary-row"><span>6 de 8 horários ocupados</span><strong>75%</strong></div><div class="summary-track"><span></span></div></div>
-                </MudPaper>
+                @if (Alertas.Count > 0)
+                {
+                    <MudPaper Elevation="0" Class="attention-panel">
+                        <div class="panel-header compact"><div><MudText Typo="Typo.h3">Precisa de atenção</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Pendências reais da operação</MudText></div></div>
+                        @foreach (var alerta in Alertas)
+                        {
+                            <a class="attention-item" href="@alerta.Destino"><div class="attention-icon @alerta.Classe"><MudIcon Icon="@alerta.Icone" /></div><div><MudText Typo="Typo.body2"><strong>@alerta.Titulo</strong></MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@alerta.Descricao</MudText></div><span class="attention-count">@alerta.Quantidade</span></a>
+                        }
+                    </MudPaper>
+                }
             </section>
         }
     }
@@ -124,15 +163,127 @@
 @code {
     private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
     private OnboardingEmpresaResponse? _onboarding;
+    private DashboardOperacionalResponse? _dashboard;
     private bool _carregando = true;
     private bool _onboardingRecolhido;
     private bool _onboardingAbertoManualmente;
     private Guid _usuarioId;
     private string _nomeUsuario = "Administrador";
+    private string _erroDashboard = "Não foi possível carregar os dados operacionais. O restante do sistema continua disponível.";
 
-    private string DataAtual => DateTime.Now.ToString("dddd, d 'de' MMMM", Cultura).ToUpper(Cultura);
-    private string Saudacao => _onboarding?.Concluido is true ? $"Bom dia, {_nomeUsuario}" : $"Bem-vindo ao Detara, {_nomeUsuario}";
-    private string DescricaoDashboard => _onboarding?.Concluido is true ? "Aqui está o ritmo da sua operação hoje." : "Sua conta está pronta. Vamos organizar os primeiros passos.";
+    private string DataAtual => _dashboard is null
+        ? "VISÃO OPERACIONAL"
+        : _dashboard.DataReferencia.ToDateTime(TimeOnly.MinValue).ToString("dddd, d 'de' MMMM", Cultura).ToUpper(Cultura);
+    private string Saudacao
+    {
+        get
+        {
+            if (_onboarding?.Concluido is not true) return $"Bem-vindo ao Detara, {_nomeUsuario}";
+            var periodo = _dashboard?.AtualizadoEmLocal.Hour switch
+            {
+                < 12 => "Bom dia",
+                < 18 => "Boa tarde",
+                _ => "Boa noite"
+            };
+            return $"{periodo}, {_nomeUsuario}";
+        }
+    }
+    private string DescricaoDashboard => _onboarding?.Concluido is true
+        ? "Aqui está o ritmo real da sua operação hoje."
+        : "Sua conta está pronta. Vamos organizar os primeiros passos.";
+    private bool PossuiAlgumPainel => _dashboard is not null &&
+        (_dashboard.Agenda is not null || _dashboard.Atendimento is not null ||
+         _dashboard.Orcamentos is not null || _dashboard.Financeiro is not null);
+
+    private IReadOnlyCollection<Indicador> Indicadores
+    {
+        get
+        {
+            if (_dashboard is null) return [];
+            var itens = new List<Indicador>();
+            if (_dashboard.Agenda is not null)
+            {
+                itens.Add(new(
+                    "Agendamentos de hoje",
+                    _dashboard.Agenda.AgendamentosHoje.ToString(Cultura),
+                    _dashboard.Agenda.AgendamentosHoje == 0
+                        ? "Nenhum compromisso válido no dia"
+                        : $"{_dashboard.Agenda.ConcluidosHoje} concluído(s) no dia",
+                    "HOJE",
+                    Icons.Material.Outlined.CalendarToday,
+                    "teal"));
+            }
+            if (_dashboard.Atendimento is not null)
+            {
+                itens.Add(new(
+                    "Em execução",
+                    _dashboard.Atendimento.OrdensEmExecucao.ToString(Cultura),
+                    "Ordens de serviço em atendimento",
+                    "AGORA",
+                    Icons.Material.Outlined.Handyman,
+                    "blue"));
+                itens.Add(new(
+                    "Aguardando retirada",
+                    _dashboard.Atendimento.OrdensAguardandoRetirada.ToString(Cultura),
+                    "Veículos prontos para entrega",
+                    "AGORA",
+                    Icons.Material.Outlined.DirectionsCar,
+                    "amber"));
+            }
+            if (_dashboard.Financeiro is not null)
+            {
+                itens.Add(new(
+                    "Receita líquida recebida",
+                    Moeda(_dashboard.Financeiro.ReceitaLiquidaRecebida),
+                    $"{_dashboard.Financeiro.InicioPeriodo:dd/MM} a {_dashboard.Financeiro.FimPeriodo:dd/MM} · não é lucro",
+                    "NESTE MÊS",
+                    Icons.Material.Outlined.Payments,
+                    "green",
+                    true));
+            }
+            return itens;
+        }
+    }
+
+    private IReadOnlyCollection<Alerta> Alertas
+    {
+        get
+        {
+            if (_dashboard is null) return [];
+            var itens = new List<Alerta>();
+            if (_dashboard.Orcamentos is not null)
+            {
+                itens.Add(new(
+                    "Orçamentos em aberto",
+                    "Rascunhos ou propostas válidas aguardando resposta",
+                    _dashboard.Orcamentos.OrcamentosEmAberto.ToString(Cultura),
+                    Icons.Material.Outlined.PendingActions,
+                    "amber",
+                    "/orcamentos"));
+            }
+            if (_dashboard.Financeiro is not null)
+            {
+                itens.Add(new(
+                    "Contas pendentes",
+                    $"{Moeda(_dashboard.Financeiro.ValorPendente)} em aberto agora",
+                    _dashboard.Financeiro.ContasPendentes.ToString(Cultura),
+                    Icons.Material.Outlined.ReceiptLong,
+                    "blue",
+                    "/financeiro/contas-receber"));
+            }
+            if (_dashboard.Atendimento is not null)
+            {
+                itens.Add(new(
+                    "Retiradas aguardando",
+                    "Ordens prontas para entrega ao cliente",
+                    _dashboard.Atendimento.OrdensAguardandoRetirada.ToString(Cultura),
+                    Icons.Material.Outlined.Key,
+                    "green",
+                    "/ordens-servico"));
+            }
+            return itens;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,8 +298,14 @@
     private async Task CarregarAsync()
     {
         _carregando = true;
-        var resultado = await OnboardingApi.ObterAsync();
-        _onboarding = resultado.Sucesso ? resultado.Resultado : null;
+        var onboardingTask = OnboardingApi.ObterAsync();
+        var dashboardTask = DashboardApi.ObterAsync();
+        await Task.WhenAll(onboardingTask, dashboardTask);
+        var onboarding = await onboardingTask;
+        var dashboard = await dashboardTask;
+        _onboarding = onboarding.Sucesso ? onboarding.Resultado : null;
+        _dashboard = dashboard.Sucesso ? dashboard.Resultado : null;
+        _erroDashboard = dashboard.Mensagem ?? "Não foi possível carregar os dados operacionais.";
         _carregando = false;
     }
 
@@ -166,30 +323,40 @@
         await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, false);
     }
 
-    private sealed record Indicador(string Titulo, string Valor, string Apoio, string Tendencia, string Icone, string Classe);
-    private sealed record Atividade(string Horario, string Cliente, string Veiculo, string Servico, string Status, string ClasseStatus);
-    private sealed record Alerta(string Titulo, string Descricao, string Quantidade, string Icone, string Classe);
+    private static string NomeStatus(StatusAgendamentoContrato status) => status switch
+    {
+        StatusAgendamentoContrato.Agendado => "Agendado",
+        StatusAgendamentoContrato.Confirmado => "Confirmado",
+        StatusAgendamentoContrato.Compareceu => "Compareceu",
+        StatusAgendamentoContrato.Concluido => "Concluído",
+        _ => status.ToString()
+    };
 
-    private readonly Indicador[] _indicadores =
-    [
-        new("Agendamentos de hoje", "8", "Próximo às 10:30", "3 concluídos", Icons.Material.Outlined.CalendarToday, "teal"),
-        new("Em atendimento", "3", "2 dentro do prazo", "Agora", Icons.Material.Outlined.Handyman, "blue"),
-        new("Aguardando retirada", "2", "Prontos para o cliente", "Ação", Icons.Material.Outlined.DirectionsCar, "amber"),
-        new("Previsto hoje", "R$ 6.480", "Ticket médio R$ 810", "+8,2%", Icons.Material.Outlined.Payments, "green")
-    ];
+    private static string ClasseStatus(StatusAgendamentoContrato status) => status switch
+    {
+        StatusAgendamentoContrato.Agendado => "status-scheduled",
+        StatusAgendamentoContrato.Confirmado => "status-confirmed",
+        StatusAgendamentoContrato.Compareceu => "status-running",
+        StatusAgendamentoContrato.Concluido => "status-success",
+        _ => "status-neutral"
+    };
 
-    private readonly Atividade[] _atividades =
-    [
-        new("09:00", "Marina Alves", "Jeep Compass · ABC1D23", "Vitrificação", "Confirmado", "status-confirmed"),
-        new("10:30", "Rafael Costa", "BMW 320i · DEF4G56", "Higienização", "Em execução", "status-running"),
-        new("14:00", "Lucas Martins", "Porsche Macan · HIJ7K89", "PPF frontal", "Agendado", "status-scheduled"),
-        new("16:30", "Camila Souza", "Volvo XC60 · KLM0N12", "Polimento", "Aguardando", "status-waiting")
-    ];
+    private static string Moeda(decimal valor) => valor.ToString("C2", Cultura);
 
-    private readonly Alerta[] _alertas =
-    [
-        new("Aprovações pendentes", "Orçamentos aguardando cliente", "4", Icons.Material.Outlined.PendingActions, "amber"),
-        new("Veículos próximos do prazo", "Conclusão prevista em até 1 hora", "2", Icons.Material.Outlined.Schedule, "blue"),
-        new("Retiradas aguardando", "Clientes já foram avisados", "2", Icons.Material.Outlined.Key, "green")
-    ];
+    private sealed record Indicador(
+        string Titulo,
+        string Valor,
+        string Apoio,
+        string Periodo,
+        string Icone,
+        string Classe,
+        bool Monetario = false);
+
+    private sealed record Alerta(
+        string Titulo,
+        string Descricao,
+        string Quantidade,
+        string Icone,
+        string Classe,
+        string Destino);
 }
