@@ -23,8 +23,8 @@ else
         <div class="form-grid agenda-time-grid">
             <MudDatePicker @bind-Date="_data" Label="Data *" Required="true" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" />
             <MudTimePicker @bind-Time="_hora" Label="Hora *" Required="true" Variant="Variant.Outlined" AmPm="false" />
-            <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada (minutos) *" Required="true" Min="1" Max="43200" Variant="Variant.Outlined" HelperText="Independente da duração de referência do catálogo." />
-            <div class="duration-suggestion"><span>Duração sugerida pelos itens</span><strong>@FormatarDuracao(DuracaoSugerida)</strong><MudButton Variant="Variant.Text" Size="Size.Small" Disabled="@(!DuracaoSugerida.HasValue)" OnClick="AplicarDuracaoSugerida">Aplicar</MudButton></div>
+            <MudNumericField T="int?" Value="_duracaoEstado.Valor" ValueChanged="PersonalizarDuracao" Label="Duração planejada (minutos) *" Required="true" Min="1" Max="43200" Variant="Variant.Outlined" HelperText="Independente da duração de referência do catálogo." />
+            <div class="duration-suggestion"><span>Duração sugerida pelos itens</span><strong>@FormatarDuracao(DuracaoSugerida)</strong>@if (ExibirAcaoUsarSugestao) { <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="UsarDuracaoSugerida">Usar sugestão</MudButton> }</div>
         </div>
 
         <div class="section-heading agenda-form-section"><div><span class="section-eyebrow">ITENS</span><h2>@(OrcamentoId.HasValue ? "Escopo do orçamento aprovado" : "Serviços e pacotes")</h2></div><span class="selected-count">@_selecionados.Count selecionado(s)</span></div>
@@ -73,12 +73,15 @@ else
     [Parameter] public bool AtendimentoAgora { get; set; }
     private MudForm? _form; private bool _carregando = true; private bool _salvando;
     private Guid? _clienteId; private string? _clienteNome; private Guid? _veiculoId; private IReadOnlyCollection<VeiculoAgendaResponse> _veiculos = [];
-    private DateTime? _data; private TimeSpan? _hora; private int? _duracao;
+    private DateTime? _data; private TimeSpan? _hora;
+    private readonly EstadoDuracaoPlanejada _duracaoEstado = new();
     private string? _observacaoSolicitante; private string? _observacaoInterna; private string? _pesquisaCatalogo;
     private IReadOnlyCollection<ItemCatalogoAgendaResponse> _catalogo = [];
     private readonly Dictionary<(TipoItemAgendamentoContrato, Guid), ItemCatalogoAgendaResponse> _selecionados = [];
     private int _quantidadeSobreposicoes; private bool _sobreposicaoConfirmada;
     private int? DuracaoSugerida => _selecionados.Count > 0 && _selecionados.Values.All(x => x.DuracaoReferenciaMinutos.HasValue) ? _selecionados.Values.Sum(x => x.DuracaoReferenciaMinutos!.Value) : null;
+    private bool ExibirAcaoUsarSugestao => _duracaoEstado.Personalizada && DuracaoSugerida.HasValue
+        && _duracaoEstado.Valor != DuracaoSugerida;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -89,7 +92,8 @@ else
             if (resultado.Resultado is not { } agendamento) { Mensagens.Mostrar(resultado.Mensagem, true); _carregando = false; return; }
             _clienteId = agendamento.ClienteId; _clienteNome = agendamento.ClienteNome; _veiculoId = agendamento.VeiculoId;
             _veiculos = (await AgendaApi.ListarVeiculosAsync(agendamento.ClienteId, true)).Resultado ?? [new(agendamento.VeiculoId, agendamento.VeiculoDescricao, agendamento.VeiculoPlaca)];
-            _data = agendamento.InicioLocal.Date; _hora = agendamento.InicioLocal.TimeOfDay; _duracao = agendamento.DuracaoPlanejadaMinutos;
+            _data = agendamento.InicioLocal.Date; _hora = agendamento.InicioLocal.TimeOfDay;
+            _duracaoEstado.InicializarExistente(agendamento.DuracaoPlanejadaMinutos);
             _observacaoSolicitante = agendamento.ObservacaoSolicitante; _observacaoInterna = agendamento.ObservacaoInterna;
             _selecionados.Clear(); foreach (var item in agendamento.Itens) _selecionados[(item.TipoItem, item.ItemCatalogoId)] = new(item.TipoItem, item.ItemCatalogoId, item.Nome, item.Descricao, null, item.TipoPrecificacao, item.PrecoReferencia, item.DuracaoReferenciaMinutos, item.ItemAtivoNoCatalogo);
         }
@@ -128,17 +132,35 @@ else
     }
 
     private async Task SelecionarClienteAsync(ClienteAgendaResponse? cliente) { _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = cliente is null ? [] : (await AgendaApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? []; if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id; }
-    private async Task BuscarCatalogoAsync() { var resultado = await AgendaApi.BuscarCatalogoAsync(_pesquisaCatalogo, AgendamentoId.HasValue); _catalogo = (resultado.Resultado ?? []).Concat(_selecionados.Values).GroupBy(x => (x.TipoItem, x.Id)).Select(x => x.First()).OrderBy(x => x.Nome).ToArray(); if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true); }
-    private void SelecionarItem(ItemCatalogoAgendaResponse item, bool valor) { var chave = (item.TipoItem, item.Id); if (valor) _selecionados[chave] = item; else _selecionados.Remove(chave); }
-    private void RemoverItem(ItemCatalogoAgendaResponse item) => _selecionados.Remove((item.TipoItem, item.Id));
-    private void AplicarDuracaoSugerida() { if (DuracaoSugerida.HasValue) _duracao = DuracaoSugerida.Value; }
+    private async Task BuscarCatalogoAsync()
+    {
+        var resultado = await AgendaApi.BuscarCatalogoAsync(_pesquisaCatalogo, AgendamentoId.HasValue);
+        var catalogo = resultado.Resultado ?? [];
+        if (OrcamentoId.HasValue)
+        {
+            foreach (var chave in _selecionados.Keys.ToArray())
+            {
+                var referencia = catalogo.FirstOrDefault(item => item.TipoItem == chave.Item1 && item.Id == chave.Item2);
+                if (referencia is not null)
+                    _selecionados[chave] = _selecionados[chave] with { DuracaoReferenciaMinutos = referencia.DuracaoReferenciaMinutos };
+            }
+        }
+        _catalogo = catalogo.Concat(_selecionados.Values).GroupBy(x => (x.TipoItem, x.Id)).Select(x => x.First()).OrderBy(x => x.Nome).ToArray();
+        AtualizarDuracaoAutomatica();
+        if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true);
+    }
+    private void SelecionarItem(ItemCatalogoAgendaResponse item, bool valor) { var chave = (item.TipoItem, item.Id); if (valor) _selecionados[chave] = item; else _selecionados.Remove(chave); AtualizarDuracaoAutomatica(); }
+    private void RemoverItem(ItemCatalogoAgendaResponse item) { _selecionados.Remove((item.TipoItem, item.Id)); AtualizarDuracaoAutomatica(); }
+    private void PersonalizarDuracao(int? valor) => _duracaoEstado.Personalizar(valor);
+    private void UsarDuracaoSugerida() => _duracaoEstado.UsarSugestao(DuracaoSugerida);
+    private void AtualizarDuracaoAutomatica() => _duracaoEstado.AtualizarSugestao(DuracaoSugerida, _selecionados.Count > 0);
     private DateTime? ObterInicioLocal() => _data.HasValue && _hora.HasValue ? _data.Value.Date.Add(_hora.Value) : null;
 
     private async Task SalvarAsync()
     {
         if (_form is null) return; await _form.ValidateAsync(); var inicio = ObterInicioLocal();
-        if (!_form.IsValid || !_clienteId.HasValue || !_veiculoId.HasValue || _veiculoId.Value == Guid.Empty || !inicio.HasValue || !_duracao.HasValue || (_selecionados.Count == 0 && !OrcamentoId.HasValue)) { Mensagens.Mostrar("Preencha cliente, veículo, data, hora, duração e ao menos um item.", true); return; }
-        var sobreposicoes = await AgendaApi.ContarSobreposicoesAsync(inicio.Value, _duracao.Value, AgendamentoId);
+        if (!_form.IsValid || !_clienteId.HasValue || !_veiculoId.HasValue || _veiculoId.Value == Guid.Empty || !inicio.HasValue || !_duracaoEstado.Valor.HasValue || (_selecionados.Count == 0 && !OrcamentoId.HasValue)) { Mensagens.Mostrar("Preencha cliente, veículo, data, hora, duração e ao menos um item.", true); return; }
+        var sobreposicoes = await AgendaApi.ContarSobreposicoesAsync(inicio.Value, _duracaoEstado.Valor.Value, AgendamentoId);
         if (!sobreposicoes.Sucesso) { Mensagens.Mostrar(sobreposicoes.Mensagem, true); return; }
         _quantidadeSobreposicoes = sobreposicoes.Resultado;
         if (_quantidadeSobreposicoes > 0 && !_sobreposicaoConfirmada) { _sobreposicaoConfirmada = true; return; }
@@ -146,12 +168,12 @@ else
         if (OrcamentoId.HasValue)
         {
             var resultado = await OrcamentosApi.AgendarAsync(OrcamentoId.Value,
-                new(inicio.Value, _duracao.Value, _observacaoSolicitante, _observacaoInterna));
+                new(inicio.Value, _duracaoEstado.Valor.Value, _observacaoSolicitante, _observacaoInterna));
             _salvando = false; Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
             if (resultado.Resultado is { } salvo) Navigation.NavigateTo($"/agenda/{salvo.AgendamentoId}");
             return;
         }
-        var request = new SalvarAgendamentoRequest(_clienteId.Value, _veiculoId.Value, inicio.Value, _duracao.Value, _observacaoSolicitante, _observacaoInterna, _selecionados.Values.Select(x => new AgendamentoItemRequest(x.TipoItem, x.Id)).ToArray());
+        var request = new SalvarAgendamentoRequest(_clienteId.Value, _veiculoId.Value, inicio.Value, _duracaoEstado.Valor.Value, _observacaoSolicitante, _observacaoInterna, _selecionados.Values.Select(x => new AgendamentoItemRequest(x.TipoItem, x.Id)).ToArray());
         var resultadoAgenda = AgendamentoId.HasValue ? await AgendaApi.AtualizarAsync(AgendamentoId.Value, request) : await AgendaApi.CriarAsync(request);
         _salvando = false; Mensagens.Mostrar(resultadoAgenda.Mensagem, !resultadoAgenda.Sucesso); if (resultadoAgenda.Resultado is { } salvoAgenda) Navigation.NavigateTo($"/agenda/{salvoAgenda.Id}");
     }
