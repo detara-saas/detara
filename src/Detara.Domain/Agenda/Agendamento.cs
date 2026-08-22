@@ -29,6 +29,25 @@ public sealed class Agendamento : EntidadeEmpresaBase
         string? observacaoSolicitante,
         string? observacaoInterna,
         IReadOnlyCollection<ItemAgendamentoSnapshot> itens)
+        : this(empresaId, clienteId, clienteNomeSnapshot, veiculoId, veiculoDescricaoSnapshot,
+            veiculoPlacaSnapshot, inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante,
+            observacaoInterna, itens, false)
+    {
+    }
+
+    private Agendamento(
+        Guid empresaId,
+        Guid clienteId,
+        string clienteNomeSnapshot,
+        Guid veiculoId,
+        string veiculoDescricaoSnapshot,
+        string veiculoPlacaSnapshot,
+        DateTime inicioUtc,
+        int duracaoPlanejadaMinutos,
+        string? observacaoSolicitante,
+        string? observacaoInterna,
+        IReadOnlyCollection<ItemAgendamentoSnapshot> itens,
+        bool permitirSemItens)
         : base(Guid.NewGuid(), empresaId)
     {
         ClienteId = ExigirId(clienteId, nameof(clienteId));
@@ -37,8 +56,25 @@ public sealed class Agendamento : EntidadeEmpresaBase
         VeiculoDescricaoSnapshot = NormalizarObrigatorio(veiculoDescricaoSnapshot, 200, nameof(veiculoDescricaoSnapshot));
         VeiculoPlacaSnapshot = NormalizarObrigatorio(veiculoPlacaSnapshot, 10, nameof(veiculoPlacaSnapshot));
         Status = StatusAgendamento.Agendado;
-        AtualizarPlanejamento(inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante, observacaoInterna, itens);
+        AtualizarPlanejamentoInterno(inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante,
+            observacaoInterna, itens, permitirSemItens);
     }
+
+    public static Agendamento CriarDeOrcamento(
+        Guid empresaId,
+        Guid clienteId,
+        string clienteNomeSnapshot,
+        Guid veiculoId,
+        string veiculoDescricaoSnapshot,
+        string veiculoPlacaSnapshot,
+        DateTime inicioUtc,
+        int duracaoPlanejadaMinutos,
+        string? observacaoSolicitante,
+        string? observacaoInterna,
+        IReadOnlyCollection<ItemAgendamentoSnapshot> itens) =>
+        new(empresaId, clienteId, clienteNomeSnapshot, veiculoId, veiculoDescricaoSnapshot,
+            veiculoPlacaSnapshot, inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante,
+            observacaoInterna, itens, permitirSemItens: itens.Count == 0);
 
     public Guid ClienteId { get; private set; }
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;
@@ -60,6 +96,16 @@ public sealed class Agendamento : EntidadeEmpresaBase
         string? observacaoSolicitante,
         string? observacaoInterna,
         IReadOnlyCollection<ItemAgendamentoSnapshot> itens)
+        => AtualizarPlanejamentoInterno(inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante,
+            observacaoInterna, itens, false);
+
+    private void AtualizarPlanejamentoInterno(
+        DateTime inicioUtc,
+        int duracaoPlanejadaMinutos,
+        string? observacaoSolicitante,
+        string? observacaoInterna,
+        IReadOnlyCollection<ItemAgendamentoSnapshot> itens,
+        bool permitirSemItens)
     {
         ExigirEditavel();
         InicioUtc = inicioUtc.Kind == DateTimeKind.Utc
@@ -70,7 +116,7 @@ public sealed class Agendamento : EntidadeEmpresaBase
             : throw new ArgumentException("A duração planejada deve estar entre 1 e 43.200 minutos.", nameof(duracaoPlanejadaMinutos));
         ObservacaoSolicitante = NormalizarOpcional(observacaoSolicitante, 2000);
         ObservacaoInterna = NormalizarOpcional(observacaoInterna, 4000);
-        SubstituirItens(itens);
+        SubstituirItens(itens, permitirSemItens);
         MarcarComoAtualizada();
     }
 
@@ -114,9 +160,10 @@ public sealed class Agendamento : EntidadeEmpresaBase
         }
     }
 
-    private void SubstituirItens(IReadOnlyCollection<ItemAgendamentoSnapshot> itens)
+    private void SubstituirItens(IReadOnlyCollection<ItemAgendamentoSnapshot> itens, bool permitirSemItens)
     {
-        if (itens.Count == 0) throw new ArgumentException("O agendamento deve possuir ao menos um serviço ou pacote.", nameof(itens));
+        if (itens.Count == 0 && !permitirSemItens)
+            throw new ArgumentException("O agendamento deve possuir ao menos um serviço ou pacote.", nameof(itens));
         if (itens.Any(x => x.ItemCatalogoId == Guid.Empty) || itens.Select(x => (x.TipoItem, x.ItemCatalogoId)).Distinct().Count() != itens.Count)
         {
             throw new ArgumentException("Os itens devem ser válidos e não podem se repetir.", nameof(itens));

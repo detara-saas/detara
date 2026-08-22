@@ -6,7 +6,7 @@
 <PageTitle>Agenda | Detara</PageTitle>
 <div class="page-container page-container-fluid operational-page">
 <CabecalhoPagina Titulo="Agenda" Descricao="Planejamento operacional por horário, cliente e veículo." Sobretitulo="OPERAÇÃO">
-    <Acoes><AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo agendamento</MudButton></Authorized></AuthorizeView></Acoes>
+    <Acoes><AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo?agora=true" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DirectionsCar">Atendimento agora</MudButton><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo agendamento</MudButton></Authorized></AuthorizeView></Acoes>
 </CabecalhoPagina>
 
 <section class="agenda-view-toolbar module-panel" aria-label="Visualizações da agenda">
@@ -57,7 +57,7 @@ else
     private async Task MoverSemanaAsync(int dias) { _inicioSemana = _inicioSemana.AddDays(dias); _diaSelecionado = _inicioSemana; await CarregarPeriodoAsync(_inicioSemana, _inicioSemana.AddDays(7)); }
     private List<AgendamentoPeriodoResponse> ItensDoDia(DateOnly dia) => _periodo.Where(x => DateOnly.FromDateTime(x.InicioLocal) == dia).OrderBy(x => x.InicioLocal).ToList();
     private static DateOnly InicioDaSemana(DateOnly data) { var diferenca = ((int)data.DayOfWeek + 6) % 7; return data.AddDays(-diferenca); }
-    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.NaoCompareceu => "Não compareceu", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
+    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.NaoCompareceu => "Não compareceu", StatusAgendamentoContrato.Compareceu => "Em atendimento", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
     private static string ClasseStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "status-scheduled", StatusAgendamentoContrato.Confirmado => "status-confirmed", StatusAgendamentoContrato.Compareceu => "status-waiting", StatusAgendamentoContrato.Concluido => "status-running", StatusAgendamentoContrato.Cancelado => "status-cancelled", _ => "status-neutral" };
     private static string FormatarDuracao(int minutos) => minutos >= 60 ? $"{minutos / 60}h{(minutos % 60 > 0 ? $" {minutos % 60}min" : string.Empty)}" : $"{minutos} min";
 }

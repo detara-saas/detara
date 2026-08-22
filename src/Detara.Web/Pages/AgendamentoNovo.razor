@@ -1,8 +1,28 @@
 @page "/agenda/novo"
 @attribute [Authorize(Policy = Permissoes.AgendaCriar)]
+@inject NavigationManager Navegacao
 
 <PageTitle>Novo agendamento | Detara</PageTitle>
 <div class="page-container page-container-wide">
-<CabecalhoPagina Titulo="Novo agendamento" Descricao="Planeje cliente, veículo, itens e duração operacional." Sobretitulo="AGENDA" />
-<AgendamentoFormulario />
+<CabecalhoPagina Titulo="@(_atendimentoAgora ? "Atendimento agora" : _orcamentoId.HasValue ? "Agendar orçamento aprovado" : "Novo agendamento")" Descricao="@(_atendimentoAgora ? "Registre a chegada sem horário prévio e siga para a ordem de serviço." : "Planeje cliente, veículo, itens e duração operacional.")" Sobretitulo="AGENDA" />
+<AgendamentoFormulario OrcamentoId="_orcamentoId" AtendimentoAgora="_atendimentoAgora" />
 </div>
+
+@code {
+    private Guid? _orcamentoId;
+    private bool _atendimentoAgora;
+
+    protected override void OnInitialized()
+    {
+        var query = Navegacao.ToAbsoluteUri(Navegacao.Uri).Query.TrimStart('?');
+        foreach (var parte in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var itens = parte.Split('=', 2);
+            if (itens.Length != 2) continue;
+            if (itens[0].Equals("orcamentoId", StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(Uri.UnescapeDataString(itens[1]), out var id)) _orcamentoId = id;
+            if (itens[0].Equals("agora", StringComparison.OrdinalIgnoreCase)
+                && bool.TryParse(Uri.UnescapeDataString(itens[1]), out var agora)) _atendimentoAgora = agora;
+        }
+    }
+}

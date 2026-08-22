@@ -38,7 +38,7 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         AgendamentoOrigemId = ValidarIdOpcional(agendamentoOrigemId);
         if (Origem == OrigemOrdemServico.Orcamento && !OrcamentoOrigemId.HasValue || Origem != OrigemOrdemServico.Orcamento && OrcamentoOrigemId.HasValue)
             throw new ArgumentException("A origem por orçamento é inconsistente.", nameof(orcamentoOrigemId));
-        if (Origem == OrigemOrdemServico.Agendamento && !AgendamentoOrigemId.HasValue || Origem != OrigemOrdemServico.Agendamento && AgendamentoOrigemId.HasValue)
+        if (Origem == OrigemOrdemServico.Agendamento && !AgendamentoOrigemId.HasValue)
             throw new ArgumentException("A origem por agendamento é inconsistente.", nameof(agendamentoOrigemId));
 
         ClienteId = ExigirId(partes.ClienteId);

@@ -337,7 +337,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(134, rotas.Length);
+        Assert.Equal(137, rotas.Length);
     }
 
     [Fact]

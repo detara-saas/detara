@@ -7,12 +7,15 @@ public sealed record FiltroOrdensServico(int Pagina, int TamanhoPagina, StatusOr
     DateOnly? DataInicial, DateOnly? DataFinal, string? Pesquisa);
 public sealed record OrdemServicoListaResultado(Guid Id, string Codigo, string ClienteNome, string VeiculoDescricao,
     string VeiculoPlaca, StatusOrdemServico Status, decimal TotalAutorizado, DateTime CriadoEmUtc);
+public sealed record OrdemServicoAgendamentoResultado(Guid Id, string Codigo, StatusOrdemServico Status);
 
 public interface IOrdensServicoRepositorio
 {
     Task<PaginacaoResultado<OrdemServicoListaResultado>> ListarAsync(FiltroOrdensServico filtro, CancellationToken cancellationToken);
     Task<OrdemServico?> ObterAsync(Guid id, bool paraAlteracao, CancellationToken cancellationToken);
     Task<bool> ExistePorOrcamentoAsync(Guid orcamentoId, CancellationToken cancellationToken);
+    Task<bool> ExistePorAgendamentoAsync(Guid agendamentoId, CancellationToken cancellationToken);
+    Task<OrdemServicoAgendamentoResultado?> ObterPorAgendamentoAsync(Guid agendamentoId, CancellationToken cancellationToken);
     Task<OrdemServico?> ObterPorOrcamentoAdicionalAsync(Guid orcamentoId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<Orcamento>> ListarOrcamentosAdicionaisAsync(Guid ordemServicoId, CancellationToken cancellationToken);
     void Adicionar(OrdemServico ordemServico);

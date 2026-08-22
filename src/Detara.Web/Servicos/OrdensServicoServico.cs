@@ -23,6 +23,9 @@ public sealed class OrdensServicoServico(HttpClient http)
 
     public Task<ResultadoServico<OrdemServicoDetalheResponse>> ObterAsync(Guid id, CancellationToken ct = default) =>
         ObterAsync<OrdemServicoDetalheResponse>($"api/ordens-servico/{id}", ct);
+    public Task<ResultadoServico<VinculoOrdemServicoAgendamentoResponse>> ObterPorAgendamentoAsync(Guid agendamentoId,
+        CancellationToken ct = default) =>
+        ObterAsync<VinculoOrdemServicoAgendamentoResponse>($"api/ordens-servico/agendamentos/{agendamentoId}", ct);
     public Task<ResultadoServico<OrdemServicoDetalheResponse>> CriarAsync(CriarOrdemServicoRequest request, CancellationToken ct = default) =>
         EnviarAsync<OrdemServicoDetalheResponse>(() => http.PostAsJsonAsync("api/ordens-servico", request, ct), ct);
     public Task<ResultadoServico<OrdemServicoDetalheResponse>> CheckInAsync(Guid id, RealizarCheckInRequest request, CancellationToken ct = default) =>

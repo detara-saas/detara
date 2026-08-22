@@ -31,6 +31,8 @@ internal sealed class OrcamentoConfiguracao : IEntityTypeConfiguration<Orcamento
         builder.HasIndex(x => new { x.EmpresaId, x.ClienteId });
         builder.HasIndex(x => new { x.EmpresaId, x.VeiculoId });
         builder.HasIndex(x => new { x.EmpresaId, x.AgendamentoOrigemId }).HasFilter("[AgendamentoOrigemId] IS NOT NULL");
+        builder.HasIndex(x => new { x.EmpresaId, x.AgendamentoId }).HasFilter("[AgendamentoId] IS NOT NULL");
+        builder.Property(x => x.AgendamentoId).IsConcurrencyToken();
         builder.HasIndex(x => new { x.EmpresaId, x.OrcamentoOrigemId }).HasFilter("[OrcamentoOrigemId] IS NOT NULL");
         builder.HasIndex(x => new { x.EmpresaId, x.OrdemServicoOrigemId }).HasFilter("[OrdemServicoOrigemId] IS NOT NULL");
         builder.HasMany(x => x.Itens).WithOne(x => x.Orcamento).HasForeignKey(x => new { x.EmpresaId, x.OrcamentoId })

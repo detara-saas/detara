@@ -59,7 +59,7 @@
                     <section class="module-panel section-card">
                         <CabecalhoSecao Sobretitulo="CLIENTE E VEÍCULO" Titulo="Dados do atendimento" Descricao="Identifique quem será atendido e o veículo recebido." Etapa="01" />
                         <div class="form-grid">
-                            <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
+                            <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
                             <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@v.Descricao · @v.Placa</MudSelectItem> }</MudSelect>
                         </div>
                         <div class="form-divider"></div>
@@ -115,12 +115,16 @@
             var r = await OrcamentosApi.ObterAsync(_orcamentoId.Value); _orcamento = r.Resultado;
             if (_orcamento is null || _orcamento.Status != StatusOrcamentoContrato.Aprovado || _orcamento.OrdemServicoOrigemId.HasValue) { Mensagens.Mostrar("Somente um orçamento principal aprovado pode originar uma OS.", true); _orcamento = null; }
             else if (_orcamento.OrdemServicoId.HasValue) Navegacao.NavigateTo($"/ordens-servico/{_orcamento.OrdemServicoId}");
+            else if (!_orcamento.AgendamentoId.HasValue) { Mensagens.Mostrar("Agende o atendimento antes de criar a ordem de serviço.", true); Navegacao.NavigateTo($"/agenda/novo?orcamentoId={_orcamento.Id}"); return; }
+            else if (_agendamentoId.HasValue && _agendamentoId != _orcamento.AgendamentoId) { Mensagens.Mostrar("O agendamento informado não pertence a este orçamento.", true); Navegacao.NavigateTo($"/orcamentos/{_orcamento.Id}"); return; }
+            else _agendamentoId = _orcamento.AgendamentoId;
         }
         else if (_agendamentoId.HasValue)
         {
             var r = await OrcamentosApi.ObterOrigemAsync(_agendamentoId.Value); var origem = r.Resultado;
             if (origem is not null) { _clienteId = origem.ClienteId; _clienteNome = origem.ClienteNome; _veiculoId = origem.VeiculoId; _veiculos = [new(origem.VeiculoId, origem.VeiculoDescricao, origem.VeiculoPlaca)]; _itens.AddRange(origem.Itens.Select(item => new ItemEdicao(item.TipoItem, item.Id, item.Nome, item.PrecoReferencia ?? 0, 1, Referencia(item)))); }
         }
+        else { Navegacao.NavigateTo("/agenda/novo?agora=true"); return; }
         _carregando = false;
     }
     private async Task ClienteSelecionadoAsync(ClienteOrcamentoResponse? cliente) { _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = cliente is null ? [] : (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? []; }

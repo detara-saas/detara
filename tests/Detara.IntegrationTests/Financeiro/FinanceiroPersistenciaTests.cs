@@ -7,6 +7,7 @@ using Detara.Domain.Atendimento;
 using Detara.Domain.Entidades;
 using Detara.Domain.Financeiro;
 using Detara.Infrastructure.Atendimento;
+using Detara.Infrastructure.Agenda;
 using Detara.Infrastructure.Financeiro;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
@@ -69,7 +70,8 @@ public sealed class FinanceiroPersistenciaTests : IAsyncLifetime
             (await contexto.OrdensServico.SingleAsync(x => x.Id == ordem.Id)).Status);
 
         await new ConcluirOrdemServicoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
-            new OrdensServicoRepositorio(contexto), new PlataformaAtendimentoConsulta(contexto))
+            new OrdensServicoRepositorio(contexto), new PlataformaAtendimentoConsulta(contexto),
+            new AgendaAtendimentoIntegracao(contexto))
             .Handle(new(ordem.Id, "Veículo entregue"), default);
         Assert.Equal(1, await contexto.ContasReceber.CountAsync());
     }

@@ -44,6 +44,10 @@ public sealed record SalvarOrcamentoRequest(
 
 public sealed record RegistrarTransicaoOrcamentoRequest(string? Observacao);
 
+public sealed record AgendarOrcamentoRequest(DateTime InicioLocal, int DuracaoPlanejadaMinutos,
+    string? ObservacaoSolicitante, string? ObservacaoInterna);
+public sealed record AgendamentoOrcamentoResponse(Guid AgendamentoId);
+
 public sealed record OrcamentoListaResponse(
     Guid Id,
     string? Codigo,
@@ -90,6 +94,7 @@ public sealed record OrcamentoDetalheResponse(
     string VeiculoDescricao,
     string VeiculoPlaca,
     Guid? AgendamentoOrigemId,
+    Guid? AgendamentoId,
     Guid? OrdemServicoOrigemId,
     Guid? OrdemServicoId,
     StatusOrcamentoContrato Status,

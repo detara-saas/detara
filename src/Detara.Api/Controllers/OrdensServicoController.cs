@@ -33,6 +33,16 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
     public async Task<ActionResult<RespostaApi<OrdemServicoDetalheResponse>>> Obter(Guid id, CancellationToken ct) =>
         Ok(RespostaApi<OrdemServicoDetalheResponse>.Ok(Mapear(await sender.Send(new ObterOrdemServicoQuery(id), ct))));
 
+    [HttpGet("agendamentos/{agendamentoId:guid}"), Authorize(Policy = Permissoes.OrdemServicoVisualizar)]
+    public async Task<ActionResult<RespostaApi<VinculoOrdemServicoAgendamentoResponse>>> ObterPorAgendamento(
+        Guid agendamentoId, CancellationToken ct)
+    {
+        var resultado = await sender.Send(new ObterOrdemServicoPorAgendamentoQuery(agendamentoId), ct);
+        var ordem = resultado is null ? null : new OrdemServicoAgendamentoResponse(
+            resultado.Id, resultado.Codigo, (StatusOrdemServicoContrato)(int)resultado.Status);
+        return Ok(RespostaApi<VinculoOrdemServicoAgendamentoResponse>.Ok(new(ordem)));
+    }
+
     [HttpPost, Authorize(Policy = Permissoes.OrdemServicoCriar)]
     public async Task<ActionResult<RespostaApi<OrdemServicoDetalheResponse>>> Criar(CriarOrdemServicoRequest request, CancellationToken ct)
     {

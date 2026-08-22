@@ -1,4 +1,5 @@
 using Detara.Application.Agenda;
+using Detara.Application.FluxoOperacional;
 using Detara.Contracts.Agenda;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Catalogo;
@@ -23,7 +24,7 @@ public sealed class AgendaController(ISender sender) : ControllerBase
     }
 
     [HttpGet("agenda/contexto"), Authorize(Policy = Permissoes.AgendaVisualizar)]
-    public async Task<ActionResult<RespostaApi<ContextoAgendaResponse>>> Contexto(CancellationToken ct) { var contexto = await sender.Send(new ObterContextoAgendaQuery(), ct); return Ok(RespostaApi<ContextoAgendaResponse>.Ok(new(contexto.FusoHorario, contexto.HojeLocal))); }
+    public async Task<ActionResult<RespostaApi<ContextoAgendaResponse>>> Contexto(CancellationToken ct) { var contexto = await sender.Send(new ObterContextoAgendaQuery(), ct); return Ok(RespostaApi<ContextoAgendaResponse>.Ok(new(contexto.FusoHorario, contexto.HojeLocal, contexto.AgoraLocal))); }
 
     [HttpGet("agendamentos"), Authorize(Policy = Permissoes.AgendaVisualizar)]
     public async Task<ActionResult<RespostaApi<PaginaResponse<AgendamentoListaResponse>>>> ListarHistorico([FromQuery] int pagina = 1, [FromQuery] int tamanhoPagina = 25, [FromQuery] DateTime? inicioUtc = null, [FromQuery] DateTime? fimUtc = null, [FromQuery] StatusAgendamentoContrato? status = null, [FromQuery] string? pesquisa = null, CancellationToken ct = default)
@@ -56,7 +57,7 @@ public sealed class AgendaController(ISender sender) : ControllerBase
 
     [HttpPatch("agendamentos/{id:guid}/status"), Authorize(Policy = Permissoes.AgendaEditar)]
     public async Task<ActionResult<RespostaApi<AgendamentoDetalheResponse>>> AlterarStatus(Guid id, AlterarStatusAgendamentoRequest request, CancellationToken ct)
-    { var resultado = await sender.Send(new AlterarStatusAgendamentoCommand(id, Mapear(request.Status), request.MotivoCancelamento), ct); return Ok(RespostaApi<AgendamentoDetalheResponse>.Ok(MapearDetalhe(resultado), "Status atualizado com sucesso.")); }
+    { var resultado = await sender.Send(new AlterarStatusAgendaOperacionalCommand(id, Mapear(request.Status), request.MotivoCancelamento), ct); return Ok(RespostaApi<AgendamentoDetalheResponse>.Ok(MapearDetalhe(resultado), "Status atualizado com sucesso.")); }
 
     [HttpGet("agenda/clientes"), Authorize(Policy = Permissoes.AgendaCriar)]
     public async Task<ActionResult<RespostaApi<IReadOnlyCollection<ClienteAgendaResponse>>>> BuscarClientes([FromQuery] string pesquisa, CancellationToken ct) => Ok(RespostaApi<IReadOnlyCollection<ClienteAgendaResponse>>.Ok((await sender.Send(new BuscarClientesAgendaQuery(pesquisa), ct)).Select(x => new ClienteAgendaResponse(x.Id, x.Nome, x.Telefone)).ToArray()));

@@ -28,6 +28,12 @@ public sealed class OrcamentosServico(HttpClient http)
     public Task<ResultadoServico<IReadOnlyCollection<VeiculoOrcamentoResponse>>> ListarVeiculosAsync(Guid clienteId, CancellationToken ct = default) => ObterAsync<IReadOnlyCollection<VeiculoOrcamentoResponse>>($"api/orcamentos/clientes/{clienteId}/veiculos", ct);
     public Task<ResultadoServico<IReadOnlyCollection<ItemCatalogoOrcamentoResponse>>> BuscarCatalogoAsync(string? pesquisa, CancellationToken ct = default) => ObterAsync<IReadOnlyCollection<ItemCatalogoOrcamentoResponse>>($"api/orcamentos/catalogo?pesquisa={Uri.EscapeDataString(pesquisa ?? string.Empty)}", ct);
     public Task<ResultadoServico<OrigemAgendamentoOrcamentoResponse>> ObterOrigemAsync(Guid agendamentoId, CancellationToken ct = default) => ObterAsync<OrigemAgendamentoOrcamentoResponse>($"api/orcamentos/agendamentos/{agendamentoId}/origem", ct);
+    public Task<ResultadoServico<IReadOnlyCollection<ReferenciaOrcamentoResponse>>> ListarPorAgendamentoAsync(
+        Guid agendamentoId, CancellationToken ct = default) =>
+        ObterAsync<IReadOnlyCollection<ReferenciaOrcamentoResponse>>($"api/orcamentos/agendamentos/{agendamentoId}/vinculos", ct);
+    public Task<ResultadoServico<AgendamentoOrcamentoResponse>> AgendarAsync(Guid id,
+        AgendarOrcamentoRequest request, CancellationToken ct = default) =>
+        EnviarAsync<AgendamentoOrcamentoResponse>(() => http.PostAsJsonAsync($"api/orcamentos/{id}/agendar", request, ct), ct);
 
     public async Task<(byte[]? Conteudo, string Mensagem)> BaixarPdfAsync(Guid id, CancellationToken ct = default)
     {

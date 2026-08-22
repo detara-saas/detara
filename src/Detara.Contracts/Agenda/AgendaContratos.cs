@@ -97,7 +97,7 @@ public sealed record AgendamentoDetalheResponse(
 
 public sealed record ClienteAgendaResponse(Guid Id, string Nome, string? Telefone);
 public sealed record VeiculoAgendaResponse(Guid Id, string Descricao, string Placa);
-public sealed record ContextoAgendaResponse(string FusoHorario, DateOnly HojeLocal);
+public sealed record ContextoAgendaResponse(string FusoHorario, DateOnly HojeLocal, DateTime AgoraLocal);
 public sealed record ItemCatalogoAgendaResponse(
     TipoItemAgendamentoContrato TipoItem,
     Guid Id,
