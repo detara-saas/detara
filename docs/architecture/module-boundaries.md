@@ -293,7 +293,7 @@ Atendimento é dono de `Orcamento`, `OrcamentoItem` e `HistoricoStatusOrcamento`
 O fluxo consome:
 
 - Clientes por `IClientesAtendimentoConsulta`, validando tenant, atividade e pertencimento do Veículo ao Cliente;
-- Agenda por `IAgendaAtendimentoConsulta`, reutilizando os snapshots apresentados no Agendamento quando ele é a origem;
+- Agenda por `IAgendaAtendimentoIntegracao`, reutilizando snapshots apresentados no Agendamento e expondo somente as operações necessárias para criar ou sincronizar o atendimento;
 - Catálogo por `ICatalogoAtendimentoConsulta`, copiando nome, descrição, tipo e preço de referência sem alterar Serviço/Pacote;
 - Plataforma por `IPlataformaAtendimentoConsulta`, obtendo fuso, identificação da Empresa e nomes de usuários para histórico/PDF.
 
@@ -302,6 +302,16 @@ Orçamentos são mutáveis somente enquanto `Rascunho`. Após a emissão, qualqu
 `Expirado` é um estado efetivo calculado quando o status persistido é `Emitido` e `ValidoAte` é anterior à data local da Empresa. Não existe job de expiração. O PDF oficial é regenerado server-side a partir dos snapshots e permanece disponível para documentos recusados, cancelados, expirados ou substituídos. Se futuramente houver exigência jurídica maior, a evolução prevista é armazenar o arquivo final, hash e data/origem de envio sem alterar o documento comercial existente.
 
 Uma Ordem de Serviço criada a partir de Orçamento aprovado copia itens, descrições, quantidades, valores negociados, desconto, acréscimo e total do Orçamento. Ela não reconstrói preços a partir do Catálogo e não nasce de orçamento recusado, cancelado, substituído ou expirado.
+
+## Fluxo operacional Agenda ↔ Atendimento
+
+Agenda continua dona de `Agendamento`; Atendimento continua dono de `Orcamento` e `OrdemServico`. A composição transversal fica em `Application/FluxoOperacional` quando precisa consultar ambos. Nenhum aggregate root atravessa a fronteira como objeto mutável e não há navegações EF ou FKs cross-module.
+
+`IAgendaAtendimentoIntegracao` é o contrato estreito consumido por Atendimento. Sua implementação de infraestrutura valida explicitamente `EmpresaId` mesmo ao ignorar query filters e permite apenas: consultar o snapshot de um agendamento, criar Agenda a partir de orçamento aprovado, marcar o atendimento iniciado e concluir o atendimento. O mesmo `DetaraDbContext` scoped e um único `SaveChanges` preservam atomicidade local entre orçamento/agenda e OS/agenda.
+
+Toda nova OS exige `AgendamentoOrigemId`. O índice filtrado único `(EmpresaId, AgendamentoOrigemId)` protege a cardinalidade de no máximo uma OS por Agenda; registros históricos continuam aceitando valor nulo. `Orcamento.AgendamentoId` representa o vínculo operacional atual, enquanto `AgendamentoOrigemId` preserva a origem histórica do documento comercial. Não existe cascade delete entre os módulos.
+
+O início da OS move Agenda para o estado persistido `Compareceu`, apresentado ao usuário como **Em atendimento**. A entrega/conclusão da OS move Agenda para `Concluido`; finalizar serviços e aguardar retirada não conclui Agenda. O cancelamento da OS não conclui nem cancela Agenda automaticamente. Transições manuais da Agenda passam pela composição operacional e são bloqueadas quando contradizem a OS vinculada.
 
 ## Fundação operacional implementada
 

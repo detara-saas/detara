@@ -463,6 +463,24 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AgendarOrcamento_SemAgendaCriar_Recebe403()
+    {
+        UsarPermissoes(Permissoes.OrcamentosVisualizar);
+        var response = await _client.PostAsJsonAsync(
+            "/api/orcamentos/00000000-0000-0000-0000-000000000001/agendar", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AgendarOrcamento_SemOrcamentosVisualizar_Recebe403()
+    {
+        UsarPermissoes(Permissoes.AgendaCriar);
+        var response = await _client.PostAsJsonAsync(
+            "/api/orcamentos/00000000-0000-0000-0000-000000000001/agendar", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task OrcamentoComItemValido_PassaPeloPipelineESalvaRascunho()
     {
         UsarPermissoes(Permissoes.OrcamentosCriar);
