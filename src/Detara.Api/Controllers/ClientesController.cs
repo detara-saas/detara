@@ -2,6 +2,7 @@ using Detara.Application.Clientes;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
+using Detara.Contracts.Veiculos;
 using Detara.Domain.Entidades;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -160,7 +161,9 @@ public sealed class ClientesController(ISender sender) : ControllerBase
             item.Veiculos.Select(veiculo => new VeiculoResumoClienteResponse(
                 veiculo.Id,
                 veiculo.Descricao,
+                (TipoVeiculoContrato)(int)veiculo.Tipo,
                 veiculo.Placa,
+                veiculo.IdentificacaoAlternativa,
                 veiculo.AnoModelo,
                 veiculo.Cor,
                 veiculo.Quilometragem,

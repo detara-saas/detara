@@ -6,7 +6,7 @@ namespace Detara.Application.Atendimento;
 public sealed record FiltroOrdensServico(int Pagina, int TamanhoPagina, StatusOrdemServico? Status,
     DateOnly? DataInicial, DateOnly? DataFinal, string? Pesquisa);
 public sealed record OrdemServicoListaResultado(Guid Id, string Codigo, string ClienteNome, string VeiculoDescricao,
-    string VeiculoPlaca, StatusOrdemServico Status, decimal TotalAutorizado, DateTime CriadoEmUtc);
+    string? VeiculoPlaca, StatusOrdemServico Status, decimal TotalAutorizado, DateTime CriadoEmUtc);
 public sealed record OrdemServicoAgendamentoResultado(Guid Id, string Codigo, StatusOrdemServico Status);
 
 public interface IOrdensServicoRepositorio

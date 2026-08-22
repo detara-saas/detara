@@ -25,7 +25,9 @@ public sealed record ClienteListaItemResultado(
 public sealed record VeiculoResumoClienteResultado(
     Guid Id,
     string Descricao,
-    string Placa,
+    TipoVeiculo Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     int? AnoModelo,
     string? Cor,
     int? Quilometragem,

@@ -53,7 +53,7 @@ public sealed record OrcamentoListaResponse(
     string? Codigo,
     string ClienteNome,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     DateTime? EmitidoEmUtc,
     DateOnly ValidoAte,
     decimal Total,
@@ -92,7 +92,7 @@ public sealed record OrcamentoDetalheResponse(
     string? ClienteTelefone,
     Guid VeiculoId,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     Guid? AgendamentoOrigemId,
     Guid? AgendamentoId,
     Guid? OrdemServicoOrigemId,
@@ -120,7 +120,7 @@ public sealed record OrcamentoDetalheResponse(
     ReferenciaOrcamentoResponse? SubstituidoPor);
 
 public sealed record ClienteOrcamentoResponse(Guid Id, string Nome, string? Documento, string? Telefone);
-public sealed record VeiculoOrcamentoResponse(Guid Id, string Descricao, string Placa);
+public sealed record VeiculoOrcamentoResponse(Guid Id, string Descricao, string? Placa);
 public sealed record ItemCatalogoOrcamentoResponse(
     TipoItemOrcamentoContrato TipoItem,
     Guid Id,
@@ -135,7 +135,7 @@ public sealed record OrigemAgendamentoOrcamentoResponse(
     string ClienteNome,
     Guid VeiculoId,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     IReadOnlyCollection<ItemCatalogoOrcamentoResponse> Itens);
 
 public sealed record ContextoOrcamentoResponse(DateOnly HojeLocal, DateOnly ValidadeSugerida);

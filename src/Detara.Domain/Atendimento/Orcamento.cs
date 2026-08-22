@@ -9,7 +9,7 @@ public sealed record PartesOrcamentoSnapshot(
     string? ClienteTelefone,
     Guid VeiculoId,
     string VeiculoDescricao,
-    string VeiculoPlaca);
+    string? VeiculoPlaca);
 
 public sealed class Orcamento : EntidadeEmpresaBase
 {
@@ -40,7 +40,7 @@ public sealed class Orcamento : EntidadeEmpresaBase
     public string? ClienteTelefoneSnapshot { get; private set; }
     public Guid VeiculoId { get; private set; }
     public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
-    public string VeiculoPlacaSnapshot { get; private set; } = string.Empty;
+    public string? VeiculoPlacaSnapshot { get; private set; }
     public Guid? AgendamentoOrigemId { get; private set; }
     public Guid? AgendamentoId { get; private set; }
     public Guid? OrcamentoOrigemId { get; private set; }
@@ -86,7 +86,7 @@ public sealed class Orcamento : EntidadeEmpresaBase
         ClienteTelefoneSnapshot = NormalizarOpcional(partes.ClienteTelefone, 20);
         VeiculoId = ExigirId(partes.VeiculoId);
         VeiculoDescricaoSnapshot = NormalizarObrigatorio(partes.VeiculoDescricao, 200);
-        VeiculoPlacaSnapshot = NormalizarObrigatorio(partes.VeiculoPlaca, 10);
+        VeiculoPlacaSnapshot = NormalizarOpcional(partes.VeiculoPlaca, 10);
         ValidoAte = validoAte;
         ObservacaoCliente = NormalizarOpcional(observacaoCliente, 2000);
         ObservacaoInterna = NormalizarOpcional(observacaoInterna, 4000);

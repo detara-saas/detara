@@ -5,14 +5,14 @@ using Detara.Domain.Catalogo;
 namespace Detara.Application.Atendimento;
 
 public sealed record FiltroOrcamentos(int Pagina, int TamanhoPagina, StatusEfetivoOrcamento? Status, string? Pesquisa, DateOnly HojeLocal);
-public sealed record OrcamentoListaResultado(Guid Id, string? Codigo, string ClienteNome, string VeiculoDescricao, string VeiculoPlaca,
+public sealed record OrcamentoListaResultado(Guid Id, string? Codigo, string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca,
     DateTime? EmitidoEmUtc, DateOnly ValidoAte, decimal Total, StatusOrcamento Status);
 public sealed record OrcamentoItemResultado(Guid Id, TipoItemOrcamento TipoItem, Guid? ItemCatalogoId, string Nome, string? Descricao,
     TipoPrecificacao? TipoPrecificacaoReferencia, decimal? PrecoReferencia, decimal ValorUnitario, int Quantidade, int Ordem, string? Observacao);
 public sealed record HistoricoStatusOrcamentoResultado(Guid Id, StatusOrcamento Status, DateTime DataUtc, Guid UsuarioId, string? Observacao);
 public sealed record ReferenciaOrcamentoResultado(Guid Id, string? Codigo, StatusOrcamento Status, DateOnly ValidoAte);
 public sealed record OrcamentoDetalheResultado(Guid Id, string? Codigo, Guid ClienteId, string ClienteNome, string? ClienteDocumento,
-    string? ClienteTelefone, Guid VeiculoId, string VeiculoDescricao, string VeiculoPlaca, Guid? AgendamentoOrigemId,
+    string? ClienteTelefone, Guid VeiculoId, string VeiculoDescricao, string? VeiculoPlaca, Guid? AgendamentoOrigemId,
     Guid? AgendamentoId, Guid? OrcamentoOrigemId, Guid? OrdemServicoOrigemId, Guid? OrdemServicoId, StatusOrcamento Status, DateOnly ValidoAte, string? ObservacaoCliente, string? ObservacaoInterna,
     string? Condicoes, decimal Desconto, decimal Acrescimo, DateTime CriadoEmUtc, DateTime? AtualizadoEmUtc, DateTime? EmitidoEmUtc,
     DateTime? AprovadoEmUtc, DateTime? RecusadoEmUtc, DateTime? CanceladoEmUtc, DateTime? SubstituidoEmUtc,

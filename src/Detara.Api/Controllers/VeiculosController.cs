@@ -4,6 +4,7 @@ using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Veiculos;
+using Detara.Domain.Entidades;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -58,7 +59,9 @@ public sealed class VeiculosController(ISender sender) : ControllerBase
     {
         var resultado = await sender.Send(new CriarVeiculoCommand(
             request.ClienteId,
+            (TipoVeiculo)(int)request.Tipo,
             request.Placa,
+            request.IdentificacaoAlternativa,
             request.Marca,
             request.Modelo,
             request.Versao,
@@ -83,7 +86,9 @@ public sealed class VeiculosController(ISender sender) : ControllerBase
         var resultado = await sender.Send(new AtualizarVeiculoCommand(
             id,
             request.ClienteId,
+            (TipoVeiculo)(int)request.Tipo,
             request.Placa,
+            request.IdentificacaoAlternativa,
             request.Marca,
             request.Modelo,
             request.Versao,
@@ -189,7 +194,9 @@ public sealed class VeiculosController(ISender sender) : ControllerBase
         new(
             item.Id,
             item.Descricao,
+            (TipoVeiculoContrato)(int)item.Tipo,
             item.Placa,
+            item.IdentificacaoAlternativa,
             item.ClienteId,
             item.ClienteNome,
             item.AnoModelo,
@@ -202,7 +209,9 @@ public sealed class VeiculosController(ISender sender) : ControllerBase
             item.Id,
             item.ClienteId,
             item.ClienteNome,
+            (TipoVeiculoContrato)(int)item.Tipo,
             item.Placa,
+            item.IdentificacaoAlternativa,
             item.Marca,
             item.Modelo,
             item.Versao,

@@ -5,7 +5,7 @@ using Detara.Domain.Catalogo;
 namespace Detara.Application.Atendimento;
 
 public sealed record ClienteAtendimentoInterno(Guid Id, string Nome, string? Documento, string? Telefone, bool EhAtivo);
-public sealed record VeiculoAtendimentoInterno(Guid Id, Guid ClienteId, string Descricao, string Placa, bool EhAtivo);
+public sealed record VeiculoAtendimentoInterno(Guid Id, Guid ClienteId, string Descricao, string? Placa, bool EhAtivo);
 public sealed record ClienteVeiculoAtendimentoInterno(ClienteAtendimentoInterno Cliente, VeiculoAtendimentoInterno Veiculo);
 
 public interface IClientesAtendimentoConsulta
@@ -27,10 +27,10 @@ public interface ICatalogoAtendimentoConsulta
 public sealed record ItemAgendamentoAtendimentoInterno(TipoItemOrcamento TipoItem, Guid ItemCatalogoId, string Nome, string? Descricao,
     TipoPrecificacao TipoPrecificacao, decimal? PrecoReferencia, int? DuracaoReferenciaMinutos = null);
 public sealed record AgendamentoAtendimentoInterno(Guid Id, Guid ClienteId, string ClienteNome, Guid VeiculoId, string VeiculoDescricao,
-    string VeiculoPlaca, StatusAgendamento Status, IReadOnlyCollection<ItemAgendamentoAtendimentoInterno> Itens,
+    string? VeiculoPlaca, StatusAgendamento Status, IReadOnlyCollection<ItemAgendamentoAtendimentoInterno> Itens,
     int? DuracaoPlanejadaMinutos = null);
 public sealed record CriarAgendamentoOrcamentoInterno(Guid OrcamentoId, Guid ClienteId, string ClienteNome,
-    Guid VeiculoId, string VeiculoDescricao, string VeiculoPlaca, DateTime InicioUtc,
+    Guid VeiculoId, string VeiculoDescricao, string? VeiculoPlaca, DateTime InicioUtc,
     int DuracaoPlanejadaMinutos, string? ObservacaoSolicitante, string? ObservacaoInterna,
     IReadOnlyCollection<ItemAgendamentoAtendimentoInterno> Itens);
 

@@ -21,7 +21,7 @@ public sealed record DashboardAgendamentoResponse(
     DateTime InicioLocal,
     string ClienteNome,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     string? ItemPrincipal,
     StatusAgendamentoContrato Status);
 

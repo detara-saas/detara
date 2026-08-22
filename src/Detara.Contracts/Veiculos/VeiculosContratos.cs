@@ -1,8 +1,23 @@
 namespace Detara.Contracts.Veiculos;
 
+public enum TipoVeiculoContrato
+{
+    Carro = 1,
+    Moto = 2,
+    Caminhonete = 3,
+    Van = 4,
+    Caminhao = 5,
+    Embarcacao = 6,
+    MotoAquatica = 7,
+    QuadricicloUtv = 8,
+    Outro = 99
+}
+
 public sealed record SalvarVeiculoRequest(
     Guid ClienteId,
-    string Placa,
+    TipoVeiculoContrato Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     string Marca,
     string Modelo,
     string? Versao,
@@ -15,7 +30,9 @@ public sealed record SalvarVeiculoRequest(
 public sealed record VeiculoListaResponse(
     Guid Id,
     string Descricao,
-    string Placa,
+    TipoVeiculoContrato Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     Guid ClienteId,
     string ClienteNome,
     int? AnoModelo,
@@ -27,7 +44,9 @@ public sealed record VeiculoDetalheResponse(
     Guid Id,
     Guid ClienteId,
     string ClienteNome,
-    string Placa,
+    TipoVeiculoContrato Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     string Marca,
     string Modelo,
     string? Versao,

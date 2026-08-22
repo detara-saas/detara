@@ -404,7 +404,9 @@ public sealed class DemoBootstrapService(
             new ClienteDemo("Eduardo Nascimento", "eduardo.nascimento@example.com", "1100000005", "BMW", "320i", "DMO1A05", "Azul", 18700),
             new ClienteDemo("Fernanda Ribeiro", "fernanda.ribeiro@example.com", "1100000006", "Chevrolet", "Tracker", "DMO1A06", "Vermelho", 30500),
             new ClienteDemo("Lucas Barreto", "lucas.barreto@example.com", "1100000007", "Volkswagen", "Golf", "DMO1A07", "Branco", 59200),
-            new ClienteDemo("Juliana Prado", "juliana.prado@example.com", "1100000008", "Audi", "A3", "DMO1A08", "Cinza", 24600)
+            new ClienteDemo("Juliana Prado", "juliana.prado@example.com", "1100000008", "Audi", "A3", "DMO1A08", "Cinza", 24600),
+            new ClienteDemo("Rafael Marins", "rafael.marins@example.com", "1100000009", "Sea-Doo", "GTX 300", null, "Amarelo", 46,
+                TipoVeiculo.MotoAquatica, "DEMO-JET-01")
         };
         foreach (var item in dadosClientes)
         {
@@ -419,7 +421,9 @@ public sealed class DemoBootstrapService(
                 "Cadastro totalmente sintético para demonstração local."), cancellationToken);
             var veiculo = await sender.Send(new CriarVeiculoCommand(
                 cliente.Id,
+                item.Tipo,
                 item.Placa,
+                item.IdentificacaoAlternativa,
                 item.Marca,
                 item.Modelo,
                 null,
@@ -816,9 +820,11 @@ public sealed class DemoBootstrapService(
         string Telefone,
         string Marca,
         string Modelo,
-        string Placa,
+        string? Placa,
         string Cor,
-        int Quilometragem);
+        int Quilometragem,
+        TipoVeiculo Tipo = TipoVeiculo.Carro,
+        string? IdentificacaoAlternativa = null);
 
     private sealed record ClienteVeiculoDemo(
         ClienteDetalheResultado Cliente,

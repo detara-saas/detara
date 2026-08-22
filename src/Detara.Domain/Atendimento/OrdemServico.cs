@@ -9,7 +9,7 @@ public sealed record PartesOrdemServicoSnapshot(
     string? ClienteTelefone,
     Guid VeiculoId,
     string VeiculoDescricao,
-    string VeiculoPlaca);
+    string? VeiculoPlaca);
 
 public sealed record ConfiguracaoCheckInSnapshot(
     NivelExigenciaOperacional ChecklistEntrada,
@@ -47,7 +47,7 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         ClienteTelefoneSnapshot = NormalizarOpcional(partes.ClienteTelefone, 20);
         VeiculoId = ExigirId(partes.VeiculoId);
         VeiculoDescricaoSnapshot = NormalizarObrigatorio(partes.VeiculoDescricao, 200);
-        VeiculoPlacaSnapshot = NormalizarObrigatorio(partes.VeiculoPlaca, 10);
+        VeiculoPlacaSnapshot = NormalizarOpcional(partes.VeiculoPlaca, 10);
         DuracaoPlanejadaMinutos = duracaoPlanejadaMinutos is null or > 0 and <= 43200
             ? duracaoPlanejadaMinutos : throw new ArgumentException("A duração planejada é inválida.", nameof(duracaoPlanejadaMinutos));
         DescontoAutorizado = ValidarDinheiro(descontoAutorizado, nameof(descontoAutorizado));
@@ -79,7 +79,7 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     public string? ClienteTelefoneSnapshot { get; private set; }
     public Guid VeiculoId { get; private set; }
     public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
-    public string VeiculoPlacaSnapshot { get; private set; } = string.Empty;
+    public string? VeiculoPlacaSnapshot { get; private set; }
     public int? DuracaoPlanejadaMinutos { get; private set; }
     public StatusOrdemServico Status { get; private set; }
     public decimal DescontoAutorizado { get; private set; }

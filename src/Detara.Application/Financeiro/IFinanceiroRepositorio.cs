@@ -7,7 +7,7 @@ public sealed record FiltroContasReceber(int Pagina, int TamanhoPagina, StatusCo
     bool? Vencida, DateOnly? CompetenciaInicial, DateOnly? CompetenciaFinal, string? Pesquisa, DateOnly HojeLocal);
 
 public sealed record ContaReceberListaResultado(Guid Id, Guid OrdemServicoId, string OrdemServicoCodigo,
-    string ClienteNome, string VeiculoDescricao, string VeiculoPlaca, DateOnly DataCompetencia,
+    string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca, DateOnly DataCompetencia,
     DateOnly DataVencimento, decimal ValorOriginal, decimal ValorRecebido, StatusContaReceber Status,
     bool Vencida);
 
@@ -39,7 +39,7 @@ public interface IPlataformaFinanceiroConsulta
 
 public sealed record OrdemServicoFinalizadaFinanceiro(Guid EmpresaId, Guid OrdemServicoId,
     string OrdemServicoCodigo, Guid ClienteId, string ClienteNome, Guid VeiculoId,
-    string VeiculoDescricao, string VeiculoPlaca, decimal SubtotalAutorizado,
+    string VeiculoDescricao, string? VeiculoPlaca, decimal SubtotalAutorizado,
     decimal DescontoAutorizado, decimal AcrescimoAutorizado, decimal TotalAutorizado,
     DateTime FinalizadaEmUtc);
 

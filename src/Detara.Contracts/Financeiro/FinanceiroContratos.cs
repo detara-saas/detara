@@ -25,7 +25,7 @@ public enum StatusPagamentoContrato
 }
 
 public sealed record ContaReceberListaResponse(Guid Id, Guid OrdemServicoId, string OrdemServicoCodigo,
-    string ClienteNome, string VeiculoDescricao, string VeiculoPlaca, DateOnly DataCompetencia,
+    string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca, DateOnly DataCompetencia,
     DateOnly DataVencimento, decimal ValorOriginal, decimal ValorRecebido, decimal ValorEmAberto,
     StatusContaReceberContrato Status, bool Vencida);
 
@@ -36,7 +36,7 @@ public sealed record PagamentoResponse(Guid Id, FormaPagamentoContrato FormaPaga
     string? EstornadoPorUsuarioNome, string? MotivoEstorno);
 
 public sealed record ContaReceberDetalheResponse(Guid Id, Guid OrdemServicoId, string OrdemServicoCodigo,
-    Guid ClienteId, string ClienteNome, Guid VeiculoId, string VeiculoDescricao, string VeiculoPlaca,
+    Guid ClienteId, string ClienteNome, Guid VeiculoId, string VeiculoDescricao, string? VeiculoPlaca,
     decimal SubtotalAutorizado, decimal DescontoAutorizado, decimal AcrescimoAutorizado,
     decimal ValorOriginal, decimal ValorRecebido, decimal ValorEmAberto, DateOnly DataCompetencia,
     DateOnly DataVencimento, StatusContaReceberContrato Status, bool Vencida, string FusoHorario,

@@ -4,7 +4,7 @@ using Detara.Domain.Catalogo;
 namespace Detara.Application.Agenda;
 
 public sealed record ClienteAgendaInterno(Guid Id, string Nome, string? Telefone, bool EhAtivo);
-public sealed record VeiculoAgendaInterno(Guid Id, Guid ClienteId, string Descricao, string Placa, bool EhAtivo);
+public sealed record VeiculoAgendaInterno(Guid Id, Guid ClienteId, string Descricao, string? Placa, bool EhAtivo);
 public sealed record ClienteVeiculoAgendaInterno(ClienteAgendaInterno Cliente, VeiculoAgendaInterno Veiculo);
 
 public interface IClientesAgendaConsulta

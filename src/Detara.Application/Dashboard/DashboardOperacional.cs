@@ -17,7 +17,7 @@ public sealed record DashboardAgendamentoResultado(
     DateTime InicioUtc,
     string ClienteNome,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     string? ItemPrincipal,
     StatusAgendamento Status);
 

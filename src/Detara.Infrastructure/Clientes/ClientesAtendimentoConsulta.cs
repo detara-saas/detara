@@ -12,7 +12,10 @@ internal sealed class ClientesAtendimentoConsulta(DetaraDbContext db) : ICliente
             .Select(x => new ClienteAtendimentoInterno(x.Id, x.Nome, x.CpfCnpj, x.Telefone ?? x.WhatsApp, x.EhAtivo)).SingleOrDefaultAsync(ct);
         if (cliente is null) return null;
         var veiculo = await db.Veiculos.IgnoreQueryFilters().AsNoTracking().Where(x => x.EmpresaId == empresaId && x.Id == veiculoId)
-            .Select(x => new VeiculoAtendimentoInterno(x.Id, x.ClienteId, x.Marca + " " + x.Modelo, x.Placa, x.EhAtivo)).SingleOrDefaultAsync(ct);
+            .Select(x => new VeiculoAtendimentoInterno(x.Id, x.ClienteId,
+                x.Marca + " " + x.Modelo + (x.Placa != null ? " · " + x.Placa :
+                    x.IdentificacaoAlternativa != null ? " · " + x.IdentificacaoAlternativa : ""),
+                x.Placa, x.EhAtivo)).SingleOrDefaultAsync(ct);
         return veiculo is null ? null : new(cliente, veiculo);
     }
 
@@ -27,7 +30,9 @@ internal sealed class ClientesAtendimentoConsulta(DetaraDbContext db) : ICliente
     public async Task<IReadOnlyCollection<VeiculoAtendimentoInterno>> ListarVeiculosAsync(Guid empresaId, Guid clienteId, CancellationToken ct) =>
         await db.Veiculos.IgnoreQueryFilters().AsNoTracking().Where(x => x.EmpresaId == empresaId && x.ClienteId == clienteId && x.EhAtivo)
             .OrderBy(x => x.Marca).ThenBy(x => x.Modelo).Select(x => new VeiculoAtendimentoInterno(x.Id, x.ClienteId,
-                x.Marca + " " + x.Modelo, x.Placa, x.EhAtivo)).ToArrayAsync(ct);
+                x.Marca + " " + x.Modelo + (x.Placa != null ? " · " + x.Placa :
+                    x.IdentificacaoAlternativa != null ? " · " + x.IdentificacaoAlternativa : ""),
+                x.Placa, x.EhAtivo)).ToArrayAsync(ct);
 
     private static IQueryable<ClienteAtendimentoInterno> Projetar(IQueryable<Detara.Domain.Entidades.Cliente> query) =>
         query.Select(x => new ClienteAtendimentoInterno(x.Id, x.Nome, x.CpfCnpj, x.Telefone ?? x.WhatsApp, x.EhAtivo));

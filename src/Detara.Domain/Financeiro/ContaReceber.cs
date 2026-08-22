@@ -36,7 +36,7 @@ public sealed class ContaReceber : EntidadeEmpresaBase
 
     public ContaReceber(Guid empresaId, Guid ordemServicoId, string ordemServicoCodigo,
         Guid clienteId, string clienteNome, Guid veiculoId, string veiculoDescricao,
-        string veiculoPlaca, decimal subtotalAutorizado, decimal descontoAutorizado,
+        string? veiculoPlaca, decimal subtotalAutorizado, decimal descontoAutorizado,
         decimal acrescimoAutorizado, decimal valorOriginal, DateOnly dataCompetencia)
         : base(Guid.NewGuid(), empresaId)
     {
@@ -53,7 +53,7 @@ public sealed class ContaReceber : EntidadeEmpresaBase
         ClienteNomeSnapshot = Exigir(clienteNome, 160, nameof(clienteNome));
         VeiculoId = veiculoId;
         VeiculoDescricaoSnapshot = Exigir(veiculoDescricao, 200, nameof(veiculoDescricao));
-        VeiculoPlacaSnapshot = Exigir(veiculoPlaca, 10, nameof(veiculoPlaca));
+        VeiculoPlacaSnapshot = NormalizarOpcional(veiculoPlaca, 10);
         SubtotalAutorizado = subtotalAutorizado;
         DescontoAutorizado = descontoAutorizado;
         AcrescimoAutorizado = acrescimoAutorizado;
@@ -70,7 +70,7 @@ public sealed class ContaReceber : EntidadeEmpresaBase
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;
     public Guid VeiculoId { get; private set; }
     public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
-    public string VeiculoPlacaSnapshot { get; private set; } = string.Empty;
+    public string? VeiculoPlacaSnapshot { get; private set; }
     public decimal SubtotalAutorizado { get; private set; }
     public decimal DescontoAutorizado { get; private set; }
     public decimal AcrescimoAutorizado { get; private set; }
@@ -150,6 +150,15 @@ public sealed class ContaReceber : EntidadeEmpresaBase
         var resultado = valor.Trim();
         if (resultado.Length > limite) throw new ArgumentException($"O valor deve ter no máximo {limite} caracteres.", parametro);
         return resultado;
+    }
+
+    private static string? NormalizarOpcional(string? valor, int limite)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return null;
+        var resultado = valor.Trim();
+        return resultado.Length <= limite
+            ? resultado
+            : throw new ArgumentException($"O valor deve ter no máximo {limite} caracteres.");
     }
 }
 

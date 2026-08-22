@@ -58,7 +58,7 @@ public sealed record AgendamentoPeriodoResponse(
     int DuracaoPlanejadaMinutos,
     string ClienteNome,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     StatusAgendamentoContrato Status,
     IReadOnlyCollection<string> PrincipaisItens,
     ResumoReferenciaAgendamentoResponse Referencia);
@@ -70,7 +70,7 @@ public sealed record AgendamentoListaResponse(
     int DuracaoPlanejadaMinutos,
     string ClienteNome,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     StatusAgendamentoContrato Status,
     IReadOnlyCollection<string> Itens);
 
@@ -80,7 +80,7 @@ public sealed record AgendamentoDetalheResponse(
     string ClienteNome,
     Guid VeiculoId,
     string VeiculoDescricao,
-    string VeiculoPlaca,
+    string? VeiculoPlaca,
     DateTime InicioUtc,
     DateTime InicioLocal,
     string FusoHorario,
@@ -96,7 +96,7 @@ public sealed record AgendamentoDetalheResponse(
     IReadOnlyCollection<AgendamentoItemResponse> Itens);
 
 public sealed record ClienteAgendaResponse(Guid Id, string Nome, string? Telefone);
-public sealed record VeiculoAgendaResponse(Guid Id, string Descricao, string Placa);
+public sealed record VeiculoAgendaResponse(Guid Id, string Descricao, string? Placa);
 public sealed record ContextoAgendaResponse(string FusoHorario, DateOnly HojeLocal, DateTime AgoraLocal);
 public sealed record ItemCatalogoAgendaResponse(
     TipoItemAgendamentoContrato TipoItem,
