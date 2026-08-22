@@ -30,21 +30,31 @@ namespace Detara.Infrastructure.Persistencia.Migrations
             migrationBuilder.Sql("""
                 WITH [VinculosOrdenados] AS
                 (
-                    SELECT [Id],
-                           ROW_NUMBER() OVER
-                           (
-                               PARTITION BY [EmpresaId], [AgendamentoOrigemId]
-                               ORDER BY CASE WHEN [Status] IN (1, 2, 3) THEN 0 ELSE 1 END,
-                                        [CriadoEmUtc] DESC,
-                                        [Id]
-                           ) AS [OrdemVinculo]
+                    SELECT
+                        [Id],
+                        ROW_NUMBER() OVER
+                        (
+                            PARTITION BY [EmpresaId], [AgendamentoOrigemId]
+                            ORDER BY
+                                CASE
+                                    WHEN [Status] IN (
+                                        N'Aberta',
+                                        N'EmExecucao',
+                                        N'AguardandoRetirada'
+                                    ) THEN 0
+                                    ELSE 1
+                                END,
+                                [CriadoEmUtc] DESC,
+                                [Id]
+                        ) AS [OrdemVinculo]
                     FROM [OrdensServico]
                     WHERE [AgendamentoOrigemId] IS NOT NULL
                 )
                 UPDATE [ordem]
                 SET [AgendamentoOrigemId] = NULL
                 FROM [OrdensServico] AS [ordem]
-                INNER JOIN [VinculosOrdenados] AS [vinculo] ON [vinculo].[Id] = [ordem].[Id]
+                INNER JOIN [VinculosOrdenados] AS [vinculo]
+                    ON [vinculo].[Id] = [ordem].[Id]
                 WHERE [vinculo].[OrdemVinculo] > 1;
                 """);
 
