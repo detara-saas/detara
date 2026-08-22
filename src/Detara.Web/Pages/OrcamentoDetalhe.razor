@@ -4,6 +4,7 @@
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navegacao
 @inject IJSRuntime Js
+@inject IDialogService Dialogs
 
 <PageTitle>@(_orcamento?.Codigo ?? "Orçamento") | Detara</PageTitle>
 @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
@@ -27,21 +28,13 @@ else
     {
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert immutable-quotation-note">
             <div><strong>Documento comercial imutável</strong><span>Este orçamento já foi emitido e não pode ser alterado. Para mudar valores ou serviços, crie uma nova proposta.</span></div>
-            <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcao("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView>
         </MudAlert>
     }
     @if (_orcamento.Status == StatusOrcamentoContrato.Expirado) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="page-alert">Este orçamento expirou em @_orcamento.ValidoAte.ToString("dd/MM/yyyy") e não pode receber nova aprovação. Crie uma nova proposta.</MudAlert> }
     @if (_orcamento.Status == StatusOrcamentoContrato.Cancelado && !_orcamento.EmitidoEmUtc.HasValue)
     {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert immutable-quotation-note"><div><strong>Rascunho cancelado</strong><span>Este documento não chegou a ser emitido e não possui PDF oficial.</span></div><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcao("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView></MudAlert>
-    }
-    @if (_acao is not null)
-    {
-        <MudAlert Severity="@(_acao is "recusar" or "cancelar" ? Severity.Warning : Severity.Info)" Variant="Variant.Outlined" Class="confirmation-strip quotation-confirmation">
-            <div><strong>@TituloConfirmacao</strong><span>@DescricaoConfirmacao</span></div>
-            @if (_acao != "nova") { <MudTextField T="string" @bind-Value="_observacaoAcao" Label="Observação (opcional)" Variant="Variant.Outlined" /> }
-            <div><MudButton Variant="Variant.Text" OnClick="CancelarAcao">Voltar</MudButton><MudButton Variant="Variant.Filled" Color="@(_acao is "recusar" or "cancelar" ? Color.Warning : Color.Primary)" OnClick="ConfirmarAcaoAsync">Confirmar</MudButton></div>
-        </MudAlert>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert immutable-quotation-note"><div><strong>Rascunho cancelado</strong><span>Este documento não chegou a ser emitido e não possui PDF oficial.</span></div><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView></MudAlert>
     }
 
     @if (_orcamento.CriadoAPartirDe is not null || _orcamento.SubstituidoPor is not null)
@@ -77,8 +70,8 @@ else
 
     <AuthorizeView Policy="@Permissoes.OrcamentosEditar"><Authorized>
         <section class="appointment-actions module-panel"><div><span class="section-eyebrow">AÇÕES COMERCIAIS</span><h2>Próxima ação</h2></div><div class="appointment-action-buttons">
-            @if (_orcamento.Status == StatusOrcamentoContrato.Rascunho) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarAcao("emitir"))">Emitir orçamento</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcao("cancelar"))">Cancelar</MudButton> }
-            @if (_orcamento.Status == StatusOrcamentoContrato.Emitido) { <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => SolicitarAcao("aprovar"))">Registrar aprovação</MudButton><MudButton Variant="Variant.Outlined" OnClick="@(() => SolicitarAcao("recusar"))">Registrar recusa</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcao("cancelar"))">Cancelar</MudButton> }
+            @if (_orcamento.Status == StatusOrcamentoContrato.Rascunho) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("emitir"))">Emitir orçamento</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcaoAsync("cancelar"))">Cancelar</MudButton> }
+            @if (_orcamento.Status == StatusOrcamentoContrato.Emitido) { <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => SolicitarAcaoAsync("aprovar"))">Registrar aprovação</MudButton><MudButton Variant="Variant.Outlined" OnClick="@(() => SolicitarAcaoAsync("recusar"))">Registrar recusa</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcaoAsync("cancelar"))">Cancelar</MudButton> }
         </div></section>
     </Authorized></AuthorizeView>
     </div>
@@ -87,19 +80,42 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    private OrcamentoDetalheResponse? _orcamento; private bool _carregando = true; private string? _acao; private string? _observacaoAcao;
-    private string TituloConfirmacao => _acao switch { "emitir" => "Emitir este orçamento?", "aprovar" => "Registrar aprovação do cliente?", "recusar" => "Registrar recusa do cliente?", "cancelar" => "Cancelar este orçamento?", "nova" => "Criar nova proposta?", _ => "Confirmar ação?" };
-    private string DescricaoConfirmacao => _acao switch { "emitir" => "Após a emissão, valores e itens não poderão mais ser alterados.", "aprovar" => "Um usuário interno registrará que o cliente aprovou; isto não é assinatura digital.", "recusar" => "Recusado significa que o cliente não aceitou esta proposta.", "cancelar" => "Cancelamento é uma decisão operacional da empresa e não equivale à recusa do cliente.", "nova" => "Um novo rascunho será criado. O orçamento atual não será alterado até a emissão da nova proposta.", _ => string.Empty };
+    private OrcamentoDetalheResponse? _orcamento; private bool _carregando = true;
     protected override Task OnParametersSetAsync() => CarregarAsync();
     private async Task CarregarAsync() { _carregando = true; var r = await OrcamentosApi.ObterAsync(Id); _orcamento = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
-    private void SolicitarAcao(string acao) { _acao = acao; _observacaoAcao = null; }
-    private void CancelarAcao() { _acao = null; _observacaoAcao = null; }
-    private async Task ConfirmarAcaoAsync()
+    private async Task SolicitarAcaoAsync(string acao)
     {
-        if (_acao is null) return;
-        var r = _acao switch { "emitir" => await OrcamentosApi.EmitirAsync(Id, _observacaoAcao), "aprovar" => await OrcamentosApi.AprovarAsync(Id, _observacaoAcao), "recusar" => await OrcamentosApi.RecusarAsync(Id, _observacaoAcao), "cancelar" => await OrcamentosApi.CancelarAsync(Id, _observacaoAcao), "nova" => await OrcamentosApi.NovaPropostaAsync(Id), _ => ResultadoServico<OrcamentoDetalheResponse>.Falha("Ação inválida.") };
-        Mensagens.Mostrar(r.Mensagem, !r.Sucesso); _acao = null;
-        if (r.Sucesso && _orcamento is not null && r.Resultado is not null && r.Resultado.Id != Id) Navegacao.NavigateTo($"/orcamentos/{r.Resultado.Id}"); else if (r.Sucesso) await CarregarAsync();
+        var parametros = new DialogParameters<ConfirmacaoOrcamentoDialog>
+        {
+            { componente => componente.OrcamentoId, Id },
+            { componente => componente.Acao, acao }
+        };
+        var dialogo = await Dialogs.ShowAsync<ConfirmacaoOrcamentoDialog>(
+            "Confirmar ação do orçamento",
+            parametros,
+            new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true,
+                CloseButton = false,
+                BackdropClick = false,
+                CloseOnEscapeKey = false
+            });
+        var resultadoDialogo = await dialogo.Result;
+        if (resultadoDialogo is null || resultadoDialogo.Canceled ||
+            resultadoDialogo.Data is not ResultadoServico<OrcamentoDetalheResponse> resultado)
+        {
+            return;
+        }
+
+        Mensagens.Mostrar(resultado.Mensagem);
+        if (resultado.Resultado is { } orcamento && orcamento.Id != Id)
+        {
+            Navegacao.NavigateTo($"/orcamentos/{orcamento.Id}");
+            return;
+        }
+
+        await CarregarAsync();
     }
     private async Task BaixarPdfAsync() { var (conteudo, mensagem) = await OrcamentosApi.BaixarPdfAsync(Id); if (conteudo is null) { Mensagens.Mostrar(mensagem, true); return; } await Js.InvokeVoidAsync("detara.baixarArquivoBase64", $"{_orcamento?.Codigo ?? "orcamento"}.pdf", "application/pdf", Convert.ToBase64String(conteudo)); }
     private static string TextoOuVazio(string? texto) => string.IsNullOrWhiteSpace(texto) ? "Não informado." : texto;
