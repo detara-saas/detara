@@ -127,14 +127,14 @@
                                         <MudTd DataLabel="Cliente e veículo"><div class="vehicle-cell"><strong>@context.ClienteNome</strong><span>@context.VeiculoDescricao · @context.VeiculoPlaca</span></div></MudTd>
                                         <MudTd DataLabel="Serviço">@(context.ItemPrincipal ?? "Sem item informado")</MudTd>
                                         <MudTd DataLabel="Status"><span class="status-badge @ClasseStatus(context.Status)">@NomeStatus(context.Status)</span></MudTd>
-                                        <MudTd><MudIconButton Href="@($"/agendamentos/{context.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" aria-label="Abrir agendamento" /></MudTd>
+                                        <MudTd><MudIconButton Href="@($"/agenda/{context.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" aria-label="Abrir agendamento" /></MudTd>
                                     </RowTemplate>
                                 </MudTable>
                             </div>
                             <div class="agenda-mobile">
                                 @foreach (var atividade in _dashboard.Agenda.Itens)
                                 {
-                                    <a class="agenda-mobile-item" href="@($"/agendamentos/{atividade.Id}")">
+                                    <a class="agenda-mobile-item" href="@($"/agenda/{atividade.Id}")">
                                         <div class="agenda-mobile-time">@atividade.InicioLocal.ToString("HH:mm")</div>
                                         <div class="agenda-mobile-main"><strong>@atividade.ClienteNome</strong><span>@atividade.VeiculoDescricao · @(atividade.ItemPrincipal ?? "Sem item informado")</span><span class="status-badge @ClasseStatus(atividade.Status)">@NomeStatus(atividade.Status)</span></div>
                                         <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />

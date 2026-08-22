@@ -48,6 +48,11 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     {
         await using var c = Contexto(_empresaA, _usuarioA);
         var criado = await CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, _servicoA, 160m, _agendamentoA), default);
+        Assert.Equal(_clienteA, criado.Orcamento.ClienteId);
+        Assert.Equal("João da Silva", criado.Orcamento.ClienteNome);
+        Assert.Equal(_veiculoA, criado.Orcamento.VeiculoId);
+        Assert.Equal("Honda Civic", criado.Orcamento.VeiculoDescricao);
+        Assert.Equal(_agendamentoA, criado.Orcamento.AgendamentoOrigemId);
         Assert.Equal(160m, criado.Orcamento.Itens.Single().ValorUnitario);
         Assert.Equal(100m, (await c.Servicos.SingleAsync(x => x.Id == _servicoA)).PrecoBase);
         Assert.Equal(100m, (await c.AgendamentosItens.SingleAsync(x => x.AgendamentoId == _agendamentoA)).PrecoReferenciaSnapshot);

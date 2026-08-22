@@ -4,6 +4,7 @@
 @inject OrcamentosServico OrcamentosApi
 @inject OrdensServicoServico OrdensApi
 @inject IMensagemServico Mensagens
+@inject IDialogService Dialogs
 @inject AuthenticationStateProvider AuthenticationState
 @inject IAuthorizationService Authorization
 
@@ -16,11 +17,6 @@ else
     <CabecalhoPagina Titulo="@_agendamento.ClienteNome" Descricao="@($"{_agendamento.VeiculoDescricao} · {_agendamento.VeiculoPlaca}")" Sobretitulo="AGENDAMENTO">
         <Acoes><span class="status-badge @ClasseStatus(_agendamento.Status)">@NomeStatus(_agendamento.Status)</span>@if (_ordem is not null) { <MudButton Href="@($"/ordens-servico/{_ordem.Id}")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck">Ver OS @_ordem.Codigo</MudButton> } else if (_podeVisualizarOrdem && PermiteCriarOrdem(_agendamento.Status)) { <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="@($"/ordens-servico/nova?agendamentoId={Id}")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck">Criar ordem de serviço</MudButton></Authorized></AuthorizeView> }@if (_ordem is null && PermiteCriarOrdem(_agendamento.Status)) { <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="@($"/orcamentos/novo?agendamentoId={Id}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RequestQuote">Criar orçamento</MudButton></Authorized></AuthorizeView> }<AuthorizeView Policy="@Permissoes.AgendaEditar"><Authorized>@if (EhEditavel(_agendamento.Status) && _ordem is null) { <MudButton Href="@($"/agenda/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Href="@($"/agenda/{Id}/reagendar")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.EventRepeat">Reagendar</MudButton> }</Authorized></AuthorizeView></Acoes>
     </CabecalhoPagina>
-
-    @if (_statusPendente.HasValue)
-    {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip agenda-status-confirmation"><div><strong>Confirmar: @NomeStatus(_statusPendente.Value)?</strong><span>Esta ação respeita o workflow e estados finais não poderão ser editados.</span></div>@if (_statusPendente == StatusAgendamentoContrato.Cancelado) { <MudTextField T="string" @bind-Value="_motivoCancelamento" Label="Motivo do cancelamento (opcional)" Variant="Variant.Outlined" /> }<div><MudButton Variant="Variant.Text" OnClick="CancelarAcao">Voltar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert>
-    }
 
     <section class="appointment-hero module-panel">
         <div><span class="section-eyebrow">INÍCIO LOCAL</span><strong>@_agendamento.InicioLocal.ToString("dd/MM/yyyy 'às' HH:mm")</strong><span>@_agendamento.FusoHorario</span></div>
@@ -56,9 +52,9 @@ else
         @if (!EhFinal(_agendamento.Status))
         {
             <section class="appointment-actions module-panel"><div><span class="section-eyebrow">PRÓXIMA AÇÃO</span><h2>Atualizar etapa operacional</h2></div><div class="appointment-action-buttons">
-                @if (_agendamento.Status == StatusAgendamentoContrato.Agendado) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.Confirmado))">Confirmar</MudButton> }
-                @if (_agendamento.Status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado && _ordem is null) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DirectionsCar" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.Compareceu))">Registrar chegada</MudButton><MudButton Variant="Variant.Text" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.NaoCompareceu))">Não compareceu</MudButton> }
-                @if (_ordem is null || _ordem.Status == StatusOrdemServicoContrato.Cancelada) { <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarStatus(StatusAgendamentoContrato.Cancelado))">Cancelar agendamento</MudButton> }
+                @if (_agendamento.Status == StatusAgendamentoContrato.Agendado) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.Confirmado))">Confirmar</MudButton> }
+                @if (_agendamento.Status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado && _ordem is null) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DirectionsCar" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.Compareceu))">Registrar chegada</MudButton><MudButton Variant="Variant.Text" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.NaoCompareceu))">Não compareceu</MudButton> }
+                @if (_ordem is null || _ordem.Status == StatusOrdemServicoContrato.Cancelada) { <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.Cancelado))">Cancelar agendamento</MudButton> }
             </div></section>
         }
     </Authorized></AuthorizeView>
@@ -68,7 +64,7 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    private AgendamentoDetalheResponse? _agendamento; private OrdemServicoAgendamentoResponse? _ordem; private IReadOnlyCollection<ReferenciaOrcamentoResponse> _orcamentos = []; private bool _carregando = true; private bool _podeVisualizarOrdem; private StatusAgendamentoContrato? _statusPendente; private string? _motivoCancelamento;
+    private AgendamentoDetalheResponse? _agendamento; private OrdemServicoAgendamentoResponse? _ordem; private IReadOnlyCollection<ReferenciaOrcamentoResponse> _orcamentos = []; private bool _carregando = true; private bool _podeVisualizarOrdem;
     protected override async Task OnParametersSetAsync()
     {
         _carregando = true; var resultado = await AgendaApi.ObterAsync(Id); _agendamento = resultado.Resultado;
@@ -84,9 +80,35 @@ else
         }
         _carregando = false;
     }
-    private void SolicitarStatus(StatusAgendamentoContrato status) { _statusPendente = status; _motivoCancelamento = null; }
-    private void CancelarAcao() { _statusPendente = null; _motivoCancelamento = null; }
-    private async Task ConfirmarStatusAsync() { if (!_statusPendente.HasValue) return; var resultado = await AgendaApi.AlterarStatusAsync(Id, new(_statusPendente.Value, _motivoCancelamento)); Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); _statusPendente = null; if (resultado.Sucesso) await OnParametersSetAsync(); }
+    private async Task SolicitarStatusAsync(StatusAgendamentoContrato destino)
+    {
+        if (_agendamento is null) return;
+        var parametros = new DialogParameters<ConfirmacaoAgendamentoDialog>
+        {
+            { componente => componente.AgendamentoId, Id },
+            { componente => componente.Destino, destino },
+            { componente => componente.ClienteNome, _agendamento.ClienteNome },
+            { componente => componente.VeiculoDescricao, $"{_agendamento.VeiculoDescricao} · {_agendamento.VeiculoPlaca}" }
+        };
+        var dialogo = await Dialogs.ShowAsync<ConfirmacaoAgendamentoDialog>(
+            "Confirmar ação do agendamento",
+            parametros,
+            new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true,
+                CloseButton = false,
+                BackdropClick = false,
+                CloseOnEscapeKey = false
+            });
+        var resultadoDialogo = await dialogo.Result;
+        if (resultadoDialogo is null || resultadoDialogo.Canceled ||
+            resultadoDialogo.Data is not ResultadoServico<AgendamentoDetalheResponse> resultado)
+            return;
+
+        Mensagens.Mostrar(resultado.Mensagem);
+        await OnParametersSetAsync();
+    }
     private static bool EhEditavel(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado;
     private static bool EhFinal(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Concluido or StatusAgendamentoContrato.Cancelado or StatusAgendamentoContrato.NaoCompareceu;
     private static bool PermiteCriarOrdem(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado or StatusAgendamentoContrato.Compareceu;
