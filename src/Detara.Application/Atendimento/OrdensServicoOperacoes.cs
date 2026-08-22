@@ -209,11 +209,28 @@ internal abstract class TransicaoOrdemServicoHandlerBase(IUsuarioContexto usuari
     }
 }
 internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
-    IPlataformaAtendimentoConsulta plataforma) : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
+    IPlataformaAtendimentoConsulta plataforma, IConfiguracoesOperacionaisRepositorio configuracoes)
+    : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
     IRequestHandler<TransicaoOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
-    public Task<OrdemServicoDetalheVisualizacao> Handle(TransicaoOrdemServicoCommand request, CancellationToken ct) =>
-        Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.IniciarExecucao(usuarioId, obs), ct);
+    public async Task<OrdemServicoDetalheVisualizacao> Handle(
+        TransicaoOrdemServicoCommand request,
+        CancellationToken ct)
+    {
+        var configuracao = await configuracoes.ObterConfiguracaoAsync(false, ct);
+        var checkInObrigatorio = configuracao is null ||
+            configuracao.ChecklistEntrada == NivelExigenciaOperacional.Obrigatorio ||
+            configuracao.FotosEntrada == NivelExigenciaOperacional.Obrigatorio ||
+            configuracao.FotosSaida == NivelExigenciaOperacional.Obrigatorio;
+        return await Executar(
+            request.Id,
+            request.Observacao,
+            (ordem, usuarioId, observacao) => ordem.IniciarExecucao(
+                usuarioId,
+                observacao,
+                checkInObrigatorio),
+            ct);
+    }
 }
 internal sealed class FinalizarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
     IPlataformaAtendimentoConsulta plataforma, IIntegracaoFinanceiroOrdensServico financeiro,

@@ -175,10 +175,14 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         return foto;
     }
 
-    public void IniciarExecucao(Guid usuarioId, string? observacao)
+    public void IniciarExecucao(
+        Guid usuarioId,
+        string? observacao,
+        bool checkInObrigatorio = true)
     {
         ExigirStatus(StatusOrdemServico.Aberta);
-        if (!CheckInEmUtc.HasValue) throw new InvalidOperationException("Realize o check-in antes de iniciar a execução.");
+        if (!CheckInEmUtc.HasValue && checkInObrigatorio)
+            throw new InvalidOperationException("Realize o check-in antes de iniciar a execução.");
         if (ChecklistEntradaSnapshot == NivelExigenciaOperacional.Obrigatorio && Checklist is { EstaCompleto: false })
             throw new InvalidOperationException("Responda todos os itens obrigatórios do checklist antes de iniciar.");
         if (FotosEntradaSnapshot == NivelExigenciaOperacional.Obrigatorio && !_fotos.Any(foto => foto.Categoria == CategoriaFotoOrdemServico.Entrada))

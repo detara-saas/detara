@@ -87,7 +87,7 @@ public sealed class ConfiguracoesOperacionaisPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DesabilitarChecklist_PreservaModeloEItens()
+    public async Task DesabilitarChecklist_PreservaHistoricoENaoAplicaEmNovaOperacao_EReativarDisponibiliza()
     {
         await using var context = Contexto(_empresaA);
         await AtualizarChecklist(context).Handle(
@@ -103,6 +103,20 @@ public sealed class ConfiguracoesOperacionaisPersistenciaTests : IAsyncLifetime
                 NivelExigenciaOperacional.Desabilitado,
                 NivelExigenciaOperacional.Desabilitado),
             default);
+        var usuarioId = Guid.NewGuid();
+        var ordemHistorica = CriarOrdem(usuarioId);
+        ordemHistorica.RealizarCheckIn(
+            new(
+                NivelExigenciaOperacional.Obrigatorio,
+                NivelExigenciaOperacional.Desabilitado,
+                NivelExigenciaOperacional.Desabilitado,
+                ChecklistModelo.NomePadrao,
+                ["Riscos aparentes", "Rodas danificadas"]),
+            null,
+            null,
+            usuarioId);
+        context.OrdensServico.Add(ordemHistorica);
+        await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
         await AtualizarConfiguracao(context).Handle(
             new AtualizarConfiguracaoOperacionalCommand(
@@ -114,6 +128,48 @@ public sealed class ConfiguracoesOperacionaisPersistenciaTests : IAsyncLifetime
         Assert.Equal(2, await context.ChecklistModeloItens.CountAsync());
         Assert.Equal(
             NivelExigenciaOperacional.Desabilitado,
+            (await context.ConfiguracoesOperacionaisAtendimento.SingleAsync()).ChecklistEntrada);
+        var historico = await context.OrdensServico
+            .Include(item => item.Checklist)
+            .ThenInclude(item => item!.Itens)
+            .SingleAsync(item => item.Id == ordemHistorica.Id);
+        Assert.Equal(2, historico.Checklist?.Itens.Count);
+
+        var ordemSemChecklist = CriarOrdem(usuarioId);
+        ordemSemChecklist.RealizarCheckIn(
+            new(
+                NivelExigenciaOperacional.Desabilitado,
+                NivelExigenciaOperacional.Desabilitado,
+                NivelExigenciaOperacional.Desabilitado,
+                ChecklistModelo.NomePadrao,
+                ["Riscos aparentes", "Rodas danificadas"]),
+            null,
+            null,
+            usuarioId);
+        Assert.Null(ordemSemChecklist.Checklist);
+
+        context.ChangeTracker.Clear();
+        await AtualizarConfiguracao(context).Handle(
+            new AtualizarConfiguracaoOperacionalCommand(
+                NivelExigenciaOperacional.Opcional,
+                NivelExigenciaOperacional.Desabilitado,
+                NivelExigenciaOperacional.Desabilitado),
+            default);
+        var ordemReativada = CriarOrdem(usuarioId);
+        ordemReativada.RealizarCheckIn(
+            new(
+                NivelExigenciaOperacional.Opcional,
+                NivelExigenciaOperacional.Desabilitado,
+                NivelExigenciaOperacional.Desabilitado,
+                ChecklistModelo.NomePadrao,
+                ["Riscos aparentes", "Rodas danificadas"]),
+            null,
+            null,
+            usuarioId);
+
+        Assert.NotNull(ordemReativada.Checklist);
+        Assert.Equal(
+            NivelExigenciaOperacional.Opcional,
             (await context.ConfiguracoesOperacionaisAtendimento.SingleAsync()).ChecklistEntrada);
     }
 
@@ -207,6 +263,40 @@ public sealed class ConfiguracoesOperacionaisPersistenciaTests : IAsyncLifetime
             ["Item B"]));
         await contextB.SaveChangesAsync();
     }
+
+    private OrdemServico CriarOrdem(Guid usuarioId) => new(
+        _empresaA,
+        2026,
+        new(
+            Guid.NewGuid(),
+            "Cliente teste",
+            null,
+            null,
+            Guid.NewGuid(),
+            "Honda Civic",
+            "ABC1D23"),
+        OrigemOrdemServico.AtendimentoDireto,
+        null,
+        null,
+        60,
+        0,
+        0,
+        [new(
+            TipoItemOrcamento.Personalizado,
+            null,
+            null,
+            null,
+            "Serviço teste",
+            null,
+            100,
+            1,
+            1,
+            OrigemComercialOrdemServico.AcordoDireto,
+            DateTime.UtcNow,
+            usuarioId,
+            null)],
+        usuarioId,
+        DateTime.UtcNow);
 
     private AtualizarConfiguracaoOperacionalHandler AtualizarConfiguracao(DetaraDbContext context) =>
         new(new UsuarioContextoTeste(_empresaA), new ConfiguracoesOperacionaisRepositorio(context));

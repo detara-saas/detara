@@ -91,6 +91,61 @@ public sealed class OrdemServicoTests
     }
 
     [Fact]
+    public void CheckInObrigatorio_SemCheckIn_BloqueiaInicio()
+    {
+        var ordem = Criar();
+
+        var excecao = Assert.Throws<InvalidOperationException>(() =>
+            ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: true));
+
+        Assert.Equal("Realize o check-in antes de iniciar a execução.", excecao.Message);
+    }
+
+    [Fact]
+    public void CheckInObrigatorio_ComCheckIn_PermiteInicio()
+    {
+        var ordem = Criar();
+        ordem.RealizarCheckIn(new(
+            NivelExigenciaOperacional.Desabilitado,
+            NivelExigenciaOperacional.Desabilitado,
+            NivelExigenciaOperacional.Desabilitado,
+            null,
+            []), null, null, _usuarioId);
+
+        ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: true);
+
+        Assert.Equal(StatusOrdemServico.EmExecucao, ordem.Status);
+    }
+
+    [Fact]
+    public void CheckInOpcional_SemCheckIn_PermiteInicio()
+    {
+        var ordem = Criar();
+
+        ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: false);
+
+        Assert.Equal(StatusOrdemServico.EmExecucao, ordem.Status);
+        Assert.Null(ordem.CheckInEmUtc);
+    }
+
+    [Fact]
+    public void CheckInOpcional_ComCheckIn_PermiteInicio()
+    {
+        var ordem = Criar();
+        ordem.RealizarCheckIn(new(
+            NivelExigenciaOperacional.Opcional,
+            NivelExigenciaOperacional.Opcional,
+            NivelExigenciaOperacional.Opcional,
+            "Entrada",
+            ["Pintura"]), null, null, _usuarioId);
+
+        ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: false);
+
+        Assert.Equal(StatusOrdemServico.EmExecucao, ordem.Status);
+        Assert.NotNull(ordem.CheckInEmUtc);
+    }
+
+    [Fact]
     public void FotoComCategoriaInvalida_EhRejeitadaAntesDoArmazenamento()
     {
         var ordem = Criar();
