@@ -61,6 +61,30 @@ else
                 <span class="settings-count">@_itens.Count item(ns)</span>
             </div>
 
+            <div class="checklist-status-management">
+                <div>
+                    <span class="status-badge @(ChecklistAtivo ? "status-running" : "status-neutral")">
+                        @(ChecklistAtivo ? "Ativo" : "Inativo")
+                    </span>
+                    <p>@(ChecklistAtivo
+                        ? "Este modelo pode compor o check-in das novas Ordens de Serviço conforme o nível configurado."
+                        : "Este modelo permanece salvo, mas não será aplicado às novas Ordens de Serviço.")</p>
+                </div>
+                <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar">
+                    <Authorized>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="@(ChecklistAtivo ? Color.Warning : Color.Primary)"
+                                   StartIcon="@(ChecklistAtivo ? Icons.Material.Outlined.PauseCircle : Icons.Material.Outlined.PlayCircle)"
+                                   Disabled="@(_alterandoStatusChecklist || (!ChecklistAtivo && _itens.Count == 0))"
+                                   OnClick="@(() => AlterarStatusChecklistAsync(!ChecklistAtivo))">
+                            @(_alterandoStatusChecklist
+                                ? "Atualizando..."
+                                : ChecklistAtivo ? "Inativar checklist" : "Reativar checklist")
+                        </MudButton>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+
             <div class="settings-fields">
                 <MudTextField T="string" @bind-Value="_nomeChecklist" Label="Nome do checklist" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="120" />
                 <MudTextField T="string" @bind-Value="_descricaoChecklist" Label="Descrição (opcional)" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="500" Lines="2" />
@@ -201,6 +225,7 @@ else
     private bool _podeEditar;
     private bool _salvandoOperacao;
     private bool _salvandoChecklist;
+    private bool _alterandoStatusChecklist;
     private ConfiguracaoNotificacaoResponse? _configuracaoNotificacao;
     private TemplateEmailResponse? _templateEmail;
     private bool _envioAutomatico;
@@ -215,6 +240,7 @@ else
     private bool _gerandoPreview;
     private bool _enviandoTeste;
     private readonly string[] _variaveisEmail = ["{{EmpresaNome}}", "{{ClienteNome}}", "{{ClientePrimeiroNome}}", "{{VeiculoDescricao}}", "{{Placa}}", "{{OrdemServicoCodigo}}"];
+    private bool ChecklistAtivo => _configuracao?.ChecklistEntrada != NivelExigenciaOperacionalContrato.Desabilitado;
 
     protected override async Task OnInitializedAsync()
     {
@@ -287,6 +313,43 @@ else
 
         Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
         _salvandoChecklist = false;
+    }
+
+    private async Task AlterarStatusChecklistAsync(bool ativar)
+    {
+        if (ativar && _itens.Count == 0)
+        {
+            Mensagens.Mostrar("Adicione ao menos um item antes de reativar o checklist.", true);
+            return;
+        }
+
+        var confirmar = await Dialogs.ShowMessageBoxAsync(
+            ativar ? "Reativar checklist?" : "Inativar checklist?",
+            ativar
+                ? "O modelo voltará a ficar disponível para novos check-ins como etapa opcional."
+                : "Futuras Ordens de Serviço deixarão de usar este checklist. Checklists já registrados e seu histórico não serão removidos.",
+            yesText: ativar ? "Reativar checklist" : "Inativar checklist",
+            cancelText: "Cancelar");
+        if (confirmar != true)
+        {
+            return;
+        }
+
+        _alterandoStatusChecklist = true;
+        var resultado = await ConfiguracoesApi.AtualizarOperacaoAsync(
+            new AtualizarConfiguracaoOperacionalRequest(
+                ativar
+                    ? NivelExigenciaOperacionalContrato.Opcional
+                    : NivelExigenciaOperacionalContrato.Desabilitado,
+                _fotosEntrada,
+                _fotosSaida));
+        if (resultado.Sucesso && resultado.Resultado is not null)
+        {
+            Aplicar(resultado.Resultado);
+        }
+
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        _alterandoStatusChecklist = false;
     }
 
     private void AdicionarItem() => _itens.Add(new ItemChecklistEdicao(string.Empty));
