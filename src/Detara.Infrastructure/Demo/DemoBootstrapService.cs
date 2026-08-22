@@ -5,6 +5,7 @@ using Detara.Application.Atendimento;
 using Detara.Application.Catalogo;
 using Detara.Application.Clientes;
 using Detara.Application.Financeiro;
+using Detara.Application.FluxoOperacional;
 using Detara.Application.Notificacoes;
 using Detara.Application.Onboarding;
 using Detara.Application.Veiculos;
@@ -436,24 +437,21 @@ public sealed class DemoBootstrapService(
         agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[3], servicos["Higienização Interna"], hoje, 9, cancellationToken));
         agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[2], servicos["Lavagem Técnica"], hoje, 15, cancellationToken));
         agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[4], servicos["Vitrificação de Pintura"], hoje.AddDays(1), 9, cancellationToken));
-        agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[5], servicos["Polimento Comercial"], hoje.AddDays(2), 13, cancellationToken));
+        agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[5], servicos["Polimento Comercial"], hoje.AddDays(-1), 13, cancellationToken));
         agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[6], servicos["Descontaminação de Pintura"], hoje.AddDays(4), 10, cancellationToken));
         agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[7], servicos["Proteção de Plásticos"], hoje.AddDays(-1), 16, cancellationToken));
 
-        await AlterarStatusAgendaAsync(sender, agendamentos[0], StatusAgendamento.Compareceu, cancellationToken);
-        await AlterarStatusAgendaAsync(sender, agendamentos[0], StatusAgendamento.Concluido, cancellationToken);
-        await AlterarStatusAgendaAsync(sender, agendamentos[1], StatusAgendamento.Compareceu, cancellationToken);
         await AlterarStatusAgendaAsync(sender, agendamentos[2], StatusAgendamento.Confirmado, cancellationToken);
         await AlterarStatusAgendaAsync(sender, agendamentos[3], StatusAgendamento.Confirmado, cancellationToken);
-        await sender.Send(new AlterarStatusAgendamentoCommand(
+        await sender.Send(new AlterarStatusAgendaOperacionalCommand(
             agendamentos[6].Agendamento.Id,
             StatusAgendamento.Cancelado,
             "Cancelamento sintético para demonstrar histórico."), cancellationToken);
 
         _ = await CriarOrcamentoAsync(sender, clientes[1], servicos["Higienização Interna"], hoje, "rascunho", cancellationToken);
-        var aprovadoVitrificacao = await CriarOrcamentoAsync(sender, clientes[4], servicos["Vitrificação de Pintura"], hoje, "aprovado", cancellationToken);
+        var aprovadoVitrificacao = await CriarOrcamentoAsync(sender, clientes[4], servicos["Vitrificação de Pintura"], hoje, "aprovado", cancellationToken, agendamentos[3].Agendamento.Id);
         _ = await CriarOrcamentoAsync(sender, clientes[5], servicos["Polimento Comercial"], hoje, "recusado", cancellationToken);
-        var aprovadoLavagem = await CriarOrcamentoAsync(sender, clientes[0], servicos["Lavagem Detalhada"], hoje, "aprovado", cancellationToken);
+        var aprovadoLavagem = await CriarOrcamentoAsync(sender, clientes[0], servicos["Lavagem Detalhada"], hoje, "aprovado", cancellationToken, agendamentos[0].Agendamento.Id);
 
         var osExecucao = await sender.Send(new CriarOrdemServicoCommand(
             null,
@@ -484,7 +482,7 @@ public sealed class DemoBootstrapService(
 
         var osMista = await sender.Send(new CriarOrdemServicoCommand(
             aprovadoVitrificacao.Orcamento.Id,
-            null,
+            agendamentos[3].Agendamento.Id,
             null,
             null,
             null,
@@ -516,7 +514,7 @@ public sealed class DemoBootstrapService(
 
         var osConcluida = await sender.Send(new CriarOrdemServicoCommand(
             aprovadoLavagem.Orcamento.Id,
-            null,
+            agendamentos[0].Agendamento.Id,
             null,
             null,
             null,
@@ -543,7 +541,7 @@ public sealed class DemoBootstrapService(
 
         var osPendente = await sender.Send(new CriarOrdemServicoCommand(
             null,
-            null,
+            agendamentos[4].Agendamento.Id,
             clientes[5].Cliente.Id,
             clientes[5].Veiculo.Id,
             360,
@@ -579,7 +577,7 @@ public sealed class DemoBootstrapService(
         AgendamentoDetalheVisualizacao agendamento,
         StatusAgendamento status,
         CancellationToken cancellationToken) =>
-        sender.Send(new AlterarStatusAgendamentoCommand(
+        sender.Send(new AlterarStatusAgendaOperacionalCommand(
             agendamento.Agendamento.Id,
             status,
             null), cancellationToken);
@@ -590,12 +588,13 @@ public sealed class DemoBootstrapService(
         ServicoDetalheResultado servico,
         DateOnly hoje,
         string estado,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? agendamentoId = null)
     {
         var orcamento = await sender.Send(new CriarOrcamentoCommand(
             cliente.Cliente.Id,
             cliente.Veiculo.Id,
-            null,
+            agendamentoId,
             hoje.AddDays(7),
             "Proposta sintética para apresentação.",
             "Criada pelo Demo Bootstrap local.",
@@ -698,7 +697,7 @@ public sealed class DemoBootstrapService(
         services.AddSingleton<IOrdensServicoRepositorio, OrdensServicoRepositorio>();
         services.AddSingleton<IClientesAtendimentoConsulta, ClientesAtendimentoConsulta>();
         services.AddSingleton<ICatalogoAtendimentoConsulta, CatalogoAtendimentoConsulta>();
-        services.AddSingleton<IAgendaAtendimentoConsulta, AgendaAtendimentoConsulta>();
+        services.AddSingleton<IAgendaAtendimentoIntegracao, AgendaAtendimentoIntegracao>();
         services.AddSingleton<IPlataformaAtendimentoConsulta, PlataformaAtendimentoConsulta>();
         services.AddSingleton<IConfiguracoesOperacionaisRepositorio, ConfiguracoesOperacionaisRepositorio>();
         services.AddSingleton<IFinanceiroRepositorio, FinanceiroRepositorio>();

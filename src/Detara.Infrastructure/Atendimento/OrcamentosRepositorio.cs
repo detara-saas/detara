@@ -59,6 +59,7 @@ internal sealed class OrcamentosRepositorio(DetaraDbContext db) : IOrcamentosRep
             VeiculoDescricao = x.VeiculoDescricaoSnapshot,
             VeiculoPlaca = x.VeiculoPlacaSnapshot,
             x.AgendamentoOrigemId,
+            x.AgendamentoId,
             x.OrcamentoOrigemId,
             x.OrdemServicoOrigemId,
             x.Status,
@@ -89,7 +90,7 @@ internal sealed class OrcamentosRepositorio(DetaraDbContext db) : IOrcamentosRep
         var substituto = await db.Orcamentos.AsNoTracking().Where(x => x.OrcamentoOrigemId == dado.Id && x.Status != StatusOrcamento.Rascunho)
             .OrderByDescending(x => x.EmitidoEmUtc).Select(x => new ReferenciaOrcamentoResultado(x.Id, x.Codigo, x.Status, x.ValidoAte)).FirstOrDefaultAsync(ct);
         return new(dado.Id, dado.Codigo, dado.ClienteId, dado.ClienteNome, dado.ClienteDocumento, dado.ClienteTelefone,
-            dado.VeiculoId, dado.VeiculoDescricao, dado.VeiculoPlaca, dado.AgendamentoOrigemId, dado.OrcamentoOrigemId,
+            dado.VeiculoId, dado.VeiculoDescricao, dado.VeiculoPlaca, dado.AgendamentoOrigemId, dado.AgendamentoId, dado.OrcamentoOrigemId,
             dado.OrdemServicoOrigemId, ordemServicoId, dado.Status, dado.ValidoAte, dado.ObservacaoCliente, dado.ObservacaoInterna, dado.Condicoes, dado.Desconto,
             dado.Acrescimo, dado.CriadoEmUtc, dado.AtualizadoEmUtc, dado.EmitidoEmUtc, dado.AprovadoEmUtc, dado.RecusadoEmUtc,
             dado.CanceladoEmUtc, dado.SubstituidoEmUtc, dado.AprovadoPorUsuarioId, dado.Itens, dado.Historico, origem, substituto);
@@ -97,6 +98,11 @@ internal sealed class OrcamentosRepositorio(DetaraDbContext db) : IOrcamentosRep
 
     public Task<Orcamento?> ObterParaAlteracaoAsync(Guid id, CancellationToken ct) => db.Orcamentos.Include(x => x.Itens)
         .Include(x => x.Historico).SingleOrDefaultAsync(x => x.Id == id, ct);
+    public async Task<IReadOnlyCollection<ReferenciaOrcamentoResultado>> ListarPorAgendamentoAsync(Guid agendamentoId, CancellationToken ct) =>
+        await db.Orcamentos.AsNoTracking().Where(x => x.AgendamentoId == agendamentoId && !x.OrdemServicoOrigemId.HasValue)
+            .OrderByDescending(x => x.CriadoEmUtc)
+            .Select(x => new ReferenciaOrcamentoResultado(x.Id, x.Codigo, x.Status, x.ValidoAte))
+            .ToArrayAsync(ct);
     public void Adicionar(Orcamento orcamento) => db.Orcamentos.Add(orcamento);
     public void RemoverItensAtuais(Orcamento orcamento) => db.OrcamentosItens.RemoveRange(orcamento.Itens);
     public void AdicionarItensAtuais(Orcamento orcamento) => db.OrcamentosItens.AddRange(orcamento.Itens);

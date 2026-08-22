@@ -35,7 +35,7 @@ internal sealed class OrdemServicoConfiguracao : IEntityTypeConfiguration<OrdemS
         builder.HasIndex(item => new { item.EmpresaId, item.ClienteId });
         builder.HasIndex(item => new { item.EmpresaId, item.VeiculoId });
         builder.HasIndex(item => new { item.EmpresaId, item.OrcamentoOrigemId }).IsUnique().HasFilter("[OrcamentoOrigemId] IS NOT NULL");
-        builder.HasIndex(item => new { item.EmpresaId, item.AgendamentoOrigemId }).HasFilter("[AgendamentoOrigemId] IS NOT NULL");
+        builder.HasIndex(item => new { item.EmpresaId, item.AgendamentoOrigemId }).IsUnique().HasFilter("[AgendamentoOrigemId] IS NOT NULL");
         builder.HasMany(item => item.Itens).WithOne(item => item.OrdemServico)
             .HasForeignKey(item => new { item.EmpresaId, item.OrdemServicoId })
             .HasPrincipalKey(item => new { item.EmpresaId, item.Id }).OnDelete(DeleteBehavior.Cascade);

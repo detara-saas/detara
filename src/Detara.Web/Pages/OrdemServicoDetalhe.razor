@@ -15,7 +15,7 @@ else
     <div class="page-container page-container-wide service-order-detail-page">
         <div class="service-order-detail-header">
             <CabecalhoPagina Titulo="@_ordem.Codigo" Descricao="@($"{_ordem.ClienteNome} · {_ordem.VeiculoDescricao} · {_ordem.VeiculoPlaca}")" Sobretitulo="ORDEM DE SERVIÇO">
-                <Acoes><span class="status-badge @ClasseStatus(_ordem.Status)">@NomeStatus(_ordem.Status)</span>@if (_contaReceberId.HasValue) { <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar"><Authorized><MudButton Href="@($"/financeiro/contas-receber/{_contaReceberId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.AccountBalanceWallet">Ver conta a receber</MudButton></Authorized></AuthorizeView> }</Acoes>
+                <Acoes><span class="status-badge @ClasseStatus(_ordem.Status)">@NomeStatus(_ordem.Status)</span>@if (_ordem.AgendamentoOrigemId.HasValue) { <AuthorizeView Policy="@Permissoes.AgendaVisualizar"><Authorized><MudButton Href="@($"/agenda/{_ordem.AgendamentoOrigemId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EventAvailable">Ver agendamento</MudButton></Authorized></AuthorizeView> }@if (_contaReceberId.HasValue) { <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar"><Authorized><MudButton Href="@($"/financeiro/contas-receber/{_contaReceberId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.AccountBalanceWallet">Ver conta a receber</MudButton></Authorized></AuthorizeView> }</Acoes>
             </CabecalhoPagina>
         </div>
 

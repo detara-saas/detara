@@ -19,6 +19,8 @@ public sealed record RecusarOrcamentoCommand(Guid Id, string? Observacao) : IReq
 public sealed record CancelarOrcamentoCommand(Guid Id, string? Observacao) : IRequest<OrcamentoDetalheVisualizacao>;
 public sealed record CriarNovaPropostaCommand(Guid Id) : IRequest<OrcamentoDetalheVisualizacao>;
 public sealed record ObterOrcamentoQuery(Guid Id) : IRequest<OrcamentoDetalheVisualizacao>;
+public sealed record ListarOrcamentosPorAgendamentoQuery(Guid AgendamentoId)
+    : IRequest<IReadOnlyCollection<ReferenciaOrcamentoResultado>>;
 public sealed record ListarOrcamentosQuery(int Pagina, int TamanhoPagina, StatusEfetivoOrcamento? Status, string? Pesquisa) : IRequest<PaginacaoResultado<OrcamentoListaVisualizacao>>;
 public sealed record BuscarClientesOrcamentoQuery(string Pesquisa, int Limite = 15) : IRequest<IReadOnlyCollection<ClienteAtendimentoInterno>>;
 public sealed record ListarVeiculosOrcamentoQuery(Guid ClienteId) : IRequest<IReadOnlyCollection<VeiculoAtendimentoInterno>>;
@@ -88,7 +90,7 @@ internal sealed class ListarOrcamentosValidator : AbstractValidator<ListarOrcame
 { public ListarOrcamentosValidator() { RuleFor(x => x.Pagina).GreaterThanOrEqualTo(1); RuleFor(x => x.TamanhoPagina).Must(x => x is 10 or 25 or 50); RuleFor(x => x.Pesquisa).MaximumLength(160); RuleFor(x => x.Status).IsInEnum().When(x => x.Status.HasValue); } }
 
 internal sealed class CriarOrcamentoHandler(IUsuarioContexto usuario, IClientesAtendimentoConsulta clientes, ICatalogoAtendimentoConsulta catalogo,
-    IAgendaAtendimentoConsulta agenda, IOrcamentosRepositorio repositorio) : IRequestHandler<CriarOrcamentoCommand, OrcamentoDetalheVisualizacao>
+    IAgendaAtendimentoIntegracao agenda, IOrcamentosRepositorio repositorio) : IRequestHandler<CriarOrcamentoCommand, OrcamentoDetalheVisualizacao>
 {
     public async Task<OrcamentoDetalheVisualizacao> Handle(CriarOrcamentoCommand request, CancellationToken ct)
     {
@@ -104,7 +106,7 @@ internal sealed class CriarOrcamentoHandler(IUsuarioContexto usuario, IClientesA
 }
 
 internal sealed class AtualizarOrcamentoHandler(IUsuarioContexto usuario, IClientesAtendimentoConsulta clientes, ICatalogoAtendimentoConsulta catalogo,
-    IAgendaAtendimentoConsulta agenda, IOrcamentosRepositorio repositorio) : IRequestHandler<AtualizarOrcamentoCommand, OrcamentoDetalheVisualizacao>
+    IAgendaAtendimentoIntegracao agenda, IOrcamentosRepositorio repositorio) : IRequestHandler<AtualizarOrcamentoCommand, OrcamentoDetalheVisualizacao>
 {
     public async Task<OrcamentoDetalheVisualizacao> Handle(AtualizarOrcamentoCommand request, CancellationToken ct)
     {
@@ -199,6 +201,8 @@ internal sealed class CriarNovaPropostaHandler(IUsuarioContexto usuario, IOrcame
         var nova = new Orcamento(usuario.EmpresaId, partes, anterior.AgendamentoOrigemId, anterior.Id, validade,
             anterior.ObservacaoCliente, anterior.ObservacaoInterna, anterior.Condicoes, anterior.Desconto, anterior.Acrescimo,
             anterior.CopiarItens(), usuario.UsuarioId);
+        if (anterior.AgendamentoId.HasValue && !nova.AgendamentoId.HasValue)
+            nova.VincularAgendamento(anterior.AgendamentoId.Value);
         repositorio.Adicionar(nova);
         await repositorio.SalvarAsync(ct);
         return await OrcamentoFluxo.ObterDetalheAsync(nova.Id, usuario.EmpresaId, repositorio, plataforma, ct);
@@ -208,6 +212,14 @@ internal sealed class CriarNovaPropostaHandler(IUsuarioContexto usuario, IOrcame
 internal sealed class ObterOrcamentoHandler(IUsuarioContexto usuario, IOrcamentosRepositorio repositorio, IPlataformaAtendimentoConsulta plataforma)
     : IRequestHandler<ObterOrcamentoQuery, OrcamentoDetalheVisualizacao>
 { public Task<OrcamentoDetalheVisualizacao> Handle(ObterOrcamentoQuery request, CancellationToken ct) => OrcamentoFluxo.ObterDetalheAsync(request.Id, usuario.EmpresaId, repositorio, plataforma, ct); }
+
+internal sealed class ListarOrcamentosPorAgendamentoHandler(IOrcamentosRepositorio repositorio)
+    : IRequestHandler<ListarOrcamentosPorAgendamentoQuery, IReadOnlyCollection<ReferenciaOrcamentoResultado>>
+{
+    public Task<IReadOnlyCollection<ReferenciaOrcamentoResultado>> Handle(
+        ListarOrcamentosPorAgendamentoQuery request, CancellationToken ct) =>
+        repositorio.ListarPorAgendamentoAsync(request.AgendamentoId, ct);
+}
 
 internal sealed class ListarOrcamentosHandler(IUsuarioContexto usuario, IOrcamentosRepositorio repositorio, IPlataformaAtendimentoConsulta plataforma)
     : IRequestHandler<ListarOrcamentosQuery, PaginacaoResultado<OrcamentoListaVisualizacao>>
@@ -227,7 +239,7 @@ internal sealed class ListarVeiculosOrcamentoHandler(IUsuarioContexto usuario, I
 { public Task<IReadOnlyCollection<VeiculoAtendimentoInterno>> Handle(ListarVeiculosOrcamentoQuery request, CancellationToken ct) => consulta.ListarVeiculosAsync(usuario.EmpresaId, request.ClienteId, ct); }
 internal sealed class BuscarCatalogoOrcamentoHandler(IUsuarioContexto usuario, ICatalogoAtendimentoConsulta consulta) : IRequestHandler<BuscarCatalogoOrcamentoQuery, IReadOnlyCollection<ItemCatalogoAtendimentoInterno>>
 { public Task<IReadOnlyCollection<ItemCatalogoAtendimentoInterno>> Handle(BuscarCatalogoOrcamentoQuery request, CancellationToken ct) => consulta.BuscarItensAsync(usuario.EmpresaId, request.Pesquisa, request.Limite, ct); }
-internal sealed class ObterOrigemAgendamentoOrcamentoHandler(IUsuarioContexto usuario, IAgendaAtendimentoConsulta agenda) : IRequestHandler<ObterOrigemAgendamentoOrcamentoQuery, AgendamentoAtendimentoInterno>
+internal sealed class ObterOrigemAgendamentoOrcamentoHandler(IUsuarioContexto usuario, IAgendaAtendimentoIntegracao agenda) : IRequestHandler<ObterOrigemAgendamentoOrcamentoQuery, AgendamentoAtendimentoInterno>
 { public async Task<AgendamentoAtendimentoInterno> Handle(ObterOrigemAgendamentoOrcamentoQuery request, CancellationToken ct) => await agenda.ObterAsync(usuario.EmpresaId, request.AgendamentoId, ct) ?? throw new RecursoNaoEncontradoException("Agendamento não encontrado."); }
 internal sealed class ObterContextoOrcamentoHandler(IUsuarioContexto usuario, IPlataformaAtendimentoConsulta plataforma) : IRequestHandler<ObterContextoOrcamentoQuery, ContextoOrcamentoVisualizacao>
 { public async Task<ContextoOrcamentoVisualizacao> Handle(ObterContextoOrcamentoQuery request, CancellationToken ct) { var empresa = await OrcamentoFluxo.ObterEmpresaAsync(plataforma, usuario.EmpresaId, ct); var hoje = OrcamentoFluxo.HojeLocal(empresa.FusoHorario); return new(hoje, hoje.AddDays(7)); } }
@@ -289,7 +301,7 @@ internal static class OrcamentoFluxo
         }).ToArray();
     }
 
-    public static async Task<AgendamentoAtendimentoInterno?> ObterOrigemAsync(IAgendaAtendimentoConsulta agenda, Guid empresaId, Guid? id, CancellationToken ct) =>
+    public static async Task<AgendamentoAtendimentoInterno?> ObterOrigemAsync(IAgendaAtendimentoIntegracao agenda, Guid empresaId, Guid? id, CancellationToken ct) =>
         id.HasValue ? await agenda.ObterAsync(empresaId, id.Value, ct) ?? throw new RecursoNaoEncontradoException("Agendamento de origem não encontrado.") : null;
     public static async Task<Orcamento> ObterEntidadeAsync(IOrcamentosRepositorio repositorio, Guid id, CancellationToken ct) => await repositorio.ObterParaAlteracaoAsync(id, ct) ?? throw new RecursoNaoEncontradoException("Orçamento não encontrado.");
     public static async Task<EmpresaAtendimentoInterno> ObterEmpresaAsync(IPlataformaAtendimentoConsulta plataforma, Guid empresaId, CancellationToken ct) => await plataforma.ObterEmpresaAsync(empresaId, ct) ?? throw new RecursoNaoEncontradoException("Empresa não encontrada.");

@@ -1,4 +1,5 @@
 using Detara.Application.Abstracoes;
+using Detara.Domain.Agenda;
 using Detara.Domain.Atendimento;
 using Detara.Application.Financeiro;
 using Detara.Application.Notificacoes;
@@ -15,6 +16,8 @@ public sealed record CriarOrdemServicoCommand(Guid? OrcamentoOrigemId, Guid? Age
 public sealed record ListarOrdensServicoQuery(int Pagina, int TamanhoPagina, StatusOrdemServico? Status,
     DateOnly? DataInicial, DateOnly? DataFinal, string? Pesquisa) : IRequest<PaginacaoResultado<OrdemServicoListaResultado>>;
 public sealed record ObterOrdemServicoQuery(Guid Id) : IRequest<OrdemServicoDetalheVisualizacao>;
+public sealed record ObterOrdemServicoPorAgendamentoQuery(Guid AgendamentoId)
+    : IRequest<OrdemServicoAgendamentoResultado?>;
 public sealed record RealizarCheckInCommand(Guid Id, int? QuilometragemEntrada, string? ObservacaoEntrada)
     : IRequest<OrdemServicoDetalheVisualizacao>;
 public sealed record AtualizarChecklistOrdemServicoCommand(Guid Id, IReadOnlyCollection<RespostaChecklistSnapshot> Respostas)
@@ -39,8 +42,8 @@ internal sealed class CriarOrdemServicoValidator : AbstractValidator<CriarOrdemS
 {
     public CriarOrdemServicoValidator()
     {
-        RuleFor(item => item).Must(item => !(item.OrcamentoOrigemId.HasValue && item.AgendamentoOrigemId.HasValue))
-            .WithMessage("Informe somente uma origem para a ordem de serviço.");
+        RuleFor(item => item.AgendamentoOrigemId).NotEmpty()
+            .WithMessage("Toda nova ordem de serviço deve estar vinculada a um agendamento.");
         RuleFor(item => item.Desconto).GreaterThanOrEqualTo(0);
         RuleFor(item => item.Acrescimo).GreaterThanOrEqualTo(0);
         RuleFor(item => item.ObservacaoAutorizacaoDireta).MaximumLength(1000);
@@ -81,13 +84,21 @@ internal sealed class ListarOrdensServicoValidator : AbstractValidator<ListarOrd
 
 internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
     IOrcamentosRepositorio orcamentos, IClientesAtendimentoConsulta clientes, ICatalogoAtendimentoConsulta catalogo,
-    IAgendaAtendimentoConsulta agenda, IPlataformaAtendimentoConsulta plataforma)
+    IAgendaAtendimentoIntegracao agenda, IPlataformaAtendimentoConsulta plataforma)
     : IRequestHandler<CriarOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
     public async Task<OrdemServicoDetalheVisualizacao> Handle(CriarOrdemServicoCommand request, CancellationToken ct)
     {
         var empresa = await OrcamentoFluxo.ObterEmpresaAsync(plataforma, usuario.EmpresaId, ct);
         var ano = OrcamentoFluxo.HojeLocal(empresa.FusoHorario).Year;
+        var agendamentoId = request.AgendamentoOrigemId
+            ?? throw new ConflitoRegraNegocioException("Toda nova ordem de serviço deve estar vinculada a um agendamento.");
+        var agendamento = await agenda.ObterAsync(usuario.EmpresaId, agendamentoId, ct)
+            ?? throw new RecursoNaoEncontradoException("Agendamento não encontrado.");
+        if (agendamento.Status is StatusAgendamento.Cancelado or StatusAgendamento.NaoCompareceu or StatusAgendamento.Concluido)
+            throw new ConflitoRegraNegocioException("O status deste agendamento não permite criar uma ordem de serviço.");
+        if (await ordens.ExistePorAgendamentoAsync(agendamentoId, ct))
+            throw new ConflitoRegraNegocioException("Já existe uma Ordem de Serviço vinculada a este agendamento.");
         OrdemServico entidade;
         if (request.OrcamentoOrigemId.HasValue)
         {
@@ -99,6 +110,10 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
                 throw new ConflitoRegraNegocioException("Um orçamento adicional não pode originar outra ordem de serviço.");
             if (await ordens.ExistePorOrcamentoAsync(orcamento.Id, ct))
                 throw new ConflitoRegraNegocioException("Este orçamento já possui uma ordem de serviço.");
+            if (orcamento.AgendamentoId != agendamentoId)
+                throw new ConflitoRegraNegocioException("O orçamento aprovado não pertence a este agendamento.");
+            if (orcamento.ClienteId != agendamento.ClienteId || orcamento.VeiculoId != agendamento.VeiculoId)
+                throw new ConflitoRegraNegocioException("Cliente e veículo do orçamento divergem do agendamento.");
             var partes = new PartesOrdemServicoSnapshot(orcamento.ClienteId, orcamento.ClienteNome,
                 orcamento.ClienteDocumento, orcamento.ClienteTelefone, orcamento.VeiculoId,
                 orcamento.VeiculoDescricao, orcamento.VeiculoPlaca);
@@ -109,19 +124,17 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
                 item.Quantidade, item.Ordem, OrigemComercialOrdemServico.Orcamento, autorizadoEm,
                 autorizadoPor, item.Observacao)).ToArray();
             entidade = new OrdemServico(usuario.EmpresaId, ano, partes, OrigemOrdemServico.Orcamento,
-                orcamento.Id, null, null, orcamento.Desconto, orcamento.Acrescimo, itens, usuario.UsuarioId);
+                orcamento.Id, agendamentoId, agendamento.DuracaoPlanejadaMinutos, orcamento.Desconto,
+                orcamento.Acrescimo, itens, usuario.UsuarioId);
         }
         else
         {
-            if (!request.ClienteId.HasValue || !request.VeiculoId.HasValue)
-                throw new ConflitoRegraNegocioException("Cliente e veículo devem ser informados.");
-            var agendamento = await OrcamentoFluxo.ObterOrigemAsync(agenda, usuario.EmpresaId, request.AgendamentoOrigemId, ct);
             var partesOrcamento = await OrcamentoFluxo.PrepararPartesAsync(clientes, usuario.EmpresaId,
-                request.ClienteId.Value, request.VeiculoId.Value, agendamento, ct);
+                agendamento.ClienteId, agendamento.VeiculoId, agendamento, ct);
             var itensOrcamento = await OrcamentoFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId,
                 request.Itens.Select(item => new ItemOrcamentoEntrada(item.TipoItem, item.ItemCatalogoId, item.Nome,
                     item.Descricao, item.ValorUnitarioAutorizado, item.Quantidade, item.ObservacaoAutorizacao)).ToArray(),
-                agendamento?.Itens, [], ct);
+                agendamento.Itens, [], ct);
             var agora = DateTime.UtcNow;
             var itens = itensOrcamento.Select(item => new ItemOrdemServicoSnapshot(item.TipoItem, item.ItemCatalogoId,
                 null, null, item.Nome, item.Descricao, item.ValorUnitario, item.Quantidade, item.Ordem,
@@ -130,8 +143,8 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
                 partesOrcamento.ClienteDocumento, partesOrcamento.ClienteTelefone, partesOrcamento.VeiculoId,
                 partesOrcamento.VeiculoDescricao, partesOrcamento.VeiculoPlaca);
             entidade = new OrdemServico(usuario.EmpresaId, ano, partes,
-                request.AgendamentoOrigemId.HasValue ? OrigemOrdemServico.Agendamento : OrigemOrdemServico.AtendimentoDireto,
-                null, request.AgendamentoOrigemId, request.DuracaoPlanejadaMinutos ?? agendamento?.DuracaoPlanejadaMinutos,
+                OrigemOrdemServico.Agendamento, null, agendamentoId,
+                request.DuracaoPlanejadaMinutos ?? agendamento.DuracaoPlanejadaMinutos,
                 request.Desconto, request.Acrescimo, itens, usuario.UsuarioId, agora,
                 request.ObservacaoAutorizacaoDireta);
         }
@@ -153,6 +166,12 @@ internal sealed class ObterOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
 {
     public Task<OrdemServicoDetalheVisualizacao> Handle(ObterOrdemServicoQuery request, CancellationToken ct) =>
         OrdemServicoFluxo.ObterDetalheAsync(request.Id, usuario.EmpresaId, repositorio, plataforma, ct);
+}
+internal sealed class ObterOrdemServicoPorAgendamentoHandler(IOrdensServicoRepositorio repositorio)
+    : IRequestHandler<ObterOrdemServicoPorAgendamentoQuery, OrdemServicoAgendamentoResultado?>
+{
+    public Task<OrdemServicoAgendamentoResultado?> Handle(ObterOrdemServicoPorAgendamentoQuery request,
+        CancellationToken ct) => repositorio.ObterPorAgendamentoAsync(request.AgendamentoId, ct);
 }
 
 internal sealed class RealizarCheckInHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
@@ -209,7 +228,8 @@ internal abstract class TransicaoOrdemServicoHandlerBase(IUsuarioContexto usuari
     }
 }
 internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
-    IPlataformaAtendimentoConsulta plataforma, IConfiguracoesOperacionaisRepositorio configuracoes)
+    IPlataformaAtendimentoConsulta plataforma, IConfiguracoesOperacionaisRepositorio configuracoes,
+    IAgendaAtendimentoIntegracao agenda)
     : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
     IRequestHandler<TransicaoOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
@@ -229,7 +249,12 @@ internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensSe
                 usuarioId,
                 observacao,
                 checkInObrigatorio),
-            ct);
+            ct,
+            async (ordem, token) =>
+            {
+                if (ordem.AgendamentoOrigemId.HasValue)
+                    await agenda.MarcarEmAtendimentoAsync(Usuario.EmpresaId, ordem.AgendamentoOrigemId.Value, token);
+            });
     }
 }
 internal sealed class FinalizarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
@@ -255,11 +280,17 @@ internal sealed class FinalizarExecucaoHandler(IUsuarioContexto usuario, IOrdens
 public sealed record FinalizarExecucaoOrdemServicoCommand(Guid Id, string? Observacao) : IRequest<OrdemServicoDetalheVisualizacao>;
 public sealed record ConcluirOrdemServicoCommand(Guid Id, string? Observacao) : IRequest<OrdemServicoDetalheVisualizacao>;
 internal sealed class ConcluirOrdemServicoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
-    IPlataformaAtendimentoConsulta plataforma) : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
+    IPlataformaAtendimentoConsulta plataforma, IAgendaAtendimentoIntegracao agenda)
+    : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
     IRequestHandler<ConcluirOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
     public Task<OrdemServicoDetalheVisualizacao> Handle(ConcluirOrdemServicoCommand request, CancellationToken ct) =>
-        Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.Concluir(usuarioId, obs), ct);
+        Executar(request.Id, request.Observacao, (ordem, usuarioId, obs) => ordem.Concluir(usuarioId, obs), ct,
+            async (ordem, token) =>
+            {
+                if (ordem.AgendamentoOrigemId.HasValue)
+                    await agenda.ConcluirAsync(Usuario.EmpresaId, ordem.AgendamentoOrigemId.Value, token);
+            });
 }
 internal sealed class CancelarOrdemServicoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
     IPlataformaAtendimentoConsulta plataforma) : IRequestHandler<CancelarOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
@@ -347,6 +378,8 @@ internal sealed class CriarOrcamentoAdicionalHandler(IUsuarioContexto usuario, I
         var adicional = new Orcamento(usuario.EmpresaId, partes, null, null, request.ValidoAte,
             request.ObservacaoCliente, request.ObservacaoInterna, request.Condicoes, request.Desconto,
             request.Acrescimo, itens, usuario.UsuarioId, ordem.Id);
+        if (ordem.AgendamentoOrigemId.HasValue)
+            adicional.VincularAgendamento(ordem.AgendamentoOrigemId.Value);
         orcamentos.Adicionar(adicional);
         await orcamentos.SalvarAsync(ct);
         return await OrcamentoFluxo.ObterDetalheAsync(adicional.Id, usuario.EmpresaId, orcamentos, plataforma, ct);

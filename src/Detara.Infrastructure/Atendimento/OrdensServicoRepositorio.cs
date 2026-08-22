@@ -49,6 +49,12 @@ internal sealed class OrdensServicoRepositorio(DetaraDbContext db) : IOrdensServ
 
     public Task<bool> ExistePorOrcamentoAsync(Guid orcamentoId, CancellationToken ct) =>
         db.OrdensServico.AnyAsync(item => item.OrcamentoOrigemId == orcamentoId, ct);
+    public Task<bool> ExistePorAgendamentoAsync(Guid agendamentoId, CancellationToken ct) =>
+        db.OrdensServico.AnyAsync(item => item.AgendamentoOrigemId == agendamentoId, ct);
+    public Task<OrdemServicoAgendamentoResultado?> ObterPorAgendamentoAsync(Guid agendamentoId, CancellationToken ct) =>
+        db.OrdensServico.AsNoTracking().Where(item => item.AgendamentoOrigemId == agendamentoId)
+            .Select(item => new OrdemServicoAgendamentoResultado(item.Id, item.Codigo, item.Status))
+            .SingleOrDefaultAsync(ct);
 
     public Task<OrdemServico?> ObterPorOrcamentoAdicionalAsync(Guid orcamentoId, CancellationToken ct) =>
         db.OrdensServico.Include(item => item.Itens).Include(item => item.Fotos).Include(item => item.Historico)

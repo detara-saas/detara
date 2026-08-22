@@ -1,4 +1,5 @@
 using Detara.Application.Atendimento;
+using Detara.Application.FluxoOperacional;
 using Detara.Contracts.Atendimento;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Catalogo;
@@ -67,6 +68,17 @@ public sealed class OrcamentosController(ISender sender) : ControllerBase
         return CreatedAtAction(nameof(Obter), new { id = resultado.Orcamento.Id }, RespostaApi<OrcamentoDetalheResponse>.Ok(MapearDetalhe(resultado), "Nova proposta criada como rascunho. O orçamento anterior não foi alterado."));
     }
 
+    [HttpPost("{id:guid}/agendar"), Authorize(Policy = Permissoes.OrcamentosVisualizar)]
+    [Authorize(Policy = Permissoes.AgendaCriar)]
+    public async Task<ActionResult<RespostaApi<AgendamentoOrcamentoResponse>>> Agendar(Guid id,
+        AgendarOrcamentoRequest request, CancellationToken ct)
+    {
+        var resultado = await sender.Send(new AgendarOrcamentoCommand(id, request.InicioLocal,
+            request.DuracaoPlanejadaMinutos, request.ObservacaoSolicitante, request.ObservacaoInterna), ct);
+        return Created($"/api/agendamentos/{resultado.Id}",
+            RespostaApi<AgendamentoOrcamentoResponse>.Ok(new(resultado.Id), "Atendimento agendado com sucesso."));
+    }
+
     [HttpGet("{id:guid}/pdf"), Authorize(Policy = Permissoes.OrcamentosVisualizar)]
     public async Task<IActionResult> Pdf(Guid id, CancellationToken ct) { var pdf = await sender.Send(new GerarPdfOrcamentoQuery(id), ct); return File(pdf.Conteudo, "application/pdf", pdf.NomeArquivo); }
 
@@ -88,6 +100,15 @@ public sealed class OrcamentosController(ISender sender) : ControllerBase
                 i.ItemCatalogoId, i.Nome, i.Descricao, (TipoPrecificacaoCatalogo)(int)i.TipoPrecificacao, i.PrecoReferencia)).ToArray())));
     }
 
+    [HttpGet("agendamentos/{agendamentoId:guid}/vinculos"), Authorize(Policy = Permissoes.OrcamentosVisualizar)]
+    public async Task<ActionResult<RespostaApi<IReadOnlyCollection<ReferenciaOrcamentoResponse>>>>
+        ListarPorAgendamento(Guid agendamentoId, CancellationToken ct)
+    {
+        var itens = await sender.Send(new ListarOrcamentosPorAgendamentoQuery(agendamentoId), ct);
+        return Ok(RespostaApi<IReadOnlyCollection<ReferenciaOrcamentoResponse>>.Ok(itens.Select(item =>
+            new ReferenciaOrcamentoResponse(item.Id, item.Codigo, (StatusOrcamentoContrato)(int)item.Status)).ToArray()));
+    }
+
     private async Task<ActionResult<RespostaApi<OrcamentoDetalheResponse>>> Transicao(Task<OrcamentoDetalheVisualizacao> tarefa, string mensagem) =>
         Ok(RespostaApi<OrcamentoDetalheResponse>.Ok(MapearDetalhe(await tarefa), mensagem));
     private static ItemOrcamentoEntrada Mapear(OrcamentoItemRequest x) => new((TipoItemOrcamento)(int)x.TipoItem, x.ItemCatalogoId, x.Nome, x.Descricao, x.ValorUnitario, x.Quantidade, x.Observacao);
@@ -105,7 +126,7 @@ public sealed class OrcamentosController(ISender sender) : ControllerBase
             i.ItemCatalogoId, i.Nome, i.Descricao, i.TipoPrecificacaoReferencia.HasValue ? (TipoPrecificacaoCatalogo)(int)i.TipoPrecificacaoReferencia.Value : null,
             i.PrecoReferencia, i.ValorUnitario, i.Quantidade, i.ValorUnitario * i.Quantidade, i.Ordem, i.Observacao)).ToArray();
         return new(o.Id, o.Codigo, o.ClienteId, o.ClienteNome, o.ClienteDocumento, o.ClienteTelefone, o.VeiculoId,
-            o.VeiculoDescricao, o.VeiculoPlaca, o.AgendamentoOrigemId, o.OrdemServicoOrigemId, o.OrdemServicoId,
+            o.VeiculoDescricao, o.VeiculoPlaca, o.AgendamentoOrigemId, o.AgendamentoId, o.OrdemServicoOrigemId, o.OrdemServicoId,
             (StatusOrcamentoContrato)(int)x.StatusEfetivo,
             o.ValidoAte, o.ObservacaoCliente, o.ObservacaoInterna, o.Condicoes, itens.Sum(i => i.Subtotal), o.Desconto,
             o.Acrescimo, itens.Sum(i => i.Subtotal) - o.Desconto + o.Acrescimo, o.CriadoEmUtc, o.AtualizadoEmUtc,

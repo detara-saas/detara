@@ -87,7 +87,7 @@ public static class DependencyInjection
         services.AddScoped<IOrdensServicoRepositorio, OrdensServicoRepositorio>();
         services.AddScoped<IClientesAtendimentoConsulta, ClientesAtendimentoConsulta>();
         services.AddScoped<ICatalogoAtendimentoConsulta, CatalogoAtendimentoConsulta>();
-        services.AddScoped<IAgendaAtendimentoConsulta, AgendaAtendimentoConsulta>();
+        services.AddScoped<IAgendaAtendimentoIntegracao, AgendaAtendimentoIntegracao>();
         services.AddScoped<IPlataformaAtendimentoConsulta, PlataformaAtendimentoConsulta>();
         services.AddScoped<IConfiguracoesOperacionaisRepositorio, ConfiguracoesOperacionaisRepositorio>();
         services.AddScoped<IFinanceiroRepositorio, FinanceiroRepositorio>();

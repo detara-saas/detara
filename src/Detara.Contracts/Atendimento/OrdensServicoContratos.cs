@@ -26,6 +26,9 @@ public sealed record CriarOrcamentoAdicionalRequest(DateOnly ValidoAte, string? 
 public sealed record OrdemServicoListaResponse(Guid Id, string Codigo, string ClienteNome,
     string VeiculoDescricao, string VeiculoPlaca, StatusOrdemServicoContrato Status,
     decimal TotalAutorizado, DateTime CriadoEmUtc);
+public sealed record OrdemServicoAgendamentoResponse(Guid Id, string Codigo,
+    StatusOrdemServicoContrato Status);
+public sealed record VinculoOrdemServicoAgendamentoResponse(OrdemServicoAgendamentoResponse? OrdemServico);
 public sealed record OrdemServicoItemResponse(Guid Id, TipoItemOrcamentoContrato TipoItem, Guid? ItemCatalogoId,
     Guid? OrcamentoOrigemId, Guid? OrcamentoItemOrigemId, string Nome, string? Descricao,
     decimal ValorUnitarioAutorizado, int Quantidade, decimal Subtotal, int Ordem,

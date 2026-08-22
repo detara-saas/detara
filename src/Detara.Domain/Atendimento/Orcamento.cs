@@ -24,6 +24,7 @@ public sealed class Orcamento : EntidadeEmpresaBase
     {
         Status = StatusOrcamento.Rascunho;
         AgendamentoOrigemId = ValidarIdOpcional(agendamentoOrigemId);
+        AgendamentoId = AgendamentoOrigemId;
         OrcamentoOrigemId = ValidarIdOpcional(orcamentoOrigemId);
         OrdemServicoOrigemId = ValidarIdOpcional(ordemServicoOrigemId);
         if (OrcamentoOrigemId.HasValue && OrdemServicoOrigemId.HasValue)
@@ -41,6 +42,7 @@ public sealed class Orcamento : EntidadeEmpresaBase
     public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
     public string VeiculoPlacaSnapshot { get; private set; } = string.Empty;
     public Guid? AgendamentoOrigemId { get; private set; }
+    public Guid? AgendamentoId { get; private set; }
     public Guid? OrcamentoOrigemId { get; private set; }
     public Guid? OrdemServicoOrigemId { get; private set; }
     public StatusOrcamento Status { get; private set; }
@@ -64,6 +66,15 @@ public sealed class Orcamento : EntidadeEmpresaBase
     public StatusEfetivoOrcamento ObterStatusEfetivo(DateOnly hoje) => Status == StatusOrcamento.Emitido && ValidoAte < hoje
         ? StatusEfetivoOrcamento.Expirado
         : (StatusEfetivoOrcamento)(int)Status;
+
+    public void VincularAgendamento(Guid agendamentoId)
+    {
+        var id = ExigirId(agendamentoId);
+        if (AgendamentoId.HasValue && AgendamentoId.Value != id)
+            throw new InvalidOperationException("Este orçamento já está vinculado a outro agendamento.");
+        AgendamentoId = id;
+        MarcarComoAtualizada();
+    }
 
     public void AtualizarRascunho(PartesOrcamentoSnapshot partes, DateOnly validoAte, string? observacaoCliente, string? observacaoInterna,
         string? condicoes, decimal desconto, decimal acrescimo, IReadOnlyCollection<ItemOrcamentoSnapshot> itens)
