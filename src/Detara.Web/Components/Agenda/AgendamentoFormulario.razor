@@ -15,7 +15,7 @@ else
         <div class="form-grid">
             <ClienteAgendaAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@(AgendamentoId.HasValue || OrcamentoId.HasValue)" SelecionadoChanged="SelecionarClienteAsync" />
             <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Required="true" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || AgendamentoId.HasValue || OrcamentoId.HasValue)" Placeholder="Selecione o cliente primeiro">
-                @foreach (var veiculo in _veiculos) { <MudSelectItem Value="@(new Guid?(veiculo.Id))">@veiculo.Descricao · @veiculo.Placa</MudSelectItem> }
+                @foreach (var veiculo in _veiculos) { <MudSelectItem Value="@(new Guid?(veiculo.Id))">@FormatacaoVeiculo.Exibir(veiculo.Descricao, veiculo.Placa)</MudSelectItem> }
             </MudSelect>
         </div>
 

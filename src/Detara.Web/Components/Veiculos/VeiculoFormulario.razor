@@ -8,9 +8,16 @@
         <div class="form-full">
             <ClienteAutocomplete ClienteId="_modelo.ClienteId" ClienteNome="@_clienteNome" Fixo="ClienteFixo" SelecionadoChanged="SelecionarCliente" />
         </div>
-        <MudTextField T="string" @bind-Value="_modelo.Placa" Label="Placa *" Required="true" Variant="Variant.Outlined" HelperText="ABC1234 ou ABC1D23" />
-        <MudTextField T="string" @bind-Value="_modelo.Marca" Label="Marca *" Required="true" Variant="Variant.Outlined" />
-        <MudTextField T="string" @bind-Value="_modelo.Modelo" Label="Modelo *" Required="true" Variant="Variant.Outlined" />
+        <MudSelect T="TipoVeiculoContrato" @bind-Value="_modelo.Tipo" Label="Tipo de veículo" Required="true" Variant="Variant.Outlined">
+            @foreach (var tipo in TiposVeiculo)
+            {
+                <MudSelectItem T="TipoVeiculoContrato" Value="tipo">@FormatacaoVeiculo.NomeTipo(tipo)</MudSelectItem>
+            }
+        </MudSelect>
+        <MudTextField T="string" @bind-Value="_modelo.Placa" Label="Placa" Variant="Variant.Outlined" HelperText="Opcional · padrão ABC1234 ou ABC1D23" />
+        <MudTextField T="string" @bind-Value="_modelo.IdentificacaoAlternativa" Label="Identificação alternativa" Variant="Variant.Outlined" HelperText="Ex.: inscrição, chassi ou referência interna" />
+        <MudTextField T="string" @bind-Value="_modelo.Marca" Label="Marca" Required="true" Variant="Variant.Outlined" />
+        <MudTextField T="string" @bind-Value="_modelo.Modelo" Label="Modelo" Required="true" Variant="Variant.Outlined" />
         <MudTextField T="string" @bind-Value="_modelo.Versao" Label="Versão" Variant="Variant.Outlined" />
         <MudNumericField T="int?" @bind-Value="_modelo.AnoFabricacao" Label="Ano de fabricação" Variant="Variant.Outlined" Min="1886" Max="@(DateTime.UtcNow.Year + 2)" />
         <MudNumericField T="int?" @bind-Value="_modelo.AnoModelo" Label="Ano do modelo" Variant="Variant.Outlined" Min="1886" Max="@(DateTime.UtcNow.Year + 2)" />
@@ -36,7 +43,7 @@
         {
             var resultado = await VeiculosApi.ObterAsync(VeiculoId.Value);
             if (resultado.Resultado is not { } veiculo) { Mensagens.Mostrar(resultado.Mensagem, true); return; }
-            _modelo = new VeiculoFormModel { ClienteId = veiculo.ClienteId, Placa = veiculo.Placa, Marca = veiculo.Marca, Modelo = veiculo.Modelo, Versao = veiculo.Versao, AnoFabricacao = veiculo.AnoFabricacao, AnoModelo = veiculo.AnoModelo, Cor = veiculo.Cor, Quilometragem = veiculo.Quilometragem, Observacao = veiculo.Observacao };
+            _modelo = new VeiculoFormModel { ClienteId = veiculo.ClienteId, Tipo = veiculo.Tipo, Placa = veiculo.Placa, IdentificacaoAlternativa = veiculo.IdentificacaoAlternativa, Marca = veiculo.Marca, Modelo = veiculo.Modelo, Versao = veiculo.Versao, AnoFabricacao = veiculo.AnoFabricacao, AnoModelo = veiculo.AnoModelo, Cor = veiculo.Cor, Quilometragem = veiculo.Quilometragem, Observacao = veiculo.Observacao };
             _clienteNome = veiculo.ClienteNome;
         }
         else if (ClienteInicialId.HasValue)
@@ -54,7 +61,7 @@
         await _form.ValidateAsync();
         if (!_form.IsValid || !_modelo.ClienteId.HasValue) { if (!_modelo.ClienteId.HasValue) Mensagens.Mostrar("Selecione um cliente.", true); return; }
         _salvando = true;
-        var request = new SalvarVeiculoRequest(_modelo.ClienteId.Value, _modelo.Placa, _modelo.Marca, _modelo.Modelo, _modelo.Versao, _modelo.AnoFabricacao, _modelo.AnoModelo, _modelo.Cor, _modelo.Quilometragem, _modelo.Observacao);
+        var request = new SalvarVeiculoRequest(_modelo.ClienteId.Value, _modelo.Tipo, _modelo.Placa, _modelo.IdentificacaoAlternativa, _modelo.Marca, _modelo.Modelo, _modelo.Versao, _modelo.AnoFabricacao, _modelo.AnoModelo, _modelo.Cor, _modelo.Quilometragem, _modelo.Observacao);
         var resultado = VeiculoId.HasValue ? await VeiculosApi.AtualizarAsync(VeiculoId.Value, request) : await VeiculosApi.CriarAsync(request);
         _salvando = false;
         Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
@@ -62,5 +69,6 @@
     }
 
     private void Cancelar() => Navigation.NavigateTo(VeiculoId.HasValue ? $"/veiculos/{VeiculoId}" : ClienteInicialId.HasValue ? $"/clientes/{ClienteInicialId}" : "/veiculos");
-    private sealed class VeiculoFormModel { public Guid? ClienteId { get; set; } public string Placa { get; set; } = string.Empty; public string Marca { get; set; } = string.Empty; public string Modelo { get; set; } = string.Empty; public string? Versao { get; set; } public int? AnoFabricacao { get; set; } public int? AnoModelo { get; set; } public string? Cor { get; set; } public int? Quilometragem { get; set; } public string? Observacao { get; set; } }
+    private static readonly TipoVeiculoContrato[] TiposVeiculo = Enum.GetValues<TipoVeiculoContrato>();
+    private sealed class VeiculoFormModel { public Guid? ClienteId { get; set; } public TipoVeiculoContrato Tipo { get; set; } = TipoVeiculoContrato.Carro; public string? Placa { get; set; } public string? IdentificacaoAlternativa { get; set; } public string Marca { get; set; } = string.Empty; public string Modelo { get; set; } = string.Empty; public string? Versao { get; set; } public int? AnoFabricacao { get; set; } public int? AnoModelo { get; set; } public string? Cor { get; set; } public int? Quilometragem { get; set; } public string? Observacao { get; set; } }
 }

@@ -60,7 +60,7 @@
                         <CabecalhoSecao Sobretitulo="CLIENTE E VEÍCULO" Titulo="Dados do atendimento" Descricao="Identifique quem será atendido e o veículo recebido." Etapa="01" />
                         <div class="form-grid">
                             <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
-                            <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@v.Descricao · @v.Placa</MudSelectItem> }</MudSelect>
+                            <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@FormatacaoVeiculo.Exibir(v.Descricao, v.Placa)</MudSelectItem> }</MudSelect>
                         </div>
                         <div class="form-divider"></div>
                         <div class="form-grid service-order-operational-fields">
