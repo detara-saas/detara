@@ -60,7 +60,7 @@ A notificação automática de veículo pronto permanece desabilitada. Nenhuma n
 3. Inicie API e Web pelos perfis Development usuais.
 4. Abra `http://localhost:5080/login`.
 5. Entre com `demo@detara.local` e a senha escolhida no reset.
-6. Verifique Dashboard, Clientes, Veículos, Serviços, Agenda, Orçamentos, Ordens de Serviço, Financeiro, Usuários, Perfis, Empresa e Minha Conta.
+6. Verifique Dashboard, Clientes, Veículos, Serviços, Agenda, Orçamentos, Ordens de Serviço, Financeiro, Usuários, Perfis, Empresa e Minha Conta. O Dashboard reflete os registros reais gerados pelo reset, sem tratamento especial para a Prime Detail.
 
 O progresso do onboarding não usa flags: ele é derivado dos dados reais criados e deve aparecer como concluído.
 

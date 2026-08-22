@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidacaoBehavior<,>));
         services.AddSingleton<IConversorFusoHorario, ConversorFusoHorario>();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<IIntegracaoFinanceiroOrdensServico, IntegracaoFinanceiroOrdensServico>();
         services.AddScoped<IIntegracaoNotificacoesOrdensServico, IntegracaoNotificacoesOrdensServico>();
 
