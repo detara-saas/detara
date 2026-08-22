@@ -12,4 +12,3 @@ public enum TipoVeiculo
     QuadricicloUtv = 8,
     Outro = 99
 }
-
