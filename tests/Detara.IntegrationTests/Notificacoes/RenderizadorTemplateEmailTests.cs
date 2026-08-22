@@ -65,4 +65,21 @@ public sealed class RenderizadorTemplateEmailTests
     [Fact]
     public void Renderizar_UsaMesmoShellResponsivo()
     { var r = _renderer.Renderizar(_renderer.ObterPadraoVeiculoPronto(), Dados); Assert.Contains("viewport", r.CorpoHtmlCompleto); Assert.Contains("max-width:620px", r.CorpoHtmlCompleto); Assert.Contains("Mensagem operacional", r.CorpoHtmlCompleto); }
+
+    [Fact]
+    public void Renderizar_VeiculoSemPlaca_MantemDescricaoEVariavelPlacaVazia()
+    {
+        var dados = Dados with
+        {
+            VeiculoDescricao = "Sea-Doo GTX 300 · JET-001",
+            Placa = null
+        };
+        var renderizado = _renderer.Renderizar(
+            new("{{VeiculoDescricao}}", "<p>{{VeiculoDescricao}}</p><span>{{Placa}}</span>",
+                OrigemTemplateEmail.PersonalizadoEmpresa), dados);
+
+        Assert.Equal("Sea-Doo GTX 300 · JET-001", renderizado.Assunto);
+        Assert.Contains("Sea-Doo GTX 300 · JET-001", renderizado.CorpoHtmlCompleto);
+        Assert.DoesNotContain("null", renderizado.CorpoHtmlCompleto, StringComparison.OrdinalIgnoreCase);
+    }
 }

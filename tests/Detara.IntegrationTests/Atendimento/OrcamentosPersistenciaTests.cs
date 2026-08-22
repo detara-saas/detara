@@ -22,6 +22,7 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
     private DbContextOptions<DetaraDbContext> _options = null!;
     private Guid _empresaA; private Guid _empresaB; private Guid _clienteA; private Guid _veiculoA; private Guid _veiculoA2; private Guid _servicoA;
+    private Guid _clienteSemPlaca; private Guid _veiculoSemPlaca;
     private Guid _agendamentoA; private Guid _clienteB; private Guid _veiculoB; private Guid _servicoB; private Guid _pacoteB; private Guid _agendamentoB; private Guid _orcamentoB;
     private readonly Guid _usuarioA = Guid.NewGuid(); private readonly Guid _usuarioB = Guid.NewGuid();
 
@@ -66,7 +67,7 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
         c.ChangeTracker.Clear();
         Assert.Equal(1, await c.Orcamentos.CountAsync());
         Assert.Equal(1, await c.Orcamentos.CountAsync(x => x.Status == StatusOrcamento.Rascunho));
-        Assert.Equal(1, await c.Orcamentos.CountAsync(x => x.VeiculoPlacaSnapshot.Contains("ABC1D23")));
+        Assert.Equal(1, await c.Orcamentos.CountAsync(x => x.VeiculoPlacaSnapshot != null && x.VeiculoPlacaSnapshot.Contains("ABC1D23")));
         var semPesquisa = await new OrcamentosRepositorio(c).ListarAsync(new(1, 25, StatusEfetivoOrcamento.Rascunho, null,
             DateOnly.FromDateTime(DateTime.UtcNow)), default);
         Assert.Equal(1, semPesquisa.TotalItens);
@@ -269,6 +270,41 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task VeiculoSemPlaca_PercorreOrcamentoAgendaPdfEOs()
+    {
+        await using var c = Contexto(_empresaA, _usuarioA);
+        var criado = await CriarHandler(c).Handle(
+            Comando(_clienteSemPlaca, _veiculoSemPlaca, _servicoA, 290m), default);
+
+        Assert.Null(criado.Orcamento.VeiculoPlaca);
+        Assert.Equal("Sea-Doo GTX 300 · JET-001", criado.Orcamento.VeiculoDescricao);
+        c.ChangeTracker.Clear();
+        await EmitirHandler(c).Handle(new(criado.Orcamento.Id, null), default);
+        c.ChangeTracker.Clear();
+        var pdf = await new GerarPdfOrcamentoHandler(
+            new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c),
+            new PlataformaAtendimentoConsulta(c), new PdfOrcamentoGenerator())
+            .Handle(new(criado.Orcamento.Id), default);
+        Assert.True(pdf.Conteudo.Length > 1000);
+
+        c.ChangeTracker.Clear();
+        await new AprovarOrcamentoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
+            new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c),
+            new OrdensServicoRepositorio(c)).Handle(new(criado.Orcamento.Id, "Aprovado"), default);
+        c.ChangeTracker.Clear();
+        var agendamento = await AgendarHandler(c).Handle(new(criado.Orcamento.Id,
+            new DateTime(2026, 9, 3, 10, 0, 0), 90, null, null), default);
+        Assert.Null(agendamento.VeiculoPlaca);
+        Assert.Equal("Sea-Doo GTX 300 · JET-001", agendamento.VeiculoDescricao);
+
+        c.ChangeTracker.Clear();
+        var ordem = await CriarOrdemServicoHandler(c).Handle(new(
+            criado.Orcamento.Id, agendamento.Id, null, null, null, 0, 0, null, []), default);
+        Assert.Null(ordem.OrdemServico.VeiculoPlacaSnapshot);
+        Assert.Equal("Sea-Doo GTX 300 · JET-001", ordem.OrdemServico.VeiculoDescricaoSnapshot);
+    }
+
+    [Fact]
     public async Task OrcamentoNaoAprovado_NaoOriginaOs()
     {
         await using var c = Contexto(_empresaA, _usuarioA);
@@ -459,6 +495,14 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
             c.Clientes.Add(cliente2); await c.SaveChangesAsync();
             var veiculo2 = new Veiculo(empresaId, cliente2.Id, "XYZ9Z99", "Toyota", "Corolla", null, 2024, 2024, null, null, null);
             c.Veiculos.Add(veiculo2); await c.SaveChangesAsync(); _veiculoA2 = veiculo2.Id;
+            var clienteSemPlaca = new Cliente(empresaId, "Rafael Marins", TipoPessoa.PessoaFisica,
+                null, null, null, null, null, null);
+            c.Clientes.Add(clienteSemPlaca); await c.SaveChangesAsync();
+            var veiculoSemPlaca = new Veiculo(empresaId, clienteSemPlaca.Id,
+                TipoVeiculo.MotoAquatica, null, "JET-001", "Sea-Doo", "GTX 300", null,
+                2025, 2025, null, 0, null);
+            c.Veiculos.Add(veiculoSemPlaca); await c.SaveChangesAsync();
+            _clienteSemPlaca = clienteSemPlaca.Id; _veiculoSemPlaca = veiculoSemPlaca.Id;
         }
         else
         {
