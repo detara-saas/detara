@@ -20,7 +20,7 @@ else
             <section class="module-panel section-card">
                 <CabecalhoSecao Sobretitulo="DESTINATÁRIO" Titulo="Cliente e veículo" Descricao="Identifique para quem a proposta será apresentada." Etapa="01" />
                 <div class="form-grid">
-                    <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="_clienteNome" Fixo="@OrigemFixa" SelecionadoChanged="ClienteSelecionadoAsync" />
+                    <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@OrigemFixa" SelecionadoChanged="ClienteSelecionadoAsync" />
                     <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || OrigemFixa)" Required="true">
                         @foreach (var veiculo in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)veiculo.Id)">@veiculo.Descricao · @veiculo.Placa</MudSelectItem> }
                     </MudSelect>
