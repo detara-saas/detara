@@ -135,6 +135,16 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task TokenPlataforma_NaoAutenticaDashboardTenant()
+    {
+        UsarToken(CriarTokenPlataforma(incluirMfa: true));
+
+        var response = await _client.GetAsync("/api/dashboard");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     [Theory]
     [InlineData("/api/empresa")]
     [InlineData("/api/usuarios")]
@@ -165,6 +175,14 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     public async Task OnboardingSemToken_Retorna401()
     {
         var response = await _client.GetAsync("/api/onboarding");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DashboardSemToken_Retorna401()
+    {
+        var response = await _client.GetAsync("/api/dashboard");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -319,7 +337,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(133, rotas.Length);
+        Assert.Equal(134, rotas.Length);
     }
 
     [Fact]
