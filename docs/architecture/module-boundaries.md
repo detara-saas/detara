@@ -323,6 +323,12 @@ O `EmpresaId` vem exclusivamente de `IUsuarioContexto`. Empresa ativa e configur
 
 Permissões de ação são avaliadas no boundary HTTP com as policies canônicas e entregues ao read model apenas para compor CTAs. Isso não substitui a autorização dos endpoints de destino e não cria permissão específica de onboarding.
 
+## Dashboard operacional implementado
+
+Dashboard é uma composição transversal de leitura, sem aggregate ou tabela próprios. O handler recebe o `EmpresaId` somente de `IUsuarioContexto` e consulta contratos mínimos implementados por Plataforma, Agenda, Atendimento e Financeiro. Cada implementação lê exclusivamente as tabelas do módulo proprietário, com query filters ativos, projeções pequenas e sem alterar qualquer aggregate.
+
+As policies canônicas são avaliadas no boundary HTTP e determinam quais contratos podem ser consultados. Agenda, Orçamentos, Ordem de Serviço e Financeiro são omitidos do read model quando o usuário não possui a respectiva permissão de visualização; em especial, valores financeiros nunca são buscados nem retornados sem `Financeiro.Visualizar`. A composição não cria `Dashboard.Visualizar`, não usa cache e não executa queries paralelas sobre o `DbContext` compartilhado.
+
 ## Add-ons e exemplos de evolução
 
 ### Autoatendimento / Portal do Cliente
