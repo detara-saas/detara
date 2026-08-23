@@ -52,17 +52,25 @@ Qualquer variável desconhecida ou incompleta gera erro de validação compreens
 
 ## Persistência e processamento
 
-Se o envio automático estiver desativado, nenhuma intenção é criada. Se estiver ativo, a intenção nasce no mesmo `SaveChanges` da transição da OS e da conta a receber. A chamada externa ocorre somente no `NotificacoesWorker`.
+Se o envio automático estiver desativado, nenhuma intenção é criada durante a transição da OS. Isso não proíbe e-mail: enquanto a OS estiver em `AguardandoRetirada`, um operador com `Notificacoes.Reenviar` pode criar o primeiro envio manualmente. Se o automático estiver ativo, a intenção inicial nasce no mesmo `SaveChanges` da transição da OS e da conta a receber. Em ambos os casos, a chamada externa ocorre somente no `NotificacoesWorker`.
 
 Estados: `Pendente`, `Processando`, `Enviada`, `Falhou` e `SemDestinatario`. `Enviada` significa aceita pelo Resend, não entregue. Falhas temporárias usam até quatro tentativas com intervalos de aproximadamente 1, 5 e 30 minutos; erros terminais não entram em loop. Claims abandonados em `Processando` voltam à fila após o timeout configurado.
 
-Cada tentativa usa a chave idempotente estável `notificacao-email/{NotificacaoId}`. O reenvio manual é permitido apenas para falha/sem destinatário, nunca para uma mensagem já aceita, e reutiliza assunto/corpo originais. Quando a intenção nasceu sem destinatário, o primeiro reenvio pode capturar o e-mail atual do cliente.
+Cada tentativa usa a chave idempotente estável `notificacao-email/{NotificacaoId}`. As ações têm semânticas distintas:
+
+- **Manual:** cria a primeira `NotificacaoEmail` quando nenhuma comunicação existe e o automático não criou uma intenção.
+- **Retry / tentar novamente:** recoloca a mesma notificação `Falhou` ou `SemDestinatario` na fila, preservando assunto, corpo e histórico de tentativas. Quando nasceu sem destinatário, captura o e-mail atual válido do cliente.
+- **Reenvio:** depois de uma notificação `Enviada`, cria uma nova `NotificacaoEmail` com o e-mail e o template vigentes. O registro enviado anteriormente permanece imutável.
+
+O ID da intenção inicial é determinístico por OS. Cada reenvio recebe um ID de solicitação gerado uma vez pelo cliente Web e reutilizado em retries HTTP. A chave primária impede double submit concorrente, enquanto a consulta do estado mais recente bloqueia duplicidade entre envio automático, primeiro envio manual, pendências e processamento. A migration `PermiteReenvioNotificacaoVeiculoPronto` remove somente a unicidade antiga por OS/tipo, necessária para preservar múltiplos envios históricos; não adiciona colunas.
+
+Novos envios e reenvios exigem que a OS ainda esteja em `AguardandoRetirada` e que o cliente possua e-mail válido. `Aberta`, `EmExecucao`, `Cancelada` e `Concluida` são rejeitadas no backend. Alterar ou remover o e-mail do cliente não modifica snapshots históricos. `Enviada` continua significando apenas que o provider aceitou a mensagem, não que ela foi entregue à caixa de entrada.
 
 ## Operação
 
 - Configuração e template: `/configuracoes`, permissões `Configuracoes.Visualizar` e `Configuracoes.Editar`.
 - Histórico na OS: `/ordens-servico/{id}`, permissão `OrdemServico.Visualizar`.
-- Reenvio manual: `Notificacoes.Reenviar`.
+- Envio manual, retry e reenvio: `Notificacoes.Reenviar`.
 - Teste: enviado somente ao e-mail do usuário autenticado, limitado a 3 solicitações por 10 minutos por empresa/usuário.
 
 Logs não incluem API key, corpo HTML, destinatário ou resposta bruta do provider. IDs técnicos de notificação/empresa podem ser usados para correlação.

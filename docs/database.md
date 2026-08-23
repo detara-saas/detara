@@ -161,8 +161,10 @@ A migration `AddNotificacoesEmail` adiciona:
 - `TemplatesEmailEmpresa`, único por `(EmpresaId, Tipo)`, contendo somente assunto e HTML já sanitizado;
 - `NotificacoesEmail`, com destinatário, nome, assunto, corpo HTML completo, Reply-To e origem do template preservados como snapshots;
 - `TentativasNotificacaoEmail`, com número, origem automática/manual, responsável opcional, resultado, instante, ID do provedor e erro seguro;
-- unicidade `(EmpresaId, Tipo, OrdemServicoId)` e índice de fila `(EmpresaId, Status, ProximaTentativaEmUtc)`;
+- índice de histórico `(EmpresaId, Tipo, OrdemServicoId)` e índice de fila `(EmpresaId, Status, ProximaTentativaEmUtc)`;
 - FK composta tenant-safe de Tentativa para Notificação, interna ao módulo e com delete `Restrict`.
+
+A migration `PermiteReenvioNotificacaoVeiculoPronto` converte o índice por OS/tipo em não único para que reenvios intencionais preservem registros independentes. A intenção inicial usa ID determinístico e cada reenvio usa o ID idempotente da solicitação.
 
 A ausência de configuração significa envio automático desabilitado; GET não cria registros. O template padrão também não é seed: é materializado dinamicamente pela aplicação, e restaurar o padrão remove a customização do tenant. Não existem FKs para Empresa, OS, Cliente ou Usuário. `NotificacaoEmail.Versao` protege o claim otimista da fila, enquanto a idempotência externa usa `notificacao-email/{Id}`.
 
