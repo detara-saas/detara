@@ -1,6 +1,7 @@
 using Detara.Application.Abstracoes;
 using Detara.Application.Notificacoes;
 using Detara.Application.Comunicacao;
+using Detara.Domain.Atendimento;
 using Detara.Domain.Entidades;
 using Detara.Domain.Notificacoes;
 using Detara.Infrastructure.Notificacoes;
@@ -59,6 +60,89 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task EnvioManual_ComAutomaticoDesativado_CriaUmaIntencaoPendente()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+
+        var resultado = await CriarHandlerEnvio(db, repo, Ordem(osId)).Handle(
+            new EnviarAvisoVeiculoProntoCommand(osId), default);
+
+        Assert.Equal(osId, resultado.Id);
+        Assert.Equal(StatusNotificacaoEmail.Pendente, resultado.Status);
+        var persistida = await db.NotificacoesEmail.SingleAsync();
+        Assert.Equal(TipoTentativaNotificacaoEmail.Manual, persistida.TipoProximaTentativa);
+        Assert.Equal(_usuarioA, persistida.ProximaTentativaSolicitadaPorUsuarioId);
+    }
+
+    [Fact]
+    public async Task EnvioManual_RepetidoQuandoPendente_NaoDuplica()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        var handler = CriarHandlerEnvio(db, repo, Ordem(osId));
+        await handler.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default);
+
+        await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            handler.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default));
+
+        Assert.Equal(1, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task EnvioManual_QuandoProcessando_NaoDuplica()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var notificacao = CriarNotificacao(osId);
+        notificacao.MarcarProcessando(DateTime.UtcNow);
+        db.NotificacoesEmail.Add(notificacao);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            CriarHandlerEnvio(db, new NotificacoesRepositorio(db), Ordem(osId)).Handle(
+                new EnviarAvisoVeiculoProntoCommand(osId), default));
+
+        Assert.Equal(1, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Theory]
+    [InlineData(StatusOrdemServico.Aberta)]
+    [InlineData(StatusOrdemServico.EmExecucao)]
+    [InlineData(StatusOrdemServico.Cancelada)]
+    [InlineData(StatusOrdemServico.Concluida)]
+    public async Task EnvioManual_EmEstadoInvalido_EhRejeitado(StatusOrdemServico status)
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var handler = CriarHandlerEnvio(db, new NotificacoesRepositorio(db), Ordem(osId, status));
+
+        await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            handler.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default));
+
+        Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task EnvioManual_ClienteSemEmail_EhRejeitadoSemCriarIntencao()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var cliente = await db.Clientes.SingleAsync(x => x.Id == _clienteA);
+        cliente.Atualizar(cliente.Nome, cliente.TipoPessoa, null, null, null, null, null, null);
+        await db.SaveChangesAsync();
+        var handler = CriarHandlerEnvio(db, new NotificacoesRepositorio(db), Ordem(osId));
+
+        var erro = await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            handler.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default));
+
+        Assert.Contains("e-mail válido", erro.Message);
+        Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
     public async Task IntegracaoAtivada_CriaSnapshotNoMesmoSaveEIdempotente()
     {
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
@@ -71,6 +155,24 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         var n = await db.NotificacoesEmail.SingleAsync();
         Assert.Equal(StatusNotificacaoEmail.Pendente, n.Status); Assert.Equal("marina@cliente.com", n.DestinatarioEmailSnapshot);
         Assert.Equal("respostas@empresa-a.com", n.ResponderParaSnapshot); Assert.Equal(OrigemTemplateEmail.PadraoDetara, n.OrigemTemplate);
+        Assert.Equal(1, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task AutomaticoJaCriado_BloqueiaSegundoEnvioInicialManual()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA, true, null, _usuarioA));
+        await db.SaveChangesAsync();
+        await Integracao(db, repo).PrepararNotificacaoAsync(Evento(osId), default);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            CriarHandlerEnvio(db, repo, Ordem(osId)).Handle(
+                new EnviarAvisoVeiculoProntoCommand(osId), default));
+
         Assert.Equal(1, await db.NotificacoesEmail.CountAsync());
     }
 
@@ -101,6 +203,100 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RetryManual_ReagendaMesmaNotificacaoFalhada()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var notificacao = CriarNotificacao(osId);
+        notificacao.MarcarProcessando(DateTime.UtcNow);
+        var tentativa = notificacao.RegistrarFalha("rejeitada", false, 4, DateTime.UtcNow,
+            null, TipoTentativaNotificacaoEmail.Automatica, null);
+        db.NotificacoesEmail.Add(notificacao);
+        db.TentativasNotificacaoEmail.Add(tentativa);
+        await db.SaveChangesAsync();
+        var repo = new NotificacoesRepositorio(db);
+        var handler = new TentarNovamenteNotificacaoHandler(new Contexto(_empresaA, _usuarioA),
+            repo, new ClientesNotificacoesConsulta(db), new AtendimentoFake(_empresaA, Ordem(osId)));
+
+        var resultado = await handler.Handle(new TentarNovamenteNotificacaoCommand(osId), default);
+
+        Assert.Equal(notificacao.Id, resultado.Id);
+        Assert.Equal(StatusNotificacaoEmail.Pendente, resultado.Status);
+        Assert.Equal(1, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task ReenvioDepoisDeSucesso_CriaNovoRegistroEPreservaAnterior()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var anterior = CriarNotificacao(osId);
+        anterior.MarcarProcessando(DateTime.UtcNow);
+        var tentativa = anterior.RegistrarSucesso("provider-1", DateTime.UtcNow,
+            TipoTentativaNotificacaoEmail.Automatica, null);
+        db.NotificacoesEmail.Add(anterior);
+        db.TentativasNotificacaoEmail.Add(tentativa);
+        await db.SaveChangesAsync();
+        var repo = new NotificacoesRepositorio(db);
+        var solicitacaoId = Guid.NewGuid();
+        var handler = CriarHandlerReenvio(db, repo, Ordem(osId));
+
+        var resultado = await handler.Handle(
+            new ReenviarAvisoVeiculoProntoCommand(osId, solicitacaoId), default);
+
+        Assert.Equal(solicitacaoId, resultado.Id);
+        Assert.Equal(StatusNotificacaoEmail.Pendente, resultado.Status);
+        Assert.Equal(2, await db.NotificacoesEmail.CountAsync());
+        Assert.Equal(StatusNotificacaoEmail.Enviada,
+            (await db.NotificacoesEmail.AsNoTracking().SingleAsync(x => x.Id == anterior.Id)).Status);
+    }
+
+    [Fact]
+    public async Task ReenvioComMesmaSolicitacao_EhIdempotente()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var anterior = CriarNotificacao(osId);
+        anterior.MarcarProcessando(DateTime.UtcNow);
+        db.NotificacoesEmail.Add(anterior);
+        db.TentativasNotificacaoEmail.Add(anterior.RegistrarSucesso("provider-1",
+            DateTime.UtcNow, TipoTentativaNotificacaoEmail.Automatica, null));
+        await db.SaveChangesAsync();
+        var repo = new NotificacoesRepositorio(db);
+        var handler = CriarHandlerReenvio(db, repo, Ordem(osId));
+        var command = new ReenviarAvisoVeiculoProntoCommand(osId, Guid.NewGuid());
+
+        var primeiro = await handler.Handle(command, default);
+        var repetido = await handler.Handle(command, default);
+
+        Assert.Equal(primeiro.Id, repetido.Id);
+        Assert.Equal(2, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task EnvioManual_ComTemplateCustomizadoEVeiculoSemPlaca_RenderizaSemNull()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        repo.Adicionar(new TemplateEmailEmpresa(_empresaA,
+            TipoTemplateEmail.VeiculoProntoRetirada,
+            "Pronto: {{OrdemServicoCodigo}}",
+            "<p>{{ClienteNome}} · {{VeiculoDescricao}} · {{Placa}}</p>", _usuarioA));
+        await db.SaveChangesAsync();
+        var ordem = Ordem(osId) with { VeiculoDescricao = "Sea-Doo GTX 300 · DEMO-JET-01", VeiculoPlaca = null };
+
+        await CriarHandlerEnvio(db, repo, ordem).Handle(
+            new EnviarAvisoVeiculoProntoCommand(osId), default);
+
+        var persistida = await db.NotificacoesEmail.AsNoTracking().SingleAsync();
+        Assert.Equal("Pronto: OS-2026-42", persistida.AssuntoSnapshot);
+        Assert.Contains("Sea-Doo GTX 300 · DEMO-JET-01", persistida.CorpoHtmlSnapshot);
+        Assert.DoesNotContain("null", persistida.CorpoHtmlSnapshot, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("undefined", persistida.CorpoHtmlSnapshot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task RestaurarTemplate_ExcluiCustomizacaoEFallbackVoltaDinamico()
     {
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
@@ -119,6 +315,20 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
             await a.SaveChangesAsync();
         }
         await using var b = Db(_empresaB); Assert.Equal(0, await b.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task TenantA_NaoEnviaAvisoParaOrdemDoTenantB()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        var handler = CriarHandlerEnvio(db, repo, Ordem(osId), _empresaB);
+
+        await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
+            handler.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default));
+
+        Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
     }
 
     [Fact]
@@ -162,11 +372,36 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
 
     private IntegracaoNotificacoesOrdensServico Integracao(DetaraDbContext db, NotificacoesRepositorio repo) =>
         new(repo, new ClientesNotificacoesConsulta(db), new PlataformaNotificacoesConsulta(db), new RenderizadorTemplateEmail());
+    private EnviarAvisoVeiculoProntoHandler CriarHandlerEnvio(DetaraDbContext db,
+        NotificacoesRepositorio repo, OrdemServicoNotificacoesInterna ordem, Guid? empresaDaOrdem = null) =>
+        new(new Contexto(_empresaA, _usuarioA), repo, new ClientesNotificacoesConsulta(db),
+            new PlataformaNotificacoesConsulta(db),
+            new AtendimentoFake(empresaDaOrdem ?? _empresaA, ordem), new RenderizadorTemplateEmail());
+    private ReenviarAvisoVeiculoProntoHandler CriarHandlerReenvio(DetaraDbContext db,
+        NotificacoesRepositorio repo, OrdemServicoNotificacoesInterna ordem) =>
+        new(new Contexto(_empresaA, _usuarioA), repo, new ClientesNotificacoesConsulta(db),
+            new PlataformaNotificacoesConsulta(db), new AtendimentoFake(_empresaA, ordem),
+            new RenderizadorTemplateEmail());
+    private OrdemServicoNotificacoesInterna Ordem(Guid osId,
+        StatusOrdemServico status = StatusOrdemServico.AguardandoRetirada) =>
+        new(osId, "OS-2026-42", status, _clienteA, "Marina Souza", "Honda Civic · ABC1D23", "ABC1D23");
+    private NotificacaoEmail CriarNotificacao(Guid osId) => new(_empresaA, osId, _clienteA,
+        TipoTemplateEmail.VeiculoProntoRetirada, "marina@cliente.com", "Marina Souza",
+        "Assunto", "<p>Corpo</p>", OrigemTemplateEmail.PadraoDetara, null);
     private OrdemServicoFinalizadaNotificacoes Evento(Guid osId) => new(_empresaA, osId, "OS-2026-42", _clienteA,
         "Marina Souza", "Honda Civic", "ABC1D23");
     private DetaraDbContext Db(Guid empresa) => new(_options, new Contexto(empresa, empresa == _empresaA ? _usuarioA : Guid.NewGuid()));
     private sealed class Contexto(Guid empresaId, Guid? usuarioId = null) : IUsuarioContexto
     { public static Contexto Anonimo { get; } = new(Guid.Empty, Guid.Empty); public Guid UsuarioId { get; } = usuarioId ?? Guid.NewGuid(); public Guid EmpresaId { get; } = empresaId; public bool EstaAutenticado => EmpresaId != Guid.Empty; }
+    private sealed class AtendimentoFake(Guid empresaId, OrdemServicoNotificacoesInterna ordem)
+        : IAtendimentoNotificacoesConsulta
+    {
+        public Task<OrdemServicoNotificacoesInterna?> ObterOrdemServicoAsync(Guid empresa,
+            Guid ordemServicoId, CancellationToken cancellationToken) =>
+            Task.FromResult(empresa == empresaId && ordem.Id == ordemServicoId
+                ? ordem
+                : null);
+    }
     private sealed class ProvedorFake : IProvedorEmail
     { public List<MensagemEmailProvedor> Mensagens { get; } = []; public Task<ResultadoEnvioEmail> EnviarAsync(MensagemEmailProvedor mensagem, CancellationToken cancellationToken) { Mensagens.Add(mensagem); return Task.FromResult(new ResultadoEnvioEmail(true, false, "fake-id", null)); } }
 }
