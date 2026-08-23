@@ -709,6 +709,7 @@ public sealed class DemoBootstrapService(
         services.AddSingleton<INotificacoesRepositorio, NotificacoesRepositorio>();
         services.AddSingleton<IPlataformaNotificacoesConsulta, PlataformaNotificacoesConsulta>();
         services.AddSingleton<IClientesNotificacoesConsulta, ClientesNotificacoesConsulta>();
+        services.AddSingleton<IAtendimentoNotificacoesConsulta, AtendimentoNotificacoesConsulta>();
         services.AddSingleton<IRenderizadorTemplateEmail, RenderizadorTemplateEmail>();
         services.AddSingleton<IPlataformaOnboardingConsulta, PlataformaOnboardingConsulta>();
         services.AddSingleton<IAtendimentoOnboardingConsulta, AtendimentoOnboardingConsulta>();

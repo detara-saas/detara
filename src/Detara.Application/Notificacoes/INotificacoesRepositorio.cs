@@ -1,4 +1,5 @@
 using Detara.Domain.Notificacoes;
+using Detara.Domain.Atendimento;
 
 namespace Detara.Application.Notificacoes;
 
@@ -6,12 +7,15 @@ public interface INotificacoesRepositorio
 {
     Task<ConfiguracaoNotificacaoEmpresa?> ObterConfiguracaoAsync(CancellationToken cancellationToken);
     Task<TemplateEmailEmpresa?> ObterTemplateAsync(TipoTemplateEmail tipo, bool paraAlteracao, CancellationToken cancellationToken);
-    Task<NotificacaoEmail?> ObterPorOrdemServicoAsync(Guid ordemServicoId, bool paraAlteracao, CancellationToken cancellationToken);
+    Task<NotificacaoEmail?> ObterUltimaPorOrdemServicoAsync(Guid ordemServicoId, bool paraAlteracao, CancellationToken cancellationToken);
+    Task<NotificacaoEmail?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> ExistePorOrdemServicoAsync(Guid ordemServicoId, TipoTemplateEmail tipo, CancellationToken cancellationToken);
     void Adicionar(ConfiguracaoNotificacaoEmpresa configuracao);
     void Adicionar(TemplateEmailEmpresa template);
     void Adicionar(NotificacaoEmail notificacao);
     void Remover(TemplateEmailEmpresa template);
+    Task<bool> TentarAdicionarESalvarAsync(NotificacaoEmail notificacao, CancellationToken cancellationToken);
+    Task<bool> TentarSalvarAlteracaoAsync(CancellationToken cancellationToken);
     Task SalvarAsync(CancellationToken cancellationToken);
 }
 
@@ -28,6 +32,16 @@ public interface IPlataformaNotificacoesConsulta
 public interface IClientesNotificacoesConsulta
 {
     Task<ClienteNotificacoesInterno?> ObterClienteAsync(Guid empresaId, Guid clienteId, CancellationToken cancellationToken);
+}
+
+public sealed record OrdemServicoNotificacoesInterna(Guid Id, string Codigo,
+    StatusOrdemServico Status, Guid ClienteId, string ClienteNome, string VeiculoDescricao,
+    string? VeiculoPlaca);
+
+public interface IAtendimentoNotificacoesConsulta
+{
+    Task<OrdemServicoNotificacoesInterna?> ObterOrdemServicoAsync(Guid empresaId,
+        Guid ordemServicoId, CancellationToken cancellationToken);
 }
 
 public sealed record ConteudoTemplateEmail(string Assunto, string CorpoHtml, OrigemTemplateEmail Origem);

@@ -10,9 +10,26 @@ public sealed class NotificacaoEmail : EntidadeEmpresaBase
     public NotificacaoEmail(Guid empresaId, Guid ordemServicoId, Guid clienteId, TipoTemplateEmail tipo,
         string? destinatarioEmail, string destinatarioNome, string assuntoSnapshot,
         string corpoHtmlSnapshot, OrigemTemplateEmail origemTemplate, string? responderParaSnapshot)
-        : base(Guid.NewGuid(), empresaId)
+        : this(Guid.NewGuid(), empresaId, ordemServicoId, clienteId, tipo, destinatarioEmail,
+            destinatarioNome, assuntoSnapshot, corpoHtmlSnapshot, origemTemplate,
+            responderParaSnapshot, TipoTentativaNotificacaoEmail.Automatica, null)
     {
+    }
+
+    public NotificacaoEmail(Guid id, Guid empresaId, Guid ordemServicoId, Guid clienteId,
+        TipoTemplateEmail tipo, string? destinatarioEmail, string destinatarioNome,
+        string assuntoSnapshot, string corpoHtmlSnapshot, OrigemTemplateEmail origemTemplate,
+        string? responderParaSnapshot, TipoTentativaNotificacaoEmail tipoPrimeiraTentativa,
+        Guid? solicitadoPorUsuarioId)
+        : base(id, empresaId)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("A notificação deve possuir um identificador.", nameof(id));
         if (ordemServicoId == Guid.Empty) throw new ArgumentException("A ordem de serviço deve ser informada.", nameof(ordemServicoId));
+        if (!Enum.IsDefined(tipoPrimeiraTentativa))
+            throw new ArgumentException("O tipo da primeira tentativa é inválido.", nameof(tipoPrimeiraTentativa));
+        if (tipoPrimeiraTentativa == TipoTentativaNotificacaoEmail.Manual &&
+            (!solicitadoPorUsuarioId.HasValue || solicitadoPorUsuarioId.Value == Guid.Empty))
+            throw new ArgumentException("O usuário deve ser informado para um envio manual.", nameof(solicitadoPorUsuarioId));
         OrdemServicoId = ordemServicoId;
         ClienteId = clienteId == Guid.Empty ? throw new ArgumentException("O cliente deve ser informado.", nameof(clienteId)) : clienteId;
         Tipo = tipo;
@@ -24,7 +41,8 @@ public sealed class NotificacaoEmail : EntidadeEmpresaBase
         DestinatarioEmailSnapshot = NormalizarEmail(destinatarioEmail);
         Status = DestinatarioEmailSnapshot is null ? StatusNotificacaoEmail.SemDestinatario : StatusNotificacaoEmail.Pendente;
         ProximaTentativaEmUtc = Status == StatusNotificacaoEmail.Pendente ? DateTime.UtcNow : null;
-        TipoProximaTentativa = TipoTentativaNotificacaoEmail.Automatica;
+        TipoProximaTentativa = tipoPrimeiraTentativa;
+        ProximaTentativaSolicitadaPorUsuarioId = solicitadoPorUsuarioId;
     }
 
     public Guid OrdemServicoId { get; private set; }
@@ -111,7 +129,7 @@ public sealed class NotificacaoEmail : EntidadeEmpresaBase
         return tentativa;
     }
 
-    public void PrepararReenvioManual(string? destinatarioAtual, Guid usuarioId, DateTime agoraUtc)
+    public void PrepararNovaTentativaManual(string? destinatarioAtual, Guid usuarioId, DateTime agoraUtc)
     {
         if (Status == StatusNotificacaoEmail.Enviada) throw new InvalidOperationException("Uma notificação aceita pelo provedor não pode ser reenviada.");
         if (Status is not (StatusNotificacaoEmail.Falhou or StatusNotificacaoEmail.SemDestinatario))

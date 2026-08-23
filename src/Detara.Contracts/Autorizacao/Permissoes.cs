@@ -65,7 +65,7 @@ public static class Permissoes
         new(FinanceiroEditar, "Editar vencimentos financeiros"),
         new(FinanceiroRegistrarPagamento, "Registrar pagamentos"),
         new(FinanceiroEstornarPagamento, "Estornar pagamentos"),
-        new(NotificacoesReenviar, "Reenviar notificações por e-mail"),
+        new(NotificacoesReenviar, "Enviar e reenviar notificações por e-mail"),
         new(AdministracaoUsuario, "Administrar usuários")
     ];
 

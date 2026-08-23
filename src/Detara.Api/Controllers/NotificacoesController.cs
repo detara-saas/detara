@@ -60,13 +60,29 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
         CancellationToken ct)
     {
         var item = await sender.Send(new ObterNotificacaoOrdemServicoQuery(ordemServicoId), ct);
-        return Ok(RespostaApi<NotificacaoOrdemServicoResponse>.Ok(new(item is not null, item is null ? null : Mapear(item))));
+        return Ok(RespostaApi<NotificacaoOrdemServicoResponse>.Ok(new(item.Notificacao is not null,
+            item.Notificacao is null ? null : Mapear(item.Notificacao),
+            item.EnviarVeiculoProntoAutomaticamente, item.EmailDestinoAtual)));
     }
 
+    [HttpPost("ordens-servico/{ordemServicoId:guid}/enviar"), Authorize(Policy = Permissoes.NotificacoesReenviar)]
+    public async Task<ActionResult<RespostaApi<NotificacaoEmailResponse>>> Enviar(
+        Guid ordemServicoId, CancellationToken ct) =>
+        Ok(RespostaApi<NotificacaoEmailResponse>.Ok(Mapear(await sender.Send(
+            new EnviarAvisoVeiculoProntoCommand(ordemServicoId), ct)), "Envio agendado."));
+
+    [HttpPost("ordens-servico/{ordemServicoId:guid}/tentar-novamente"), Authorize(Policy = Permissoes.NotificacoesReenviar)]
+    public async Task<ActionResult<RespostaApi<NotificacaoEmailResponse>>> TentarNovamente(
+        Guid ordemServicoId, CancellationToken ct) =>
+        Ok(RespostaApi<NotificacaoEmailResponse>.Ok(Mapear(await sender.Send(
+            new TentarNovamenteNotificacaoCommand(ordemServicoId), ct)), "Nova tentativa agendada."));
+
     [HttpPost("ordens-servico/{ordemServicoId:guid}/reenviar"), Authorize(Policy = Permissoes.NotificacoesReenviar)]
-    public async Task<ActionResult<RespostaApi<NotificacaoEmailResponse>>> Reenviar(Guid ordemServicoId, CancellationToken ct) =>
-        Ok(RespostaApi<NotificacaoEmailResponse>.Ok(Mapear(await sender.Send(new ReenviarNotificacaoCommand(ordemServicoId), ct)),
-            "Reenvio colocado na fila."));
+    public async Task<ActionResult<RespostaApi<NotificacaoEmailResponse>>> Reenviar(Guid ordemServicoId,
+        ReenviarAvisoVeiculoProntoRequest request, CancellationToken ct) =>
+        Ok(RespostaApi<NotificacaoEmailResponse>.Ok(Mapear(await sender.Send(
+            new ReenviarAvisoVeiculoProntoCommand(ordemServicoId, request.SolicitacaoId), ct)),
+            "Reenvio agendado."));
 
     private static ConfiguracaoNotificacaoResponse Mapear(ConfiguracaoNotificacaoVisualizacao x) =>
         new(x.EnviarVeiculoProntoAutomaticamente, x.ResponderParaEmail, x.AtualizadoEmUtc);
