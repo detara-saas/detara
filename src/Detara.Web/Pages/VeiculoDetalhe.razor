@@ -19,7 +19,7 @@ else if (_veiculo is null)
 }
 else
 {
-    <CabecalhoPagina Titulo="@DescricaoVeiculo" Descricao="@_veiculo.Placa" Sobretitulo="VEÍCULO">
+    <CabecalhoPagina Titulo="@DescricaoVeiculo" Descricao="@FormatacaoVeiculo.NomeTipo(_veiculo.Tipo)" Sobretitulo="VEÍCULO">
         <Acoes>
             <span class="status-badge @(_veiculo.EhAtivo ? "status-running" : "status-neutral")">@(_veiculo.EhAtivo ? "Ativo" : "Inativo")</span>
             <AuthorizeView Policy="@Permissoes.VeiculosEditar"><Authorized><MudButton Href="@($"/veiculos/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Variant="Variant.Text" Color="@(_veiculo.EhAtivo ? Color.Error : Color.Success)" OnClick="SolicitarStatus">@(_veiculo.EhAtivo ? "Inativar" : "Ativar")</MudButton></Authorized></AuthorizeView>
@@ -33,8 +33,11 @@ else
 
     <div class="detail-grid vehicle-detail-grid">
         <section class="module-panel detail-card">
-            <div class="section-heading"><div><span class="section-eyebrow">IDENTIFICAÇÃO</span><h2>Dados do veículo</h2></div><span class="plate-badge large">@_veiculo.Placa</span></div>
+            <div class="section-heading"><div><span class="section-eyebrow">IDENTIFICAÇÃO</span><h2>Dados do veículo</h2></div>@if (!string.IsNullOrWhiteSpace(_veiculo.Placa)) { <span class="plate-badge large">@_veiculo.Placa</span> }</div>
             <dl class="detail-list">
+                <div><dt>Tipo</dt><dd>@FormatacaoVeiculo.NomeTipo(_veiculo.Tipo)</dd></div>
+                <div><dt>Placa</dt><dd>@Valor(_veiculo.Placa)</dd></div>
+                <div><dt>Identificação alternativa</dt><dd>@Valor(_veiculo.IdentificacaoAlternativa)</dd></div>
                 <div><dt>Marca</dt><dd>@_veiculo.Marca</dd></div>
                 <div><dt>Modelo</dt><dd>@_veiculo.Modelo</dd></div>
                 <div><dt>Versão</dt><dd>@Valor(_veiculo.Versao)</dd></div>
@@ -95,7 +98,7 @@ else
             {
                 <div class="vehicle-main-photo">
                     <div class="vehicle-main-photo-frame">
-                        @ImagemFoto(principal, $"Foto principal de {DescricaoVeiculo}, placa {_veiculo.Placa}")
+                        @ImagemFoto(principal, $"Foto principal de {DescricaoVeiculo}")
                         <span class="status-badge status-running vehicle-main-badge"><MudIcon Icon="@Icons.Material.Outlined.Star" Size="Size.Small" /> Principal</span>
                     </div>
                     <div class="vehicle-main-photo-info"><strong>@principal.NomeOriginal</strong><span>@FormatarTamanho(principal.TamanhoBytes) · adicionada em @principal.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
@@ -153,8 +156,8 @@ else
 
     private string DescricaoVeiculo => _veiculo is null
         ? string.Empty
-        : string.Join(" ", new[] { _veiculo.Marca, _veiculo.Modelo, _veiculo.Versao }
-            .Where(item => !string.IsNullOrWhiteSpace(item)));
+        : FormatacaoVeiculo.Exibir($"{_veiculo.Marca} {_veiculo.Modelo}",
+            _veiculo.Placa ?? _veiculo.IdentificacaoAlternativa);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -341,4 +344,5 @@ else
 
     private static string Valor(string? valor, string padrao = "—") =>
         string.IsNullOrWhiteSpace(valor) ? padrao : valor;
+
 }

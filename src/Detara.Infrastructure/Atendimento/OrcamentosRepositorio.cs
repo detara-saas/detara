@@ -33,7 +33,8 @@ internal sealed class OrcamentosRepositorio(DetaraDbContext db) : IOrcamentosRep
             var normalizado = new string(termo.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
             query = query.Where(x => x.Codigo != null && x.Codigo.Contains(termo) || x.ClienteNomeSnapshot.Contains(termo)
                 || x.ClienteDocumentoSnapshot != null && x.ClienteDocumentoSnapshot.Contains(normalizado)
-                || x.VeiculoDescricaoSnapshot.Contains(termo) || x.VeiculoPlacaSnapshot.Contains(normalizado));
+                || x.VeiculoDescricaoSnapshot.Contains(termo)
+                || x.VeiculoPlacaSnapshot != null && x.VeiculoPlacaSnapshot.Contains(normalizado));
         }
         var total = await query.CountAsync(ct);
         var itens = await query.OrderByDescending(x => x.CriadoEmUtc)

@@ -23,7 +23,7 @@ public sealed class Agendamento : EntidadeEmpresaBase
         string clienteNomeSnapshot,
         Guid veiculoId,
         string veiculoDescricaoSnapshot,
-        string veiculoPlacaSnapshot,
+        string? veiculoPlacaSnapshot,
         DateTime inicioUtc,
         int duracaoPlanejadaMinutos,
         string? observacaoSolicitante,
@@ -41,7 +41,7 @@ public sealed class Agendamento : EntidadeEmpresaBase
         string clienteNomeSnapshot,
         Guid veiculoId,
         string veiculoDescricaoSnapshot,
-        string veiculoPlacaSnapshot,
+        string? veiculoPlacaSnapshot,
         DateTime inicioUtc,
         int duracaoPlanejadaMinutos,
         string? observacaoSolicitante,
@@ -54,7 +54,7 @@ public sealed class Agendamento : EntidadeEmpresaBase
         ClienteNomeSnapshot = NormalizarObrigatorio(clienteNomeSnapshot, 160, nameof(clienteNomeSnapshot));
         VeiculoId = ExigirId(veiculoId, nameof(veiculoId));
         VeiculoDescricaoSnapshot = NormalizarObrigatorio(veiculoDescricaoSnapshot, 200, nameof(veiculoDescricaoSnapshot));
-        VeiculoPlacaSnapshot = NormalizarObrigatorio(veiculoPlacaSnapshot, 10, nameof(veiculoPlacaSnapshot));
+        VeiculoPlacaSnapshot = NormalizarOpcional(veiculoPlacaSnapshot, 10);
         Status = StatusAgendamento.Agendado;
         AtualizarPlanejamentoInterno(inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante,
             observacaoInterna, itens, permitirSemItens);
@@ -66,7 +66,7 @@ public sealed class Agendamento : EntidadeEmpresaBase
         string clienteNomeSnapshot,
         Guid veiculoId,
         string veiculoDescricaoSnapshot,
-        string veiculoPlacaSnapshot,
+        string? veiculoPlacaSnapshot,
         DateTime inicioUtc,
         int duracaoPlanejadaMinutos,
         string? observacaoSolicitante,
@@ -80,7 +80,7 @@ public sealed class Agendamento : EntidadeEmpresaBase
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;
     public Guid VeiculoId { get; private set; }
     public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
-    public string VeiculoPlacaSnapshot { get; private set; } = string.Empty;
+    public string? VeiculoPlacaSnapshot { get; private set; }
     public DateTime InicioUtc { get; private set; }
     public int DuracaoPlanejadaMinutos { get; private set; }
     public StatusAgendamento Status { get; private set; }

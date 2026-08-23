@@ -10,7 +10,7 @@ else if (_conta is null) { <EstadoVazio Titulo="Conta a receber não encontrada"
 else
 {
     <div class="page-container page-container-wide receivable-detail-page">
-        <CabecalhoPagina Titulo="@_conta.OrdemServicoCodigo" Descricao="@($"{_conta.ClienteNome} · {_conta.VeiculoDescricao} · {_conta.VeiculoPlaca}")" Sobretitulo="FINANCEIRO">
+        <CabecalhoPagina Titulo="@_conta.OrdemServicoCodigo" Descricao="@($"{_conta.ClienteNome} · {FormatacaoVeiculo.Exibir(_conta.VeiculoDescricao, _conta.VeiculoPlaca)}")" Sobretitulo="FINANCEIRO">
             <Acoes><span class="status-badge @ClasseStatus">@StatusEfetivo</span><MudButton Href="/financeiro/contas-receber" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ArrowBack">Voltar</MudButton></Acoes>
         </CabecalhoPagina>
         <section class="detail-metrics detail-metrics-four" aria-label="Resumo da conta">

@@ -149,6 +149,46 @@ public sealed class EntidadesTests
         Assert.Throws<ArgumentException>(() => CriarVeiculo("AB-123", 1000));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Veiculo_PermitePlacaNaoInformada(string? placa)
+    {
+        var veiculo = new Veiculo(Guid.NewGuid(), Guid.NewGuid(), TipoVeiculo.MotoAquatica,
+            placa, "  JET-001  ", "Sea-Doo", "GTX 300", null, 2025, 2025, null, 0, null);
+
+        Assert.Null(veiculo.Placa);
+        Assert.Equal("JET-001", veiculo.IdentificacaoAlternativa);
+        Assert.Equal(TipoVeiculo.MotoAquatica, veiculo.Tipo);
+    }
+
+    [Fact]
+    public void Veiculo_IdentificacaoAlternativa_PreservaCapitalizacao()
+    {
+        var veiculo = new Veiculo(Guid.NewGuid(), Guid.NewGuid(), TipoVeiculo.Embarcacao,
+            null, "  Chassi Abc-123  ", "Yamaha", "242X", null, 2024, 2024, null, null, null);
+
+        Assert.Equal("Chassi Abc-123", veiculo.IdentificacaoAlternativa);
+    }
+
+    [Theory]
+    [InlineData("ABC1D23", "REF-01", "Honda Civic · ABC1D23")]
+    [InlineData(null, "DEMO-JET-01", "Sea-Doo GTX 300 · DEMO-JET-01")]
+    [InlineData(null, null, "Sea-Doo GTX 300")]
+    public void Veiculo_FormataDescricaoSemSeparadorSolto(
+        string? placa,
+        string? alternativa,
+        string esperado)
+    {
+        Assert.Equal(esperado,
+            Veiculo.FormatarDescricao(
+                placa is null ? "Sea-Doo" : "Honda",
+                placa is null ? "GTX 300" : "Civic",
+                placa,
+                alternativa));
+    }
+
     [Fact]
     public void Veiculo_RejeitaQuilometragemNegativa()
     {

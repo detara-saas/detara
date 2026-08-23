@@ -15,7 +15,9 @@ public sealed record FiltroVeiculos(
 public sealed record VeiculoListaItemResultado(
     Guid Id,
     string Descricao,
-    string Placa,
+    TipoVeiculo Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     Guid ClienteId,
     string ClienteNome,
     int? AnoModelo,
@@ -27,7 +29,9 @@ public sealed record VeiculoDetalheResultado(
     Guid Id,
     Guid ClienteId,
     string ClienteNome,
-    string Placa,
+    TipoVeiculo Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     string Marca,
     string Modelo,
     string? Versao,
@@ -47,7 +51,9 @@ public sealed record ObterVeiculoQuery(Guid Id) : IRequest<VeiculoDetalheResulta
 
 public sealed record CriarVeiculoCommand(
     Guid ClienteId,
-    string Placa,
+    TipoVeiculo Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     string Marca,
     string Modelo,
     string? Versao,
@@ -60,7 +66,9 @@ public sealed record CriarVeiculoCommand(
 public sealed record AtualizarVeiculoCommand(
     Guid Id,
     Guid ClienteId,
-    string Placa,
+    TipoVeiculo Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     string Marca,
     string Modelo,
     string? Versao,
@@ -90,13 +98,22 @@ internal sealed class CriarVeiculoCommandValidator : AbstractValidator<CriarVeic
     public CriarVeiculoCommandValidator()
     {
         RuleFor(item => item.ClienteId).NotEmpty();
-        RuleFor(item => item.Placa).NotEmpty().MaximumLength(10);
+        RuleFor(item => item.Tipo).IsInEnum();
+        RuleFor(item => item.Placa).MaximumLength(10).Must(PlacaValida)
+            .WithMessage("A placa deve seguir o padrão ABC1234 ou ABC1D23.");
+        RuleFor(item => item.IdentificacaoAlternativa).MaximumLength(120);
         RuleFor(item => item.Marca).NotEmpty().MaximumLength(80);
         RuleFor(item => item.Modelo).NotEmpty().MaximumLength(80);
         RuleFor(item => item.Versao).MaximumLength(80);
         RuleFor(item => item.Cor).MaximumLength(50);
         RuleFor(item => item.Quilometragem).GreaterThanOrEqualTo(0).When(item => item.Quilometragem.HasValue);
         RuleFor(item => item.Observacao).MaximumLength(2000);
+    }
+
+    private static bool PlacaValida(string? placa)
+    {
+        try { _ = Veiculo.NormalizarPlaca(placa); return true; }
+        catch (ArgumentException) { return false; }
     }
 }
 
@@ -106,13 +123,22 @@ internal sealed class AtualizarVeiculoCommandValidator : AbstractValidator<Atual
     {
         RuleFor(item => item.Id).NotEmpty();
         RuleFor(item => item.ClienteId).NotEmpty();
-        RuleFor(item => item.Placa).NotEmpty().MaximumLength(10);
+        RuleFor(item => item.Tipo).IsInEnum();
+        RuleFor(item => item.Placa).MaximumLength(10).Must(PlacaValida)
+            .WithMessage("A placa deve seguir o padrão ABC1234 ou ABC1D23.");
+        RuleFor(item => item.IdentificacaoAlternativa).MaximumLength(120);
         RuleFor(item => item.Marca).NotEmpty().MaximumLength(80);
         RuleFor(item => item.Modelo).NotEmpty().MaximumLength(80);
         RuleFor(item => item.Versao).MaximumLength(80);
         RuleFor(item => item.Cor).MaximumLength(50);
         RuleFor(item => item.Quilometragem).GreaterThanOrEqualTo(0).When(item => item.Quilometragem.HasValue);
         RuleFor(item => item.Observacao).MaximumLength(2000);
+    }
+
+    private static bool PlacaValida(string? placa)
+    {
+        try { _ = Veiculo.NormalizarPlaca(placa); return true; }
+        catch (ArgumentException) { return false; }
     }
 }
 
@@ -160,7 +186,9 @@ internal sealed class CriarVeiculoCommandHandler(
         var veiculo = new Veiculo(
             usuarioContexto.EmpresaId,
             request.ClienteId,
+            request.Tipo,
             placa,
+            request.IdentificacaoAlternativa,
             request.Marca,
             request.Modelo,
             request.Versao,
@@ -190,11 +218,12 @@ internal sealed class CriarVeiculoCommandHandler(
 
     internal static async Task ValidarPlacaUnicaAsync(
         IVeiculosRepositorio repositorio,
-        string placa,
+        string? placa,
         Guid? ignorarVeiculoId,
         CancellationToken cancellationToken)
     {
-        if (await repositorio.PlacaEmUsoAsync(placa, ignorarVeiculoId, cancellationToken))
+        if (placa is not null &&
+            await repositorio.PlacaEmUsoAsync(placa, ignorarVeiculoId, cancellationToken))
         {
             throw new ConflitoRegraNegocioException(
                 "Já existe um veículo com esta placa na empresa atual.");
@@ -227,7 +256,9 @@ internal sealed class AtualizarVeiculoCommandHandler(
             cancellationToken);
         veiculo.Atualizar(
             request.ClienteId,
+            request.Tipo,
             placa,
+            request.IdentificacaoAlternativa,
             request.Marca,
             request.Modelo,
             request.Versao,

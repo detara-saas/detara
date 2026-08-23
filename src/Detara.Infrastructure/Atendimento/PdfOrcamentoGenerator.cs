@@ -25,7 +25,10 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
         canvas.Texto(o.ClienteNome, 12, negrito: true);
         canvas.Texto(string.Join("  •  ", new[] { FormatarDocumento(o.ClienteDocumento), FormatarTelefone(o.ClienteTelefone) }.Where(x => x is not null)));
         canvas.Secao("VEÍCULO");
-        canvas.Texto($"{o.VeiculoDescricao}  •  {o.VeiculoPlaca}", 11, negrito: true);
+        canvas.Texto(string.IsNullOrWhiteSpace(o.VeiculoPlaca) ||
+                     o.VeiculoDescricao.Contains(o.VeiculoPlaca, StringComparison.OrdinalIgnoreCase)
+            ? o.VeiculoDescricao
+            : $"{o.VeiculoDescricao}  •  {o.VeiculoPlaca}", 11, negrito: true);
         canvas.Secao("ITENS");
         canvas.CabecalhoItens();
         foreach (var item in o.Itens.OrderBy(x => x.Ordem))

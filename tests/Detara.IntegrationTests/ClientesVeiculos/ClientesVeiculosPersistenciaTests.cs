@@ -139,6 +139,78 @@ public sealed class ClientesVeiculosPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DoisVeiculosSemPlacaNoMesmoTenant_SaoPermitidos()
+    {
+        await using var context = CriarContexto(_empresaAId);
+        context.Veiculos.AddRange(
+            new Veiculo(_empresaAId, _clienteAId, TipoVeiculo.MotoAquatica, null, "JET-001",
+                "Sea-Doo", "GTX 300", null, 2025, 2025, null, 0, null),
+            new Veiculo(_empresaAId, _clienteAId, TipoVeiculo.Embarcacao, " ", "JET-001",
+                "Yamaha", "242X", null, 2024, 2024, null, 0, null));
+
+        await context.SaveChangesAsync();
+
+        Assert.Equal(2, await context.Veiculos.CountAsync(item => item.Placa == null));
+    }
+
+    [Fact]
+    public async Task CriarVeiculoSemPlaca_PersisteTipoEAlternativa_EPermiteBusca()
+    {
+        await using var context = CriarContexto(_empresaAId);
+        var resultado = await new CriarVeiculoCommandHandler(
+            new UsuarioContextoTeste(_empresaAId),
+            new ClientesRepositorio(context),
+            new VeiculosRepositorio(context)).Handle(
+                new CriarVeiculoCommand(_clienteAId, TipoVeiculo.MotoAquatica, null,
+                    "  JET-001  ", "Sea-Doo", "GTX 300", null, 2025, 2025, null, 0, null),
+                CancellationToken.None);
+
+        Assert.Null(resultado.Placa);
+        Assert.Equal(TipoVeiculo.MotoAquatica, resultado.Tipo);
+        Assert.Equal("JET-001", resultado.IdentificacaoAlternativa);
+        var pagina = await new VeiculosRepositorio(context).ListarAsync(
+            new FiltroVeiculos(1, 10, "JET-001", true), CancellationToken.None);
+        var item = Assert.Single(pagina.Itens, item => item.Id == resultado.Id);
+        Assert.Equal("Sea-Doo GTX 300 · JET-001", item.Descricao);
+    }
+
+    [Fact]
+    public async Task EdicaoVeiculo_PermiteAdicionarERemoverPlaca()
+    {
+        await using var context = CriarContexto(_empresaAId);
+        var veiculos = new VeiculosRepositorio(context);
+        var handler = new AtualizarVeiculoCommandHandler(
+            new UsuarioContextoTeste(_empresaAId), new ClientesRepositorio(context), veiculos);
+
+        var comPlaca = await handler.Handle(new AtualizarVeiculoCommand(
+            _veiculoAId, _clienteAId, TipoVeiculo.Carro, "DEF-2E34", "REF-01",
+            "Honda", "Civic", null, 2024, 2024, "Preto", 1000, null), default);
+        Assert.Equal("DEF2E34", comPlaca.Placa);
+
+        var semPlaca = await handler.Handle(new AtualizarVeiculoCommand(
+            _veiculoAId, _clienteAId, TipoVeiculo.Carro, " ", "REF-01",
+            "Honda", "Civic", null, 2024, 2024, "Preto", 1000, null), default);
+        Assert.Null(semPlaca.Placa);
+        var item = Assert.Single((await veiculos.ListarAsync(
+            new FiltroVeiculos(1, 10, "REF-01", true), default)).Itens);
+        Assert.Equal("Honda Civic · REF-01", item.Descricao);
+    }
+
+    [Fact]
+    public async Task Validator_RejeitaPlacaInvalida_EAceitaAusente()
+    {
+        var invalido = await new CriarVeiculoCommandValidator().ValidateAsync(
+            new CriarVeiculoCommand(_clienteAId, TipoVeiculo.Carro, "AB-123", null,
+                "Honda", "Civic", null, null, null, null, null, null));
+        var ausente = await new CriarVeiculoCommandValidator().ValidateAsync(
+            new CriarVeiculoCommand(_clienteAId, TipoVeiculo.Carro, null, null,
+                "Porsche", "911", null, null, null, null, null, null));
+
+        Assert.Contains(invalido.Errors, erro => erro.PropertyName == nameof(CriarVeiculoCommand.Placa));
+        Assert.True(ausente.IsValid);
+    }
+
+    [Fact]
     public async Task PesquisaClientePorPlaca_UsaPaginacaoNoBanco()
     {
         await using var context = CriarContexto(_empresaAId);
@@ -197,7 +269,9 @@ public sealed class ClientesVeiculosPersistenciaTests : IAsyncLifetime
                 new AtualizarVeiculoCommand(
                     detalhe.Id,
                     detalhe.ClienteId,
+                    detalhe.Tipo,
                     detalhe.Placa,
+                    detalhe.IdentificacaoAlternativa,
                     detalhe.Marca,
                     detalhe.Modelo,
                     detalhe.Versao,
@@ -225,7 +299,9 @@ public sealed class ClientesVeiculosPersistenciaTests : IAsyncLifetime
             new AtualizarVeiculoCommand(
                 _veiculoAId,
                 _clienteBId,
+                TipoVeiculo.Carro,
                 "ABC1D23",
+                null,
                 "Honda",
                 "Civic",
                 null,

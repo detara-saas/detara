@@ -27,7 +27,8 @@ internal sealed class OrdensServicoRepositorio(DetaraDbContext db) : IOrdensServ
             var termo = filtro.Pesquisa.Trim();
             var normalizado = new string(termo.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
             query = query.Where(item => item.Codigo.Contains(termo) || item.ClienteNomeSnapshot.Contains(termo) ||
-                item.VeiculoDescricaoSnapshot.Contains(termo) || item.VeiculoPlacaSnapshot.Contains(normalizado));
+                item.VeiculoDescricaoSnapshot.Contains(termo) ||
+                item.VeiculoPlacaSnapshot != null && item.VeiculoPlacaSnapshot.Contains(normalizado));
         }
         var total = await query.CountAsync(ct);
         var itens = await query.OrderByDescending(item => item.CriadoEmUtc)

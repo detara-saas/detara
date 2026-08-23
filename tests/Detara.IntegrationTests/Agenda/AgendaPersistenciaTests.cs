@@ -92,7 +92,7 @@ public sealed class AgendaPersistenciaTests : IAsyncLifetime
         var veiculo = await c.Veiculos.SingleAsync(x => x.Id == _veiculoA); veiculo.Atualizar(cliente.Id, "NEW1N11", "Nova", "Descrição", null, 2025, 2025, null, null, null);
         var servico = await c.Servicos.SingleAsync(x => x.Id == _servicoA); servico.Atualizar(servico.CategoriaServicoId, "Lavagem alterada", null, TipoPrecificacao.APartirDe, 120m, 120, 1); await c.SaveChangesAsync();
         var detalhe = await new AgendaRepositorio(c).ObterDetalheAsync(criado.Agendamento.Id, default);
-        Assert.NotNull(detalhe); Assert.Equal("João da Silva", detalhe.ClienteNome); Assert.Equal("Honda Civic", detalhe.VeiculoDescricao); Assert.Equal("ABC1D23", detalhe.VeiculoPlaca); var item = Assert.Single(detalhe.Itens); Assert.Equal("Lavagem técnica", item.Nome); Assert.Equal(100m, item.PrecoReferencia); Assert.Equal(90, item.DuracaoReferenciaMinutos);
+        Assert.NotNull(detalhe); Assert.Equal("João da Silva", detalhe.ClienteNome); Assert.Equal("Honda Civic · ABC1D23", detalhe.VeiculoDescricao); Assert.Equal("ABC1D23", detalhe.VeiculoPlaca); var item = Assert.Single(detalhe.Itens); Assert.Equal("Lavagem técnica", item.Nome); Assert.Equal(100m, item.PrecoReferencia); Assert.Equal(90, item.DuracaoReferenciaMinutos);
     }
 
     [Fact]

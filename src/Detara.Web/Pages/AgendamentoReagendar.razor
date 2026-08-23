@@ -13,7 +13,7 @@ else if (_agendamento is null) { <EstadoVazio Titulo="Agendamento não encontrad
 else
 {
 <section class="module-panel form-panel reschedule-panel">
-    <div class="reschedule-context"><strong>@_agendamento.ClienteNome</strong><span>@_agendamento.VeiculoDescricao · @_agendamento.VeiculoPlaca</span></div>
+    <div class="reschedule-context"><strong>@_agendamento.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(_agendamento.VeiculoDescricao, _agendamento.VeiculoPlaca)</span></div>
     <div class="form-grid"><MudDatePicker @bind-Date="_data" Label="Nova data *" Required="true" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" /><MudTimePicker @bind-Time="_hora" Label="Nova hora *" Required="true" Variant="Variant.Outlined" AmPm="false" /><MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada (minutos) *" Required="true" Min="1" Max="43200" Variant="Variant.Outlined" /></div>
     @if (_sobreposicoes > 0) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="agenda-overlap-warning"><strong>@_sobreposicoes sobreposição(ões).</strong> O reagendamento continua permitido.</MudAlert> }
     <div class="form-actions"><MudButton Variant="Variant.Text" Href="@($"/agenda/{Id}")">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_salvando" OnClick="SalvarAsync">@(_salvando ? "Salvando..." : _sobreposicoes > 0 && _confirmado ? "Reagendar mesmo assim" : "Reagendar")</MudButton></div>

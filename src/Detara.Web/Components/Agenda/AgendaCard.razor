@@ -1,6 +1,6 @@
 <a class="appointment-card @(Compacto ? "compact" : string.Empty)" href="@($"/agenda/{Item.Id}")">
     <time>@Item.InicioLocal.ToString("HH:mm")</time>
-    <div><strong>@Item.ClienteNome</strong><span>@Item.VeiculoDescricao · @Item.VeiculoPlaca</span><span>@string.Join(", ", Item.PrincipaisItens) · @FormatarDuracao(Item.DuracaoPlanejadaMinutos)</span><small>@Item.Referencia.Texto</small></div>
+    <div><strong>@Item.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(Item.VeiculoDescricao, Item.VeiculoPlaca)</span><span>@string.Join(", ", Item.PrincipaisItens) · @FormatarDuracao(Item.DuracaoPlanejadaMinutos)</span><small>@Item.Referencia.Texto</small></div>
     <span class="status-badge @ClasseStatus(Item.Status)">@NomeStatus(Item.Status)</span>
 </a>
 

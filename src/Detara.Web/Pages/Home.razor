@@ -124,7 +124,7 @@
                                     <HeaderContent><MudTh>Horário</MudTh><MudTh>Cliente e veículo</MudTh><MudTh>Serviço</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
                                     <RowTemplate>
                                         <MudTd DataLabel="Horário"><strong>@context.InicioLocal.ToString("HH:mm")</strong></MudTd>
-                                        <MudTd DataLabel="Cliente e veículo"><div class="vehicle-cell"><strong>@context.ClienteNome</strong><span>@context.VeiculoDescricao · @context.VeiculoPlaca</span></div></MudTd>
+                                        <MudTd DataLabel="Cliente e veículo"><div class="vehicle-cell"><strong>@context.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(context.VeiculoDescricao, context.VeiculoPlaca)</span></div></MudTd>
                                         <MudTd DataLabel="Serviço">@(context.ItemPrincipal ?? "Sem item informado")</MudTd>
                                         <MudTd DataLabel="Status"><span class="status-badge @ClasseStatus(context.Status)">@NomeStatus(context.Status)</span></MudTd>
                                         <MudTd><MudIconButton Href="@($"/agenda/{context.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" aria-label="Abrir agendamento" /></MudTd>

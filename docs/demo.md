@@ -47,7 +47,7 @@ Em `create` e `reset`, a senha do administrador é solicitada duas vezes em term
 
 ## Conteúdo do cenário
 
-O cenário possui a empresa Prime Detail Estética Automotiva, perfis Administrador, Recepção e Operação, três usuários, oito clientes com um veículo cada, cinco categorias, dez serviços, sete agendamentos relativos ao momento da execução, quatro orçamentos, quatro ordens de serviço e três contas a receber. Há exemplos em execução, aguardando retirada e concluído, além de pagamento Pix, pagamento misto e recebível pendente.
+O cenário possui a empresa Prime Detail Estética Automotiva, perfis Administrador, Recepção e Operação, três usuários, nove clientes com um veículo cada, cinco categorias, dez serviços, sete agendamentos relativos ao momento da execução, quatro orçamentos, quatro ordens de serviço e três contas a receber. Um dos veículos é a moto aquática `Sea-Doo GTX 300`, sem placa e identificada por `DEMO-JET-01`. Há exemplos em execução, aguardando retirada e concluído, além de pagamento Pix, pagamento misto e recebível pendente.
 
 As configurações operacionais e o checklist são criados por comandos da aplicação. Clientes, veículos, catálogo, agenda, orçamentos, aprovações, ordens de serviço, check-in, transições e pagamentos também percorrem os comandos reais. A criação direta via EF fica restrita à fundação administrativa do fixture (empresa, perfis e usuários inativos auxiliares) e à limpeza transacional do próprio tenant durante o reset.
 

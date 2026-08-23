@@ -24,7 +24,8 @@ internal sealed class VeiculosRepositorio(DetaraDbContext dbContext) : IVeiculos
             var digitos = new string(pesquisa.Where(char.IsAsciiDigit).ToArray());
             var placa = new string(pesquisa.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
             consulta = consulta.Where(item =>
-                item.Placa.Contains(placa) ||
+                item.Placa != null && item.Placa.Contains(placa) ||
+                item.IdentificacaoAlternativa != null && item.IdentificacaoAlternativa.Contains(pesquisa) ||
                 item.Marca.Contains(pesquisa) ||
                 item.Modelo.Contains(pesquisa) ||
                 item.Cliente.Nome.Contains(pesquisa) ||
@@ -35,20 +36,37 @@ internal sealed class VeiculosRepositorio(DetaraDbContext dbContext) : IVeiculos
             ? consulta.OrderByDescending(item => item.CriadoEmUtc).ThenBy(item => item.Marca).ThenBy(item => item.Modelo)
             : consulta.OrderBy(item => item.Marca).ThenBy(item => item.Modelo).ThenBy(item => item.Placa);
         var total = await consulta.CountAsync(cancellationToken);
-        var itens = await consulta
+        var dados = await consulta
             .Skip((filtro.Pagina - 1) * filtro.TamanhoPagina)
             .Take(filtro.TamanhoPagina)
-            .Select(item => new VeiculoListaItemResultado(
+            .Select(item => new
+            {
                 item.Id,
-                item.Marca + " " + item.Modelo,
+                item.Tipo,
                 item.Placa,
+                item.IdentificacaoAlternativa,
+                item.Marca,
+                item.Modelo,
                 item.ClienteId,
-                item.Cliente.Nome,
+                ClienteNome = item.Cliente.Nome,
                 item.AnoModelo,
                 item.Cor,
                 item.Quilometragem,
-                item.EhAtivo))
+                item.EhAtivo
+            })
             .ToArrayAsync(cancellationToken);
+        var itens = dados.Select(item => new VeiculoListaItemResultado(
+            item.Id,
+            Veiculo.FormatarDescricao(item.Marca, item.Modelo, item.Placa, item.IdentificacaoAlternativa),
+            item.Tipo,
+            item.Placa,
+            item.IdentificacaoAlternativa,
+            item.ClienteId,
+            item.ClienteNome,
+            item.AnoModelo,
+            item.Cor,
+            item.Quilometragem,
+            item.EhAtivo)).ToArray();
         return new PaginacaoResultado<VeiculoListaItemResultado>(
             itens,
             filtro.Pagina,
@@ -64,7 +82,9 @@ internal sealed class VeiculosRepositorio(DetaraDbContext dbContext) : IVeiculos
                 item.Id,
                 item.ClienteId,
                 item.Cliente.Nome,
+                item.Tipo,
                 item.Placa,
+                item.IdentificacaoAlternativa,
                 item.Marca,
                 item.Modelo,
                 item.Versao,

@@ -11,7 +11,7 @@ internal sealed class AgendamentoConfiguracao : IEntityTypeConfiguration<Agendam
     {
         builder.ToTable("Agendamentos"); builder.HasKey(x => x.Id); builder.HasAlternateKey(x => new { x.EmpresaId, x.Id });
         builder.Property(x => x.ClienteNomeSnapshot).HasMaxLength(160).IsRequired();
-        builder.Property(x => x.VeiculoDescricaoSnapshot).HasMaxLength(200).IsRequired(); builder.Property(x => x.VeiculoPlacaSnapshot).HasMaxLength(10).IsRequired();
+        builder.Property(x => x.VeiculoDescricaoSnapshot).HasMaxLength(200).IsRequired(); builder.Property(x => x.VeiculoPlacaSnapshot).HasMaxLength(10);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(x => x.ObservacaoSolicitante).HasMaxLength(2000); builder.Property(x => x.ObservacaoInterna).HasMaxLength(4000); builder.Property(x => x.MotivoCancelamento).HasMaxLength(1000);
         builder.Ignore(x => x.FimUtc);

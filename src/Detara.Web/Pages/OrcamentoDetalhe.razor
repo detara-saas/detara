@@ -12,7 +12,7 @@ else if (_orcamento is null) { <EstadoVazio Titulo="Orçamento não encontrado" 
 else
 {
     <div class="page-container page-container-wide quotation-detail-page">
-    <CabecalhoPagina Titulo="@(_orcamento.Codigo ?? (_orcamento.Status == StatusOrcamentoContrato.Rascunho ? "Rascunho sem código" : "Documento sem emissão"))" Descricao="@($"{_orcamento.ClienteNome} · {_orcamento.VeiculoDescricao} · {_orcamento.VeiculoPlaca}")" Sobretitulo="ORÇAMENTO">
+    <CabecalhoPagina Titulo="@(_orcamento.Codigo ?? (_orcamento.Status == StatusOrcamentoContrato.Rascunho ? "Rascunho sem código" : "Documento sem emissão"))" Descricao="@($"{_orcamento.ClienteNome} · {FormatacaoVeiculo.Exibir(_orcamento.VeiculoDescricao, _orcamento.VeiculoPlaca)}")" Sobretitulo="ORÇAMENTO">
         <Acoes>
             <span class="status-badge @ClasseStatus(_orcamento.Status)">@NomeStatus(_orcamento.Status)</span>
             @if (_orcamento.EmitidoEmUtc.HasValue) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.PictureAsPdf" OnClick="BaixarPdfAsync">Baixar PDF</MudButton> }

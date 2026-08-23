@@ -15,7 +15,7 @@
 </CabecalhoPagina>
 
 <section class="module-toolbar" aria-label="Filtros de veículos">
-    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Placa, marca, modelo, cliente ou telefone"
+    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Identificação, marca, modelo, cliente ou telefone"
                   Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
                   AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" />
     <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense">
@@ -40,13 +40,14 @@ else
 {
     <section class="module-panel desktop-list" aria-label="Lista de veículos">
         <table class="module-table">
-            <thead><tr><th>Veículo</th><th>Placa</th><th>Cliente</th><th>Ano</th><th>Cor</th><th>Quilometragem</th><th>Status</th><th class="actions-column">Ações</th></tr></thead>
+            <thead><tr><th>Veículo</th><th>Tipo</th><th>Identificação</th><th>Cliente</th><th>Ano</th><th>Cor</th><th>Quilometragem</th><th>Status</th><th class="actions-column">Ações</th></tr></thead>
             <tbody>
             @foreach (var veiculo in _pagina.Itens)
             {
                 <tr>
                     <td><a class="primary-link" href="@($"/veiculos/{veiculo.Id}")">@veiculo.Descricao</a></td>
-                    <td><span class="plate-badge">@veiculo.Placa</span></td>
+                    <td>@FormatacaoVeiculo.NomeTipo(veiculo.Tipo)</td>
+                    <td>@Identificacao(veiculo)</td>
                     <td><a class="secondary-link" href="@($"/clientes/{veiculo.ClienteId}")">@veiculo.ClienteNome</a></td>
                     <td>@(veiculo.AnoModelo?.ToString() ?? "—")</td>
                     <td>@Valor(veiculo.Cor)</td>
@@ -63,7 +64,7 @@ else
         @foreach (var veiculo in _pagina.Itens)
         {
             <a class="mobile-record vehicle-mobile-record" href="@($"/veiculos/{veiculo.Id}")">
-                <div class="mobile-record-main"><strong>@veiculo.Descricao</strong><span class="plate-badge">@veiculo.Placa</span><span>@veiculo.ClienteNome</span><span>@(veiculo.AnoModelo?.ToString() ?? "—") · @Valor(veiculo.Cor) · @(veiculo.Quilometragem?.ToString("N0") ?? "—") km</span></div>
+                <div class="mobile-record-main"><strong>@veiculo.Descricao</strong><span>@FormatacaoVeiculo.NomeTipo(veiculo.Tipo) · @veiculo.ClienteNome</span><span>@(veiculo.AnoModelo?.ToString() ?? "—") · @Valor(veiculo.Cor) · @(veiculo.Quilometragem?.ToString("N0") ?? "—") km</span></div>
                 <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
             </a>
         }
@@ -102,4 +103,6 @@ else
     private async Task PaginaAnteriorAsync() { _paginaAtual--; await CarregarAsync(); }
     private async Task ProximaPaginaAsync() { _paginaAtual++; await CarregarAsync(); }
     private static string Valor(string? valor) => string.IsNullOrWhiteSpace(valor) ? "—" : valor;
+    private static string Identificacao(VeiculoListaResponse veiculo) =>
+        FormatacaoVeiculo.Identificacao(veiculo.Placa, veiculo.IdentificacaoAlternativa);
 }

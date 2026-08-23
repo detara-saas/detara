@@ -32,7 +32,10 @@ internal sealed class ClientesRepositorio(DetaraDbContext dbContext) : IClientes
                 item.Nome.Contains(pesquisa) ||
                 digitos.Length > 0 && item.CpfCnpj != null && item.CpfCnpj.Contains(digitos) ||
                 digitos.Length > 0 && item.Telefone != null && item.Telefone.Contains(digitos) ||
-                placa.Length > 0 && item.Veiculos.Any(veiculo => veiculo.Placa.Contains(placa)));
+                placa.Length > 0 && item.Veiculos.Any(veiculo =>
+                    veiculo.Placa != null && veiculo.Placa.Contains(placa) ||
+                    veiculo.IdentificacaoAlternativa != null && veiculo.IdentificacaoAlternativa.Contains(pesquisa) ||
+                    veiculo.Marca.Contains(pesquisa) || veiculo.Modelo.Contains(pesquisa)));
         }
 
         consulta = filtro.Ordenacao == "criacao"
@@ -98,8 +101,12 @@ internal sealed class ClientesRepositorio(DetaraDbContext dbContext) : IClientes
                     .ThenBy(veiculo => veiculo.Modelo)
                     .Select(veiculo => new VeiculoResumoClienteResultado(
                         veiculo.Id,
-                        veiculo.Marca + " " + veiculo.Modelo,
+                        veiculo.Marca + " " + veiculo.Modelo +
+                            (veiculo.Placa != null ? " · " + veiculo.Placa :
+                             veiculo.IdentificacaoAlternativa != null ? " · " + veiculo.IdentificacaoAlternativa : ""),
+                        veiculo.Tipo,
                         veiculo.Placa,
+                        veiculo.IdentificacaoAlternativa,
                         veiculo.AnoModelo,
                         veiculo.Cor,
                         veiculo.Quilometragem,

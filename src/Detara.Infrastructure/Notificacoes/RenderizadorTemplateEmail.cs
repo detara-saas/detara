@@ -16,7 +16,7 @@ internal sealed partial class RenderizadorTemplateEmail : IRenderizadorTemplateE
 
     public ConteudoTemplateEmail ObterPadraoVeiculoPronto() => new(
         "Seu veículo está pronto para retirada 🚗",
-        "<p>Olá, <strong>{{ClientePrimeiroNome}}</strong>!</p><p>Seu <strong>{{VeiculoDescricao}}</strong>, placa <strong>{{Placa}}</strong>, está pronto para retirada.</p><p>Ordem de serviço: <strong>{{OrdemServicoCodigo}}</strong>.</p><p>Atenciosamente,<br><strong>{{EmpresaNome}}</strong></p>",
+        "<p>Olá, <strong>{{ClientePrimeiroNome}}</strong>!</p><p>Seu <strong>{{VeiculoDescricao}}</strong> está pronto para retirada.</p><p>Ordem de serviço: <strong>{{OrdemServicoCodigo}}</strong>.</p><p>Atenciosamente,<br><strong>{{EmpresaNome}}</strong></p>",
         OrigemTemplateEmail.PadraoDetara);
 
     public string SanitizarEValidarCorpo(string corpoHtml)
@@ -74,7 +74,8 @@ internal sealed partial class RenderizadorTemplateEmail : IRenderizadorTemplateE
 
     private static string Substituir(string conteudo, IReadOnlyDictionary<string, string> valores) =>
         TokenRegex().Replace(conteudo, match => valores[match.Groups[1].Value]);
-    private static string LimparCabecalho(string valor) => valor.Replace("\r", string.Empty).Replace("\n", " ").Trim();
+    private static string LimparCabecalho(string? valor) =>
+        (valor ?? string.Empty).Replace("\r", string.Empty).Replace("\n", " ").Trim();
     private static string MontarShell(string corpo) => $"""
         <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
         <body style="margin:0;background:#f5f6f8;color:#172033;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">Atualização sobre seu veículo</div>

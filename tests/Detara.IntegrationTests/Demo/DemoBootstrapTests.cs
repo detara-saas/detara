@@ -88,6 +88,12 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
         Assert.DoesNotContain(recepcao.Permissoes, item => item.Codigo == Permissoes.FinanceiroEditar);
         Assert.DoesNotContain(operacao.Permissoes, item => item.Codigo == Permissoes.AdministracaoUsuario);
         Assert.Equal(2, await db.Usuarios.CountAsync(item => !item.EhAtivo));
+        var semPlaca = Assert.Single(await db.Veiculos.AsNoTracking()
+            .Where(item => item.Placa == null).ToListAsync());
+        Assert.Equal(TipoVeiculo.MotoAquatica, semPlaca.Tipo);
+        Assert.Equal("Sea-Doo", semPlaca.Marca);
+        Assert.Equal("GTX 300", semPlaca.Modelo);
+        Assert.Equal("DEMO-JET-01", semPlaca.IdentificacaoAlternativa);
 
         var configuracao = await db.ConfiguracoesNotificacaoEmpresa.SingleAsync();
         Assert.False(configuracao.EnviarVeiculoProntoAutomaticamente);
@@ -237,8 +243,8 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
         Assert.Equal(1, status.Empresas);
         Assert.Equal(3, status.Perfis);
         Assert.Equal(3, status.Usuarios);
-        Assert.Equal(8, status.Clientes);
-        Assert.Equal(8, status.Veiculos);
+        Assert.Equal(9, status.Clientes);
+        Assert.Equal(9, status.Veiculos);
         Assert.Equal(5, status.Categorias);
         Assert.Equal(10, status.Servicos);
         Assert.Equal(0, status.Pacotes);

@@ -79,7 +79,7 @@ internal sealed class AgendaRepositorio(DetaraDbContext db) : IAgendaRepositorio
     private static IQueryable<Agendamento> AplicarFiltros(IQueryable<Agendamento> query, StatusAgendamento? status, string? pesquisa)
     {
         if (status.HasValue) query = query.Where(x => x.Status == status.Value);
-        if (!string.IsNullOrWhiteSpace(pesquisa)) { var termo = pesquisa.Trim(); var placa = new string(termo.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray()); query = query.Where(x => x.ClienteNomeSnapshot.Contains(termo) || x.VeiculoDescricaoSnapshot.Contains(termo) || x.VeiculoPlacaSnapshot.Contains(placa) || x.Itens.Any(i => i.NomeSnapshot.Contains(termo))); }
+        if (!string.IsNullOrWhiteSpace(pesquisa)) { var termo = pesquisa.Trim(); var placa = new string(termo.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray()); query = query.Where(x => x.ClienteNomeSnapshot.Contains(termo) || x.VeiculoDescricaoSnapshot.Contains(termo) || x.VeiculoPlacaSnapshot != null && x.VeiculoPlacaSnapshot.Contains(placa) || x.Itens.Any(i => i.NomeSnapshot.Contains(termo))); }
         return query;
     }
 

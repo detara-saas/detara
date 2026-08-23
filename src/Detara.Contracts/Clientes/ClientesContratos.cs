@@ -1,3 +1,5 @@
+using Detara.Contracts.Veiculos;
+
 namespace Detara.Contracts.Clientes;
 
 public sealed record SalvarClienteRequest(
@@ -22,7 +24,9 @@ public sealed record ClienteListaResponse(
 public sealed record VeiculoResumoClienteResponse(
     Guid Id,
     string Descricao,
-    string Placa,
+    TipoVeiculoContrato Tipo,
+    string? Placa,
+    string? IdentificacaoAlternativa,
     int? AnoModelo,
     string? Cor,
     int? Quilometragem,
