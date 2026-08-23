@@ -318,15 +318,26 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TenantA_NaoEnviaAvisoParaOrdemDoTenantB()
+    public async Task TenantA_NaoEnviaTentaNovamenteOuReenviaAvisoParaOrdemDoTenantB()
     {
         var osId = Guid.NewGuid();
         await using var db = Db(_empresaA);
         var repo = new NotificacoesRepositorio(db);
-        var handler = CriarHandlerEnvio(db, repo, Ordem(osId), _empresaB);
+        var ordem = Ordem(osId);
+        var atendimento = new AtendimentoFake(_empresaB, ordem);
+        var envio = CriarHandlerEnvio(db, repo, ordem, _empresaB);
+        var retry = new TentarNovamenteNotificacaoHandler(new Contexto(_empresaA, _usuarioA),
+            repo, new ClientesNotificacoesConsulta(db), atendimento);
+        var reenvio = new ReenviarAvisoVeiculoProntoHandler(new Contexto(_empresaA, _usuarioA),
+            repo, new ClientesNotificacoesConsulta(db), new PlataformaNotificacoesConsulta(db),
+            atendimento, new RenderizadorTemplateEmail());
 
         await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
-            handler.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default));
+            envio.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default));
+        await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
+            retry.Handle(new TentarNovamenteNotificacaoCommand(osId), default));
+        await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
+            reenvio.Handle(new ReenviarAvisoVeiculoProntoCommand(osId, Guid.NewGuid()), default));
 
         Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
     }
@@ -352,6 +363,7 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
                 "<p>Corpo snapshot</p>", OrigemTemplateEmail.PadraoDetara, null);
             notificacaoId = n.Id; db.NotificacoesEmail.Add(n); await db.SaveChangesAsync();
         }
+        await Task.Delay(20); // Garante vencimento após a precisão temporal menor do SQLite.
         var fake = new ProvedorFake();
         await using (var conferir = Db(_empresaA))
             Assert.Equal(1, await conferir.NotificacoesEmail.CountAsync(x => x.Status == StatusNotificacaoEmail.Pendente && x.ProximaTentativaEmUtc <= DateTime.UtcNow));
