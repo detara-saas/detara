@@ -28,12 +28,26 @@ public sealed class NotificacoesTests
     { var n = Criar(); n.MarcarProcessando(DateTime.UtcNow); n.RegistrarFalha("rejeitada", false, 4, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(1), TipoTentativaNotificacaoEmail.Automatica, null); Assert.Equal(StatusNotificacaoEmail.Falhou, n.Status); Assert.Null(n.ProximaTentativaEmUtc); }
 
     [Fact]
-    public void Enviada_NaoPodeSerReenviada()
-    { var n = Criar(); n.MarcarProcessando(DateTime.UtcNow); n.RegistrarSucesso("id", DateTime.UtcNow, TipoTentativaNotificacaoEmail.Automatica, null); Assert.Throws<InvalidOperationException>(() => n.PrepararReenvioManual(null, Guid.NewGuid(), DateTime.UtcNow)); }
+    public void Enviada_NaoPodeReceberRetry()
+    { var n = Criar(); n.MarcarProcessando(DateTime.UtcNow); n.RegistrarSucesso("id", DateTime.UtcNow, TipoTentativaNotificacaoEmail.Automatica, null); Assert.Throws<InvalidOperationException>(() => n.PrepararNovaTentativaManual(null, Guid.NewGuid(), DateTime.UtcNow)); }
 
     [Fact]
     public void SemDestinatario_PodeReceberEmailAtualNoReenvio()
-    { var n = Criar(null); var usuario = Guid.NewGuid(); n.PrepararReenvioManual("novo@teste.com", usuario, DateTime.UtcNow); Assert.Equal(StatusNotificacaoEmail.Pendente, n.Status); Assert.Equal("novo@teste.com", n.DestinatarioEmailSnapshot); Assert.Equal(TipoTentativaNotificacaoEmail.Manual, n.TipoProximaTentativa); Assert.Equal(usuario, n.ProximaTentativaSolicitadaPorUsuarioId); }
+    { var n = Criar(null); var usuario = Guid.NewGuid(); n.PrepararNovaTentativaManual("novo@teste.com", usuario, DateTime.UtcNow); Assert.Equal(StatusNotificacaoEmail.Pendente, n.Status); Assert.Equal("novo@teste.com", n.DestinatarioEmailSnapshot); Assert.Equal(TipoTentativaNotificacaoEmail.Manual, n.TipoProximaTentativa); Assert.Equal(usuario, n.ProximaTentativaSolicitadaPorUsuarioId); }
+
+    [Fact]
+    public void EnvioManual_NascePendenteComUsuarioSolicitante()
+    {
+        var usuario = Guid.NewGuid();
+        var notificacao = new NotificacaoEmail(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), TipoTemplateEmail.VeiculoProntoRetirada, "cliente@teste.com",
+            "Cliente", "Assunto", "<p>Corpo</p>", OrigemTemplateEmail.PadraoDetara,
+            null, TipoTentativaNotificacaoEmail.Manual, usuario);
+
+        Assert.Equal(StatusNotificacaoEmail.Pendente, notificacao.Status);
+        Assert.Equal(TipoTentativaNotificacaoEmail.Manual, notificacao.TipoProximaTentativa);
+        Assert.Equal(usuario, notificacao.ProximaTentativaSolicitadaPorUsuarioId);
+    }
 
     [Fact]
     public void Template_RejeitaAssuntoComQuebraDeLinha() => Assert.Throws<ArgumentException>(() =>

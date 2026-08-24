@@ -48,7 +48,7 @@ internal sealed class NotificacaoEmailConfiguracao : IEntityTypeConfiguration<No
         builder.Property(x => x.ProvedorMensagemId).HasMaxLength(200);
         builder.Property(x => x.UltimoErroSeguro).HasMaxLength(500);
         builder.Property(x => x.Versao).IsConcurrencyToken();
-        builder.HasIndex(x => new { x.EmpresaId, x.Tipo, x.OrdemServicoId }).IsUnique();
+        builder.HasIndex(x => new { x.EmpresaId, x.Tipo, x.OrdemServicoId });
         builder.HasIndex(x => new { x.EmpresaId, x.Status, x.ProximaTentativaEmUtc });
         builder.HasMany(x => x.Tentativas).WithOne().HasForeignKey(x => new { x.EmpresaId, x.NotificacaoEmailId })
             .HasPrincipalKey(x => new { x.EmpresaId, x.Id }).OnDelete(DeleteBehavior.Restrict);

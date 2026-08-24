@@ -20,4 +20,6 @@ public sealed record NotificacaoEmailResponse(Guid Id, Guid OrdemServicoId, Stat
     string? DestinatarioEmail, string DestinatarioNome, OrigemTemplateEmailContrato OrigemTemplate,
     int QuantidadeTentativas, DateTime CriadoEmUtc, DateTime? EnviadaEmUtc, string? UltimoErroSeguro,
     IReadOnlyCollection<TentativaNotificacaoEmailResponse> Tentativas);
-public sealed record NotificacaoOrdemServicoResponse(bool Existe, NotificacaoEmailResponse? Notificacao);
+public sealed record NotificacaoOrdemServicoResponse(bool Existe, NotificacaoEmailResponse? Notificacao,
+    bool EnviarVeiculoProntoAutomaticamente, string? EmailDestinoAtual);
+public sealed record ReenviarAvisoVeiculoProntoRequest(Guid SolicitacaoId);

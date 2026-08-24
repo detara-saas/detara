@@ -23,8 +23,13 @@ public sealed class NotificacoesServico(HttpClient http)
         EnviarAsync<object>(() => http.PostAsync("api/notificacoes/templates/veiculo-pronto/teste", null, ct), ct);
     public Task<ResultadoServico<NotificacaoOrdemServicoResponse>> ObterPorOrdemServicoAsync(Guid id, CancellationToken ct = default) =>
         ObterAsync<NotificacaoOrdemServicoResponse>($"api/notificacoes/ordens-servico/{id}", ct);
-    public Task<ResultadoServico<NotificacaoEmailResponse>> ReenviarAsync(Guid id, CancellationToken ct = default) =>
-        EnviarAsync<NotificacaoEmailResponse>(() => http.PostAsync($"api/notificacoes/ordens-servico/{id}/reenviar", null, ct), ct);
+    public Task<ResultadoServico<NotificacaoEmailResponse>> EnviarAvisoAsync(Guid id, CancellationToken ct = default) =>
+        EnviarAsync<NotificacaoEmailResponse>(() => http.PostAsync($"api/notificacoes/ordens-servico/{id}/enviar", null, ct), ct);
+    public Task<ResultadoServico<NotificacaoEmailResponse>> TentarNovamenteAsync(Guid id, CancellationToken ct = default) =>
+        EnviarAsync<NotificacaoEmailResponse>(() => http.PostAsync($"api/notificacoes/ordens-servico/{id}/tentar-novamente", null, ct), ct);
+    public Task<ResultadoServico<NotificacaoEmailResponse>> ReenviarAsync(Guid id,
+        ReenviarAvisoVeiculoProntoRequest request, CancellationToken ct = default) =>
+        EnviarAsync<NotificacaoEmailResponse>(() => http.PostAsJsonAsync($"api/notificacoes/ordens-servico/{id}/reenviar", request, ct), ct);
 
     private async Task<ResultadoServico<T>> ObterAsync<T>(string url, CancellationToken ct)
     { try { return await ConverterAsync<T>(await http.GetAsync(url, ct), ct); } catch (HttpRequestException) { return ResultadoServico<T>.Falha("Não foi possível acessar a API."); } }

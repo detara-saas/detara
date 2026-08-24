@@ -151,7 +151,7 @@ else
                 <div class="notification-config-grid">
                     <div class="notification-config-copy">
                         <div class="setting-switch-row">
-                            <div><strong>Envio automático</strong><span>Cria uma notificação durável ao mudar a OS de “Em execução” para “Aguardando retirada”.</span></div>
+                            <div><strong>Envio automático</strong><span>Cria uma notificação durável ao mudar a OS para “Aguardando retirada”. Desativar não proíbe o envio manual pela OS.</span></div>
                             <MudSwitch T="bool" @bind-Value="_envioAutomatico" Color="Color.Primary" Disabled="@(!_podeEditar)" aria-label="Ativar envio automático de veículo pronto" />
                         </div>
                         <MudTextField T="string" @bind-Value="_responderPara" Label="Responder para (opcional)" Placeholder="contato@suaempresa.com.br" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="200" HelperText="As respostas do cliente irão para este endereço. O remetente é administrado pela infraestrutura Detara." />

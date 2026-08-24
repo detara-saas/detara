@@ -124,6 +124,8 @@
 .communication-summary > span > span { min-width: 0; display: grid; gap: 3px; }
 .communication-summary small { color: var(--detara-text-secondary); font-size: .65rem; font-weight: 700; letter-spacing: .06em; }
 .communication-summary strong { overflow: hidden; color: var(--detara-text); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.communication-actions { padding-top: 2px; }
+.communication-actions .mud-button-root { min-height: 44px; }
 
 @media (max-width: 1199px) {
     .form-page-grid { grid-template-columns: 1fr; }
@@ -157,6 +159,8 @@
     .service-order-detail-page .appointment-items article > strong:last-child { grid-column: 2; }
     .service-order-checkin-meta, .service-order-checklist { grid-template-columns: 1fr; }
     .communication-summary { grid-template-columns: 1fr; }
+    .communication-summary strong { white-space: normal; overflow-wrap: anywhere; }
+    .communication-actions, .communication-actions .mud-button-root { width: 100%; }
     .service-order-checklist article > div { grid-template-columns: 1fr; }
     .service-order-checklist strong { grid-column: auto; }
     .service-order-photo-heading { align-items: flex-start; flex-direction: column; }

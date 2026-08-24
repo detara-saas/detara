@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<INotificacoesRepositorio, NotificacoesRepositorio>();
         services.AddScoped<IPlataformaNotificacoesConsulta, PlataformaNotificacoesConsulta>();
         services.AddScoped<IClientesNotificacoesConsulta, ClientesNotificacoesConsulta>();
+        services.AddScoped<IAtendimentoNotificacoesConsulta, AtendimentoNotificacoesConsulta>();
         services.AddSingleton<IRenderizadorTemplateEmail, RenderizadorTemplateEmail>();
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.Secao));
         services.Configure<FilaNotificacoesOptions>(configuration.GetSection(FilaNotificacoesOptions.Secao));
