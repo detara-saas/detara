@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1220">
-  <meta name="description" content="Organize clientes, veículos, agenda, orçamentos, ordens de serviço e financeiro em um fluxo pensado para estéticas automotivas.">
-  <meta property="og:title" content="Detara | Gestão para estéticas automotivas">
-  <meta property="og:description" content="Conecte agenda, atendimento, execução e recebimentos em uma operação mais clara.">
+  <meta name="theme-color" content="#07111d">
+  <meta name="description" content="Gestão para estéticas automotivas: conecte agenda, orçamento, ordem de serviço, execução, entrega e financeiro em uma operação mais clara.">
+  <meta property="og:title" content="Detara | Operação automotiva conectada">
+  <meta property="og:description" content="Do agendamento à entrega, mantenha cliente, veículo, escopo e recebimento no mesmo fluxo operacional.">
   <meta property="og:type" content="website">
   <title>Detara | Gestão para estéticas automotivas</title>
   <link rel="icon" href="/assets/brand/favicon.ico" sizes="any">
@@ -17,234 +17,331 @@
   <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 
   <header class="site-header" data-header>
-    <div class="container header-inner">
+    <div class="shell header-inner">
       <a class="brand-link" href="#inicio" aria-label="Detara — início">
         <img src="/assets/brand/detara-logo-on-dark.png" width="484" height="130" alt="Detara — Gestão para estéticas automotivas">
       </a>
 
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-navigation" aria-label="Abrir menu">
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-          <path d="M4 7h16M4 12h16M4 17h16"></path>
-        </svg>
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
       </button>
 
       <nav class="site-nav" id="site-navigation" aria-label="Navegação principal">
         <a href="#produto">Produto</a>
         <a href="#fluxo">Como funciona</a>
-        <a href="#recursos">Recursos</a>
-        <a href="#seguranca">Segurança</a>
-        <a class="nav-cta" href="#fluxo">Ver o fluxo</a>
+        <a href="#operacao">Na operação</a>
+        <a href="#seguranca">Controle</a>
+        <a class="nav-cta" href="#produto">Ver o Detara</a>
       </nav>
     </div>
   </header>
 
   <main id="conteudo">
     <section class="hero" id="inicio" aria-labelledby="hero-title">
-      <div class="container hero-grid">
-        <div class="hero-copy">
-          <span class="eyebrow">GESTÃO PARA ESTÉTICAS AUTOMOTIVAS</span>
-          <h1 id="hero-title">Da agenda à entrega, sua estética em um só fluxo.</h1>
-          <p class="hero-lead">Centralize clientes, veículos, agenda, orçamentos, ordens de serviço e recebimentos em uma operação clara — sem perder o contexto entre uma etapa e outra.</p>
+      <div class="hero-lines" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="shell hero-layout">
+        <div class="hero-copy" data-reveal>
+          <div class="hero-kicker"><span></span> OPERAÇÃO AUTOMOTIVA, CONECTADA</div>
+          <h1 id="hero-title">Seu atendimento não termina no agendamento.</h1>
+          <p class="hero-lead">O Detara conecta agenda, orçamento quando necessário, ordem de serviço, execução e recebimento — sem perder o contexto do cliente e do veículo.</p>
           <div class="hero-actions" aria-label="Ações principais">
-            <a class="button button-primary" href="#fluxo">
-              Conhecer o fluxo
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+            <a class="button button-primary" href="#produto">
+              Ver o produto
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
             </a>
-            <a class="button button-secondary" href="#recursos">Explorar recursos</a>
+            <a class="button button-quiet" href="#fluxo">Entender o fluxo</a>
           </div>
-          <p class="hero-note">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
-            Pensado para acompanhar a operação, não apenas o calendário.
-          </p>
+          <div class="hero-proof" aria-label="Áreas conectadas pelo Detara">
+            <span>Agenda</span><i></i><span>Orçamento opcional</span><i></i><span>OS</span><i></i><span>Financeiro</span>
+          </div>
         </div>
 
-        <div class="product-preview" role="img" aria-label="Representação ilustrativa da interface do Detara">
-          <div class="preview-label">PREVIEW DO PRODUTO</div>
-          <div class="preview-window">
-            <div class="preview-topbar">
-              <img src="/assets/brand/detara-icon.png" width="103" height="103" alt="">
-              <div>
-                <span>OPERAÇÃO</span>
-                <strong>Visão geral</strong>
+        <div class="command-center" id="produto" data-reveal data-reveal-delay="1">
+          <div class="command-aura" aria-hidden="true"></div>
+          <div class="command-frame">
+            <div class="command-bar">
+              <div class="command-brand">
+                <img src="/assets/brand/detara-icon.png" width="103" height="103" alt="">
+                <span><small>OPERAÇÃO</small><strong>Visão do atendimento</strong></span>
               </div>
-              <span class="preview-company"><i></i> Empresa</span>
+              <span class="command-context"><i></i> Empresa</span>
             </div>
-            <div class="preview-body">
-              <aside class="preview-sidebar" aria-hidden="true">
-                <span class="sidebar-line active"></span>
-                <span class="sidebar-line"></span>
-                <span class="sidebar-line"></span>
-                <span class="sidebar-line short"></span>
-              </aside>
-              <div class="preview-content">
-                <div class="preview-heading">
-                  <div><span>HOJE</span><strong>Operação em andamento</strong></div>
-                  <span class="status-chip">Visão operacional</span>
+
+            <div class="product-tabs" role="tablist" aria-label="Explorar etapas do produto">
+              <button type="button" role="tab" id="tab-agenda" aria-selected="true" aria-controls="panel-agenda" data-product-tab="agenda">Agenda</button>
+              <button type="button" role="tab" id="tab-orcamento" aria-selected="false" aria-controls="panel-orcamento" data-product-tab="orcamento" tabindex="-1">Orçamento</button>
+              <button type="button" role="tab" id="tab-os" aria-selected="false" aria-controls="panel-os" data-product-tab="os" tabindex="-1">Ordem de serviço</button>
+            </div>
+
+            <div class="command-screen">
+              <section class="product-panel is-active" id="panel-agenda" role="tabpanel" aria-labelledby="tab-agenda" data-product-panel="agenda">
+                <div class="panel-heading"><span><small>HOJE</small><strong>Ritmo da operação</strong></span><em>CENÁRIO ILUSTRATIVO</em></div>
+                <div class="schedule-board">
+                  <div class="schedule-line"><time>09:00</time><span class="vehicle-mark"></span><div><strong>Honda Civic</strong><small>Higienização interna</small></div><b class="status status-confirmed">Confirmado</b></div>
+                  <div class="schedule-line featured"><time>11:30</time><span class="vehicle-mark"></span><div><strong>Sea-Doo GTX</strong><small>Proteção técnica</small></div><b class="status status-running">Em atendimento</b></div>
+                  <div class="schedule-line"><time>14:00</time><span class="vehicle-mark"></span><div><strong>BMW 320i</strong><small>Polimento técnico</small></div><b class="status status-scheduled">Agendado</b></div>
                 </div>
-                <div class="preview-metrics">
-                  <article><span>AGENDA</span><strong>Próximos horários</strong><small>Cliente e veículo no mesmo contexto</small></article>
-                  <article><span>EXECUÇÃO</span><strong>Serviços acompanhados</strong><small>Situação atual de cada atendimento</small></article>
+              </section>
+
+              <section class="product-panel" id="panel-orcamento" role="tabpanel" aria-labelledby="tab-orcamento" data-product-panel="orcamento">
+                <div class="panel-heading"><span><small>PROPOSTA</small><strong>Escopo negociado</strong></span><em>CENÁRIO ILUSTRATIVO</em></div>
+                <div class="quote-layout">
+                  <div class="quote-document">
+                    <div class="document-head"><span>ORÇAMENTO</span><b class="status status-confirmed">Aprovado</b></div>
+                    <div class="document-row"><span>Polimento técnico</span><strong>R$ 480,00</strong></div>
+                    <div class="document-row"><span>Proteção de pintura</span><strong>R$ 320,00</strong></div>
+                    <div class="document-total"><span>Total negociado</span><strong>R$ 800,00</strong></div>
+                  </div>
+                  <div class="quote-note"><span>VALOR PRESERVADO</span><strong>Catálogo como referência.<br>Negociação no histórico.</strong></div>
                 </div>
-                <div class="preview-board">
-                  <div class="preview-board-title"><strong>Agenda de hoje</strong><span>Atendimentos</span></div>
-                  <div class="preview-row"><time>09:00</time><span><strong>Higienização interna</strong><small>Veículo identificado</small></span><b class="status-blue">Agendado</b></div>
-                  <div class="preview-row"><time>11:30</time><span><strong>Polimento técnico</strong><small>Ordem em execução</small></span><b class="status-green">Em atendimento</b></div>
-                  <div class="preview-row"><time>15:00</time><span><strong>Proteção de pintura</strong><small>Serviço finalizado</small></span><b class="status-amber">Aguardando retirada</b></div>
+              </section>
+
+              <section class="product-panel" id="panel-os" role="tabpanel" aria-labelledby="tab-os" data-product-panel="os">
+                <div class="panel-heading"><span><small>OS-2026-0184</small><strong>Execução em andamento</strong></span><em>CENÁRIO ILUSTRATIVO</em></div>
+                <div class="work-order-grid">
+                  <div class="work-checklist">
+                    <span class="check-row done"><i></i><span><strong>Check-in registrado</strong><small>Condições de entrada preservadas</small></span></span>
+                    <span class="check-row done"><i></i><span><strong>Preparação concluída</strong><small>Checklist atualizado</small></span></span>
+                    <span class="check-row current"><i></i><span><strong>Proteção em aplicação</strong><small>Etapa atual da execução</small></span></span>
+                  </div>
+                  <div class="order-summary"><small>TOTAL AUTORIZADO</small><strong>R$ 800,00</strong><span class="status status-running">Em execução</span></div>
                 </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="handoff-card" aria-hidden="true">
+            <span class="handoff-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16v11H4zM4 10h16M8 15h3"></path></svg></span>
+            <span><small>FLUXO PRESERVADO</small><strong>Entrega e recebimento continuam conectados</strong></span>
+          </div>
+          <div class="inspection-tag" aria-hidden="true"><span>DETARA / PRODUCT VIEW</span><b>01—04</b></div>
+        </div>
+      </div>
+      <a class="scroll-cue" href="#contexto"><span>Continuar</span><i></i></a>
+    </section>
+
+    <section class="positioning" id="contexto" aria-labelledby="positioning-title">
+      <div class="shell positioning-grid">
+        <span class="section-index" aria-hidden="true">01 / CONTEXTO</span>
+        <div data-reveal>
+          <span class="eyebrow">ALÉM DO HORÁRIO MARCADO</span>
+          <h2 id="positioning-title">Uma estética não administra só horários.</h2>
+        </div>
+        <p data-reveal data-reveal-delay="1">Ela administra <strong>veículos, escopo, aprovações, execução, entrega e recebimentos.</strong> Quando cada etapa vive em um lugar, o atendimento perde continuidade. O Detara mantém essa história inteira no mesmo fluxo.</p>
+      </div>
+      <div class="positioning-marquee" aria-hidden="true"><span>CLIENTE</span><i></i><span>VEÍCULO</span><i></i><span>AGENDA</span><i></i><span>EXECUÇÃO</span><i></i><span>ENTREGA</span></div>
+    </section>
+
+    <section class="story-section" id="fluxo" aria-labelledby="story-title">
+      <div class="shell story-intro" data-reveal>
+        <span class="section-index">02 / COMO FUNCIONA</span>
+        <div>
+          <span class="eyebrow">UM FLUXO, DOIS CAMINHOS</span>
+          <h2 id="story-title">Do primeiro contato à entrega, tudo continua conectado.</h2>
+        </div>
+        <p>O orçamento entra somente quando existe negociação. Quando não precisa, o atendimento pode seguir direto da Agenda para a OS.</p>
+      </div>
+
+      <div class="shell story-layout">
+        <aside class="story-visual" data-story-visual data-active="contexto" aria-hidden="true">
+          <div class="story-visual-top"><span>FLUXO DO ATENDIMENTO</span><b>CONTEXTO ATIVO</b></div>
+          <div class="story-rail">
+            <span class="rail-node active">Cliente</span><i></i><span class="rail-node">Agenda</span><i class="rail-branch"></i><span class="rail-node">OS</span><i></i><span class="rail-node">Entrega</span>
+          </div>
+          <div class="story-scene is-active" data-story-scene="contexto">
+            <span class="scene-eyebrow">CONTEXTO INICIAL</span>
+            <strong>Cliente e veículo entram juntos.</strong>
+            <div class="context-record"><span class="context-avatar">CV</span><span><b>Atendimento identificado</b><small>Veículo, contato e histórico vinculados</small></span><em>ATIVO</em></div>
+          </div>
+          <div class="story-scene" data-story-scene="agenda">
+            <span class="scene-eyebrow">AGENDA OPERACIONAL</span>
+            <strong>O dia ganha ordem e situação.</strong>
+            <div class="scene-schedule"><time>11:30</time><span><b>Sea-Doo GTX</b><small>Em atendimento</small></span><em></em></div>
+          </div>
+          <div class="story-scene" data-story-scene="orcamento">
+            <span class="scene-eyebrow">CAMINHO OPCIONAL</span>
+            <strong>Negociação registrada quando precisa.</strong>
+            <div class="branch-map"><span>Agenda</span><i></i><span class="branch-optional">Orçamento</span><i></i><span>OS</span></div>
+          </div>
+          <div class="story-scene" data-story-scene="os">
+            <span class="scene-eyebrow">ORDEM DE SERVIÇO</span>
+            <strong>O autorizado orienta a execução.</strong>
+            <div class="scene-progress"><span class="done"></span><span class="done"></span><span class="active"></span><span></span></div>
+          </div>
+          <div class="story-scene" data-story-scene="entrega">
+            <span class="scene-eyebrow">AGUARDANDO RETIRADA</span>
+            <strong>Serviço pronto. Cliente comunicado.</strong>
+            <div class="delivery-signal"><i></i><span><b>Aviso preparado</b><small>Envio automático ou pelo operador</small></span></div>
+          </div>
+          <div class="story-scene" data-story-scene="financeiro">
+            <span class="scene-eyebrow">FINANCEIRO</span>
+            <strong>O recebimento fecha o contexto.</strong>
+            <div class="finance-link"><span>OS concluída</span><i></i><span>Conta vinculada</span><i></i><span>Pagamento</span></div>
+          </div>
+        </aside>
+
+        <div class="story-steps">
+          <article class="story-step is-active" data-story-step="contexto">
+            <span>01</span><div><small>CLIENTE + VEÍCULO</small><h3>Tudo começa com contexto.</h3><p>Contato, identificação e histórico acompanham o atendimento desde o primeiro movimento.</p></div>
+          </article>
+          <article class="story-step" data-story-step="agenda">
+            <span>02</span><div><small>AGENDA</small><h3>O dia aparece antes de começar.</h3><p>Horário, veículo, serviço e situação ficam visíveis para a equipe agir sem procurar informação.</p></div>
+          </article>
+          <article class="story-step story-step-optional" data-story-step="orcamento">
+            <span>03</span><div><small>ORÇAMENTO · QUANDO NECESSÁRIO</small><h3>Negocie sem quebrar o fluxo.</h3><p>Preço de catálogo é referência. O valor combinado, a aprovação e o histórico ficam na proposta.</p></div>
+          </article>
+          <article class="story-step" data-story-step="os">
+            <span>04</span><div><small>ORDEM DE SERVIÇO</small><h3>O autorizado vira execução.</h3><p>Check-in, checklist, fotos, serviços e adicionais deixam claro o que fazer e em que etapa está.</p></div>
+          </article>
+          <article class="story-step" data-story-step="entrega">
+            <span>05</span><div><small>ENTREGA</small><h3>Pronto significa pronto para agir.</h3><p>A equipe identifica veículos aguardando retirada e pode avisar o cliente no momento certo.</p></div>
+          </article>
+          <article class="story-step" data-story-step="financeiro">
+            <span>06</span><div><small>FINANCEIRO</small><h3>O recebimento continua ligado.</h3><p>Conta a receber e pagamentos permanecem associados ao atendimento que gerou aquele valor.</p></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="operation-section" id="operacao" aria-labelledby="operation-title">
+      <div class="shell operation-heading" data-reveal>
+        <span class="section-index">03 / PRODUTO EM AÇÃO</span>
+        <div><span class="eyebrow">MENOS TROCA DE CONTEXTO</span><h2 id="operation-title">Veja a operação se mover.</h2></div>
+        <p>Interfaces ilustrativas baseadas nos padrões reais do Detara. Sem métricas de clientes ou promessas artificiais.</p>
+      </div>
+
+      <article class="product-chapter chapter-agenda">
+        <div class="shell chapter-grid">
+          <div class="chapter-copy" data-reveal>
+            <span class="chapter-number">01</span>
+            <span class="eyebrow">AGENDA OPERACIONAL</span>
+            <h3>Não é só marcar. É enxergar o dia.</h3>
+            <p>Horário, cliente, veículo, serviço e status formam uma leitura única da rotina. Quando o atendimento avança, o contexto segue junto.</p>
+            <span class="chapter-note">Situação operacional, não apenas calendário.</span>
+          </div>
+          <div class="agenda-scene" data-reveal data-reveal-delay="1" aria-label="Representação ilustrativa de uma agenda operacional">
+            <div class="scene-toolbar"><span><i></i> Agenda de hoje</span><div><b>Hoje</b><span>Semana</span><span>Lista</span></div></div>
+            <div class="agenda-canvas">
+              <div class="time-axis"><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span></div>
+              <div class="agenda-lanes">
+                <div class="agenda-event event-one"><time>09:00</time><strong>Honda Civic</strong><small>Higienização interna</small><span class="status status-confirmed">Confirmado</span></div>
+                <div class="agenda-event event-two"><time>11:30</time><strong>Sea-Doo GTX</strong><small>Proteção técnica</small><span class="status status-running">Em atendimento</span></div>
+                <div class="agenda-event event-three"><time>14:00</time><strong>BMW 320i</strong><small>Polimento técnico</small><span class="status status-scheduled">Agendado</span></div>
+                <div class="current-time"><span>AGORA</span></div>
               </div>
             </div>
           </div>
-          <div class="preview-callout">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-            <span><small>FLUXO CONECTADO</small><strong>O histórico acompanha o atendimento</strong></span>
+        </div>
+      </article>
+
+      <article class="product-chapter chapter-commercial">
+        <div class="shell chapter-grid chapter-grid-reverse">
+          <div class="commercial-scene" data-reveal aria-label="Representação ilustrativa de orçamento e ordem de serviço">
+            <div class="commercial-sheet">
+              <div class="sheet-top"><span><small>ORÇAMENTO</small><strong>Proposta comercial</strong></span><b class="status status-confirmed">Aprovado</b></div>
+              <div class="sheet-context"><span>VEÍCULO</span><strong>Honda Civic · identificação preservada</strong></div>
+              <div class="sheet-item"><span>Polimento técnico</span><strong>R$ 480,00</strong></div>
+              <div class="sheet-item"><span>Proteção de pintura</span><strong>R$ 320,00</strong></div>
+              <div class="sheet-total"><span>TOTAL NEGOCIADO</span><strong>R$ 800,00</strong></div>
+            </div>
+            <div class="conversion-line" aria-hidden="true"><i></i><span>APROVAÇÃO REGISTRADA</span><i></i></div>
+            <div class="os-ticket"><span><small>ORDEM DE SERVIÇO</small><strong>OS-2026-0184</strong></span><b>Escopo autorizado</b></div>
+          </div>
+          <div class="chapter-copy" data-reveal data-reveal-delay="1">
+            <span class="chapter-number">02</span>
+            <span class="eyebrow">ORÇAMENTO → OS</span>
+            <h3>Da negociação ao que será executado.</h3>
+            <p>Monte a proposta, gere o PDF e registre a aprovação. Quando o serviço começa, a OS preserva exatamente o escopo autorizado.</p>
+            <span class="chapter-note">Um orçamento quando precisar. Uma OS quando começar.</span>
           </div>
         </div>
-      </div>
-    </section>
+      </article>
 
-    <section class="section section-problem" id="produto" aria-labelledby="problem-title">
-      <div class="container editorial-grid">
-        <div class="section-heading sticky-copy">
-          <span class="eyebrow">ALÉM DO AGENDAMENTO</span>
-          <h2 id="problem-title">A operação não termina quando o horário é marcado.</h2>
-        </div>
-        <div class="problem-copy">
-          <p class="lead-copy">Entre a chegada do veículo e o recebimento existem decisões, valores e etapas que precisam continuar conectados.</p>
-          <div class="problem-list">
-            <article><span>01</span><div><h3>Contexto preservado</h3><p>Cliente, veículo e atendimento seguem juntos da agenda à execução.</p></div></article>
-            <article><span>02</span><div><h3>Valores sob controle</h3><p>O que foi proposto, aprovado e recebido permanece registrado.</p></div></article>
-            <article><span>03</span><div><h3>Situação visível</h3><p>A equipe entende o que está agendado, em atendimento ou pronto para retirada.</p></div></article>
-            <article><span>04</span><div><h3>Menos troca de ferramenta</h3><p>As etapas essenciais vivem no mesmo ambiente operacional.</p></div></article>
+      <article class="product-chapter chapter-execution">
+        <div class="shell chapter-grid">
+          <div class="chapter-copy" data-reveal>
+            <span class="chapter-number">03</span>
+            <span class="eyebrow">EXECUÇÃO → RECEBIMENTO</span>
+            <h3>O serviço termina. O contexto não.</h3>
+            <p>Check-in, checklist e andamento orientam a equipe. Na entrega, a conta e os pagamentos continuam vinculados à mesma operação.</p>
+            <span class="chapter-note">Clareza para executar, entregar e receber.</span>
+          </div>
+          <div class="execution-scene" data-reveal data-reveal-delay="1" aria-label="Representação ilustrativa de execução e financeiro">
+            <div class="execution-panel">
+              <div class="execution-head"><span><small>OS-2026-0184</small><strong>Em execução</strong></span><span class="status status-running">Ativa</span></div>
+              <div class="execution-item done"><i></i><span><strong>Check-in</strong><small>Entrada registrada</small></span><b>Concluído</b></div>
+              <div class="execution-item done"><i></i><span><strong>Preparação</strong><small>Checklist atualizado</small></span><b>Concluído</b></div>
+              <div class="execution-item current"><i></i><span><strong>Proteção</strong><small>Etapa atual</small></span><b>Em andamento</b></div>
+              <div class="execution-footer"><span>Próxima etapa</span><strong>Aguardando retirada</strong></div>
+            </div>
+            <div class="receivable-panel">
+              <span class="finance-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16v11H4zM4 10h16M8 15h3"></path></svg></span>
+              <span><small>CONTA VINCULADA À OS</small><strong>Recebimento acompanhado</strong><em>Pagamentos e saldo no mesmo contexto</em></span>
+              <b class="status status-scheduled">Em aberto</b>
+            </div>
           </div>
         </div>
-      </div>
+      </article>
     </section>
 
-    <section class="section section-flow" id="fluxo" aria-labelledby="flow-title">
-      <div class="container">
-        <div class="section-heading flow-heading">
-          <span class="eyebrow">UM FLUXO, DIFERENTES CAMINHOS</span>
-          <h2 id="flow-title">Cada atendimento segue o que a operação precisa.</h2>
-          <p>Agende direto, formalize um orçamento quando necessário e leve o serviço até a entrega sem perder o histórico. O orçamento apoia a negociação — não impõe um caminho único.</p>
-        </div>
-        <ol class="flow-track" aria-label="Etapas possíveis de um atendimento no Detara">
-          <li><span>01</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg><strong>Agenda</strong><small>Organize horários e contexto.</small></li>
-          <li class="optional"><span>02</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4"></path></svg><strong>Orçamento</strong><small>Quando houver negociação.</small><em>Opcional</em></li>
-          <li><span>03</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8M9 2h6v4H9zM6 5H4v16h16V5h-2M8 11h8M8 15h5"></path></svg><strong>Ordem de serviço</strong><small>Formalize o escopo autorizado.</small></li>
-          <li><span>04</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M4 20l5-1 10-10-4-4L5 15zM12 20h8"></path></svg><strong>Execução</strong><small>Acompanhe check-in e serviços.</small></li>
-          <li><span>05</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M7 17l1-7h8l1 7M8 13h8M7 17v2M17 17v2"></path></svg><strong>Entrega</strong><small>Registre a conclusão do atendimento.</small></li>
-          <li><span>06</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v11H4zM4 10h16M8 15h3"></path></svg><strong>Financeiro</strong><small>Acompanhe contas e pagamentos.</small></li>
-        </ol>
-      </div>
-    </section>
-
-    <section class="section section-resources" id="recursos" aria-labelledby="resources-title">
-      <div class="container">
-        <div class="section-heading resources-heading">
-          <div>
-            <span class="eyebrow">RECURSOS QUE SUSTENTAM A ROTINA</span>
-            <h2 id="resources-title">Controle operacional sem transformar a rotina em burocracia.</h2>
-          </div>
-          <p>O Detara reúne o essencial para organizar o atendimento e manter clareza sobre veículos, serviços, valores e recebimentos.</p>
-        </div>
-
-        <div class="resource-grid">
-          <article class="resource-card resource-card-wide">
-            <div class="resource-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg></div>
-            <span>AGENDA OPERACIONAL</span>
-            <h3>O dia começa com contexto.</h3>
-            <p>Visualize horários, cliente, veículo e situação do atendimento. Quando o serviço avança, a informação segue para a ordem de serviço.</p>
-            <div class="mini-schedule" aria-hidden="true"><i>08:30</i><b></b><span>Atendimento agendado</span><i>10:00</i><b></b><span>Veículo em execução</span></div>
-          </article>
-
-          <article class="resource-card resource-card-wide commercial-card">
-            <div class="resource-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4"></path></svg></div>
-            <span>ORÇAMENTO E ORDEM DE SERVIÇO</span>
-            <h3>Da proposta ao que foi autorizado.</h3>
-            <p>Monte propostas com valores negociados, gere PDF, registre a aprovação e preserve o histórico. Na execução, acompanhe o escopo e os adicionais autorizados.</p>
-            <div class="document-lines" aria-hidden="true"><span></span><span></span><span></span><strong>APROVAÇÃO REGISTRADA</strong></div>
-          </article>
-
-          <article class="resource-card">
-            <div class="resource-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 18l2-8h8l2 8M8 13h8M7 18v2M17 18v2"></path></svg></div>
-            <span>CLIENTES E VEÍCULOS</span>
-            <h3>Cadastro e histórico vinculados.</h3>
-            <p>Mantenha cada veículo associado ao cliente e identificado conforme a realidade da operação, inclusive quando ainda não possui placa.</p>
-          </article>
-
-          <article class="resource-card">
-            <div class="resource-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M4 20l5-1 10-10-4-4L5 15zM12 20h8"></path></svg></div>
-            <span>CHECK-IN E EXECUÇÃO</span>
-            <h3>Acompanhe o serviço acontecendo.</h3>
-            <p>Registre check-in, checklist, fotos e andamento da ordem até a entrega do veículo.</p>
-          </article>
-
-          <article class="resource-card">
-            <div class="resource-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v11H4zM4 10h16M8 15h3"></path></svg></div>
-            <span>FINANCEIRO</span>
-            <h3>Recebimentos acompanhados.</h3>
-            <p>Organize contas a receber, registre pagamentos e acompanhe o que ainda precisa de atenção.</p>
-          </article>
-
-          <article class="resource-card">
-            <div class="resource-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM4 7l8 6 8-6"></path></svg></div>
-            <span>COMUNICAÇÃO</span>
-            <h3>Avise quando o veículo estiver pronto.</h3>
-            <p>Use o fluxo de e-mail para comunicar a retirada, com envio automático ou acionado pelo operador.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-experience" aria-labelledby="experience-title">
-      <div class="container experience-grid">
-        <div class="experience-panel">
-          <span class="eyebrow">NO RITMO DA OPERAÇÃO</span>
-          <h2 id="experience-title">Acesse onde o trabalho acontece.</h2>
-          <p>Use o Detara no computador, tablet ou celular. A interface se adapta à tela e pode ser instalada quando o navegador oferece suporte — sem ser apresentada como aplicativo nativo ou experiência offline.</p>
-          <ul class="check-list">
-            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Layout responsivo para a rotina</li>
-            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Temas claro, escuro e sistema</li>
-            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Instalação como PWA quando disponível</li>
+    <section class="mobility-section" aria-labelledby="mobility-title">
+      <div class="shell mobility-grid">
+        <div class="mobility-copy" data-reveal>
+          <span class="section-index">04 / NO RITMO DA OPERAÇÃO</span>
+          <span class="eyebrow">RESPONSIVO E INSTALÁVEL</span>
+          <h2 id="mobility-title">A operação acompanha você.</h2>
+          <p>Use o Detara no computador, tablet ou celular. A interface se adapta à tela e pode ser instalada quando o navegador oferece suporte.</p>
+          <ul>
+            <li><i></i>Mesma operação em cada tamanho de tela</li>
+            <li><i></i>Temas claro, escuro e sistema</li>
+            <li><i></i>PWA instalável quando disponível</li>
           </ul>
         </div>
-        <div class="device-composition" aria-hidden="true">
-          <div class="desktop-frame"><div class="device-top"></div><div class="device-content"><span></span><span></span><span></span></div></div>
-          <div class="mobile-frame"><div class="mobile-notch"></div><div class="mobile-content"><span></span><span></span><span></span></div></div>
-          <div class="theme-badge"><i></i><span>Interface consistente<br><strong>em cada tela</strong></span></div>
+        <div class="device-stage" data-reveal data-reveal-delay="1" aria-hidden="true">
+          <div class="device-light"></div>
+          <div class="tablet-device"><div class="device-bar"></div><div class="tablet-layout"><span></span><div><i></i><i></i><i></i></div></div></div>
+          <div class="phone-device"><div class="phone-speaker"></div><div class="phone-layout"><span></span><i></i><i></i><i></i></div></div>
+          <span class="device-label">INTERFACE ADAPTATIVA <b>DESKTOP / TABLET / MOBILE</b></span>
         </div>
       </div>
     </section>
 
-    <section class="section section-security" id="seguranca" aria-labelledby="security-title">
-      <div class="container security-grid">
-        <div class="section-heading security-heading">
-          <span class="eyebrow">CONTROLE PARA A EMPRESA</span>
-          <h2 id="security-title">Acesso organizado para quem participa da operação.</h2>
-          <p>Cada empresa trabalha em seu próprio contexto de dados, usuários e permissões.</p>
+    <section class="control-section" id="seguranca" aria-labelledby="control-title">
+      <div class="shell control-grid">
+        <div class="control-copy" data-reveal>
+          <span class="section-index">05 / CONTROLE</span>
+          <span class="eyebrow">ORGANIZADO PARA A EMPRESA</span>
+          <h2 id="control-title">Cada pessoa acessa o que precisa para operar.</h2>
+          <p>Empresa, usuários, perfis e permissões formam uma estrutura clara. O contexto operacional permanece separado por empresa.</p>
         </div>
-        <div class="security-list">
-          <article><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6zM9 12l2 2 4-4"></path></svg></span><div><h3>Contexto separado por empresa</h3><p>As informações operacionais pertencem ao ambiente da própria empresa.</p></div></article>
-          <article><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11l2 2 3-4"></path></svg></span><div><h3>Usuários, perfis e permissões</h3><p>Defina responsabilidades sem depender apenas do que aparece na interface.</p></div></article>
-          <article><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3"></path></svg></span><div><h3>Acesso autenticado e sessão controlada</h3><p>O produto protege as áreas operacionais com autenticação e controles de sessão.</p></div></article>
+        <div class="access-map" data-reveal data-reveal-delay="1" aria-label="Estrutura de acesso do Detara">
+          <div class="access-company"><img src="/assets/brand/detara-icon.png" width="103" height="103" alt=""><span><small>CONTEXTO</small><strong>Sua empresa</strong></span><em>SEPARADO</em></div>
+          <div class="access-line" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="access-roles">
+            <article><span>01</span><div><strong>Usuários</strong><small>Identidades da equipe</small></div></article>
+            <article><span>02</span><div><strong>Perfis</strong><small>Responsabilidades definidas</small></div></article>
+            <article><span>03</span><div><strong>Permissões</strong><small>Ações autorizadas no backend</small></div></article>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="section final-cta" id="beta" aria-labelledby="final-title">
-      <div class="container final-cta-inner">
+    <section class="final-cta" id="conhecer" aria-labelledby="final-title">
+      <div class="shell final-panel" data-reveal>
+        <div class="final-signature" aria-hidden="true"><span></span><i></i><span></span></div>
         <div>
           <span class="eyebrow">PRIMEIRA FASE DE VALIDAÇÃO</span>
-          <h2 id="final-title">Uma operação mais organizada começa com um fluxo mais claro.</h2>
-          <p>O Detara está entrando em sua primeira fase de validação com operações reais. Esta página apresenta o produto sem formulário ou promessa comercial ainda não definida.</p>
+          <h2 id="final-title">Veja como sua operação pode funcionar com menos atrito.</h2>
+          <p>O Detara está entrando em sua primeira fase de validação com operações reais. Conheça o fluxo do produto sem promessa comercial ainda não definida.</p>
         </div>
-        <a class="button button-primary" href="#produto">Conhecer o Detara</a>
+        <a class="button button-primary" href="#produto">Conhecer o produto</a>
+        <span class="final-coordinate" aria-hidden="true">DETARA / OPERAÇÃO CONECTADA / 2026</span>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="container footer-inner">
+    <div class="shell footer-inner">
       <div class="footer-brand">
         <img src="/assets/brand/detara-icon.png" width="103" height="103" alt="">
         <span><strong>Detara</strong><small>Gestão para estéticas automotivas</small></span>

@@ -1,6 +1,18 @@
-# Landing page do Detara
+# Landing page V2 do Detara
 
 Landing institucional estática e independente da aplicação Blazor. Não utiliza API, banco de dados, Node.js, npm, frameworks, CDNs, fontes externas, cookies ou analytics.
+
+## Direção da experiência
+
+A V2 traduz o posicionamento “precisão operacional encontra o cuidado automotivo premium” com superfícies azul-marinho, linhas de inspeção e reflexos controlados inspirados no acabamento automotivo. A narrativa deixa de ser uma sequência uniforme de cards e passa a apresentar o produto em quatro momentos: command center interativo, fluxo operacional progressivo, cenas amplas do produto e estrutura de controle.
+
+Os dados exibidos nas composições são cenários ilustrativos e não pertencem a clientes. As interações usam JavaScript vanilla como aprimoramento progressivo:
+
+- navegação móvel com suporte a Escape;
+- abas acessíveis no hero, incluindo setas, Home e End;
+- revelação discreta de conteúdo em viewport;
+- progressão visual do fluxo Agenda → Orçamento opcional → OS → Entrega → Financeiro;
+- respeito a `prefers-reduced-motion` e funcionamento do conteúdo sem JavaScript.
 
 ## Estrutura
 
