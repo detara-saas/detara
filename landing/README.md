@@ -22,6 +22,8 @@ landing/
 ├── 404.html
 ├── _headers
 ├── robots.txt
+├── sitemap.xml
+├── SEO.md
 ├── README.md
 ├── css/
 │   └── styles.css
@@ -77,12 +79,18 @@ Isso evita novos builds da landing quando somente a aplicação ou o backend for
 
 ## Custom domain
 
-O domínio próprio será configurado posteriormente. Até essa definição, a landing não possui URL canonical, sitemap com hostname ou links absolutos para um domínio presumido.
+O domínio próprio será configurado posteriormente. Enquanto ele não existir, `https://detara.pages.dev/` é a URL pública e canônica usada no HTML, Open Graph, robots, sitemap e procedimento do Search Console.
+
+As instruções de indexação, verificação manual e futura migração de domínio estão em [`SEO.md`](SEO.md).
+
+## Contato comercial
+
+O canal público atual é `detara.saas@gmail.com`. Header, hero, seção final e footer usam links `mailto:` nativos, sem formulário, backend, CRM, analytics ou JavaScript obrigatório.
 
 ## Pendências deliberadas
 
-- Adicionar CTA comercial somente quando o canal público oficial for definido.
 - Avaliar analytics posteriormente, por decisão explícita e com a revisão de privacidade correspondente.
-- Configurar domínio próprio somente depois de validar o primeiro deploy em `*.pages.dev`.
+- Criar uma imagem social oficial em 1200×630 quando houver um asset aprovado.
+- Configurar domínio próprio e migrar os sinais canônicos somente quando o domínio estiver efetivamente publicado.
 
 Nenhuma dessas pendências impede a publicação institucional inicial.
