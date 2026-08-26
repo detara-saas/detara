@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Preferencias;
+using Detara.Web.Components.Dashboard;
 using Microsoft.JSInterop;
 
 namespace Detara.Web.Servicos;
@@ -11,12 +12,18 @@ public sealed class PreferenciasInterfaceServico(HttpClient httpClient, IJSRunti
 {
     private const string ChaveCache = "detara.preferencias";
     private const string ChaveOnboardingRecolhido = "detara.onboarding.recolhido";
+    private const string PaginaDashboard = "dashboard";
+    private const string PaginaDashboardEmpresa = "dashboard-empresa";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private bool _sistemaEscuro;
     private DotNetObjectReference<PreferenciasInterfaceServico>? _referenciaJs;
 
     public PreferenciasUsuarioResponse Atual { get; private set; } = Padrao();
     public bool EhEscuro => Atual.Tema == "Escuro" || Atual.Tema == "Sistema" && _sistemaEscuro;
+    public ModoDashboard ModoDashboardAtual =>
+        string.Equals(Atual.PaginaInicial, PaginaDashboardEmpresa, StringComparison.OrdinalIgnoreCase)
+            ? ModoDashboard.Empresa
+            : ModoDashboard.Operacao;
     public event Action? Alterado;
 
     public async Task InicializarAsync()
@@ -62,6 +69,13 @@ public sealed class PreferenciasInterfaceServico(HttpClient httpClient, IJSRunti
     public Task DefinirTemaAsync(string tema) => AtualizarAsync(Atual with { Tema = tema });
     public Task DefinirSidebarAsync(bool recolhida) =>
         AtualizarAsync(Atual with { SidebarRecolhida = recolhida });
+    public Task DefinirModoDashboardAsync(ModoDashboard modo) =>
+        AtualizarAsync(Atual with
+        {
+            PaginaInicial = modo == ModoDashboard.Empresa
+                ? PaginaDashboardEmpresa
+                : PaginaDashboard
+        });
 
     public async Task<bool> ObterOnboardingRecolhidoAsync(Guid usuarioId)
     {
@@ -145,5 +159,5 @@ public sealed class PreferenciasInterfaceServico(HttpClient httpClient, IJSRunti
     }
 
     private static PreferenciasUsuarioResponse Padrao() =>
-        new("Sistema", "pt-BR", false, "dashboard", []);
+        new("Sistema", "pt-BR", false, PaginaDashboard, []);
 }

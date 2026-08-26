@@ -46,6 +46,37 @@ public sealed class PreferenciasUsuarioTests
                     ["https://exemplo.com"])));
     }
 
+    [Fact]
+    public async Task AtualizacaoPersisteModoEmpresaComoPaginaInicialDoDashboard()
+    {
+        using var provider = CriarServicos(new UsuarioContextoTeste(), new RepositorioMemoria());
+
+        var resultado = await provider.GetRequiredService<ISender>().Send(
+            new AtualizarPreferenciasUsuarioCommand(
+                "Sistema",
+                "pt-BR",
+                false,
+                PaginasDetara.DashboardEmpresa,
+                ["dashboard"]));
+
+        Assert.Equal(PaginasDetara.DashboardEmpresa, resultado.PaginaInicial);
+    }
+
+    [Fact]
+    public async Task ModoEmpresaNaoPodeSerAdicionadoComoFavorito()
+    {
+        using var provider = CriarServicos(new UsuarioContextoTeste(), new RepositorioMemoria());
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            provider.GetRequiredService<ISender>().Send(
+                new AtualizarPreferenciasUsuarioCommand(
+                    "Sistema",
+                    "pt-BR",
+                    false,
+                    PaginasDetara.Dashboard,
+                    [PaginasDetara.DashboardEmpresa])));
+    }
+
     private static ServiceProvider CriarServicos(
         IUsuarioContexto contexto,
         IPreferenciasUsuarioRepositorio repositorio)

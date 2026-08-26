@@ -1,0 +1,114 @@
+<div class="dashboard-mode-content dashboard-operation-mode">
+    <section class="executive-summary-grid" aria-label="Indicadores operacionais rápidos">
+        @if (Dados.Resumo.AgendamentosHoje.HasValue)
+        {
+            <DetaraMetricCard Titulo="Agendamentos de hoje"
+                              Valor="@Dados.Resumo.AgendamentosHoje.Value.ToString(Cultura)"
+                              Descricao="@(Dados.Resumo.AgendamentosConcluidosHoje == 1 ? "1 atendimento concluído" : $"{Dados.Resumo.AgendamentosConcluidosHoje ?? 0} atendimentos concluídos")"
+                              Contexto="HOJE"
+                              Icone="@Icons.Material.Outlined.CalendarToday"
+                              Tone="DetaraMetricTone.Positive" />
+        }
+        @if (Dados.Resumo.OrdensEmExecucao.HasValue)
+        {
+            <DetaraMetricCard Titulo="Em atendimento"
+                              Valor="@Dados.Resumo.OrdensEmExecucao.Value.ToString(Cultura)"
+                              Descricao="Ordens de serviço em execução"
+                              Contexto="AGORA"
+                              Icone="@Icons.Material.Outlined.Handyman"
+                              Tone="DetaraMetricTone.Info" />
+            <DetaraMetricCard Titulo="Aguardando retirada"
+                              Valor="@((Dados.Resumo.OrdensAguardandoRetirada ?? 0).ToString(Cultura))"
+                              Descricao="Veículos prontos para entrega"
+                              Contexto="AGORA"
+                              Icone="@Icons.Material.Outlined.DirectionsCar"
+                              Tone="DetaraMetricTone.Warning" />
+        }
+        @if (Dados.Comercial?.OrcamentosAguardandoAprovacao is not null)
+        {
+            <DetaraMetricCard Titulo="Orçamentos pendentes"
+                              Valor="@Dados.Comercial.OrcamentosAguardandoAprovacao.Value.ToString(Cultura)"
+                              Descricao="Aguardando resposta do cliente"
+                              Contexto="ATENÇÃO"
+                              Icone="@Icons.Material.Outlined.PendingActions"
+                              Tone="DetaraMetricTone.Warning" />
+        }
+    </section>
+
+    <section class="dashboard-operation-primary">
+        @if (Dados.Operacional?.AgendaHoje is not null)
+        {
+            <DetaraCard Titulo="Agenda de hoje" Sobretitulo="PRÓXIMOS COMPROMISSOS" Descricao="Até cinco agendamentos válidos em ordem de horário." Class="agenda-panel dashboard-next-appointments">
+                <Acoes><MudButton Href="/agenda" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton></Acoes>
+                <ChildContent>
+                    @if (Dados.Operacional.AgendaHoje.Count == 0)
+                    {
+                        <DetaraEmptyState Titulo="Nenhum agendamento válido hoje" Descricao="Cancelamentos e faltas não entram nesta visão." Icone="@Icons.Material.Outlined.EventAvailable" Compacto="true" />
+                    }
+                    else
+                    {
+                        <div class="executive-agenda-list">
+                            @foreach (var item in Dados.Operacional.AgendaHoje)
+                            {
+                                <a href="@($"/agenda/{item.Id}")">
+                                    <time>@item.InicioLocal.ToString("HH:mm")</time>
+                                    <div><strong>@item.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca) · @(item.ItemPrincipal ?? "Sem item informado")</span></div>
+                                    <DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" />
+                                    <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                                </a>
+                            }
+                        </div>
+                    }
+                </ChildContent>
+            </DetaraCard>
+        }
+
+        <DetaraCard Titulo="Ações rápidas" Sobretitulo="NOVO REGISTRO" Descricao="Atalhos para as rotinas mais frequentes." Class="dashboard-quick-actions-card">
+            <div class="dashboard-quick-actions">
+                <AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><a href="/agenda/novo"><span><MudIcon Icon="@Icons.Material.Outlined.EventAvailable" /></span><div><strong>Novo agendamento</strong><small>Reservar horário</small></div><MudIcon Icon="@Icons.Material.Outlined.ArrowForward" /></a></Authorized></AuthorizeView>
+                <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><a href="/orcamentos/novo"><span><MudIcon Icon="@Icons.Material.Outlined.RequestQuote" /></span><div><strong>Novo orçamento</strong><small>Criar proposta</small></div><MudIcon Icon="@Icons.Material.Outlined.ArrowForward" /></a></Authorized></AuthorizeView>
+                <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><a href="/ordens-servico/nova"><span><MudIcon Icon="@Icons.Material.Outlined.CarRepair" /></span><div><strong>Nova ordem de serviço</strong><small>Iniciar atendimento</small></div><MudIcon Icon="@Icons.Material.Outlined.ArrowForward" /></a></Authorized></AuthorizeView>
+                <AuthorizeView Policy="@Permissoes.ClientesCriar"><Authorized><a href="/clientes/novo"><span><MudIcon Icon="@Icons.Material.Outlined.PersonAdd" /></span><div><strong>Novo cliente</strong><small>Cadastrar contato</small></div><MudIcon Icon="@Icons.Material.Outlined.ArrowForward" /></a></Authorized></AuthorizeView>
+            </div>
+        </DetaraCard>
+    </section>
+
+    <section class="executive-grid executive-grid-balanced dashboard-operation-secondary">
+        @if (Dados.Operacional is not null)
+        {
+            <DetaraCard Titulo="Atendimentos em andamento" Sobretitulo="OPERAÇÃO AGORA" Descricao="Resumo dos marcos ativos registrados pela equipe.">
+                <Acoes><MudButton Href="/ordens-servico" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver ordens</MudButton></Acoes>
+                <ChildContent>
+                    <div class="dashboard-now-grid">
+                        <a href="/ordens-servico"><span><MudIcon Icon="@Icons.Material.Outlined.Handyman" /></span><div><small>EM EXECUÇÃO</small><strong>@Valor(Dados.Resumo.OrdensEmExecucao)</strong><p>Ordens em trabalho pela equipe agora</p></div></a>
+                        <a href="/ordens-servico"><span><MudIcon Icon="@Icons.Material.Outlined.Key" /></span><div><small>AGUARDANDO RETIRADA</small><strong>@Valor(Dados.Resumo.OrdensAguardandoRetirada)</strong><p>Veículos prontos para entrega agora</p></div></a>
+                    </div>
+                </ChildContent>
+            </DetaraCard>
+        }
+        <DashboardAlertas Itens="Dados.Atividade.Atencoes" />
+    </section>
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    [Parameter, EditorRequired] public DashboardExecutivoResponse Dados { get; set; } = null!;
+
+    private static string Valor(int? valor) => valor?.ToString(Cultura) ?? "—";
+    private static string NomeStatus(StatusAgendamentoContrato status) => status switch
+    {
+        StatusAgendamentoContrato.Agendado => "Agendado",
+        StatusAgendamentoContrato.Confirmado => "Confirmado",
+        StatusAgendamentoContrato.Compareceu => "Em atendimento",
+        StatusAgendamentoContrato.Concluido => "Concluído",
+        _ => status.ToString()
+    };
+    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => status switch
+    {
+        StatusAgendamentoContrato.Agendado => DetaraStatusTone.Info,
+        StatusAgendamentoContrato.Confirmado => DetaraStatusTone.Positive,
+        StatusAgendamentoContrato.Compareceu => DetaraStatusTone.Positive,
+        StatusAgendamentoContrato.Concluido => DetaraStatusTone.Positive,
+        _ => DetaraStatusTone.Neutral
+    };
+}
