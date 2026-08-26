@@ -71,12 +71,29 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     [InlineData("enviar")]
     [InlineData("tentar-novamente")]
     [InlineData("reenviar")]
+    [InlineData("comunicar")]
     public async Task AcoesManuaisDeNotificacao_SemPermissaoRetornam403(string acao)
     {
         UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
 
         using var response = await _client.PostAsJsonAsync(
             $"/api/notificacoes/ordens-servico/{Guid.NewGuid()}/{acao}", new { solicitacaoId = Guid.NewGuid() });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/notificacoes/whatsapp/status")]
+    [InlineData("GET", "/api/notificacoes/whatsapp/conexao")]
+    [InlineData("GET", "/api/notificacoes/whatsapp/disponibilidade")]
+    [InlineData("POST", "/api/notificacoes/whatsapp/conectar")]
+    public async Task EndpointsWhatsApp_SemPermissaoRetornam403(
+        string metodo, string rota)
+    {
+        UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
+
+        using var request = new HttpRequestMessage(new HttpMethod(metodo), rota);
+        using var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -362,7 +379,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(139, rotas.Length);
+        Assert.Equal(144, rotas.Length);
     }
 
     [Fact]

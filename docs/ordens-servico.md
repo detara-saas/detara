@@ -12,6 +12,13 @@ O fluxo operacional é `Aberta → EmExecucao → AguardandoRetirada → Conclui
 cancelamento permitido enquanto aberta ou em execução. Cada transição possui comando e
 histórico explícitos. `Concluida` significa veículo entregue, não pagamento recebido.
 
+Ao entrar em `AguardandoRetirada`, Notificações consulta o único canal automático da
+empresa: `Nenhum`, `Email` ou `WhatsApp`. O operador também pode escolher explicitamente
+um canal na OS. Cada solicitação gera um registro tenant-safe em `ComunicacoesCliente`;
+uma comunicação pendente bloqueia outro disparo concorrente. WhatsApp exige a sessão
+isolada da empresa conectada no gateway; a OS mostra essa disponibilidade e desabilita
+o canal manual enquanto a sessão não estiver pronta.
+
 O check-in captura os níveis atuais de checklist, fotos de entrada e fotos de saída.
 Checklist obrigatório exige todas as respostas, inclusive `NaoConforme` ou
 `NaoAplicavel`; fotos obrigatórias exigem uma evidência na etapa correspondente. Fotos de

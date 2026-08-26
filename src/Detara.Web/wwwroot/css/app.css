@@ -118,7 +118,7 @@
 .service-order-photo-heading > span { margin-right: auto; color: var(--detara-text-secondary); font-size: .76rem; }
 .service-order-action-panel { padding: 22px 24px; margin-top: 0; border-color: color-mix(in srgb, var(--detara-primary) 24%, var(--detara-border-soft)); }
 .service-order-communication { display: grid; gap: 18px; }
-.communication-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.communication-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 10px; }
 .communication-summary > span { min-width: 0; display: flex; align-items: center; gap: 11px; padding: 14px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
 .communication-summary > span > .mud-icon-root { color: var(--detara-primary-dark); }
 .communication-summary > span > span { min-width: 0; display: grid; gap: 3px; }
@@ -126,6 +126,15 @@
 .communication-summary strong { overflow: hidden; color: var(--detara-text); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
 .communication-actions { padding-top: 2px; }
 .communication-actions .mud-button-root { min-height: 44px; }
+.communication-history { display: grid; gap: 10px; padding-top: 4px; }
+.communication-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid var(--detara-border-soft); }
+.communication-history-heading strong { color: var(--detara-text); font-size: .86rem; }
+.communication-history-heading span { color: var(--detara-text-secondary); font-size: .72rem; }
+.communication-history article { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 13px 14px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
+.communication-history article > div { min-width: 0; display: grid; gap: 2px; }
+.communication-history article strong { color: var(--detara-text); font-size: .8rem; }
+.communication-history article span, .communication-history article small { color: var(--detara-text-secondary); font-size: .7rem; overflow-wrap: anywhere; }
+.communication-history-icon { display: grid; width: 34px; height: 34px; place-items: center; color: var(--detara-primary-dark); background: color-mix(in srgb, var(--detara-primary) 10%, transparent); border-radius: var(--detara-radius-sm); }
 
 @media (max-width: 1199px) {
     .form-page-grid { grid-template-columns: 1fr; }
@@ -161,6 +170,8 @@
     .communication-summary { grid-template-columns: 1fr; }
     .communication-summary strong { white-space: normal; overflow-wrap: anywhere; }
     .communication-actions, .communication-actions .mud-button-root { width: 100%; }
+    .communication-history article { grid-template-columns: auto minmax(0,1fr); }
+    .communication-history article > .status-badge { grid-column: 2; justify-self: start; }
     .service-order-checklist article > div { grid-template-columns: 1fr; }
     .service-order-checklist strong { grid-column: auto; }
     .service-order-photo-heading { align-items: flex-start; flex-direction: column; }
@@ -398,6 +409,42 @@ h1:focus { outline: none; }
 .compact-loading { min-height: 8rem; }
 .notification-config-grid { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 24px; align-items: end; padding: 18px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
 .notification-config-copy { display: grid; grid-template-columns: minmax(280px,1fr) minmax(280px,.8fr); gap: 20px; align-items: center; }
+.communication-channel-config { align-items: start; }
+.communication-channel-field { display: grid; gap: 12px; }
+.communication-channel-field > div { display: grid; gap: 3px; }
+.communication-channel-field > div > span { color: var(--detara-text-secondary); font-size: .78rem; line-height: 1.5; }
+.communication-channel-options { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.communication-provider-alert { margin-top: -10px; }
+.communication-dialog { min-width: 0; }
+.communication-dialog-intro { display: grid; gap: 5px; }
+.communication-dialog-intro p { margin: 0; color: var(--detara-text-secondary); line-height: 1.55; }
+.communication-dialog-options { display: grid; gap: 10px; }
+.communication-dialog-option { display: grid; grid-template-columns: auto auto minmax(0,1fr); align-items: center; gap: 10px; min-height: 64px; padding: 10px 14px 10px 6px; color: var(--detara-text); background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); cursor: pointer; }
+.communication-dialog-option > .mud-icon-root { color: var(--detara-primary-dark); }
+.communication-dialog-option > span { min-width: 0; display: grid; gap: 2px; }
+.communication-dialog-option strong { font-size: .84rem; }
+.communication-dialog-option small { color: var(--detara-text-secondary); font-size: .72rem; overflow-wrap: anywhere; }
+.communication-dialog-option.is-disabled { opacity: .58; cursor: not-allowed; }
+.whatsapp-connection-card { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; gap: 14px; padding: 17px 18px; background: linear-gradient(135deg,color-mix(in srgb,var(--detara-primary) 6%,var(--detara-surface)),var(--detara-surface)); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); }
+.whatsapp-connection-icon { display: grid; place-items: center; width: 44px; height: 44px; color: var(--detara-text-secondary); background: var(--detara-surface-alt); border-radius: var(--detara-radius-md); }
+.whatsapp-connection-icon.status-confirmed { color: var(--detara-success); background: color-mix(in srgb,var(--detara-success) 11%,var(--detara-surface)); }
+.whatsapp-connection-icon.status-waiting { color: var(--detara-warning); background: color-mix(in srgb,var(--detara-warning) 11%,var(--detara-surface)); }
+.whatsapp-connection-icon.status-cancelled { color: var(--detara-error); background: color-mix(in srgb,var(--detara-error) 10%,var(--detara-surface)); }
+.whatsapp-connection-copy { min-width: 0; display: grid; gap: 3px; }
+.whatsapp-connection-copy strong { color: var(--detara-text); font-size: .86rem; }
+.whatsapp-connection-copy small { color: var(--detara-text-secondary); font-size: .72rem; line-height: 1.45; }
+.whatsapp-connect-dialog { min-height: 390px; place-content: center; }
+.whatsapp-qr-content { display: grid; justify-items: center; gap: 13px; text-align: center; }
+.whatsapp-qr-content p { max-width: 430px; margin: 0; color: var(--detara-text-secondary); line-height: 1.55; }
+.whatsapp-qr-content > small { max-width: 430px; color: var(--detara-text-secondary); font-size: .68rem; line-height: 1.5; }
+.whatsapp-qr-frame { width: min(100%,340px); padding: 10px; background: #fff; border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); }
+.whatsapp-qr-frame img { display: block; width: 100%; height: auto; }
+.whatsapp-connected-state { display: grid; justify-items: center; gap: 14px; padding: 32px; text-align: center; }
+.whatsapp-connected-state > .mud-icon-root { color: var(--detara-success); font-size: 3.7rem; }
+.whatsapp-connected-state > div { display: grid; gap: 5px; }
+.whatsapp-connected-state strong { color: var(--detara-text); font-size: 1rem; }
+.whatsapp-connected-state span { color: var(--detara-text-secondary); font-size: .76rem; }
+.whatsapp-qr-loading { min-height: 320px; }
 .setting-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .setting-switch-row > div { display: grid; gap: 4px; }
 .setting-switch-row strong { color: var(--detara-text); }
@@ -717,6 +764,10 @@ h1:focus { outline: none; }
 
 @media (max-width: 767px) {
     :root { --detara-page-gutter: 16px; }
+    .whatsapp-connection-card { grid-template-columns: 40px minmax(0,1fr); padding: 15px; }
+    .whatsapp-connection-card > .status-badge, .whatsapp-connection-card > .mud-button-root { grid-column: 2; justify-self: start; }
+    .whatsapp-connection-card > .mud-button-root { width: 100%; min-height: 44px; }
+    .whatsapp-connect-dialog { min-height: 330px; }
     .detara-content { padding-top: calc(var(--detara-topbar-height) + 18px); padding-bottom: calc(28px + var(--detara-safe-bottom)); }
     .pwa-status-banner { grid-template-columns: 38px minmax(0,1fr); align-items: start; padding: 14px; }
     .pwa-status-icon { width: 38px; height: 38px; }
@@ -820,6 +871,8 @@ h1:focus { outline: none; }
     .settings-panel, .vehicle-photos-section { padding: 18px; }
     .notification-settings { gap: 20px; }
     .notification-config-grid { padding: 15px; }
+    .whatsapp-connection-card { grid-template-columns: auto minmax(0,1fr) auto; }
+    .whatsapp-connection-card > .mud-button-root { grid-column: 2 / -1; justify-self: start; }
     .setting-switch-row { align-items: flex-start; }
     .notification-template-heading { flex-direction: column; }
     .notification-template-actions { display: grid; grid-template-columns: 1fr; }

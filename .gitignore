@@ -31,6 +31,10 @@ secrets.json
 docker-compose.override.yml
 *.log
 
+# Gateway WhatsApp (dependências e sessões privadas)
+whatsapp-gateway/node_modules/
+whatsapp-gateway/sessions/
+
 # Storage privado local (Development/Testes/QA)
 **/data/storage/
 **/data/data-protection-keys/

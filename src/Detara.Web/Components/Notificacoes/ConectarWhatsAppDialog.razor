@@ -1,0 +1,90 @@
+@implements IAsyncDisposable
+@inject NotificacoesServico NotificacoesApi
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">Conectar WhatsApp</MudText></TitleContent>
+    <DialogContent>
+        <div class="dialog-content-stack whatsapp-connect-dialog">
+            @if (_estado.Status == StatusSessaoWhatsAppContrato.Conectada)
+            {
+                <div class="whatsapp-connected-state">
+                    <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" />
+                    <div><strong>WhatsApp conectado</strong><span>A sessão desta empresa está pronta para enviar comunicações transacionais.</span></div>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_estado.QrCodeDataUrl))
+            {
+                <div class="whatsapp-qr-content">
+                    <span class="section-eyebrow">AUTENTICAÇÃO DA EMPRESA</span>
+                    <p>No celular que será usado pela empresa, abra <strong>Aparelhos conectados</strong> no WhatsApp e leia este QR Code.</p>
+                    <div class="whatsapp-qr-frame">
+                        <img src="@_estado.QrCodeDataUrl" alt="QR Code para conectar o WhatsApp desta empresa" width="320" height="320" />
+                    </div>
+                    <small>O QR Code é temporário, não é salvo pelo Detara e será removido desta tela após a conexão.</small>
+                </div>
+            }
+            else if (_estado.Status == StatusSessaoWhatsAppContrato.Erro)
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                    @(_estado.UltimoErroSeguro ?? "Não foi possível iniciar a conexão com o WhatsApp.")
+                </MudAlert>
+            }
+            else
+            {
+                <div class="module-loading compact-loading whatsapp-qr-loading">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                    <span>Preparando QR Code seguro...</span>
+                </div>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Fechar">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public SessaoWhatsAppResponse EstadoInicial { get; set; } = null!;
+    private SessaoWhatsAppResponse _estado = null!;
+    private readonly CancellationTokenSource _cancellation = new();
+    private Task? _polling;
+
+    protected override void OnInitialized()
+    {
+        _estado = EstadoInicial;
+        if (_estado.Status != StatusSessaoWhatsAppContrato.Conectada)
+            _polling = MonitorarAsync(_cancellation.Token);
+    }
+
+    private async Task MonitorarAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                var resultado = await NotificacoesApi.ObterConexaoWhatsAppAsync(cancellationToken);
+                if (!resultado.Sucesso || resultado.Resultado is null) continue;
+                _estado = resultado.Resultado;
+                await InvokeAsync(StateHasChanged);
+                if (_estado.Status is StatusSessaoWhatsAppContrato.Conectada or
+                    StatusSessaoWhatsAppContrato.Erro) return;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+    }
+
+    private void Fechar() => MudDialog.Close(DialogResult.Ok(_estado));
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cancellation.CancelAsync();
+        if (_polling is not null)
+        {
+            try { await _polling; }
+            catch (OperationCanceledException) { }
+        }
+        _cancellation.Dispose();
+    }
+}

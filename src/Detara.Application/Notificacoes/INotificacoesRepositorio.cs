@@ -9,18 +9,29 @@ public interface INotificacoesRepositorio
     Task<TemplateEmailEmpresa?> ObterTemplateAsync(TipoTemplateEmail tipo, bool paraAlteracao, CancellationToken cancellationToken);
     Task<NotificacaoEmail?> ObterUltimaPorOrdemServicoAsync(Guid ordemServicoId, bool paraAlteracao, CancellationToken cancellationToken);
     Task<NotificacaoEmail?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<ComunicacaoCliente?> ObterComunicacaoPorIdAsync(Guid id, bool paraAlteracao,
+        CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<ComunicacaoCliente>> ObterComunicacoesPorOrdemServicoAsync(
+        Guid ordemServicoId, CancellationToken cancellationToken);
+    Task<bool> ExisteComunicacaoPendenteAsync(Guid ordemServicoId, CancellationToken cancellationToken);
+    Task<SessaoWhatsAppEmpresa?> ObterSessaoWhatsAppAsync(bool paraAlteracao,
+        CancellationToken cancellationToken);
     Task<bool> ExistePorOrdemServicoAsync(Guid ordemServicoId, TipoTemplateEmail tipo, CancellationToken cancellationToken);
     void Adicionar(ConfiguracaoNotificacaoEmpresa configuracao);
     void Adicionar(TemplateEmailEmpresa template);
     void Adicionar(NotificacaoEmail notificacao);
+    void Adicionar(ComunicacaoCliente comunicacao);
+    void Adicionar(SessaoWhatsAppEmpresa sessao);
     void Remover(TemplateEmailEmpresa template);
     Task<bool> TentarAdicionarESalvarAsync(NotificacaoEmail notificacao, CancellationToken cancellationToken);
+    Task<bool> TentarAdicionarComunicacaoESalvarAsync(ComunicacaoCliente comunicacao,
+        NotificacaoEmail? notificacaoEmail, CancellationToken cancellationToken);
     Task<bool> TentarSalvarAlteracaoAsync(CancellationToken cancellationToken);
     Task SalvarAsync(CancellationToken cancellationToken);
 }
 
 public sealed record EmpresaNotificacoesInterna(Guid Id, string Nome);
-public sealed record ClienteNotificacoesInterno(Guid Id, string Nome, string? Email);
+public sealed record ClienteNotificacoesInterno(Guid Id, string Nome, string? Email, string? WhatsApp);
 public sealed record UsuarioNotificacoesInterno(Guid Id, string Nome, string Email);
 
 public interface IPlataformaNotificacoesConsulta
@@ -57,12 +68,23 @@ public interface IRenderizadorTemplateEmail
     EmailRenderizado Renderizar(ConteudoTemplateEmail template, DadosTemplateEmail dados);
 }
 
+public interface IRenderizadorTemplateWhatsApp
+{
+    string RenderizarVeiculoPronto(DadosTemplateEmail dados);
+}
+
 public sealed record OrdemServicoFinalizadaNotificacoes(Guid EmpresaId, Guid OrdemServicoId,
     string OrdemServicoCodigo, Guid ClienteId, string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca);
 
 public interface IIntegracaoNotificacoesOrdensServico
 {
     Task PrepararNotificacaoAsync(OrdemServicoFinalizadaNotificacoes evento, CancellationToken cancellationToken);
+}
+
+public interface IComunicacaoClienteService
+{
+    Task<ComunicacaoCliente> PrepararManualAsync(Guid ordemServicoId,
+        CanalComunicacaoCliente canal, Guid solicitacaoId, CancellationToken cancellationToken);
 }
 
 public interface IFilaNotificacoesServico

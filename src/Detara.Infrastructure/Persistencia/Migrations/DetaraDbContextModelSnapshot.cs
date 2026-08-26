@@ -1844,6 +1844,90 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.ToTable("Pagamentos", (string)null);
                 });
 
+            modelBuilder.Entity("Detara.Domain.Notificacoes.ComunicacaoCliente", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Canal")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DataEnvioUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DestinatarioSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("EmpresaId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Mensagem")
+                        .IsRequired()
+                        .HasMaxLength(102400)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("OrdemServicoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Origem")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime?>("ProcessamentoIniciadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProvedorMensagemId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("SolicitadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("UltimoErroSeguro")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "OrdemServicoId", "CriadoEmUtc");
+
+                    b.HasIndex("EmpresaId", "Canal", "Status", "ProcessamentoIniciadoEmUtc");
+
+                    b.ToTable("ComunicacoesCliente", (string)null);
+                });
+
             modelBuilder.Entity("Detara.Domain.Notificacoes.ConfiguracaoNotificacaoEmpresa", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1856,6 +1940,11 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.Property<Guid>("AtualizadoPorUsuarioId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CanalAutomaticoVeiculoPronto")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
                     b.Property<DateTime>("CriadoEmUtc")
                         .HasColumnType("datetime2");
 
@@ -1865,9 +1954,6 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.Property<Guid>("EmpresaId")
                         .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("EnviarVeiculoProntoAutomaticamente")
-                        .HasColumnType("bit");
 
                     b.Property<string>("ResponderParaEmail")
                         .HasMaxLength(200)
@@ -1987,6 +2073,57 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.HasIndex("EmpresaId", "Tipo", "OrdemServicoId");
 
                     b.ToTable("NotificacoesEmail", (string)null);
+                });
+
+            modelBuilder.Entity("Detara.Domain.Notificacoes.SessaoWhatsAppEmpresa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AtualizadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EhAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("EmpresaId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SessionKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<DateTime?>("UltimaConexaoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UltimoErroSeguro")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("Versao")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique();
+
+                    b.HasIndex("SessionKey")
+                        .IsUnique();
+
+                    b.ToTable("SessoesWhatsAppEmpresa", (string)null);
                 });
 
             modelBuilder.Entity("Detara.Domain.Notificacoes.TemplateEmailEmpresa", b =>

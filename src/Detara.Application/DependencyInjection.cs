@@ -20,7 +20,11 @@ public static class DependencyInjection
         services.AddSingleton<IConversorFusoHorario, ConversorFusoHorario>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IIntegracaoFinanceiroOrdensServico, IntegracaoFinanceiroOrdensServico>();
-        services.AddScoped<IIntegracaoNotificacoesOrdensServico, IntegracaoNotificacoesOrdensServico>();
+        services.AddScoped<ComunicacaoClienteService>();
+        services.AddScoped<IComunicacaoClienteService>(provider =>
+            provider.GetRequiredService<ComunicacaoClienteService>());
+        services.AddScoped<IIntegracaoNotificacoesOrdensServico>(provider =>
+            provider.GetRequiredService<ComunicacaoClienteService>());
 
         return services;
     }

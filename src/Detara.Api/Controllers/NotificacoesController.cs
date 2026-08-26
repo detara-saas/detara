@@ -22,8 +22,10 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
     public async Task<ActionResult<RespostaApi<ConfiguracaoNotificacaoResponse>>> AtualizarConfiguracao(
         AtualizarConfiguracaoNotificacaoRequest request, CancellationToken ct) =>
         Ok(RespostaApi<ConfiguracaoNotificacaoResponse>.Ok(Mapear(await sender.Send(
-            new AtualizarConfiguracaoNotificacaoCommand(request.EnviarVeiculoProntoAutomaticamente, request.ResponderParaEmail), ct)),
-            "Configurações de e-mail atualizadas."));
+            new AtualizarConfiguracaoNotificacaoCommand(
+                (CanalComunicacaoVeiculoPronto)(int)request.CanalAutomaticoVeiculoPronto,
+                request.ResponderParaEmail), ct)),
+            "Configurações de comunicação atualizadas."));
 
     [HttpGet("templates/veiculo-pronto"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
     public async Task<ActionResult<RespostaApi<TemplateEmailResponse>>> ObterTemplate(CancellationToken ct) =>
@@ -55,6 +57,32 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
         return Ok(RespostaApi<object>.Ok(new { }, "E-mail de teste aceito pelo provedor."));
     }
 
+    [HttpGet("whatsapp/status"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
+    public async Task<ActionResult<RespostaApi<SessaoWhatsAppResponse>>> ObterStatusWhatsApp(
+        CancellationToken ct) =>
+        Ok(RespostaApi<SessaoWhatsAppResponse>.Ok(Mapear(await sender.Send(
+            new ObterStatusSessaoWhatsAppQuery(), ct), incluirQrCode: false)));
+
+    [HttpGet("whatsapp/conexao"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
+    public async Task<ActionResult<RespostaApi<SessaoWhatsAppResponse>>> ObterConexaoWhatsApp(
+        CancellationToken ct) =>
+        Ok(RespostaApi<SessaoWhatsAppResponse>.Ok(Mapear(await sender.Send(
+            new ObterStatusSessaoWhatsAppQuery(), ct), incluirQrCode: true)));
+
+    [HttpGet("whatsapp/disponibilidade"), Authorize(Policy = Permissoes.OrdemServicoVisualizar)]
+    public async Task<ActionResult<RespostaApi<SessaoWhatsAppResponse>>> ObterDisponibilidadeWhatsApp(
+        CancellationToken ct) =>
+        Ok(RespostaApi<SessaoWhatsAppResponse>.Ok(Mapear(await sender.Send(
+            new ObterStatusSessaoWhatsAppQuery(), ct), incluirQrCode: false)));
+
+    [HttpPost("whatsapp/conectar"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
+    [EnableRateLimiting("whatsapp-conectar")]
+    public async Task<ActionResult<RespostaApi<SessaoWhatsAppResponse>>> ConectarWhatsApp(
+        CancellationToken ct) =>
+        Ok(RespostaApi<SessaoWhatsAppResponse>.Ok(Mapear(await sender.Send(
+            new IniciarConexaoWhatsAppCommand(), ct), incluirQrCode: true),
+            "Conexão WhatsApp iniciada."));
+
     [HttpGet("ordens-servico/{ordemServicoId:guid}"), Authorize(Policy = Permissoes.OrdemServicoVisualizar)]
     public async Task<ActionResult<RespostaApi<NotificacaoOrdemServicoResponse>>> ObterPorOrdemServico(Guid ordemServicoId,
         CancellationToken ct)
@@ -62,8 +90,20 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
         var item = await sender.Send(new ObterNotificacaoOrdemServicoQuery(ordemServicoId), ct);
         return Ok(RespostaApi<NotificacaoOrdemServicoResponse>.Ok(new(item.Notificacao is not null,
             item.Notificacao is null ? null : Mapear(item.Notificacao),
-            item.EnviarVeiculoProntoAutomaticamente, item.EmailDestinoAtual)));
+            (CanalComunicacaoVeiculoProntoContrato)(int)item.CanalAutomaticoVeiculoPronto,
+            item.EmailDestinoAtual, item.WhatsAppDestinoAtual,
+            item.Comunicacoes.Select(Mapear).ToArray())));
     }
+
+    [HttpPost("ordens-servico/{ordemServicoId:guid}/comunicar"),
+     Authorize(Policy = Permissoes.NotificacoesReenviar)]
+    public async Task<ActionResult<RespostaApi<ComunicacaoClienteResponse>>> Comunicar(
+        Guid ordemServicoId, ComunicarClienteVeiculoProntoRequest request,
+        CancellationToken ct) =>
+        Ok(RespostaApi<ComunicacaoClienteResponse>.Ok(Mapear(await sender.Send(
+            new ComunicarClienteVeiculoProntoCommand(ordemServicoId,
+                (CanalComunicacaoCliente)(int)request.Canal, request.SolicitacaoId), ct)),
+            "Comunicação agendada."));
 
     [HttpPost("ordens-servico/{ordemServicoId:guid}/enviar"), Authorize(Policy = Permissoes.NotificacoesReenviar)]
     public async Task<ActionResult<RespostaApi<NotificacaoEmailResponse>>> Enviar(
@@ -85,7 +125,8 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
             "Reenvio agendado."));
 
     private static ConfiguracaoNotificacaoResponse Mapear(ConfiguracaoNotificacaoVisualizacao x) =>
-        new(x.EnviarVeiculoProntoAutomaticamente, x.ResponderParaEmail, x.AtualizadoEmUtc);
+        new((CanalComunicacaoVeiculoProntoContrato)(int)x.CanalAutomaticoVeiculoPronto,
+            x.ResponderParaEmail, x.AtualizadoEmUtc);
     private static TemplateEmailResponse Mapear(TemplateEmailVisualizacao x) =>
         new(x.Assunto, x.CorpoHtml, (OrigemTemplateEmailContrato)(int)x.Origem, x.AtualizadoEmUtc);
     private static NotificacaoEmailResponse Mapear(NotificacaoEmailVisualizacao x) => new(x.Id, x.OrdemServicoId,
@@ -94,4 +135,15 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
         x.EnviadaEmUtc, x.UltimoErroSeguro, x.Tentativas.Select(t => new TentativaNotificacaoEmailResponse(t.Numero,
             (TipoTentativaNotificacaoEmailContrato)(int)t.Tipo, t.ConcluidaEmUtc,
             (ResultadoTentativaNotificacaoEmailContrato)(int)t.Resultado, t.ErroSeguro)).ToArray());
+    private static ComunicacaoClienteResponse Mapear(ComunicacaoClienteVisualizacao x) =>
+        new(x.Id, x.OrdemServicoId, (CanalComunicacaoClienteContrato)(int)x.Canal,
+            (TipoComunicacaoClienteContrato)(int)x.Tipo,
+            (StatusComunicacaoClienteContrato)(int)x.Status,
+            (OrigemComunicacaoClienteContrato)(int)x.Origem, x.Destinatario,
+            x.CriadoEmUtc, x.DataEnvioUtc, x.UltimoErroSeguro);
+    private static SessaoWhatsAppResponse Mapear(SessaoWhatsAppVisualizacao x,
+        bool incluirQrCode) =>
+        new((StatusSessaoWhatsAppContrato)(int)x.Status,
+            incluirQrCode ? x.QrCodeDataUrl : null,
+            x.AtualizadoEmUtc, x.UltimaConexaoEmUtc, x.UltimoErroSeguro);
 }

@@ -21,6 +21,19 @@ public sealed class NotificacoesServico(HttpClient http)
         EnviarAsync<PreviewTemplateEmailResponse>(() => http.PostAsJsonAsync("api/notificacoes/templates/veiculo-pronto/preview", request, ct), ct);
     public Task<ResultadoServico<object>> EnviarTesteAsync(CancellationToken ct = default) =>
         EnviarAsync<object>(() => http.PostAsync("api/notificacoes/templates/veiculo-pronto/teste", null, ct), ct);
+    public Task<ResultadoServico<SessaoWhatsAppResponse>> ObterStatusWhatsAppAsync(
+        CancellationToken ct = default) =>
+        ObterAsync<SessaoWhatsAppResponse>("api/notificacoes/whatsapp/status", ct);
+    public Task<ResultadoServico<SessaoWhatsAppResponse>> ObterConexaoWhatsAppAsync(
+        CancellationToken ct = default) =>
+        ObterAsync<SessaoWhatsAppResponse>("api/notificacoes/whatsapp/conexao", ct);
+    public Task<ResultadoServico<SessaoWhatsAppResponse>> ObterDisponibilidadeWhatsAppAsync(
+        CancellationToken ct = default) =>
+        ObterAsync<SessaoWhatsAppResponse>("api/notificacoes/whatsapp/disponibilidade", ct);
+    public Task<ResultadoServico<SessaoWhatsAppResponse>> ConectarWhatsAppAsync(
+        CancellationToken ct = default) =>
+        EnviarAsync<SessaoWhatsAppResponse>(() => http.PostAsync(
+            "api/notificacoes/whatsapp/conectar", null, ct), ct);
     public Task<ResultadoServico<NotificacaoOrdemServicoResponse>> ObterPorOrdemServicoAsync(Guid id, CancellationToken ct = default) =>
         ObterAsync<NotificacaoOrdemServicoResponse>($"api/notificacoes/ordens-servico/{id}", ct);
     public Task<ResultadoServico<NotificacaoEmailResponse>> EnviarAvisoAsync(Guid id, CancellationToken ct = default) =>
@@ -30,6 +43,10 @@ public sealed class NotificacoesServico(HttpClient http)
     public Task<ResultadoServico<NotificacaoEmailResponse>> ReenviarAsync(Guid id,
         ReenviarAvisoVeiculoProntoRequest request, CancellationToken ct = default) =>
         EnviarAsync<NotificacaoEmailResponse>(() => http.PostAsJsonAsync($"api/notificacoes/ordens-servico/{id}/reenviar", request, ct), ct);
+    public Task<ResultadoServico<ComunicacaoClienteResponse>> ComunicarClienteAsync(Guid id,
+        ComunicarClienteVeiculoProntoRequest request, CancellationToken ct = default) =>
+        EnviarAsync<ComunicacaoClienteResponse>(() => http.PostAsJsonAsync(
+            $"api/notificacoes/ordens-servico/{id}/comunicar", request, ct), ct);
 
     private async Task<ResultadoServico<T>> ObterAsync<T>(string url, CancellationToken ct)
     { try { return await ConverterAsync<T>(await http.GetAsync(url, ct), ct); } catch (HttpRequestException) { return ResultadoServico<T>.Falha("Não foi possível acessar a API."); } }

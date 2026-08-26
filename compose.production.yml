@@ -106,6 +106,9 @@ services:
       Email__ApiKey: ${DETARA_RESEND_API_KEY:?Informe a API key Resend}
       Email__FromAddress: ${DETARA_EMAIL_FROM_ADDRESS:?Informe um remetente verificado}
       Email__FromName: ${DETARA_EMAIL_FROM_NAME:-Detara}
+      WhatsAppGateway__Enabled: "true"
+      WhatsAppGateway__BaseUrl: http://whatsapp-gateway:3000/
+      WhatsAppGateway__ApiKey: ${DETARA_WHATSAPP_GATEWAY_API_KEY:?Informe a chave interna do gateway WhatsApp}
     volumes:
       - detara-data-protection-keys:/var/lib/detara/data-protection-keys
     secrets:
@@ -114,8 +117,11 @@ services:
       edge:
         ipv4_address: 172.30.0.3
       data:
+      integration:
     depends_on:
       sqlserver:
+        condition: service_healthy
+      whatsapp-gateway:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health/live"]
@@ -123,6 +129,38 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    logging: *default-logging
+
+  whatsapp-gateway:
+    image: ${DETARA_WHATSAPP_GATEWAY_IMAGE:?Informe a imagem imutável do gateway WhatsApp}
+    restart: unless-stopped
+    cpus: 1.00
+    mem_limit: 1024m
+    pids_limit: 512
+    read_only: true
+    cap_drop:
+      - ALL
+    environment:
+      DETARA_WHATSAPP_GATEWAY_API_KEY: ${DETARA_WHATSAPP_GATEWAY_API_KEY:?Informe a chave interna do gateway WhatsApp}
+      DETARA_WHATSAPP_SESSIONS_PATH: /app/sessions
+      HOST: 0.0.0.0
+      PORT: 3000
+    expose:
+      - "3000"
+    volumes:
+      - detara-whatsapp-sessions:/app/sessions
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    shm_size: 256mb
+    networks:
+      - integration
+      - whatsapp-egress
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/healthz',{headers:{Authorization:'Bearer '+process.env.DETARA_WHATSAPP_GATEWAY_API_KEY}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     logging: *default-logging
 
   sqlserver:
@@ -159,11 +197,16 @@ networks:
         - subnet: 172.30.0.0/24
   data:
     internal: true
+  integration:
+    internal: true
+  whatsapp-egress:
+    driver: bridge
 
 volumes:
   detara-sql-data:
   detara-sql-backups:
   detara-data-protection-keys:
+  detara-whatsapp-sessions:
   detara-caddy-data:
   detara-caddy-config:
 

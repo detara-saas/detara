@@ -11,7 +11,7 @@
         </MudSelect>
         <MudTextField T="string" @bind-Value="_modelo.CpfCnpj" Label="CPF/CNPJ" Variant="Variant.Outlined" HelperText="Opcional; aceita pontuação." />
         <MudTextField T="string" @bind-Value="_modelo.Telefone" Label="Telefone" Variant="Variant.Outlined" InputType="InputType.Telephone" />
-        <MudTextField T="string" @bind-Value="_modelo.WhatsApp" Label="WhatsApp" Variant="Variant.Outlined" InputType="InputType.Telephone" />
+        <MudTextField T="string" @bind-Value="_modelo.WhatsApp" Label="WhatsApp" Variant="Variant.Outlined" InputType="InputType.Telephone" Immediate="true" />
         <MudTextField T="string" @bind-Value="_modelo.Email" Label="E-mail" Variant="Variant.Outlined" InputType="InputType.Email" />
         @if (_modelo.TipoPessoa == "PessoaFisica")
         {

@@ -6,21 +6,24 @@ public sealed class ConfiguracaoNotificacaoEmpresa : EntidadeEmpresaBase
 {
     private ConfiguracaoNotificacaoEmpresa() { }
 
-    public ConfiguracaoNotificacaoEmpresa(Guid empresaId, bool enviarVeiculoProntoAutomaticamente,
+    public ConfiguracaoNotificacaoEmpresa(Guid empresaId, CanalComunicacaoVeiculoPronto canalAutomaticoVeiculoPronto,
         string? responderParaEmail, Guid usuarioId) : base(Guid.NewGuid(), empresaId) =>
-        Atualizar(enviarVeiculoProntoAutomaticamente, responderParaEmail, usuarioId);
+        Atualizar(canalAutomaticoVeiculoPronto, responderParaEmail, usuarioId);
 
-    public bool EnviarVeiculoProntoAutomaticamente { get; private set; }
+    public CanalComunicacaoVeiculoPronto CanalAutomaticoVeiculoPronto { get; private set; }
     public string? ResponderParaEmail { get; private set; }
     public Guid AtualizadoPorUsuarioId { get; private set; }
     public long Versao { get; private set; } = 1;
 
-    public void Atualizar(bool enviarAutomaticamente, string? responderParaEmail, Guid usuarioId)
+    public void Atualizar(CanalComunicacaoVeiculoPronto canalAutomaticoVeiculoPronto,
+        string? responderParaEmail, Guid usuarioId)
     {
         if (usuarioId == Guid.Empty) throw new ArgumentException("O usuário deve ser informado.", nameof(usuarioId));
+        if (!Enum.IsDefined(canalAutomaticoVeiculoPronto))
+            throw new ArgumentException("O canal automático é inválido.", nameof(canalAutomaticoVeiculoPronto));
         var email = string.IsNullOrWhiteSpace(responderParaEmail) ? null : responderParaEmail.Trim().ToLowerInvariant();
         if (email?.Length > 200) throw new ArgumentException("O e-mail de resposta deve possuir no máximo 200 caracteres.", nameof(responderParaEmail));
-        EnviarVeiculoProntoAutomaticamente = enviarAutomaticamente;
+        CanalAutomaticoVeiculoPronto = canalAutomaticoVeiculoPronto;
         ResponderParaEmail = email;
         AtualizadoPorUsuarioId = usuarioId;
         Versao++;
