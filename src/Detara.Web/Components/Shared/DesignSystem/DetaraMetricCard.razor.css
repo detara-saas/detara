@@ -1,0 +1,105 @@
+.detara-metric-card {
+    --metric-tone: var(--detara-text-secondary);
+    position: relative;
+    min-width: 0;
+    min-height: 176px;
+    display: flex;
+    flex-direction: column;
+    padding: var(--detara-card-padding);
+    overflow: hidden;
+    color: var(--detara-text);
+    background: var(--detara-surface);
+    border: 1px solid var(--detara-border-soft);
+    border-radius: var(--detara-radius-lg);
+    transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.detara-metric-card:hover {
+    border-color: color-mix(in srgb, var(--metric-tone) 34%, var(--detara-border-soft));
+    box-shadow: var(--detara-shadow-sm);
+    transform: translateY(-1px);
+}
+
+.detara-metric-card::after {
+    content: "";
+    position: absolute;
+    right: -26px;
+    bottom: -46px;
+    width: 118px;
+    height: 118px;
+    background: color-mix(in srgb, var(--metric-tone) 8%, transparent);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.tone-positive { --metric-tone: var(--detara-success); }
+.tone-warning { --metric-tone: var(--detara-warning); }
+.tone-info { --metric-tone: var(--detara-info); }
+
+.detara-metric-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.detara-metric-card__icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    color: var(--metric-tone);
+    background: color-mix(in srgb, var(--metric-tone) 12%, transparent);
+    border-radius: var(--detara-radius-md);
+}
+
+.detara-metric-card__top small {
+    color: var(--metric-tone);
+    font-size: .64rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.detara-metric-card > p {
+    margin: 0;
+    color: var(--detara-text-secondary);
+    font-size: .79rem;
+    font-weight: 600;
+}
+
+.detara-metric-card > strong {
+    position: relative;
+    z-index: 1;
+    margin: 2px 0 6px;
+    font-size: clamp(1.7rem, 2.4vw, 2.15rem);
+    font-weight: 800;
+    letter-spacing: -.04em;
+    line-height: 1.15;
+}
+
+.detara-metric-card__description,
+.detara-metric-card__trend {
+    position: relative;
+    z-index: 1;
+    color: var(--detara-text-secondary);
+    font-size: .7rem;
+}
+
+.detara-metric-card__trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--metric-tone);
+    font-weight: 700;
+}
+
+.detara-metric-card__trend ::deep .mud-icon-root { font-size: 1rem; }
+
+@media (max-width: 600px) {
+    .detara-metric-card { min-height: 154px; padding: 15px; }
+    .detara-metric-card__top { margin-bottom: 14px; }
+    .detara-metric-card > strong { font-size: 1.45rem; }
+    .detara-metric-card > strong.currency-value { font-size: 1.17rem; }
+}

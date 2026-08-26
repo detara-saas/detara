@@ -1,0 +1,43 @@
+<MudDialog Class="detara-dialog">
+    <TitleContent>
+        <div class="detara-dialog__heading">
+            <MudText Typo="Typo.h6">@Titulo</MudText>
+            @if (!string.IsNullOrWhiteSpace(Descricao)) { <MudText Typo="Typo.body2" Color="Color.Secondary">@Descricao</MudText> }
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="detara-dialog__content">
+            @if (!string.IsNullOrWhiteSpace(Erro)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@Erro</MudAlert> }
+            @ChildContent
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="SecondaryClickAsync" Disabled="Carregando">@TextoSecundario</MudButton>
+        <MudButton Variant="Variant.Filled" Color="@CorPrimaria" OnClick="PrimaryClickAsync" Disabled="Carregando">
+            @if (Carregando) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
+            @(Carregando ? TextoCarregando : TextoPrimario)
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
+    [Parameter] public string? Descricao { get; set; }
+    [Parameter] public string? Erro { get; set; }
+    [Parameter] public string TextoPrimario { get; set; } = "Confirmar";
+    [Parameter] public string TextoSecundario { get; set; } = "Cancelar";
+    [Parameter] public string TextoCarregando { get; set; } = "Processando…";
+    [Parameter] public Color CorPrimaria { get; set; } = Color.Primary;
+    [Parameter] public bool Carregando { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnPrimary { get; set; }
+    [Parameter] public EventCallback OnSecondary { get; set; }
+
+    private Task PrimaryClickAsync() => OnPrimary.InvokeAsync();
+    private async Task SecondaryClickAsync()
+    {
+        if (OnSecondary.HasDelegate) await OnSecondary.InvokeAsync();
+        else MudDialog.Cancel();
+    }
+}

@@ -1,0 +1,17 @@
+<section class="detara-empty-state @(Compacto ? "is-compact" : null) @Class">
+    <span class="detara-empty-state__icon" aria-hidden="true"><MudIcon Icon="@Icone" Size="Size.Large" /></span>
+    <div class="detara-empty-state__copy">
+        <MudText Typo="Typo.h5">@Titulo</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@Descricao</MudText>
+    </div>
+    @if (Acao is not null) { <div class="detara-empty-state__action">@Acao</div> }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Descricao { get; set; } = string.Empty;
+    [Parameter] public string Icone { get; set; } = Icons.Material.Outlined.Inbox;
+    [Parameter] public RenderFragment? Acao { get; set; }
+    [Parameter] public bool Compacto { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

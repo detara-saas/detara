@@ -7,14 +7,14 @@
 @inject IDialogService Dialogs
 
 <PageTitle>@(_orcamento?.Codigo ?? "Orçamento") | Detara</PageTitle>
-@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+@if (_carregando) { <div class="page-container page-container-wide"><DetaraSkeleton Variant="DetaraSkeletonVariant.Detail" Rotulo="Carregando orçamento" /></div> }
 else if (_orcamento is null) { <EstadoVazio Titulo="Orçamento não encontrado" Descricao="O documento não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.RequestQuote" /> }
 else
 {
     <div class="page-container page-container-wide quotation-detail-page">
     <CabecalhoPagina Titulo="@(_orcamento.Codigo ?? (_orcamento.Status == StatusOrcamentoContrato.Rascunho ? "Rascunho sem código" : "Documento sem emissão"))" Descricao="@($"{_orcamento.ClienteNome} · {FormatacaoVeiculo.Exibir(_orcamento.VeiculoDescricao, _orcamento.VeiculoPlaca)}")" Sobretitulo="ORÇAMENTO">
         <Acoes>
-            <span class="status-badge @ClasseStatus(_orcamento.Status)">@NomeStatus(_orcamento.Status)</span>
+            <DetaraStatusBadge Texto="@NomeStatus(_orcamento.Status)" Tone="@TomStatus(_orcamento.Status)" />
             @if (_orcamento.EmitidoEmUtc.HasValue) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.PictureAsPdf" OnClick="BaixarPdfAsync">Baixar PDF</MudButton> }
             @if (_orcamento.OrdemServicoOrigemId.HasValue) { <MudButton Href="@($"/ordens-servico/{_orcamento.OrdemServicoOrigemId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FactCheck">Ver OS de origem</MudButton> }
             else if (_orcamento.Status == StatusOrcamentoContrato.Aprovado)
@@ -128,6 +128,7 @@ else
     private static string NomeOrigem(OrcamentoDetalheResponse orcamento) => orcamento.OrdemServicoOrigemId.HasValue ? "Ordem de serviço" : orcamento.AgendamentoOrigemId.HasValue ? "Agendamento" : "Atendimento direto";
     private static string NomeStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Substituido => "Substituído", StatusOrcamentoContrato.Expirado => "Expirado", _ => status.ToString() };
     private static string ClasseStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Rascunho => "status-neutral", StatusOrcamentoContrato.Emitido => "status-scheduled", StatusOrcamentoContrato.Aprovado => "status-running", StatusOrcamentoContrato.Recusado => "status-cancelled", StatusOrcamentoContrato.Cancelado => "status-cancelled", StatusOrcamentoContrato.Expirado => "status-waiting", _ => "status-neutral" };
+    private static DetaraStatusTone TomStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Emitido => DetaraStatusTone.Info, StatusOrcamentoContrato.Aprovado => DetaraStatusTone.Positive, StatusOrcamentoContrato.Recusado or StatusOrcamentoContrato.Cancelado => DetaraStatusTone.Critical, StatusOrcamentoContrato.Expirado => DetaraStatusTone.Warning, _ => DetaraStatusTone.Neutral };
     private static string TipoItem(TipoItemOrcamentoContrato tipo) => tipo switch { TipoItemOrcamentoContrato.Servico => "Serviço", TipoItemOrcamentoContrato.Pacote => "Pacote", _ => "Personalizado" };
     private static string Referencia(OrcamentoItemResponse item) => item.TipoPrecificacaoReferencia switch { TipoPrecificacaoCatalogo.APartirDe => $"A partir de {item.PrecoReferencia:C2}", TipoPrecificacaoCatalogo.Fixo => item.PrecoReferencia?.ToString("C2") ?? "Sob consulta", _ => "Sob consulta" };
 }

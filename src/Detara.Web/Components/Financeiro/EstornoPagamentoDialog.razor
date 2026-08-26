@@ -1,14 +1,7 @@
-<MudDialog>
-    <TitleContent><MudText Typo="Typo.h6">Estornar pagamento</MudText></TitleContent>
-    <DialogContent>
-        <div class="dialog-content-stack">
-            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Este pagamento deixará de compor o valor recebido da conta. O registro original será preservado no histórico.</MudAlert>
-            <div class="dialog-financial-summary"><span>@Forma</span><strong>@Valor.ToString("C2")</strong></div>
-            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo do estorno" Variant="Variant.Outlined" Lines="3" Counter="500" MaxLength="500" Required="true" />
-        </div>
-    </DialogContent>
-    <DialogActions><MudButton OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Confirmar">Confirmar estorno</MudButton></DialogActions>
-</MudDialog>
+<DetaraDialog Titulo="Estornar pagamento" Descricao="Este pagamento deixará de compor o valor recebido da conta. O registro original será preservado no histórico." TextoPrimario="Confirmar estorno" CorPrimaria="Color.Error" OnPrimary="Confirmar" OnSecondary="Cancelar">
+    <div class="dialog-financial-summary"><span>@Forma</span><strong>@Valor.ToString("C2")</strong></div>
+    <MudTextField T="string" @bind-Value="_motivo" Label="Motivo do estorno" Variant="Variant.Outlined" Lines="3" Counter="500" MaxLength="500" Required="true" />
+</DetaraDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;

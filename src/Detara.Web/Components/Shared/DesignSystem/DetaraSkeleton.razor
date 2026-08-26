@@ -1,0 +1,22 @@
+<section class="detara-skeleton variant-@Variant.ToString().ToLowerInvariant()" aria-label="@Rotulo" aria-busy="true">
+    @if (Variant == DetaraSkeletonVariant.Cards)
+    {
+        <div class="detara-skeleton__cards">@for (var i = 0; i < Quantidade; i++) { <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="168px" /> }</div>
+    }
+    else if (Variant == DetaraSkeletonVariant.Table)
+    {
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="48px" />
+        @for (var i = 0; i < Quantidade; i++) { <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="58px" /> }
+    }
+    else
+    {
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="96px" />
+        <div class="detara-skeleton__detail"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="260px" /><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="260px" /></div>
+    }
+</section>
+
+@code {
+    [Parameter] public DetaraSkeletonVariant Variant { get; set; } = DetaraSkeletonVariant.Table;
+    [Parameter] public int Quantidade { get; set; } = 5;
+    [Parameter] public string Rotulo { get; set; } = "Carregando conteúdo";
+}
