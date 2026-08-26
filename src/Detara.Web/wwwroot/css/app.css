@@ -406,6 +406,32 @@ h1:focus { outline: none; }
 .settings-panel { padding: 24px; }
 .settings-panel-wide { grid-column: 1 / -1; }
 .notification-settings { display: grid; gap: 26px; }
+.communication-settings-stack { display: grid; gap: var(--detara-page-gap); }
+.communication-config-block { display: grid; gap: 20px; padding: 22px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); }
+.communication-template-block { background: var(--detara-surface); }
+.communication-block-heading { display: grid; gap: 4px; }
+.communication-block-heading h3, .communication-block-heading p { margin: 0; }
+.communication-block-heading h3 { color: var(--detara-text); font-size: 1rem; }
+.communication-block-heading p { max-width: 760px; color: var(--detara-text-secondary); font-size: .78rem; line-height: 1.55; }
+.communication-channel-cards { width: 100%; }
+.communication-channel-cards > .mud-input-control-input-container { display: block; }
+.communication-channel-cards .mud-radio-group { width: 100%; display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.communication-channel-cards .mud-radio-group > .mud-input-control { min-width: 0; margin: 0; }
+.communication-channel-cards .mud-radio { width: 100%; min-width: 0; min-height: 126px; height: 100%; margin: 0; padding: 16px; align-items: flex-start; gap: 10px; background: var(--detara-surface); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); transition: border-color .16s ease, background-color .16s ease; }
+.communication-channel-cards .mud-radio:hover { border-color: color-mix(in srgb,var(--detara-primary) 48%,var(--detara-border)); }
+.communication-channel-cards .mud-input-control.is-selected .mud-radio { background: color-mix(in srgb,var(--detara-primary) 7%,var(--detara-surface)); border-color: var(--detara-primary-dark); box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--detara-primary) 22%,transparent); }
+.communication-channel-cards .mud-input-control.is-unavailable:not(.is-selected) .mud-radio { opacity: .72; }
+.communication-channel-card-icon { flex: 0 0 auto; display: grid; place-items: center; width: 38px; height: 38px; color: var(--detara-primary-dark); background: color-mix(in srgb,var(--detara-primary) 10%,var(--detara-surface)); border-radius: var(--detara-radius-md); }
+.communication-channel-card-copy { min-width: 0; display: grid; gap: 5px; }
+.communication-channel-card-copy strong { color: var(--detara-text); font-size: .86rem; }
+.communication-channel-card-copy small { color: var(--detara-text-secondary); font-size: .72rem; line-height: 1.45; }
+.communication-channel-availability { margin-left: auto; }
+.communication-channel-empty { min-height: 104px; }
+.communication-selected-provider { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 18px; background: var(--detara-surface); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
+.communication-selected-provider > span:first-child { display: grid; place-items: center; width: 44px; height: 44px; color: var(--detara-primary-dark); background: color-mix(in srgb,var(--detara-primary) 10%,var(--detara-surface)); border-radius: var(--detara-radius-md); }
+.communication-selected-provider > div { min-width: 0; display: grid; gap: 3px; }
+.communication-selected-provider strong { color: var(--detara-text); font-size: .86rem; }
+.communication-selected-provider p { margin: 0; color: var(--detara-text-secondary); font-size: .74rem; line-height: 1.5; }
 .compact-loading { min-height: 8rem; }
 .notification-config-grid { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 24px; align-items: end; padding: 18px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
 .notification-config-copy { display: grid; grid-template-columns: minmax(280px,1fr) minmax(280px,.8fr); gap: 20px; align-items: center; }
@@ -500,6 +526,9 @@ h1:focus { outline: none; }
 .token-chip { min-height: 32px; padding: 5px 9px; color: var(--detara-primary-dark); background: color-mix(in srgb,var(--detara-primary) 9%,var(--detara-surface)); border: 1px solid color-mix(in srgb,var(--detara-primary) 22%,var(--detara-border-soft)); border-radius: 999px; font: 600 .7rem ui-monospace,monospace; cursor: pointer; }
 .notification-template-actions { margin: 0; }
 .email-preview-panel { min-width: 0; overflow: hidden; position: sticky; top: 20px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); }
+.whatsapp-template-preview { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px; min-height: 260px; padding: 22px; align-content: start; background: color-mix(in srgb,var(--detara-primary) 5%,var(--detara-surface)); }
+.whatsapp-template-preview > .mud-icon-root { color: var(--detara-primary-dark); }
+.whatsapp-template-preview pre { min-width: 0; margin: 0; color: var(--detara-text); font: inherit; font-size: .8rem; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .email-preview-heading { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--detara-border-soft); }
 .email-preview-heading > div { min-width: 0; display: grid; gap: 3px; }
 .email-preview-heading strong { overflow: hidden; color: var(--detara-text); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -764,6 +793,7 @@ h1:focus { outline: none; }
     .quotation-bottom-grid { grid-template-columns: 1fr; }
     .settings-layout { grid-template-columns: 1fr; }
     .notification-config-grid, .notification-template-layout, .notification-config-copy { grid-template-columns: 1fr; }
+    .communication-channel-cards .mud-radio-group { grid-template-columns: 1fr; }
     .email-preview-panel { position: static; }
     .vehicle-photo-gallery { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
@@ -795,6 +825,10 @@ h1:focus { outline: none; }
 @media (max-width: 767px) {
     :root { --detara-page-gutter: 16px; }
     .whatsapp-management-card { padding: 15px; }
+    .communication-config-block { padding: 16px; }
+    .communication-channel-cards .mud-radio { min-height: 108px; padding: 14px; }
+    .communication-selected-provider { grid-template-columns: auto minmax(0,1fr); }
+    .communication-selected-provider > .status-badge { grid-column: 2; justify-self: start; }
     .whatsapp-management-header { grid-template-columns: 40px minmax(0,1fr); }
     .whatsapp-management-header > .status-badge { grid-column: 2; justify-self: start; }
     .whatsapp-session-facts { grid-template-columns: 1fr; }

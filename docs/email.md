@@ -32,6 +32,10 @@ Notificacoes__Fila__MaximoTentativas=4
 Notificacoes__Fila__ProcessamentoExpiraMinutos=10
 ```
 
+## Template do canal Email
+
+O aviso de Email usa o registro genérico `TemplateComunicacaoEmpresa`, identificado por empresa, canal `Email` e tipo `VeiculoProntoRetirada`. Assunto e corpo HTML existentes foram preservados pela migration de generalização. O template de WhatsApp é independente e nunca reutiliza o HTML do e-mail.
+
 ## Segurança do template
 
 O corpo é analisado pelo `HtmlSanitizer` 9.2.995 (MIT), com allowlist explícita:
@@ -72,7 +76,7 @@ Novos envios e reenvios exigem que a OS ainda esteja em `AguardandoRetirada` e q
 
 ## Operação
 
-- Configuração de canal e template de e-mail: `/configuracoes`, permissões `Configuracoes.Visualizar` e `Configuracoes.Editar`.
+- Configuração do canal e dos templates separados de Email/WhatsApp: `/configuracoes`, permissões `Configuracoes.Visualizar` e `Configuracoes.Editar`.
 - Histórico na OS: `/ordens-servico/{id}`, permissão `OrdemServico.Visualizar`.
 - Envio manual por Email/WhatsApp, retry e reenvio: `Notificacoes.Reenviar`.
 - Teste: enviado somente ao e-mail do usuário autenticado, limitado a 3 solicitações por 10 minutos por empresa/usuário.

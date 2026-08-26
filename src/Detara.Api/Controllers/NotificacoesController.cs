@@ -28,26 +28,36 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
                 request.PermitirComunicacaoWhatsApp), ct)),
             "Configurações de comunicação atualizadas."));
 
-    [HttpGet("templates/veiculo-pronto"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
-    public async Task<ActionResult<RespostaApi<TemplateEmailResponse>>> ObterTemplate(CancellationToken ct) =>
-        Ok(RespostaApi<TemplateEmailResponse>.Ok(Mapear(await sender.Send(new ObterTemplateVeiculoProntoQuery(), ct))));
+    [HttpGet("templates/veiculo-pronto/{canal}"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
+    public async Task<ActionResult<RespostaApi<TemplateComunicacaoResponse>>> ObterTemplate(
+        CanalComunicacaoClienteContrato canal, CancellationToken ct) =>
+        Ok(RespostaApi<TemplateComunicacaoResponse>.Ok(Mapear(await sender.Send(
+            new ObterTemplateVeiculoProntoQuery((CanalComunicacaoCliente)(int)canal), ct))));
 
-    [HttpPut("templates/veiculo-pronto"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
-    public async Task<ActionResult<RespostaApi<TemplateEmailResponse>>> SalvarTemplate(SalvarTemplateEmailRequest request,
-        CancellationToken ct) => Ok(RespostaApi<TemplateEmailResponse>.Ok(Mapear(await sender.Send(
-            new SalvarTemplateVeiculoProntoCommand(request.Assunto, request.CorpoHtml), ct)), "Template de e-mail salvo."));
+    [HttpPut("templates/veiculo-pronto/{canal}"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
+    public async Task<ActionResult<RespostaApi<TemplateComunicacaoResponse>>> SalvarTemplate(
+        CanalComunicacaoClienteContrato canal, SalvarTemplateComunicacaoRequest request,
+        CancellationToken ct) => Ok(RespostaApi<TemplateComunicacaoResponse>.Ok(Mapear(await sender.Send(
+            new SalvarTemplateVeiculoProntoCommand((CanalComunicacaoCliente)(int)canal,
+                request.Assunto, request.Conteudo), ct)), "Template de comunicação salvo."));
 
-    [HttpDelete("templates/veiculo-pronto"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
-    public async Task<ActionResult<RespostaApi<TemplateEmailResponse>>> RestaurarTemplate(CancellationToken ct) =>
-        Ok(RespostaApi<TemplateEmailResponse>.Ok(Mapear(await sender.Send(new RestaurarTemplateVeiculoProntoCommand(), ct)),
+    [HttpDelete("templates/veiculo-pronto/{canal}"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
+    public async Task<ActionResult<RespostaApi<TemplateComunicacaoResponse>>> RestaurarTemplate(
+        CanalComunicacaoClienteContrato canal, CancellationToken ct) =>
+        Ok(RespostaApi<TemplateComunicacaoResponse>.Ok(Mapear(await sender.Send(
+                new RestaurarTemplateVeiculoProntoCommand((CanalComunicacaoCliente)(int)canal), ct)),
             "Template padrão restaurado."));
 
-    [HttpPost("templates/veiculo-pronto/preview"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
-    public async Task<ActionResult<RespostaApi<PreviewTemplateEmailResponse>>> Preview(PreviewTemplateEmailRequest request,
+    [HttpPost("templates/veiculo-pronto/{canal}/preview"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
+    public async Task<ActionResult<RespostaApi<PreviewTemplateComunicacaoResponse>>> Preview(
+        CanalComunicacaoClienteContrato canal, PreviewTemplateComunicacaoRequest request,
         CancellationToken ct)
     {
-        var resultado = await sender.Send(new VisualizarTemplateVeiculoProntoCommand(request.Assunto, request.CorpoHtml), ct);
-        return Ok(RespostaApi<PreviewTemplateEmailResponse>.Ok(new(resultado.Assunto, resultado.CorpoHtmlCompleto)));
+        var resultado = await sender.Send(new VisualizarTemplateVeiculoProntoCommand(
+            (CanalComunicacaoCliente)(int)canal, request.Assunto, request.Conteudo), ct);
+        return Ok(RespostaApi<PreviewTemplateComunicacaoResponse>.Ok(new(
+            (CanalComunicacaoClienteContrato)(int)resultado.Canal,
+            resultado.Assunto, resultado.Conteudo)));
     }
 
     [HttpPost("templates/veiculo-pronto/teste"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
@@ -154,8 +164,11 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
             x.ResponderParaEmail, x.PermitirComunicacaoWhatsApp,
             x.DataAtivacaoWhatsAppEmUtc, x.UsuarioAtivacaoWhatsApp,
             x.AtualizadoEmUtc);
-    private static TemplateEmailResponse Mapear(TemplateEmailVisualizacao x) =>
-        new(x.Assunto, x.CorpoHtml, (OrigemTemplateEmailContrato)(int)x.Origem, x.AtualizadoEmUtc);
+    private static TemplateComunicacaoResponse Mapear(TemplateComunicacaoVisualizacao x) =>
+        new((CanalComunicacaoClienteContrato)(int)x.Canal,
+            (TipoTemplateComunicacaoContrato)(int)x.Tipo, x.Nome, x.Assunto,
+            x.Conteudo, (OrigemTemplateComunicacaoContrato)(int)x.Origem,
+            x.AtualizadoEmUtc);
     private static NotificacaoEmailResponse Mapear(NotificacaoEmailVisualizacao x) => new(x.Id, x.OrdemServicoId,
         (StatusNotificacaoEmailContrato)(int)x.Status, x.DestinatarioEmail, x.DestinatarioNome,
         (OrigemTemplateEmailContrato)(int)x.OrigemTemplate, x.QuantidadeTentativas, x.CriadoEmUtc,
@@ -167,7 +180,7 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
             (TipoComunicacaoClienteContrato)(int)x.Tipo,
             (StatusComunicacaoClienteContrato)(int)x.Status,
             (OrigemComunicacaoClienteContrato)(int)x.Origem, x.Destinatario,
-            x.Mensagem, x.SolicitadoPorUsuarioNome, x.CriadoEmUtc,
+            x.Mensagem, x.TemplateNome, x.SolicitadoPorUsuarioNome, x.CriadoEmUtc,
             x.DataEnvioUtc, x.UltimoErroSeguro);
     private static SessaoWhatsAppResponse Mapear(SessaoWhatsAppVisualizacao x,
         bool incluirQrCode) =>

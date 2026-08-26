@@ -79,7 +79,55 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         Assert.Equal(StatusComunicacaoCliente.Pendente, comunicacao.Status);
         Assert.Equal("11999998888", comunicacao.DestinatarioSnapshot);
         Assert.Equal(OrigemComunicacaoCliente.Automatica, comunicacao.Origem);
+        Assert.Equal("Veículo pronto para retirada", comunicacao.TemplateNomeSnapshot);
+        Assert.Contains("Obrigado pela preferência!", comunicacao.Mensagem);
         Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task TemplatesPorCanal_PersistemSeparadosEIsoladosPorEmpresa()
+    {
+        await using (var dbA = Db(_empresaA))
+        {
+            var repoA = new NotificacoesRepositorio(dbA);
+            repoA.Adicionar(new TemplateComunicacaoEmpresa(_empresaA,
+                CanalComunicacaoCliente.Email, TipoTemplateComunicacao.VeiculoProntoRetirada,
+                "Veículo pronto para retirada", "Assunto A", "<p>Email A</p>", _usuarioA));
+            repoA.Adicionar(new TemplateComunicacaoEmpresa(_empresaA,
+                CanalComunicacaoCliente.WhatsApp, TipoTemplateComunicacao.VeiculoProntoRetirada,
+                "Veículo pronto para retirada", null, "Olá, {ClienteNome}!", _usuarioA));
+            await dbA.SaveChangesAsync();
+            Assert.Equal(2, await dbA.TemplatesComunicacaoEmpresa.CountAsync());
+        }
+
+        await using var dbB = Db(_empresaB);
+        var repoB = new NotificacoesRepositorio(dbB);
+        Assert.Null(await repoB.ObterTemplateAsync(CanalComunicacaoCliente.Email,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, false, default));
+        Assert.Null(await repoB.ObterTemplateAsync(CanalComunicacaoCliente.WhatsApp,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, false, default));
+    }
+
+    [Fact]
+    public async Task TemplateWhatsAppPersonalizado_GeraSnapshotDoTemplateEDaMensagem()
+    {
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
+            CanalComunicacaoVeiculoPronto.WhatsApp, true, null, _usuarioA));
+        repo.Adicionar(new TemplateComunicacaoEmpresa(_empresaA,
+            CanalComunicacaoCliente.WhatsApp, TipoTemplateComunicacao.VeiculoProntoRetirada,
+            "Veículo pronto para retirada", null,
+            "Olá, {ClienteNome}. Retire o {VeiculoDescricao} na {EmpresaNome}.", _usuarioA));
+        await db.SaveChangesAsync();
+
+        await Integracao(db, repo).PrepararNotificacaoAsync(Evento(Guid.NewGuid()), default);
+        await db.SaveChangesAsync();
+
+        var comunicacao = await db.ComunicacoesCliente.SingleAsync();
+        Assert.Equal("Veículo pronto para retirada", comunicacao.TemplateNomeSnapshot);
+        Assert.Equal("Olá, Marina Souza. Retire o Honda Civic na Estética A.",
+            comunicacao.Mensagem);
     }
 
     [Fact]
@@ -429,12 +477,16 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
         repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
             CanalComunicacaoVeiculoPronto.Email, null, _usuarioA));
-        var template = new TemplateEmailEmpresa(_empresaA, TipoTemplateEmail.VeiculoProntoRetirada,
-            "Pronto: {{OrdemServicoCodigo}}", "<p>Olá {{ClientePrimeiroNome}} <strong>{{Placa}}</strong></p>", _usuarioA);
+        var template = new TemplateComunicacaoEmpresa(_empresaA,
+            CanalComunicacaoCliente.Email, TipoTemplateComunicacao.VeiculoProntoRetirada,
+            "Veículo pronto para retirada", "Pronto: {{OrdemServicoCodigo}}",
+            "<p>Olá {{ClientePrimeiroNome}} <strong>{{Placa}}</strong></p>", _usuarioA);
         repo.Adicionar(template); await db.SaveChangesAsync();
         await Integracao(db, repo).PrepararNotificacaoAsync(Evento(Guid.NewGuid()), default); await db.SaveChangesAsync();
         var snapshot = await db.NotificacoesEmail.AsNoTracking().SingleAsync();
-        template = await db.TemplatesEmailEmpresa.SingleAsync(); template.Atualizar("Outro assunto", "<p>Outro</p>", _usuarioA); await db.SaveChangesAsync();
+        template = await db.TemplatesComunicacaoEmpresa.SingleAsync();
+        template.Atualizar(template.Nome, "Outro assunto", "<p>Outro</p>", _usuarioA);
+        await db.SaveChangesAsync();
         var persistida = await db.NotificacoesEmail.AsNoTracking().SingleAsync();
         Assert.Equal("Pronto: OS-2026-42", persistida.AssuntoSnapshot); Assert.Equal(snapshot.CorpoHtmlSnapshot, persistida.CorpoHtmlSnapshot);
         Assert.Equal(OrigemTemplateEmail.PersonalizadoEmpresa, persistida.OrigemTemplate);
@@ -517,9 +569,9 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         var osId = Guid.NewGuid();
         await using var db = Db(_empresaA);
         var repo = new NotificacoesRepositorio(db);
-        repo.Adicionar(new TemplateEmailEmpresa(_empresaA,
-            TipoTemplateEmail.VeiculoProntoRetirada,
-            "Pronto: {{OrdemServicoCodigo}}",
+        repo.Adicionar(new TemplateComunicacaoEmpresa(_empresaA,
+            CanalComunicacaoCliente.Email, TipoTemplateComunicacao.VeiculoProntoRetirada,
+            "Veículo pronto para retirada", "Pronto: {{OrdemServicoCodigo}}",
             "<p>{{ClienteNome}} · {{VeiculoDescricao}} · {{Placa}}</p>", _usuarioA));
         await db.SaveChangesAsync();
         var ordem = Ordem(osId) with { VeiculoDescricao = "Sea-Doo GTX 300 · DEMO-JET-01", VeiculoPlaca = null };
@@ -538,9 +590,15 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     public async Task RestaurarTemplate_ExcluiCustomizacaoEFallbackVoltaDinamico()
     {
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
-        repo.Adicionar(new TemplateEmailEmpresa(_empresaA, TipoTemplateEmail.VeiculoProntoRetirada, "Custom", "<p>Custom</p>", _usuarioA));
-        await db.SaveChangesAsync(); var r = await new RestaurarTemplateVeiculoProntoHandler(repo, new RenderizadorTemplateEmail()).Handle(new(), default);
-        Assert.Equal(OrigemTemplateEmail.PadraoDetara, r.Origem); Assert.Equal(0, await db.TemplatesEmailEmpresa.CountAsync());
+        repo.Adicionar(new TemplateComunicacaoEmpresa(_empresaA,
+            CanalComunicacaoCliente.Email, TipoTemplateComunicacao.VeiculoProntoRetirada,
+            "Veículo pronto para retirada", "Custom", "<p>Custom</p>", _usuarioA));
+        await db.SaveChangesAsync();
+        var r = await new RestaurarTemplateVeiculoProntoHandler(repo,
+            new RenderizadorTemplateEmail(), new RenderizadorTemplateWhatsApp()).Handle(
+                new(CanalComunicacaoCliente.Email), default);
+        Assert.Equal(OrigemTemplateComunicacao.PadraoDetara, r.Origem);
+        Assert.Equal(0, await db.TemplatesComunicacaoEmpresa.CountAsync());
     }
 
     [Fact]

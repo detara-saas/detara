@@ -12,8 +12,11 @@ public sealed record ConfiguracaoNotificacaoVisualizacao(CanalComunicacaoVeiculo
     string? ResponderParaEmail, bool PermitirComunicacaoWhatsApp,
     DateTime? DataAtivacaoWhatsAppEmUtc, string? UsuarioAtivacaoWhatsApp,
     DateTime? AtualizadoEmUtc);
-public sealed record TemplateEmailVisualizacao(string Assunto, string CorpoHtml, OrigemTemplateEmail Origem,
-    DateTime? AtualizadoEmUtc);
+public sealed record TemplateComunicacaoVisualizacao(CanalComunicacaoCliente Canal,
+    TipoTemplateComunicacao Tipo, string Nome, string? Assunto, string Conteudo,
+    OrigemTemplateComunicacao Origem, DateTime? AtualizadoEmUtc);
+public sealed record PreviewTemplateComunicacaoVisualizacao(CanalComunicacaoCliente Canal,
+    string? Assunto, string Conteudo);
 public sealed record NotificacaoEmailVisualizacao(Guid Id, Guid OrdemServicoId, StatusNotificacaoEmail Status,
     string? DestinatarioEmail, string DestinatarioNome, OrigemTemplateEmail OrigemTemplate,
     int QuantidadeTentativas, DateTime CriadoEmUtc, DateTime? EnviadaEmUtc, string? UltimoErroSeguro,
@@ -25,7 +28,7 @@ public sealed record NotificacaoOrdemServicoVisualizacao(
 public sealed record ComunicacaoClienteVisualizacao(Guid Id, Guid? OrdemServicoId,
     CanalComunicacaoCliente Canal, TipoComunicacaoCliente Tipo, StatusComunicacaoCliente Status,
     OrigemComunicacaoCliente Origem, string? Destinatario, string Mensagem,
-    string? SolicitadoPorUsuarioNome, DateTime CriadoEmUtc,
+    string? TemplateNome, string? SolicitadoPorUsuarioNome, DateTime CriadoEmUtc,
     DateTime? DataEnvioUtc, string? UltimoErroSeguro);
 public sealed record SessaoWhatsAppVisualizacao(StatusSessaoWhatsApp Status,
     string? QrCodeDataUrl, DateTime? AtualizadoEmUtc,
@@ -36,10 +39,14 @@ public sealed record ObterConfiguracaoNotificacaoQuery : IRequest<ConfiguracaoNo
 public sealed record AtualizarConfiguracaoNotificacaoCommand(CanalComunicacaoVeiculoPronto CanalAutomaticoVeiculoPronto,
     string? ResponderParaEmail, bool PermitirComunicacaoWhatsApp)
     : IRequest<ConfiguracaoNotificacaoVisualizacao>;
-public sealed record ObterTemplateVeiculoProntoQuery : IRequest<TemplateEmailVisualizacao>;
-public sealed record SalvarTemplateVeiculoProntoCommand(string Assunto, string CorpoHtml) : IRequest<TemplateEmailVisualizacao>;
-public sealed record RestaurarTemplateVeiculoProntoCommand : IRequest<TemplateEmailVisualizacao>;
-public sealed record VisualizarTemplateVeiculoProntoCommand(string Assunto, string CorpoHtml) : IRequest<EmailRenderizado>;
+public sealed record ObterTemplateVeiculoProntoQuery(CanalComunicacaoCliente Canal)
+    : IRequest<TemplateComunicacaoVisualizacao>;
+public sealed record SalvarTemplateVeiculoProntoCommand(CanalComunicacaoCliente Canal,
+    string? Assunto, string Conteudo) : IRequest<TemplateComunicacaoVisualizacao>;
+public sealed record RestaurarTemplateVeiculoProntoCommand(CanalComunicacaoCliente Canal)
+    : IRequest<TemplateComunicacaoVisualizacao>;
+public sealed record VisualizarTemplateVeiculoProntoCommand(CanalComunicacaoCliente Canal,
+    string? Assunto, string Conteudo) : IRequest<PreviewTemplateComunicacaoVisualizacao>;
 public sealed record EnviarTesteVeiculoProntoCommand : IRequest;
 public sealed record ObterNotificacaoOrdemServicoQuery(Guid OrdemServicoId) : IRequest<NotificacaoOrdemServicoVisualizacao>;
 public sealed record EnviarAvisoVeiculoProntoCommand(Guid OrdemServicoId) : IRequest<NotificacaoEmailVisualizacao>;
@@ -97,18 +104,33 @@ internal sealed class SalvarTemplateVeiculoProntoValidator : AbstractValidator<S
 {
     public SalvarTemplateVeiculoProntoValidator()
     {
-        RuleFor(x => x.Assunto).NotEmpty().MaximumLength(200).Must(x => x.IndexOfAny(['\r', '\n']) < 0)
-            .WithMessage("O assunto não pode conter quebras de linha.");
-        RuleFor(x => x.CorpoHtml).NotEmpty().Must(x => x.Length <= 50 * 1024)
-            .WithMessage("O corpo do e-mail deve possuir no máximo 50 KB.");
+        RuleFor(x => x.Canal).IsInEnum();
+        RuleFor(x => x.Assunto).NotEmpty().MaximumLength(200)
+            .Must(x => x is not null && x.IndexOfAny(['\r', '\n']) < 0)
+            .WithMessage("O assunto não pode conter quebras de linha.")
+            .When(x => x.Canal == CanalComunicacaoCliente.Email);
+        RuleFor(x => x.Assunto).Empty()
+            .WithMessage("O template de WhatsApp não possui assunto.")
+            .When(x => x.Canal == CanalComunicacaoCliente.WhatsApp);
+        RuleFor(x => x.Conteudo).NotEmpty().Must((command, conteudo) =>
+                conteudo is not null && conteudo.Length <= (command.Canal == CanalComunicacaoCliente.Email
+                    ? 50 * 1024 : 4096))
+            .WithMessage("O conteúdo do template excede o limite permitido para o canal.");
     }
 }
 internal sealed class VisualizarTemplateVeiculoProntoValidator : AbstractValidator<VisualizarTemplateVeiculoProntoCommand>
 {
     public VisualizarTemplateVeiculoProntoValidator()
     {
-        RuleFor(x => x.Assunto).NotEmpty().MaximumLength(200).Must(x => x.IndexOfAny(['\r', '\n']) < 0);
-        RuleFor(x => x.CorpoHtml).NotEmpty().Must(x => x.Length <= 50 * 1024);
+        RuleFor(x => x.Canal).IsInEnum();
+        RuleFor(x => x.Assunto).NotEmpty().MaximumLength(200)
+            .Must(x => x is not null && x.IndexOfAny(['\r', '\n']) < 0)
+            .When(x => x.Canal == CanalComunicacaoCliente.Email);
+        RuleFor(x => x.Assunto).Empty()
+            .When(x => x.Canal == CanalComunicacaoCliente.WhatsApp);
+        RuleFor(x => x.Conteudo).NotEmpty().Must((command, conteudo) =>
+            conteudo is not null && conteudo.Length <= (command.Canal == CanalComunicacaoCliente.Email
+                ? 50 * 1024 : 4096));
     }
 }
 
@@ -222,52 +244,92 @@ internal sealed class DesconectarWhatsAppHandler(IUsuarioContexto usuario,
     }
 }
 
-internal sealed class ObterTemplateVeiculoProntoHandler(INotificacoesRepositorio repositorio, IRenderizadorTemplateEmail renderer)
-    : IRequestHandler<ObterTemplateVeiculoProntoQuery, TemplateEmailVisualizacao>
+internal sealed class ObterTemplateVeiculoProntoHandler(INotificacoesRepositorio repositorio,
+    IRenderizadorTemplateEmail rendererEmail, IRenderizadorTemplateWhatsApp rendererWhatsApp)
+    : IRequestHandler<ObterTemplateVeiculoProntoQuery, TemplateComunicacaoVisualizacao>
 {
-    public async Task<TemplateEmailVisualizacao> Handle(ObterTemplateVeiculoProntoQuery request, CancellationToken ct) =>
-        NotificacoesFluxo.Mapear(await repositorio.ObterTemplateAsync(TipoTemplateEmail.VeiculoProntoRetirada, false, ct), renderer);
+    public async Task<TemplateComunicacaoVisualizacao> Handle(
+        ObterTemplateVeiculoProntoQuery request, CancellationToken ct) =>
+        NotificacoesFluxo.MapearTemplate(request.Canal,
+            await repositorio.ObterTemplateAsync(request.Canal,
+                TipoTemplateComunicacao.VeiculoProntoRetirada, false, ct),
+            rendererEmail, rendererWhatsApp);
 }
 
 internal sealed class SalvarTemplateVeiculoProntoHandler(IUsuarioContexto usuario, INotificacoesRepositorio repositorio,
-    IRenderizadorTemplateEmail renderer) : IRequestHandler<SalvarTemplateVeiculoProntoCommand, TemplateEmailVisualizacao>
+    IRenderizadorTemplateEmail rendererEmail, IRenderizadorTemplateWhatsApp rendererWhatsApp)
+    : IRequestHandler<SalvarTemplateVeiculoProntoCommand, TemplateComunicacaoVisualizacao>
 {
-    public async Task<TemplateEmailVisualizacao> Handle(SalvarTemplateVeiculoProntoCommand request, CancellationToken ct)
+    public async Task<TemplateComunicacaoVisualizacao> Handle(
+        SalvarTemplateVeiculoProntoCommand request, CancellationToken ct)
     {
-        renderer.ValidarTokens(request.Assunto, request.CorpoHtml);
-        var sanitizado = renderer.SanitizarEValidarCorpo(request.CorpoHtml);
-        var item = await repositorio.ObterTemplateAsync(TipoTemplateEmail.VeiculoProntoRetirada, true, ct);
+        string conteudo;
+        if (request.Canal == CanalComunicacaoCliente.Email)
+        {
+            rendererEmail.ValidarTokens(request.Assunto!, request.Conteudo);
+            conteudo = rendererEmail.SanitizarEValidarCorpo(request.Conteudo);
+        }
+        else
+        {
+            rendererWhatsApp.ValidarTokens(request.Conteudo);
+            conteudo = rendererWhatsApp.SanitizarEValidarMensagem(request.Conteudo);
+        }
+        var item = await repositorio.ObterTemplateAsync(request.Canal,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, true, ct);
         if (item is null)
         {
-            item = new(usuario.EmpresaId, TipoTemplateEmail.VeiculoProntoRetirada, request.Assunto, sanitizado, usuario.UsuarioId);
+            item = new(usuario.EmpresaId, request.Canal,
+                TipoTemplateComunicacao.VeiculoProntoRetirada,
+                "Veículo pronto para retirada", request.Assunto,
+                conteudo, usuario.UsuarioId);
             repositorio.Adicionar(item);
         }
-        else item.Atualizar(request.Assunto, sanitizado, usuario.UsuarioId);
+        else item.Atualizar(item.Nome, request.Assunto, conteudo, usuario.UsuarioId);
         await repositorio.SalvarAsync(ct);
-        return new(item.Assunto, item.CorpoHtmlSanitizado, OrigemTemplateEmail.PersonalizadoEmpresa, item.AtualizadoEmUtc ?? item.CriadoEmUtc);
+        return NotificacoesFluxo.MapearTemplate(item);
     }
 }
 
-internal sealed class RestaurarTemplateVeiculoProntoHandler(INotificacoesRepositorio repositorio, IRenderizadorTemplateEmail renderer)
-    : IRequestHandler<RestaurarTemplateVeiculoProntoCommand, TemplateEmailVisualizacao>
+internal sealed class RestaurarTemplateVeiculoProntoHandler(INotificacoesRepositorio repositorio,
+    IRenderizadorTemplateEmail rendererEmail, IRenderizadorTemplateWhatsApp rendererWhatsApp)
+    : IRequestHandler<RestaurarTemplateVeiculoProntoCommand, TemplateComunicacaoVisualizacao>
 {
-    public async Task<TemplateEmailVisualizacao> Handle(RestaurarTemplateVeiculoProntoCommand request, CancellationToken ct)
+    public async Task<TemplateComunicacaoVisualizacao> Handle(
+        RestaurarTemplateVeiculoProntoCommand request, CancellationToken ct)
     {
-        var item = await repositorio.ObterTemplateAsync(TipoTemplateEmail.VeiculoProntoRetirada, true, ct);
+        var item = await repositorio.ObterTemplateAsync(request.Canal,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, true, ct);
         if (item is not null) { repositorio.Remover(item); await repositorio.SalvarAsync(ct); }
-        return NotificacoesFluxo.Mapear(null, renderer);
+        return NotificacoesFluxo.MapearTemplate(request.Canal, null,
+            rendererEmail, rendererWhatsApp);
     }
 }
 
-internal sealed class VisualizarTemplateVeiculoProntoHandler(IRenderizadorTemplateEmail renderer)
-    : IRequestHandler<VisualizarTemplateVeiculoProntoCommand, EmailRenderizado>
+internal sealed class VisualizarTemplateVeiculoProntoHandler(IRenderizadorTemplateEmail rendererEmail,
+    IRenderizadorTemplateWhatsApp rendererWhatsApp)
+    : IRequestHandler<VisualizarTemplateVeiculoProntoCommand, PreviewTemplateComunicacaoVisualizacao>
 {
-    public Task<EmailRenderizado> Handle(VisualizarTemplateVeiculoProntoCommand request, CancellationToken ct)
+    public Task<PreviewTemplateComunicacaoVisualizacao> Handle(
+        VisualizarTemplateVeiculoProntoCommand request, CancellationToken ct)
     {
-        renderer.ValidarTokens(request.Assunto, request.CorpoHtml);
-        var corpo = renderer.SanitizarEValidarCorpo(request.CorpoHtml);
-        return Task.FromResult(renderer.Renderizar(new(request.Assunto, corpo, OrigemTemplateEmail.PersonalizadoEmpresa),
-            new("Estética Horizonte", "Marina Souza", "Honda Civic Touring", "ABC1D23", "OS-2026-0042")));
+        var dados = new DadosTemplateEmail("Estética Horizonte", "João Souza",
+            "Honda Civic", "ABC1D23", "OS-2026-0042");
+        if (request.Canal == CanalComunicacaoCliente.Email)
+        {
+            rendererEmail.ValidarTokens(request.Assunto!, request.Conteudo);
+            var corpo = rendererEmail.SanitizarEValidarCorpo(request.Conteudo);
+            var renderizado = rendererEmail.Renderizar(new(request.Assunto!, corpo,
+                OrigemTemplateEmail.PersonalizadoEmpresa), dados);
+            return Task.FromResult(new PreviewTemplateComunicacaoVisualizacao(
+                request.Canal, renderizado.Assunto, renderizado.CorpoHtmlCompleto));
+        }
+        rendererWhatsApp.ValidarTokens(request.Conteudo);
+        var mensagem = rendererWhatsApp.SanitizarEValidarMensagem(request.Conteudo);
+        var preview = rendererWhatsApp.RenderizarVeiculoPronto(new(
+            "Veículo pronto para retirada", mensagem,
+            OrigemTemplateComunicacao.PersonalizadoEmpresa), dados);
+        return Task.FromResult(new PreviewTemplateComunicacaoVisualizacao(
+            request.Canal, null, preview));
     }
 }
 
@@ -281,9 +343,11 @@ internal sealed class EnviarTesteVeiculoProntoHandler(IUsuarioContexto usuario, 
             ?? throw new RecursoNaoEncontradoException("Usuário autenticado não encontrado.");
         var empresa = await plataforma.ObterEmpresaAsync(usuario.EmpresaId, ct)
             ?? throw new RecursoNaoEncontradoException("Empresa não encontrada.");
-        var custom = await repositorio.ObterTemplateAsync(TipoTemplateEmail.VeiculoProntoRetirada, false, ct);
+        var custom = await repositorio.ObterTemplateAsync(CanalComunicacaoCliente.Email,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, false, ct);
         var template = custom is null ? renderer.ObterPadraoVeiculoPronto() :
-            new ConteudoTemplateEmail(custom.Assunto, custom.CorpoHtmlSanitizado, OrigemTemplateEmail.PersonalizadoEmpresa);
+            new ConteudoTemplateEmail(custom.Assunto!, custom.Conteudo,
+                OrigemTemplateEmail.PersonalizadoEmpresa);
         var renderizado = renderer.Renderizar(template, new(empresa.Nome, destinatario.Nome,
             "Veículo de demonstração", "ABC1D23", "OS-TESTE"));
         var config = await repositorio.ObterConfiguracaoAsync(ct);
@@ -563,20 +627,28 @@ public sealed class ComunicacaoClienteService(IUsuarioContexto usuario,
             if (exigirDestinatario && destinatario is null)
                 throw new ConflitoRegraNegocioException(
                     "O cliente não possui um WhatsApp válido cadastrado.");
-            var mensagem = rendererWhatsApp.RenderizarVeiculoPronto(dados);
+            var templateWhatsAppEmpresa = await repositorio.ObterTemplateAsync(
+                CanalComunicacaoCliente.WhatsApp,
+                TipoTemplateComunicacao.VeiculoProntoRetirada, false, ct);
+            var templateWhatsApp = templateWhatsAppEmpresa is null
+                ? rendererWhatsApp.ObterPadraoVeiculoPronto()
+                : new ConteudoTemplateWhatsApp(templateWhatsAppEmpresa.Nome,
+                    templateWhatsAppEmpresa.Conteudo,
+                    OrigemTemplateComunicacao.PersonalizadoEmpresa);
+            var mensagem = rendererWhatsApp.RenderizarVeiculoPronto(templateWhatsApp, dados);
             return new(new ComunicacaoCliente(id, usuario.EmpresaId, ordem.ClienteId,
                 ordem.Id, canal, TipoComunicacaoCliente.VeiculoPronto, mensagem,
-                destinatario, origem, solicitadoPorUsuarioId), null);
+                destinatario, origem, solicitadoPorUsuarioId, templateWhatsApp.Nome), null);
         }
 
         var email = NotificacoesFluxo.NormalizarEmailValido(cliente?.Email);
         if (exigirDestinatario && email is null)
             throw new ConflitoRegraNegocioException(
                 "O cliente não possui um e-mail válido cadastrado.");
-        var custom = await repositorio.ObterTemplateAsync(
-            TipoTemplateEmail.VeiculoProntoRetirada, false, ct);
+        var custom = await repositorio.ObterTemplateAsync(CanalComunicacaoCliente.Email,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, false, ct);
         var template = custom is null ? rendererEmail.ObterPadraoVeiculoPronto() :
-            new ConteudoTemplateEmail(custom.Assunto, custom.CorpoHtmlSanitizado,
+            new ConteudoTemplateEmail(custom.Assunto!, custom.Conteudo,
                 OrigemTemplateEmail.PersonalizadoEmpresa);
         var renderizado = rendererEmail.Renderizar(template, dados);
         var tipoTentativa = origem == OrigemComunicacaoCliente.Automatica
@@ -589,7 +661,8 @@ public sealed class ComunicacaoClienteService(IUsuarioContexto usuario,
             solicitadoPorUsuarioId);
         var comunicacao = new ComunicacaoCliente(id, usuario.EmpresaId,
             ordem.ClienteId, ordem.Id, canal, TipoComunicacaoCliente.VeiculoPronto,
-            renderizado.CorpoHtmlCompleto, email, origem, solicitadoPorUsuarioId);
+            renderizado.CorpoHtmlCompleto, email, origem, solicitadoPorUsuarioId,
+            custom?.Nome ?? "Veículo pronto para retirada");
         return new(comunicacao, notificacao);
     }
 
@@ -648,13 +721,29 @@ internal static class NotificacoesFluxo
         new(item.CanalAutomaticoVeiculoPronto, item.ResponderParaEmail,
             item.PermitirComunicacaoWhatsApp, item.DataAtivacaoWhatsAppEmUtc,
             usuarioAtivacaoWhatsApp, item.AtualizadoEmUtc ?? item.CriadoEmUtc);
-    public static TemplateEmailVisualizacao Mapear(TemplateEmailEmpresa? item, IRenderizadorTemplateEmail renderer)
+    public static TemplateComunicacaoVisualizacao MapearTemplate(
+        CanalComunicacaoCliente canal, TemplateComunicacaoEmpresa? item,
+        IRenderizadorTemplateEmail rendererEmail,
+        IRenderizadorTemplateWhatsApp rendererWhatsApp)
     {
-        if (item is not null) return new(item.Assunto, item.CorpoHtmlSanitizado,
-            OrigemTemplateEmail.PersonalizadoEmpresa, item.AtualizadoEmUtc ?? item.CriadoEmUtc);
-        var padrao = renderer.ObterPadraoVeiculoPronto();
-        return new(padrao.Assunto, padrao.CorpoHtml, padrao.Origem, null);
+        if (item is not null) return MapearTemplate(item);
+        if (canal == CanalComunicacaoCliente.Email)
+        {
+            var padrao = rendererEmail.ObterPadraoVeiculoPronto();
+            return new(canal, TipoTemplateComunicacao.VeiculoProntoRetirada,
+                "Veículo pronto para retirada", padrao.Assunto, padrao.CorpoHtml,
+                OrigemTemplateComunicacao.PadraoDetara, null);
+        }
+        var whatsapp = rendererWhatsApp.ObterPadraoVeiculoPronto();
+        return new(canal, TipoTemplateComunicacao.VeiculoProntoRetirada,
+            whatsapp.Nome, null, whatsapp.Mensagem, whatsapp.Origem, null);
     }
+
+    public static TemplateComunicacaoVisualizacao MapearTemplate(
+        TemplateComunicacaoEmpresa item) =>
+        new(item.Canal, item.Tipo, item.Nome, item.Assunto, item.Conteudo,
+            OrigemTemplateComunicacao.PersonalizadoEmpresa,
+            item.AtualizadoEmUtc ?? item.CriadoEmUtc);
     public static NotificacaoEmailVisualizacao Mapear(NotificacaoEmail item) => new(item.Id, item.OrdemServicoId,
         item.Status, item.DestinatarioEmailSnapshot, item.DestinatarioNomeSnapshot, item.OrigemTemplate,
         item.QuantidadeTentativas, item.CriadoEmUtc, item.EnviadaEmUtc, item.UltimoErroSeguro,
@@ -663,7 +752,7 @@ internal static class NotificacoesFluxo
         string? solicitadoPorUsuarioNome = null) =>
         new(item.Id, item.OrdemServicoId, item.Canal, item.Tipo, item.Status,
             item.Origem, item.DestinatarioSnapshot, item.Mensagem,
-            solicitadoPorUsuarioNome, item.CriadoEmUtc,
+            item.TemplateNomeSnapshot, solicitadoPorUsuarioNome, item.CriadoEmUtc,
             item.DataEnvioUtc, item.UltimoErroSeguro);
 
     public static async Task<IReadOnlyCollection<ComunicacaoClienteVisualizacao>>

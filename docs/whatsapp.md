@@ -68,6 +68,10 @@ O teste de conexão exige número, confirmação explícita e `SolicitacaoId` id
 
 O QR Code é temporário, recebe `Cache-Control: no-store`, não é salvo pela API e só é devolvido nos endpoints protegidos de conexão. Consultas informativas da OS retornam apenas status.
 
+## Template operacional
+
+O aviso `VeiculoProntoRetirada` usa um template textual próprio do canal WhatsApp, persistido em `TemplatesComunicacaoEmpresa` somente quando a empresa o personaliza. O padrão é materializado dinamicamente e aceita apenas `{ClienteNome}`, `{VeiculoDescricao}` e `{EmpresaNome}`. Variáveis desconhecidas ou incompletas são rejeitadas no backend; a prévia percorre o mesmo renderizador do envio real. O template de teste de conexão continua fixo e separado do aviso operacional.
+
 ## Envio e idempotência
 
 Ao preparar uma comunicação WhatsApp, o worker envia `EmpresaId`, telefone, mensagem renderizada e uma chave idempotente estável. O gateway:

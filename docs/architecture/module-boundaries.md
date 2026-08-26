@@ -179,7 +179,7 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `ContasReceber` | Financeiro |
 | `Pagamentos` | Financeiro |
 | `ConfiguracoesNotificacaoEmpresa` | Notificações |
-| `TemplatesEmailEmpresa` | Notificações |
+| `TemplatesComunicacaoEmpresa` | Notificações |
 | `NotificacoesEmail` | Notificações |
 | `TentativasNotificacaoEmail` | Notificações |
 | `ComunicacoesCliente` | Notificações |
