@@ -1,0 +1,2 @@
+<article class="business-kpi @(Destaque ? "highlight" : null)"><span><MudIcon Icon="@Icone" /></span><div><small>@Rotulo</small><strong class="currency-value">@Valor</strong></div></article>
+@code { [Parameter, EditorRequired] public string Icone { get; set; } = string.Empty; [Parameter, EditorRequired] public string Rotulo { get; set; } = string.Empty; [Parameter, EditorRequired] public string Valor { get; set; } = string.Empty; [Parameter] public bool Destaque { get; set; } }

@@ -1,0 +1,25 @@
+<article class="executive-panel timeline-panel">
+    <div class="executive-panel-heading"><div><span class="section-eyebrow">ATIVIDADE RECENTE</span><h2>Linha do tempo</h2><p>Os acontecimentos mais recentes da operação.</p></div></div>
+    @if (Itens.Count == 0)
+    {
+        <div class="executive-empty compact"><span><MudIcon Icon="@Icons.Material.Outlined.History" /></span><div><strong>Nenhuma atividade neste período</strong><p>Eventos operacionais reais aparecerão aqui.</p></div></div>
+    }
+    else
+    {
+        <div class="activity-timeline">
+            @foreach (var item in Itens)
+            {
+                <a href="@item.Destino"><span class="timeline-icon @Classe(item.Tipo)"><MudIcon Icon="@Icone(item.Tipo)" /></span><div><strong>@Titulo(item.Tipo)</strong><p>@item.Descricao</p></div><time datetime="@item.DataLocal.ToString("O")">@Data(item.DataLocal)</time></a>
+            }
+        </div>
+    }
+</article>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    [Parameter, EditorRequired] public IReadOnlyCollection<DashboardAtividadeItemResponse> Itens { get; set; } = [];
+    private static string Titulo(TipoAtividadeDashboardContrato tipo) => tipo switch { TipoAtividadeDashboardContrato.AgendamentoCriado => "Agendamento criado", TipoAtividadeDashboardContrato.OrcamentoAprovado => "Orçamento aprovado", TipoAtividadeDashboardContrato.ClienteChegou => "Cliente chegou", TipoAtividadeDashboardContrato.OrdemServicoIniciada => "Ordem iniciada", TipoAtividadeDashboardContrato.VeiculoEntregue => "Veículo entregue", TipoAtividadeDashboardContrato.PagamentoRecebido => "Pagamento recebido", _ => "Comunicação enviada" };
+    private static string Icone(TipoAtividadeDashboardContrato tipo) => tipo switch { TipoAtividadeDashboardContrato.AgendamentoCriado => Icons.Material.Outlined.Event, TipoAtividadeDashboardContrato.OrcamentoAprovado => Icons.Material.Outlined.ThumbUp, TipoAtividadeDashboardContrato.ClienteChegou => Icons.Material.Outlined.PersonPinCircle, TipoAtividadeDashboardContrato.OrdemServicoIniciada => Icons.Material.Outlined.Handyman, TipoAtividadeDashboardContrato.VeiculoEntregue => Icons.Material.Outlined.DirectionsCar, TipoAtividadeDashboardContrato.PagamentoRecebido => Icons.Material.Outlined.Payments, _ => Icons.Material.Outlined.Send };
+    private static string Classe(TipoAtividadeDashboardContrato tipo) => tipo switch { TipoAtividadeDashboardContrato.PagamentoRecebido => "green", TipoAtividadeDashboardContrato.OrcamentoAprovado => "teal", TipoAtividadeDashboardContrato.VeiculoEntregue => "blue", TipoAtividadeDashboardContrato.ComunicacaoEnviada => "purple", _ => "neutral" };
+    private static string Data(DateTime data) => data.Date == DateTime.Today ? $"Hoje, {data:HH:mm}" : data.ToString("dd MMM, HH:mm", Cultura);
+}

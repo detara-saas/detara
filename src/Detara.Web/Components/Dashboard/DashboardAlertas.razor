@@ -1,0 +1,26 @@
+<article class="executive-panel alerts-panel">
+    <div class="executive-panel-heading"><div><span class="section-eyebrow">ATENÇÃO</span><h2>Precisa de atenção</h2><p>Pendências reais que merecem acompanhamento.</p></div></div>
+    @if (Itens.Count == 0)
+    {
+        <div class="all-clear-state"><span><MudIcon Icon="@Icons.Material.Outlined.Verified" /></span><div><strong>Nenhuma pendência crítica agora</strong><p>A operação está sem alertas nos módulos que você pode acessar.</p></div></div>
+    }
+    else
+    {
+        <div class="executive-alert-list">
+            @foreach (var item in Itens)
+            {
+                <a href="@Destino(item.Tipo)"><span class="alert-symbol @Classe(item.Tipo)"><MudIcon Icon="@Icone(item.Tipo)" /></span><div><strong>@Titulo(item.Tipo)</strong><small>@Descricao(item)</small></div><b>@item.Quantidade</b><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+            }
+        </div>
+    }
+</article>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    [Parameter, EditorRequired] public IReadOnlyCollection<DashboardAtencaoItemResponse> Itens { get; set; } = [];
+    private static string Titulo(TipoAtencaoDashboardContrato tipo) => tipo switch { TipoAtencaoDashboardContrato.VeiculosAguardandoRetirada => "Veículos aguardando retirada", TipoAtencaoDashboardContrato.OrcamentosAguardandoAprovacao => "Orçamentos aguardando aprovação", TipoAtencaoDashboardContrato.AtendimentosAtrasados => "Atendimentos atrasados", _ => "Pendências financeiras" };
+    private static string Descricao(DashboardAtencaoItemResponse item) => item.Tipo == TipoAtencaoDashboardContrato.PendenciasFinanceiras && item.Valor.HasValue ? $"{item.Valor.Value.ToString("C2", Cultura)} em aberto" : "Requer acompanhamento da equipe";
+    private static string Icone(TipoAtencaoDashboardContrato tipo) => tipo switch { TipoAtencaoDashboardContrato.VeiculosAguardandoRetirada => Icons.Material.Outlined.Key, TipoAtencaoDashboardContrato.OrcamentosAguardandoAprovacao => Icons.Material.Outlined.PendingActions, TipoAtencaoDashboardContrato.AtendimentosAtrasados => Icons.Material.Outlined.Schedule, _ => Icons.Material.Outlined.ReceiptLong };
+    private static string Classe(TipoAtencaoDashboardContrato tipo) => tipo switch { TipoAtencaoDashboardContrato.AtendimentosAtrasados => "red", TipoAtencaoDashboardContrato.PendenciasFinanceiras => "blue", _ => "amber" };
+    private static string Destino(TipoAtencaoDashboardContrato tipo) => tipo switch { TipoAtencaoDashboardContrato.VeiculosAguardandoRetirada => "/ordens-servico", TipoAtencaoDashboardContrato.OrcamentosAguardandoAprovacao => "/orcamentos", TipoAtencaoDashboardContrato.AtendimentosAtrasados => "/agenda", _ => "/financeiro/contas-receber" };
+}
