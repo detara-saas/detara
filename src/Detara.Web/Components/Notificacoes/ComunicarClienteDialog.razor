@@ -1,35 +1,32 @@
-<MudDialog>
-    <TitleContent><MudText Typo="Typo.h6">Comunicar cliente</MudText></TitleContent>
-    <DialogContent>
-        <div class="dialog-content-stack communication-dialog">
-            <div class="communication-dialog-intro">
-                <span class="section-eyebrow">VEÍCULO PRONTO PARA RETIRADA</span>
-                <p>Como deseja enviar? Escolha somente um canal para esta comunicação.</p>
-            </div>
-            <MudRadioGroup T="CanalComunicacaoClienteContrato?" @bind-Value="_canal" Class="communication-dialog-options">
-                <label class="communication-dialog-option @(!PodeEmail ? "is-disabled" : string.Empty)">
-                    <MudRadio T="CanalComunicacaoClienteContrato?" Value="@((CanalComunicacaoClienteContrato?)CanalComunicacaoClienteContrato.Email)" Color="Color.Primary" Disabled="@(!PodeEmail)" />
-                    <MudIcon Icon="@Icons.Material.Outlined.AlternateEmail" />
-                    <span><strong>Email</strong><small>@(PodeEmail ? Email : "Cliente sem e-mail válido")</small></span>
-                </label>
-                <label class="communication-dialog-option @(!PodeWhatsApp ? "is-disabled" : string.Empty)">
-                    <MudRadio T="CanalComunicacaoClienteContrato?" Value="@((CanalComunicacaoClienteContrato?)CanalComunicacaoClienteContrato.WhatsApp)" Color="Color.Primary" Disabled="@(!PodeWhatsApp)" />
-                    <MudIcon Icon="@Icons.Material.Outlined.Chat" />
-                    <span><strong>WhatsApp</strong><small>@DescricaoWhatsApp</small></span>
-                </label>
-            </MudRadioGroup>
-            @if (TemWhatsApp && !WhatsAppConectado)
-            {
-                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Conecte o WhatsApp da empresa em Configurações antes de usar este canal.</MudAlert>
-            }
+<DetaraDialog Titulo="Comunicar cliente"
+              Descricao="Escolha um canal para enviar a atualização de veículo pronto."
+              TextoPrimario="Enviar aviso"
+              PrimariaDesabilitada="@(!_canal.HasValue)"
+              OnPrimary="Confirmar"
+              OnSecondary="Cancelar">
+    <div class="dialog-content-stack communication-dialog">
+        <div class="communication-dialog-intro">
+            <span class="section-eyebrow">VEÍCULO PRONTO PARA RETIRADA</span>
+            <p>O envio continua manual e respeita os canais disponíveis para este cliente.</p>
         </div>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="Cancelar">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Send"
-                   Disabled="@(!_canal.HasValue)" OnClick="Confirmar">Enviar aviso</MudButton>
-    </DialogActions>
-</MudDialog>
+        <MudRadioGroup T="CanalComunicacaoClienteContrato?" @bind-Value="_canal" Class="communication-dialog-options">
+            <label class="communication-dialog-option @(!PodeEmail ? "is-disabled" : string.Empty)">
+                <MudRadio T="CanalComunicacaoClienteContrato?" Value="@((CanalComunicacaoClienteContrato?)CanalComunicacaoClienteContrato.Email)" Color="Color.Primary" Disabled="@(!PodeEmail)" />
+                <MudIcon Icon="@Icons.Material.Outlined.AlternateEmail" />
+                <span><strong>Email</strong><small>@(PodeEmail ? Email : "Cliente sem e-mail válido")</small></span>
+            </label>
+            <label class="communication-dialog-option @(!PodeWhatsApp ? "is-disabled" : string.Empty)">
+                <MudRadio T="CanalComunicacaoClienteContrato?" Value="@((CanalComunicacaoClienteContrato?)CanalComunicacaoClienteContrato.WhatsApp)" Color="Color.Primary" Disabled="@(!PodeWhatsApp)" />
+                <MudIcon Icon="@Icons.Material.Outlined.Chat" />
+                <span><strong>WhatsApp</strong><small>@DescricaoWhatsApp</small></span>
+            </label>
+        </MudRadioGroup>
+        @if (TemWhatsApp && !WhatsAppConectado)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Conecte o WhatsApp da empresa em Configurações antes de usar este canal.</MudAlert>
+        }
+    </div>
+</DetaraDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
