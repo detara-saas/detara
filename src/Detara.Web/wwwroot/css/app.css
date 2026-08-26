@@ -1449,11 +1449,6 @@ h1:focus { outline: none; }
 .executive-agenda-list a { transition: background-color 140ms ease, padding-inline 140ms ease; }
 .executive-agenda-list a:hover { padding-inline: 10px; background: color-mix(in srgb, var(--detara-primary) 4%, var(--detara-surface)); border-radius: var(--detara-radius-sm); }
 
-.dashboard-mode-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--detara-section-gap); padding: 14px 16px; color: var(--detara-text); background: linear-gradient(105deg,color-mix(in srgb,var(--detara-primary) 7%,var(--detara-surface)),var(--detara-surface) 58%); border: 1px solid color-mix(in srgb,var(--detara-primary) 18%,var(--detara-border-soft)); border-radius: var(--detara-radius-lg); }
-.dashboard-mode-copy { min-width: 0; display: grid; grid-template-columns: auto minmax(0,1fr); align-items: baseline; column-gap: 12px; row-gap: 2px; }
-.dashboard-mode-copy .section-eyebrow { grid-row: 1 / span 2; align-self: center; }
-.dashboard-mode-copy strong { font-size: .86rem; }
-.dashboard-mode-copy small { overflow: hidden; color: var(--detara-text-secondary); font-size: .69rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-mode-switch { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; padding: 4px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
 .dashboard-mode-switch .mud-button-root { min-height: 38px; padding-inline: 16px; border-radius: var(--detara-radius-sm); font-size: .75rem; }
 .dashboard-mode-content { display: grid; gap: var(--detara-page-gap); animation: dashboard-mode-enter 180ms ease-out; }
@@ -1497,7 +1492,6 @@ h1:focus { outline: none; }
     .executive-grid-main { grid-template-columns: minmax(0,1.25fr) minmax(300px,.75fr); }
     .dashboard-operation-primary, .dashboard-operation-secondary, .dashboard-company-primary, .dashboard-company-mode > .executive-grid-balanced { grid-template-columns: 1fr; }
     .dashboard-quick-actions { grid-template-columns: repeat(2,minmax(0,1fr)); }
-    .dashboard-mode-copy small { white-space: normal; }
 }
 
 @media (max-width: 899px) {
@@ -1543,10 +1537,6 @@ h1:focus { outline: none; }
     .executive-agenda-list a { grid-template-columns: 42px minmax(0,1fr) 18px; }
     .executive-agenda-list .status-badge { grid-column: 2; }
     .executive-empty.compact { min-height: 150px; padding: 20px; }
-    .dashboard-mode-bar { align-items: stretch; flex-direction: column; padding: 14px; }
-    .dashboard-mode-copy { grid-template-columns: 1fr; }
-    .dashboard-mode-copy .section-eyebrow { grid-row: auto; }
-    .dashboard-mode-copy small { white-space: normal; }
     .dashboard-mode-switch { width: 100%; }
     .dashboard-mode-switch .mud-button-root { flex: 1; min-width: 0; padding-inline: 8px; }
     .dashboard-quick-actions { grid-template-columns: 1fr; }

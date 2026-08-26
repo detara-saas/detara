@@ -22,25 +22,17 @@
                     <MudButton Variant="@(_periodo == opcao.Valor ? Variant.Filled : Variant.Text)" Color="Color.Primary" Disabled="_carregandoDashboard" OnClick="() => AlterarPeriodoAsync(opcao.Valor)">@opcao.Rotulo</MudButton>
                 }
             </div>
-            @if (_onboarding?.Concluido is true && _dashboard is not null)
+            <DashboardModoSelector Modo="_modoDashboard" Alterando="_salvandoModo" ModoAlterado="AlternarModoAsync" />
+            @if (_onboarding?.Concluido is true && _dashboard is not null && _modoDashboard == ModoDashboard.Empresa)
             {
-                @if (_modoDashboard == ModoDashboard.Operacao && _dashboard.Operacional?.AgendaHoje is not null)
-                {
-                    <AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="/agenda/novo" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Novo agendamento</MudButton></Authorized></AuthorizeView>
-                }
-                else if (_modoDashboard == ModoDashboard.Empresa)
-                {
-                    <div class="dashboard-company-header-actions" aria-label="Atalhos da empresa">
-                        <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.RequestQuote"><span class="dashboard-company-action-label"><span class="dashboard-action-prefix">Novo</span><span>orçamento</span></span></MudButton></Authorized></AuthorizeView>
-                        <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="/ordens-servico/nova" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.CarRepair"><span class="dashboard-company-action-label"><span class="dashboard-action-prefix">Nova</span><span>OS</span></span></MudButton></Authorized></AuthorizeView>
-                        <AuthorizeView Policy="@Permissoes.ClientesCriar"><Authorized><MudButton Href="/clientes/novo" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PersonAdd"><span class="dashboard-company-action-label"><span class="dashboard-action-prefix">Novo</span><span>cliente</span></span></MudButton></Authorized></AuthorizeView>
-                    </div>
-                }
+                <div class="dashboard-company-header-actions" aria-label="Atalhos da empresa">
+                    <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="/orcamentos/novo" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.RequestQuote"><span class="dashboard-company-action-label"><span class="dashboard-action-prefix">Novo</span><span>orçamento</span></span></MudButton></Authorized></AuthorizeView>
+                    <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="/ordens-servico/nova" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.CarRepair"><span class="dashboard-company-action-label"><span class="dashboard-action-prefix">Nova</span><span>OS</span></span></MudButton></Authorized></AuthorizeView>
+                    <AuthorizeView Policy="@Permissoes.ClientesCriar"><Authorized><MudButton Href="/clientes/novo" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PersonAdd"><span class="dashboard-company-action-label"><span class="dashboard-action-prefix">Novo</span><span>cliente</span></span></MudButton></Authorized></AuthorizeView>
+                </div>
             }
         </div>
     </header>
-
-    <DashboardModoSelector Modo="_modoDashboard" Alterando="_salvandoModo" ModoAlterado="AlternarModoAsync" />
 
     @if (_carregandoInicial)
     {
