@@ -15,8 +15,8 @@ internal sealed partial class RenderizadorTemplateEmail : IRenderizadorTemplateE
     private readonly HtmlSanitizer _sanitizer = CriarSanitizer();
 
     public ConteudoTemplateEmail ObterPadraoVeiculoPronto() => new(
-        "Seu veículo está pronto para retirada 🚗",
-        "<p>Olá, <strong>{{ClientePrimeiroNome}}</strong>!</p><p>Seu <strong>{{VeiculoDescricao}}</strong> está pronto para retirada.</p><p>Ordem de serviço: <strong>{{OrdemServicoCodigo}}</strong>.</p><p>Atenciosamente,<br><strong>{{EmpresaNome}}</strong></p>",
+        "Seu veículo está pronto para retirada",
+        "<p>Olá, <strong>{{ClienteNome}}</strong>!</p><p>Seu veículo <strong>{{VeiculoDescricao}}</strong> está pronto para retirada.</p><p>Agradecemos pela preferência.</p><p><strong>{{EmpresaNome}}</strong></p>",
         OrigemTemplateEmail.PadraoDetara);
 
     public string SanitizarEValidarCorpo(string corpoHtml)

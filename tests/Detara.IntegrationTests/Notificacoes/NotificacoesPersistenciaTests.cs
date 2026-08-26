@@ -34,7 +34,7 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         await using var tenant = Db(_empresaA);
         var perfil = new Perfil(_empresaA, "Administrador"); tenant.Perfis.Add(perfil);
         var usuario = new Usuario(_empresaA, perfil.Id, "Admin A", "admin@empresa-a.com", "hash");
-        var cliente = new Cliente(_empresaA, "Marina Souza", TipoPessoa.PessoaFisica, null, null, null,
+        var cliente = new Cliente(_empresaA, "Marina Souza", TipoPessoa.PessoaFisica, null, null, "11999998888",
             "marina@cliente.com", null, null);
         _usuarioA = usuario.Id; _clienteA = cliente.Id;
         tenant.AddRange(usuario, cliente); await tenant.SaveChangesAsync();
@@ -47,7 +47,7 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     {
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
         var r = await new ObterConfiguracaoNotificacaoHandler(repo).Handle(new(), default);
-        Assert.False(r.EnviarVeiculoProntoAutomaticamente);
+        Assert.Equal(CanalComunicacaoVeiculoPronto.Nenhum, r.CanalAutomaticoVeiculoPronto);
         Assert.Equal(0, await db.ConfiguracoesNotificacaoEmpresa.CountAsync());
     }
 
@@ -57,6 +57,92 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
         await Integracao(db, repo).PrepararNotificacaoAsync(Evento(Guid.NewGuid()), default);
         await db.SaveChangesAsync(); Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
+        Assert.Equal(0, await db.ComunicacoesCliente.CountAsync());
+    }
+
+    [Fact]
+    public async Task IntegracaoConfiguradaWhatsApp_CriaSomenteComunicacaoWhatsApp()
+    {
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
+            CanalComunicacaoVeiculoPronto.WhatsApp, null, _usuarioA));
+        await db.SaveChangesAsync();
+
+        await Integracao(db, repo).PrepararNotificacaoAsync(Evento(Guid.NewGuid()), default);
+        await db.SaveChangesAsync();
+
+        var comunicacao = await db.ComunicacoesCliente.SingleAsync();
+        Assert.Equal(CanalComunicacaoCliente.WhatsApp, comunicacao.Canal);
+        Assert.Equal(StatusComunicacaoCliente.Pendente, comunicacao.Status);
+        Assert.Equal("11999998888", comunicacao.DestinatarioSnapshot);
+        Assert.Equal(OrigemComunicacaoCliente.Automatica, comunicacao.Origem);
+        Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
+    }
+
+    [Fact]
+    public async Task IntegracaoAutomatica_NuncaCriaDoisCanais()
+    {
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
+            CanalComunicacaoVeiculoPronto.Email, null, _usuarioA));
+        await db.SaveChangesAsync();
+        var evento = Evento(Guid.NewGuid());
+
+        await Integracao(db, repo).PrepararNotificacaoAsync(evento, default);
+        await db.SaveChangesAsync();
+
+        var comunicacao = Assert.Single(await db.ComunicacoesCliente.ToListAsync());
+        Assert.Equal(CanalComunicacaoCliente.Email, comunicacao.Canal);
+        Assert.Single(await db.NotificacoesEmail.ToListAsync());
+    }
+
+    [Fact]
+    public async Task SessaoWhatsApp_QueryFilterIsolaEmpresas()
+    {
+        await using (var dbA = Db(_empresaA))
+        {
+            dbA.SessoesWhatsAppEmpresa.Add(new SessaoWhatsAppEmpresa(
+                _empresaA, $"tenant-{_empresaA:N}"));
+            await dbA.SaveChangesAsync();
+        }
+        await using (var dbB = Db(_empresaB))
+        {
+            dbB.SessoesWhatsAppEmpresa.Add(new SessaoWhatsAppEmpresa(
+                _empresaB, $"tenant-{_empresaB:N}"));
+            await dbB.SaveChangesAsync();
+        }
+
+        await using var consultarA = Db(_empresaA);
+        await using var consultarB = Db(_empresaB);
+        var sessaoA = await new NotificacoesRepositorio(consultarA)
+            .ObterSessaoWhatsAppAsync(false, default);
+        var sessaoB = await new NotificacoesRepositorio(consultarB)
+            .ObterSessaoWhatsAppAsync(false, default);
+
+        Assert.Equal(_empresaA, sessaoA?.EmpresaId);
+        Assert.Equal($"tenant-{_empresaA:N}", sessaoA?.SessionKey);
+        Assert.Equal(_empresaB, sessaoB?.EmpresaId);
+        Assert.Equal($"tenant-{_empresaB:N}", sessaoB?.SessionKey);
+    }
+
+    [Fact]
+    public async Task IniciarConexaoWhatsApp_DerivaTenantDoUsuarioAutenticado()
+    {
+        await using var db = Db(_empresaA);
+        var provider = new WhatsAppProviderFake(
+            new(true, false, "id", null));
+        var handler = new IniciarConexaoWhatsAppHandler(
+            new Contexto(_empresaA, _usuarioA), new NotificacoesRepositorio(db), provider);
+
+        var resultado = await handler.Handle(new(), default);
+
+        Assert.Equal(StatusSessaoWhatsApp.Conectada, resultado.Status);
+        Assert.Equal([_empresaA], provider.EmpresasConectadas);
+        var persistida = await db.SessoesWhatsAppEmpresa.SingleAsync();
+        Assert.Equal(_empresaA, persistida.EmpresaId);
+        Assert.Equal($"tenant-{_empresaA:N}", persistida.SessionKey);
     }
 
     [Fact]
@@ -74,6 +160,27 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         var persistida = await db.NotificacoesEmail.SingleAsync();
         Assert.Equal(TipoTentativaNotificacaoEmail.Manual, persistida.TipoProximaTentativa);
         Assert.Equal(_usuarioA, persistida.ProximaTentativaSolicitadaPorUsuarioId);
+        var comunicacao = await db.ComunicacoesCliente.SingleAsync();
+        Assert.Equal(CanalComunicacaoCliente.Email, comunicacao.Canal);
+        Assert.Equal(OrigemComunicacaoCliente.Manual, comunicacao.Origem);
+    }
+
+    [Fact]
+    public async Task EnvioManualWhatsApp_CriaHistoricoSemCriarEmail()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        var servico = CriarServico(db, repo, Ordem(osId));
+
+        var resultado = await servico.PrepararManualAsync(osId,
+            CanalComunicacaoCliente.WhatsApp, Guid.NewGuid(), default);
+
+        Assert.Equal(CanalComunicacaoCliente.WhatsApp, resultado.Canal);
+        Assert.Equal(StatusComunicacaoCliente.Pendente, resultado.Status);
+        Assert.Contains("disponível para retirada", resultado.Mensagem);
+        Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
+        Assert.Single(await db.ComunicacoesCliente.ToListAsync());
     }
 
     [Fact]
@@ -146,7 +253,8 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     public async Task IntegracaoAtivada_CriaSnapshotNoMesmoSaveEIdempotente()
     {
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
-        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA, true, "respostas@empresa-a.com", _usuarioA));
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
+            CanalComunicacaoVeiculoPronto.Email, "respostas@empresa-a.com", _usuarioA));
         await db.SaveChangesAsync(); var evento = Evento(Guid.NewGuid());
         await Integracao(db, repo).PrepararNotificacaoAsync(evento, default);
         Assert.Single(db.ChangeTracker.Entries<NotificacaoEmail>(), x => x.State == EntityState.Added);
@@ -156,6 +264,9 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         Assert.Equal(StatusNotificacaoEmail.Pendente, n.Status); Assert.Equal("marina@cliente.com", n.DestinatarioEmailSnapshot);
         Assert.Equal("respostas@empresa-a.com", n.ResponderParaSnapshot); Assert.Equal(OrigemTemplateEmail.PadraoDetara, n.OrigemTemplate);
         Assert.Equal(1, await db.NotificacoesEmail.CountAsync());
+        var comunicacao = await db.ComunicacoesCliente.SingleAsync();
+        Assert.Equal(CanalComunicacaoCliente.Email, comunicacao.Canal);
+        Assert.Equal(StatusComunicacaoCliente.Pendente, comunicacao.Status);
     }
 
     [Fact]
@@ -164,7 +275,8 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         var osId = Guid.NewGuid();
         await using var db = Db(_empresaA);
         var repo = new NotificacoesRepositorio(db);
-        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA, true, null, _usuarioA));
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
+            CanalComunicacaoVeiculoPronto.Email, null, _usuarioA));
         await db.SaveChangesAsync();
         await Integracao(db, repo).PrepararNotificacaoAsync(Evento(osId), default);
         await db.SaveChangesAsync();
@@ -181,7 +293,8 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     {
         await using var db = Db(_empresaA); var cliente = await db.Clientes.SingleAsync(x => x.Id == _clienteA);
         cliente.Atualizar(cliente.Nome, cliente.TipoPessoa, null, null, null, null, null, null);
-        var repo = new NotificacoesRepositorio(db); repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA, true, null, _usuarioA));
+        var repo = new NotificacoesRepositorio(db); repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(
+            _empresaA, CanalComunicacaoVeiculoPronto.Email, null, _usuarioA));
         await db.SaveChangesAsync(); await Integracao(db, repo).PrepararNotificacaoAsync(Evento(Guid.NewGuid()), default); await db.SaveChangesAsync();
         Assert.Equal(StatusNotificacaoEmail.SemDestinatario, (await db.NotificacoesEmail.SingleAsync()).Status);
     }
@@ -190,7 +303,8 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     public async Task TemplatePersonalizado_GeraSnapshotQueNaoMudaDepois()
     {
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
-        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA, true, null, _usuarioA));
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
+            CanalComunicacaoVeiculoPronto.Email, null, _usuarioA));
         var template = new TemplateEmailEmpresa(_empresaA, TipoTemplateEmail.VeiculoProntoRetirada,
             "Pronto: {{OrdemServicoCodigo}}", "<p>Olá {{ClientePrimeiroNome}} <strong>{{Placa}}</strong></p>", _usuarioA);
         repo.Adicionar(template); await db.SaveChangesAsync();
@@ -310,11 +424,18 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     {
         await using (var a = Db(_empresaA))
         {
-            a.NotificacoesEmail.Add(new NotificacaoEmail(_empresaA, Guid.NewGuid(), _clienteA,
+            var osId = Guid.NewGuid();
+            a.NotificacoesEmail.Add(new NotificacaoEmail(_empresaA, osId, _clienteA,
                 TipoTemplateEmail.VeiculoProntoRetirada, "a@cliente.com", "A", "Assunto", "<p>Corpo</p>", OrigemTemplateEmail.PadraoDetara, null));
+            a.ComunicacoesCliente.Add(new ComunicacaoCliente(Guid.NewGuid(), _empresaA,
+                _clienteA, osId, CanalComunicacaoCliente.Email,
+                TipoComunicacaoCliente.VeiculoPronto, "<p>Corpo</p>", "a@cliente.com",
+                OrigemComunicacaoCliente.Automatica, null));
             await a.SaveChangesAsync();
         }
-        await using var b = Db(_empresaB); Assert.Equal(0, await b.NotificacoesEmail.CountAsync());
+        await using var b = Db(_empresaB);
+        Assert.Equal(0, await b.NotificacoesEmail.CountAsync());
+        Assert.Equal(0, await b.ComunicacoesCliente.CountAsync());
     }
 
     [Fact]
@@ -326,20 +447,24 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         var ordem = Ordem(osId);
         var atendimento = new AtendimentoFake(_empresaB, ordem);
         var envio = CriarHandlerEnvio(db, repo, ordem, _empresaB);
+        var comunicacaoWhatsApp = CriarServico(db, repo, ordem, _empresaB);
         var retry = new TentarNovamenteNotificacaoHandler(new Contexto(_empresaA, _usuarioA),
             repo, new ClientesNotificacoesConsulta(db), atendimento);
-        var reenvio = new ReenviarAvisoVeiculoProntoHandler(new Contexto(_empresaA, _usuarioA),
-            repo, new ClientesNotificacoesConsulta(db), new PlataformaNotificacoesConsulta(db),
-            atendimento, new RenderizadorTemplateEmail());
+        var reenvio = new ReenviarAvisoVeiculoProntoHandler(
+            CriarServico(db, repo, ordem, _empresaB), repo);
 
         await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
             envio.Handle(new EnviarAvisoVeiculoProntoCommand(osId), default));
+        await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
+            comunicacaoWhatsApp.PrepararManualAsync(osId,
+                CanalComunicacaoCliente.WhatsApp, Guid.NewGuid(), default));
         await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
             retry.Handle(new TentarNovamenteNotificacaoCommand(osId), default));
         await Assert.ThrowsAsync<RecursoNaoEncontradoException>(() =>
             reenvio.Handle(new ReenviarAvisoVeiculoProntoCommand(osId, Guid.NewGuid()), default));
 
         Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
+        Assert.Equal(0, await db.ComunicacoesCliente.CountAsync());
     }
 
     [Fact]
@@ -367,7 +492,8 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         var fake = new ProvedorFake();
         await using (var conferir = Db(_empresaA))
             Assert.Equal(1, await conferir.NotificacoesEmail.CountAsync(x => x.Status == StatusNotificacaoEmail.Pendente && x.ProximaTentativaEmUtc <= DateTime.UtcNow));
-        var services = new ServiceCollection(); services.AddSingleton(_options); services.AddSingleton<IProvedorEmail>(fake);
+        var services = new ServiceCollection(); services.AddSingleton(_options);
+        services.AddSingleton<IEmailClienteProvider>(fake);
         await using var provider = services.BuildServiceProvider();
         var fila = new FilaNotificacoesServico(provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new FilaNotificacoesOptions { TamanhoLote = 10, MaximoTentativas = 4 }),
@@ -382,18 +508,76 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         Assert.Equal(0, await fila.ProcessarLoteAsync(default));
     }
 
-    private IntegracaoNotificacoesOrdensServico Integracao(DetaraDbContext db, NotificacoesRepositorio repo) =>
-        new(repo, new ClientesNotificacoesConsulta(db), new PlataformaNotificacoesConsulta(db), new RenderizadorTemplateEmail());
+    [Fact]
+    public async Task WorkerEmail_SucessoAtualizaHistoricoUnificado()
+    {
+        var osId = Guid.NewGuid();
+        await using (var db = Db(_empresaA))
+        {
+            await CriarServico(db, new NotificacoesRepositorio(db), Ordem(osId))
+                .PrepararManualAsync(osId, CanalComunicacaoCliente.Email,
+                    Guid.NewGuid(), default);
+        }
+        await Task.Delay(20);
+        var fake = new ProvedorFake();
+        var services = new ServiceCollection(); services.AddSingleton(_options);
+        services.AddSingleton<IEmailClienteProvider>(fake);
+        await using var provider = services.BuildServiceProvider();
+        var fila = new FilaNotificacoesServico(provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(new FilaNotificacoesOptions { TamanhoLote = 10 }),
+            NullLogger<FilaNotificacoesServico>.Instance);
+
+        Assert.Equal(1, await fila.ProcessarLoteAsync(default));
+
+        await using var verificar = Db(_empresaA);
+        var comunicacao = await verificar.ComunicacoesCliente.SingleAsync();
+        Assert.Equal(StatusComunicacaoCliente.Enviado, comunicacao.Status);
+        Assert.NotNull(comunicacao.DataEnvioUtc);
+        Assert.Equal("fake-id", comunicacao.ProvedorMensagemId);
+    }
+
+    [Fact]
+    public async Task WorkerWhatsApp_ProviderNaoConfiguradoRegistraFalha()
+    {
+        var osId = Guid.NewGuid();
+        await using (var db = Db(_empresaA))
+        {
+            await CriarServico(db, new NotificacoesRepositorio(db), Ordem(osId))
+                .PrepararManualAsync(osId, CanalComunicacaoCliente.WhatsApp,
+                    Guid.NewGuid(), default);
+        }
+        var fake = new WhatsAppProviderFake(
+            new(false, false, null, "WhatsApp indisponível para teste."));
+        var services = new ServiceCollection(); services.AddSingleton(_options);
+        services.AddSingleton<IWhatsAppClienteProvider>(fake);
+        await using var provider = services.BuildServiceProvider();
+        var fila = new FilaNotificacoesServico(provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(new FilaNotificacoesOptions { TamanhoLote = 10 }),
+            NullLogger<FilaNotificacoesServico>.Instance);
+
+        Assert.Equal(1, await fila.ProcessarLoteAsync(default));
+
+        await using var verificar = Db(_empresaA);
+        var comunicacao = await verificar.ComunicacoesCliente.SingleAsync();
+        Assert.Equal(StatusComunicacaoCliente.Falhou, comunicacao.Status);
+        Assert.Equal("WhatsApp indisponível para teste.", comunicacao.UltimoErroSeguro);
+        Assert.Equal(_empresaA, Assert.Single(fake.Mensagens).EmpresaId);
+    }
+
+    private ComunicacaoClienteService Integracao(DetaraDbContext db, NotificacoesRepositorio repo) =>
+        CriarServico(db, repo, Ordem(Guid.NewGuid()));
     private EnviarAvisoVeiculoProntoHandler CriarHandlerEnvio(DetaraDbContext db,
         NotificacoesRepositorio repo, OrdemServicoNotificacoesInterna ordem, Guid? empresaDaOrdem = null) =>
-        new(new Contexto(_empresaA, _usuarioA), repo, new ClientesNotificacoesConsulta(db),
-            new PlataformaNotificacoesConsulta(db),
-            new AtendimentoFake(empresaDaOrdem ?? _empresaA, ordem), new RenderizadorTemplateEmail());
+        new(CriarServico(db, repo, ordem, empresaDaOrdem), repo);
     private ReenviarAvisoVeiculoProntoHandler CriarHandlerReenvio(DetaraDbContext db,
         NotificacoesRepositorio repo, OrdemServicoNotificacoesInterna ordem) =>
-        new(new Contexto(_empresaA, _usuarioA), repo, new ClientesNotificacoesConsulta(db),
-            new PlataformaNotificacoesConsulta(db), new AtendimentoFake(_empresaA, ordem),
-            new RenderizadorTemplateEmail());
+        new(CriarServico(db, repo, ordem), repo);
+    private ComunicacaoClienteService CriarServico(DetaraDbContext db,
+        NotificacoesRepositorio repo, OrdemServicoNotificacoesInterna ordem,
+        Guid? empresaDaOrdem = null) => new(new Contexto(_empresaA, _usuarioA), repo,
+            new ClientesNotificacoesConsulta(db), new PlataformaNotificacoesConsulta(db),
+            new AtendimentoFake(empresaDaOrdem ?? _empresaA, ordem),
+            new RenderizadorTemplateEmail(), new RenderizadorTemplateWhatsApp());
     private OrdemServicoNotificacoesInterna Ordem(Guid osId,
         StatusOrdemServico status = StatusOrdemServico.AguardandoRetirada) =>
         new(osId, "OS-2026-42", status, _clienteA, "Marina Souza", "Honda Civic · ABC1D23", "ABC1D23");
@@ -414,6 +598,45 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
                 ? ordem
                 : null);
     }
-    private sealed class ProvedorFake : IProvedorEmail
-    { public List<MensagemEmailProvedor> Mensagens { get; } = []; public Task<ResultadoEnvioEmail> EnviarAsync(MensagemEmailProvedor mensagem, CancellationToken cancellationToken) { Mensagens.Add(mensagem); return Task.FromResult(new ResultadoEnvioEmail(true, false, "fake-id", null)); } }
+    private sealed class ProvedorFake : IProvedorEmail, IEmailClienteProvider
+    {
+        public List<MensagemEmailProvedor> Mensagens { get; } = [];
+        public Task<ResultadoEnvioEmail> EnviarAsync(MensagemEmailProvedor mensagem,
+            CancellationToken cancellationToken)
+        {
+            Mensagens.Add(mensagem);
+            return Task.FromResult(new ResultadoEnvioEmail(true, false, "fake-id", null));
+        }
+        public Task<ResultadoEnvioComunicacaoCliente> EnviarAsync(
+            MensagemEmailClienteProvider mensagem, CancellationToken cancellationToken)
+        {
+            Mensagens.Add(new(mensagem.Destinatario, mensagem.Assunto,
+                mensagem.CorpoHtml, mensagem.ResponderPara, mensagem.ChaveIdempotencia));
+            return Task.FromResult(new ResultadoEnvioComunicacaoCliente(
+                true, false, "fake-id", null));
+        }
+    }
+    private sealed class WhatsAppProviderFake(ResultadoEnvioComunicacaoCliente resultado)
+        : IWhatsAppClienteProvider
+    {
+        public List<MensagemWhatsAppClienteProvider> Mensagens { get; } = [];
+        public List<Guid> EmpresasConectadas { get; } = [];
+        public Task<EstadoConexaoWhatsAppClienteProvider> IniciarConexaoAsync(
+            Guid empresaId, CancellationToken cancellationToken)
+        {
+            EmpresasConectadas.Add(empresaId);
+            return ObterStatusAsync(empresaId, cancellationToken);
+        }
+        public Task<EstadoConexaoWhatsAppClienteProvider> ObterStatusAsync(
+            Guid empresaId, CancellationToken cancellationToken) =>
+            Task.FromResult(new EstadoConexaoWhatsAppClienteProvider(
+                StatusSessaoWhatsApp.Conectada, null, DateTime.UtcNow,
+                DateTime.UtcNow, null));
+        public Task<ResultadoEnvioComunicacaoCliente> EnviarAsync(
+            MensagemWhatsAppClienteProvider mensagem, CancellationToken cancellationToken)
+        {
+            Mensagens.Add(mensagem);
+            return Task.FromResult(resultado);
+        }
+    }
 }

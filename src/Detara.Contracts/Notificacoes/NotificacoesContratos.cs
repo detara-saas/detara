@@ -4,10 +4,21 @@ public enum OrigemTemplateEmailContrato { PadraoDetara = 1, PersonalizadoEmpresa
 public enum StatusNotificacaoEmailContrato { Pendente = 1, Processando = 2, Enviada = 3, Falhou = 4, SemDestinatario = 5 }
 public enum ResultadoTentativaNotificacaoEmailContrato { Enviada = 1, FalhaTemporaria = 2, FalhaTerminal = 3 }
 public enum TipoTentativaNotificacaoEmailContrato { Automatica = 1, Manual = 2 }
+public enum CanalComunicacaoVeiculoProntoContrato { Nenhum = 0, Email = 1, WhatsApp = 2 }
+public enum CanalComunicacaoClienteContrato { Email = 1, WhatsApp = 2 }
+public enum TipoComunicacaoClienteContrato { VeiculoPronto = 1 }
+public enum StatusComunicacaoClienteContrato { Pendente = 1, Enviado = 2, Falhou = 3 }
+public enum OrigemComunicacaoClienteContrato { Automatica = 1, Manual = 2 }
+public enum StatusSessaoWhatsAppContrato { Desconectada = 0, AguardandoQrCode = 1, Conectada = 2, Erro = 3 }
 
-public sealed record ConfiguracaoNotificacaoResponse(bool EnviarVeiculoProntoAutomaticamente,
-    string? ResponderParaEmail, DateTime? AtualizadoEmUtc);
-public sealed record AtualizarConfiguracaoNotificacaoRequest(bool EnviarVeiculoProntoAutomaticamente,
+public sealed record ConfiguracaoNotificacaoResponse(CanalComunicacaoVeiculoProntoContrato CanalAutomaticoVeiculoPronto,
+    string? ResponderParaEmail, DateTime? AtualizadoEmUtc)
+{
+    public bool EnviarVeiculoProntoAutomaticamente =>
+        CanalAutomaticoVeiculoPronto != CanalComunicacaoVeiculoProntoContrato.Nenhum;
+}
+public sealed record AtualizarConfiguracaoNotificacaoRequest(
+    CanalComunicacaoVeiculoProntoContrato CanalAutomaticoVeiculoPronto,
     string? ResponderParaEmail);
 public sealed record TemplateEmailResponse(string Assunto, string CorpoHtml, OrigemTemplateEmailContrato Origem,
     DateTime? AtualizadoEmUtc);
@@ -21,5 +32,21 @@ public sealed record NotificacaoEmailResponse(Guid Id, Guid OrdemServicoId, Stat
     int QuantidadeTentativas, DateTime CriadoEmUtc, DateTime? EnviadaEmUtc, string? UltimoErroSeguro,
     IReadOnlyCollection<TentativaNotificacaoEmailResponse> Tentativas);
 public sealed record NotificacaoOrdemServicoResponse(bool Existe, NotificacaoEmailResponse? Notificacao,
-    bool EnviarVeiculoProntoAutomaticamente, string? EmailDestinoAtual);
+    CanalComunicacaoVeiculoProntoContrato CanalAutomaticoVeiculoPronto,
+    string? EmailDestinoAtual, string? WhatsAppDestinoAtual,
+    IReadOnlyCollection<ComunicacaoClienteResponse> Comunicacoes)
+{
+    public bool EnviarVeiculoProntoAutomaticamente =>
+        CanalAutomaticoVeiculoPronto != CanalComunicacaoVeiculoProntoContrato.Nenhum;
+}
 public sealed record ReenviarAvisoVeiculoProntoRequest(Guid SolicitacaoId);
+public sealed record ComunicarClienteVeiculoProntoRequest(CanalComunicacaoClienteContrato Canal,
+    Guid SolicitacaoId);
+public sealed record ComunicacaoClienteResponse(Guid Id, Guid OrdemServicoId,
+    CanalComunicacaoClienteContrato Canal, TipoComunicacaoClienteContrato Tipo,
+    StatusComunicacaoClienteContrato Status, OrigemComunicacaoClienteContrato Origem,
+    string? Destinatario, DateTime CriadoEmUtc, DateTime? DataEnvioUtc,
+    string? UltimoErroSeguro);
+public sealed record SessaoWhatsAppResponse(StatusSessaoWhatsAppContrato Status,
+    string? QrCodeDataUrl, DateTime? AtualizadoEmUtc,
+    DateTime? UltimaConexaoEmUtc, string? UltimoErroSeguro);

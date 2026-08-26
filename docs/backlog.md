@@ -33,7 +33,7 @@
 - Auto-hospedar fontes para reduzir dependência de terceiro e exposição de metadados
 - Automatizar nonce/hash da CSP do import map gerado pelo Blazor quando a hospedagem deixar de ser Nginx estritamente estático
 
-- Pós-venda adicional e WhatsApp (além do e-mail transacional de veículo pronto já entregue)
+- Avaliar WhatsApp Business Platform oficial quando houver exigência de SLA, templates homologados, webhooks de entrega ou escala incompatível com o gateway `whatsapp-web.js`
 - Comissões e estoque básico
 - Melhorias de agenda e relatórios
 - Entitlements comerciais por empresa (`EmpresaModulo`) quando surgir o primeiro add-on real

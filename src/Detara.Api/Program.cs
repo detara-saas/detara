@@ -154,6 +154,14 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(10),
             QueueLimit = 0
         }));
+    options.AddPolicy("whatsapp-conectar", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.User.FindFirst("empresa_id")?.Value ?? "tenant-desconhecido",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(5),
+            QueueLimit = 0
+        }));
     options.AddPolicy("health", httpContext => RateLimitPartition.GetFixedWindowLimiter(
         httpContext.Connection.RemoteIpAddress?.ToString() ?? "origem-desconhecida",
         _ => new FixedWindowRateLimiterOptions

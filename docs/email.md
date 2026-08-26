@@ -1,12 +1,16 @@
-# E-mail transacional
+# Comunicação transacional com o cliente
 
 ## Escopo atual
 
-A Task 08 implementa somente o aviso `VeiculoProntoRetirada`, disparado na transição da Ordem de Serviço de `EmExecucao` para `AguardandoRetirada`. Não há campanhas, tracking, webhooks, anexos, imagens, unsubscribe, WhatsApp ou central global de notificações.
+O módulo implementa somente o aviso `VeiculoProntoRetirada`, disparado na transição da Ordem de Serviço de `EmExecucao` para `AguardandoRetirada`. Não há campanhas, tracking, webhooks, anexos, imagens, unsubscribe ou central global de notificações.
+
+Cada empresa escolhe exatamente um canal automático: `Nenhum`, `Email` ou `WhatsApp`. O operador pode escolher Email ou WhatsApp em um envio manual, sempre uma opção por solicitação. `ComunicacaoCliente` preserva o histórico unificado; a fila de e-mail existente continua responsável pelo Resend.
 
 ## Configuração de infraestrutura
 
 O provider atual é Resend, acessado por um `HttpClient` tipado sobre `POST /emails`. A escolha preserva controle explícito sobre classificação de falhas e o header oficial `Idempotency-Key`. A API key nunca pertence ao tenant e não deve ser commitada.
+
+WhatsApp usa o adapter `WhatsAppGatewayClienteProvider` para o serviço Node separado documentado em [Gateway WhatsApp multi-tenant](whatsapp.md). A fila e o histórico continuam no módulo Notificações; credenciais `LocalAuth` e clientes `whatsapp-web.js` permanecem fora da API .NET.
 
 Variáveis de ambiente esperadas:
 
@@ -68,9 +72,9 @@ Novos envios e reenvios exigem que a OS ainda esteja em `AguardandoRetirada` e q
 
 ## Operação
 
-- Configuração e template: `/configuracoes`, permissões `Configuracoes.Visualizar` e `Configuracoes.Editar`.
+- Configuração de canal e template de e-mail: `/configuracoes`, permissões `Configuracoes.Visualizar` e `Configuracoes.Editar`.
 - Histórico na OS: `/ordens-servico/{id}`, permissão `OrdemServico.Visualizar`.
-- Envio manual, retry e reenvio: `Notificacoes.Reenviar`.
+- Envio manual por Email/WhatsApp, retry e reenvio: `Notificacoes.Reenviar`.
 - Teste: enviado somente ao e-mail do usuário autenticado, limitado a 3 solicitações por 10 minutos por empresa/usuário.
 
 Logs não incluem API key, corpo HTML, destinatário ou resposta bruta do provider. IDs técnicos de notificação/empresa podem ser usados para correlação.

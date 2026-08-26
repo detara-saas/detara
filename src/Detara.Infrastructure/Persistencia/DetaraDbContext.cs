@@ -49,6 +49,8 @@ public sealed class DetaraDbContext(
     public DbSet<TemplateEmailEmpresa> TemplatesEmailEmpresa => Set<TemplateEmailEmpresa>();
     public DbSet<NotificacaoEmail> NotificacoesEmail => Set<NotificacaoEmail>();
     public DbSet<TentativaNotificacaoEmail> TentativasNotificacaoEmail => Set<TentativaNotificacaoEmail>();
+    public DbSet<ComunicacaoCliente> ComunicacoesCliente => Set<ComunicacaoCliente>();
+    public DbSet<SessaoWhatsAppEmpresa> SessoesWhatsAppEmpresa => Set<SessaoWhatsAppEmpresa>();
     public DbSet<AdministradorPlataforma> AdministradoresPlataforma => Set<AdministradorPlataforma>();
     public DbSet<CodigoRecuperacaoAdministradorPlataforma> CodigosRecuperacaoAdministradoresPlataforma =>
         Set<CodigoRecuperacaoAdministradorPlataforma>();

@@ -131,9 +131,9 @@ else
         <section class="module-panel settings-panel settings-panel-wide notification-settings" aria-labelledby="notificacoes-heading">
             <div class="section-heading settings-heading">
                 <div>
-                    <span class="section-eyebrow">COMUNICAÇÃO · E-MAIL</span>
+                    <span class="section-eyebrow">COMUNICAÇÃO COM CLIENTES</span>
                     <h2 id="notificacoes-heading">Veículo pronto para retirada</h2>
-                    <p>Avise o cliente quando a execução da Ordem de Serviço for finalizada. O envio acontece em segundo plano.</p>
+                    <p>Escolha um único canal automático. O operador continua podendo comunicar manualmente pela Ordem de Serviço.</p>
                 </div>
                 <MudIcon Icon="@Icons.Material.Outlined.MarkEmailRead" Color="Color.Primary" />
             </div>
@@ -149,10 +149,14 @@ else
             else
             {
                 <div class="notification-config-grid">
-                    <div class="notification-config-copy">
-                        <div class="setting-switch-row">
-                            <div><strong>Envio automático</strong><span>Cria uma notificação durável ao mudar a OS para “Aguardando retirada”. Desativar não proíbe o envio manual pela OS.</span></div>
-                            <MudSwitch T="bool" @bind-Value="_envioAutomatico" Color="Color.Primary" Disabled="@(!_podeEditar)" aria-label="Ativar envio automático de veículo pronto" />
+                    <div class="notification-config-copy communication-channel-config">
+                        <div class="communication-channel-field">
+                            <div><strong>Canal automático</strong><span>Ao mudar a OS para “Aguardando retirada”, somente o canal selecionado será preparado.</span></div>
+                            <MudRadioGroup T="CanalComunicacaoVeiculoProntoContrato" @bind-Value="_canalAutomatico" Disabled="@(!_podeEditar)" Class="communication-channel-options">
+                                <MudRadio T="CanalComunicacaoVeiculoProntoContrato" Value="@CanalComunicacaoVeiculoProntoContrato.Nenhum" Color="Color.Primary">Nenhum</MudRadio>
+                                <MudRadio T="CanalComunicacaoVeiculoProntoContrato" Value="@CanalComunicacaoVeiculoProntoContrato.Email" Color="Color.Primary">Email</MudRadio>
+                                <MudRadio T="CanalComunicacaoVeiculoProntoContrato" Value="@CanalComunicacaoVeiculoProntoContrato.WhatsApp" Color="Color.Primary">WhatsApp</MudRadio>
+                            </MudRadioGroup>
                         </div>
                         <MudTextField T="string" @bind-Value="_responderPara" Label="Responder para (opcional)" Placeholder="contato@suaempresa.com.br" Variant="Variant.Outlined" Disabled="@(!_podeEditar)" MaxLength="200" HelperText="As respostas do cliente irão para este endereço. O remetente é administrado pela infraestrutura Detara." />
                     </div>
@@ -162,6 +166,35 @@ else
                         </div>
                     </Authorized></AuthorizeView>
                 </div>
+
+                <div class="whatsapp-connection-card">
+                    <span class="whatsapp-connection-icon @ClasseStatusWhatsApp(_sessaoWhatsApp?.Status)">
+                        <MudIcon Icon="@Icons.Material.Outlined.Chat" />
+                    </span>
+                    <div class="whatsapp-connection-copy">
+                        <span class="section-eyebrow">WHATSAPP DA EMPRESA</span>
+                        <strong>@NomeStatusWhatsApp(_sessaoWhatsApp?.Status)</strong>
+                        <small>@DescricaoStatusWhatsApp()</small>
+                    </div>
+                    <span class="status-badge @ClasseStatusWhatsApp(_sessaoWhatsApp?.Status)">@NomeStatusWhatsApp(_sessaoWhatsApp?.Status)</span>
+                    <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar"><Authorized>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Outlined.QrCode2"
+                                   Disabled="@(_conectandoWhatsApp || _sessaoWhatsApp?.Status == StatusSessaoWhatsAppContrato.Conectada)"
+                                   OnClick="ConectarWhatsAppAsync">
+                            @(_conectandoWhatsApp ? "Conectando..." : _sessaoWhatsApp?.Status == StatusSessaoWhatsAppContrato.Conectada ? "Conectado" : "Conectar WhatsApp")
+                        </MudButton>
+                    </Authorized></AuthorizeView>
+                </div>
+
+                @if (_canalAutomatico == CanalComunicacaoVeiculoProntoContrato.WhatsApp)
+                {
+                    <MudAlert Severity="@(_sessaoWhatsApp?.Status == StatusSessaoWhatsAppContrato.Conectada ? Severity.Success : Severity.Warning)" Variant="Variant.Outlined" Class="communication-provider-alert">
+                        @(_sessaoWhatsApp?.Status == StatusSessaoWhatsAppContrato.Conectada
+                            ? "Canal automático pronto: será utilizada exclusivamente a sessão WhatsApp desta empresa."
+                            : "Conecte o WhatsApp desta empresa antes de usar o canal automático. Sem sessão conectada, a tentativa será registrada com falha segura.")
+                    </MudAlert>
+                }
 
                 <div class="notification-template-heading">
                     <div><span class="section-eyebrow">TEMPLATE TRANSACIONAL</span><h3>Mensagem enviada ao cliente</h3><p>O conteúdo é sanitizado no servidor antes de ser salvo, pré-visualizado ou enviado.</p></div>
@@ -228,7 +261,8 @@ else
     private bool _alterandoStatusChecklist;
     private ConfiguracaoNotificacaoResponse? _configuracaoNotificacao;
     private TemplateEmailResponse? _templateEmail;
-    private bool _envioAutomatico;
+    private SessaoWhatsAppResponse? _sessaoWhatsApp;
+    private CanalComunicacaoVeiculoProntoContrato _canalAutomatico;
     private string? _responderPara;
     private string _assuntoEmail = string.Empty;
     private string _corpoEmail = string.Empty;
@@ -239,6 +273,7 @@ else
     private bool _salvandoTemplate;
     private bool _gerandoPreview;
     private bool _enviandoTeste;
+    private bool _conectandoWhatsApp;
     private readonly string[] _variaveisEmail = ["{{EmpresaNome}}", "{{ClienteNome}}", "{{ClientePrimeiroNome}}", "{{VeiculoDescricao}}", "{{Placa}}", "{{OrdemServicoCodigo}}"];
     private bool ChecklistAtivo => _configuracao?.ChecklistEntrada != NivelExigenciaOperacionalContrato.Desabilitado;
 
@@ -370,17 +405,24 @@ else
     private async Task CarregarNotificacoesAsync()
     {
         _carregandoNotificacoes = true;
-        var configuracao = await NotificacoesApi.ObterConfiguracaoAsync();
-        var template = await NotificacoesApi.ObterTemplateAsync();
+        var configuracaoTask = NotificacoesApi.ObterConfiguracaoAsync();
+        var templateTask = NotificacoesApi.ObterTemplateAsync();
+        var whatsappTask = NotificacoesApi.ObterStatusWhatsAppAsync();
+        await Task.WhenAll(configuracaoTask, templateTask, whatsappTask);
+        var configuracao = await configuracaoTask;
+        var template = await templateTask;
+        var whatsapp = await whatsappTask;
         if (configuracao.Sucesso && configuracao.Resultado is not null && template.Sucesso && template.Resultado is not null)
         {
             _configuracaoNotificacao = configuracao.Resultado;
             _templateEmail = template.Resultado;
-            _envioAutomatico = configuracao.Resultado.EnviarVeiculoProntoAutomaticamente;
+            _canalAutomatico = configuracao.Resultado.CanalAutomaticoVeiculoPronto;
             _responderPara = configuracao.Resultado.ResponderParaEmail;
             AplicarTemplate(template.Resultado);
         }
         else Mensagens.Mostrar(configuracao.Sucesso ? template.Mensagem : configuracao.Mensagem, true);
+        if (whatsapp.Sucesso && whatsapp.Resultado is not null)
+            _sessaoWhatsApp = whatsapp.Resultado;
         _carregandoNotificacoes = false;
     }
 
@@ -396,11 +438,67 @@ else
     private async Task SalvarConfiguracaoNotificacaoAsync()
     {
         _salvandoNotificacoes = true;
-        var r = await NotificacoesApi.SalvarConfiguracaoAsync(new(_envioAutomatico, _responderPara));
+        var r = await NotificacoesApi.SalvarConfiguracaoAsync(new(_canalAutomatico, _responderPara));
         if (r.Sucesso && r.Resultado is not null) _configuracaoNotificacao = r.Resultado;
         Mensagens.Mostrar(r.Mensagem, !r.Sucesso);
         _salvandoNotificacoes = false;
     }
+
+    private async Task ConectarWhatsAppAsync()
+    {
+        _conectandoWhatsApp = true;
+        var resultado = await NotificacoesApi.ConectarWhatsAppAsync();
+        _conectandoWhatsApp = false;
+        if (!resultado.Sucesso || resultado.Resultado is null)
+        {
+            Mensagens.Mostrar(resultado.Mensagem, true);
+            return;
+        }
+        _sessaoWhatsApp = resultado.Resultado;
+        var parametros = new DialogParameters<ConectarWhatsAppDialog>
+        {
+            { x => x.EstadoInicial, resultado.Resultado }
+        };
+        var dialogo = await Dialogs.ShowAsync<ConectarWhatsAppDialog>(
+            "Conectar WhatsApp", parametros,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true });
+        var retorno = await dialogo.Result;
+        if (retorno is { Canceled: false, Data: SessaoWhatsAppResponse estado })
+            _sessaoWhatsApp = estado;
+        else
+        {
+            var status = await NotificacoesApi.ObterStatusWhatsAppAsync();
+            if (status.Sucesso && status.Resultado is not null)
+                _sessaoWhatsApp = status.Resultado;
+        }
+    }
+
+    private static string NomeStatusWhatsApp(StatusSessaoWhatsAppContrato? status) => status switch
+    {
+        StatusSessaoWhatsAppContrato.Conectada => "Conectado",
+        StatusSessaoWhatsAppContrato.AguardandoQrCode => "Aguardando leitura do QR Code",
+        StatusSessaoWhatsAppContrato.Erro => "Erro de conexão",
+        _ => "Não conectado"
+    };
+
+    private static string ClasseStatusWhatsApp(StatusSessaoWhatsAppContrato? status) => status switch
+    {
+        StatusSessaoWhatsAppContrato.Conectada => "status-confirmed",
+        StatusSessaoWhatsAppContrato.AguardandoQrCode => "status-waiting",
+        StatusSessaoWhatsAppContrato.Erro => "status-cancelled",
+        _ => "status-neutral"
+    };
+
+    private string DescricaoStatusWhatsApp() => _sessaoWhatsApp switch
+    {
+        { Status: StatusSessaoWhatsAppContrato.Conectada, UltimaConexaoEmUtc: not null } =>
+            $"Última conexão em {_sessaoWhatsApp.UltimaConexaoEmUtc.Value.ToLocalTime():dd/MM/yyyy HH:mm}.",
+        { Status: StatusSessaoWhatsAppContrato.AguardandoQrCode } =>
+            "Leia o QR Code no celular da empresa para concluir a autenticação.",
+        { Status: StatusSessaoWhatsAppContrato.Erro, UltimoErroSeguro: not null } =>
+            _sessaoWhatsApp.UltimoErroSeguro,
+        _ => "A sessão é exclusiva desta empresa e permanece persistida no gateway."
+    };
 
     private async Task SalvarTemplateAsync()
     {

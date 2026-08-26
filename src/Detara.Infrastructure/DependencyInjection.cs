@@ -97,13 +97,26 @@ public static class DependencyInjection
         services.AddScoped<IClientesNotificacoesConsulta, ClientesNotificacoesConsulta>();
         services.AddScoped<IAtendimentoNotificacoesConsulta, AtendimentoNotificacoesConsulta>();
         services.AddSingleton<IRenderizadorTemplateEmail, RenderizadorTemplateEmail>();
+        services.AddSingleton<IRenderizadorTemplateWhatsApp, RenderizadorTemplateWhatsApp>();
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.Secao));
         services.Configure<FilaNotificacoesOptions>(configuration.GetSection(FilaNotificacoesOptions.Secao));
+        var whatsappOptions = configuration.GetSection(WhatsAppGatewayOptions.Secao)
+            .Get<WhatsAppGatewayOptions>() ?? new WhatsAppGatewayOptions();
+        ValidarWhatsAppGateway(whatsappOptions);
+        services.Configure<WhatsAppGatewayOptions>(
+            configuration.GetSection(WhatsAppGatewayOptions.Secao));
         services.AddHttpClient<IProvedorEmail, ResendEmailProvider>(client =>
         {
             client.BaseAddress = new Uri("https://api.resend.com/");
             client.Timeout = TimeSpan.FromSeconds(15);
             client.MaxResponseContentBufferSize = 64 * 1024;
+        });
+        services.AddScoped<IEmailClienteProvider, EmailClienteProvider>();
+        services.AddHttpClient<IWhatsAppClienteProvider, WhatsAppGatewayClienteProvider>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(
+                Math.Clamp(whatsappOptions.TimeoutSeconds, 5, 60));
+            client.MaxResponseContentBufferSize = 768 * 1024;
         });
         services.AddScoped<IFilaNotificacoesServico, FilaNotificacoesServico>();
         services.AddHostedService<NotificacoesWorker>();
@@ -155,6 +168,20 @@ public static class DependencyInjection
         {
             throw new InvalidOperationException(
                 "Storage:S3 exige endpoint HTTPS, bucket, região e credenciais.");
+        }
+    }
+
+    private static void ValidarWhatsAppGateway(WhatsAppGatewayOptions options)
+    {
+        if (!options.Enabled) return;
+        if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUri) ||
+            baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps ||
+            string.IsNullOrWhiteSpace(options.ApiKey) || options.ApiKey.Length < 32 ||
+            options.ApiKey.Contains("CHANGE_ME", StringComparison.OrdinalIgnoreCase) ||
+            options.TimeoutSeconds is < 5 or > 60)
+        {
+            throw new InvalidOperationException(
+                "WhatsAppGateway habilitado exige URL absoluta, chave interna com pelo menos 32 caracteres e timeout entre 5 e 60 segundos.");
         }
     }
 

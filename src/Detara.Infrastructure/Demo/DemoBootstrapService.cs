@@ -15,6 +15,7 @@ using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
 using Detara.Domain.Entidades;
 using Detara.Domain.Financeiro;
+using Detara.Domain.Notificacoes;
 using Detara.Infrastructure.Agenda;
 using Detara.Infrastructure.Atendimento;
 using Detara.Infrastructure.Catalogo;
@@ -350,7 +351,8 @@ public sealed class DemoBootstrapService(
             NivelExigenciaOperacional.Opcional,
             NivelExigenciaOperacional.Desabilitado,
             NivelExigenciaOperacional.Desabilitado), cancellationToken);
-        await sender.Send(new AtualizarConfiguracaoNotificacaoCommand(false, null), cancellationToken);
+        await sender.Send(new AtualizarConfiguracaoNotificacaoCommand(
+            CanalComunicacaoVeiculoPronto.Nenhum, null), cancellationToken);
 
         var categorias = new Dictionary<string, Guid>(StringComparer.Ordinal);
         foreach (var item in new[]
@@ -711,6 +713,7 @@ public sealed class DemoBootstrapService(
         services.AddSingleton<IClientesNotificacoesConsulta, ClientesNotificacoesConsulta>();
         services.AddSingleton<IAtendimentoNotificacoesConsulta, AtendimentoNotificacoesConsulta>();
         services.AddSingleton<IRenderizadorTemplateEmail, RenderizadorTemplateEmail>();
+        services.AddSingleton<IRenderizadorTemplateWhatsApp, RenderizadorTemplateWhatsApp>();
         services.AddSingleton<IPlataformaOnboardingConsulta, PlataformaOnboardingConsulta>();
         services.AddSingleton<IAtendimentoOnboardingConsulta, AtendimentoOnboardingConsulta>();
         services.AddSingleton<ICatalogoOnboardingConsulta, CatalogoOnboardingConsulta>();

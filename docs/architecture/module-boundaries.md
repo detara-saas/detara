@@ -49,7 +49,7 @@ Não serão criados assemblies por módulo enquanto a quantidade de módulos, eq
 | Agenda | Atual, base | Agendamento, itens planejados, snapshots, reagendamento, status e consultas operacionais |
 | Atendimento | Atual, base | Orçamento, configuração operacional, ordem de serviço, check-in, execução, fotos transacionais e entrega |
 | Financeiro | Atual, base | Contas a receber, pagamentos, estornos e indicadores de recebimento |
-| Notificações | Atual, base | Preferências de comunicação, templates de e-mail, intenções duráveis, tentativas e integração com provedor |
+| Notificações | Atual, base | Preferências, templates, intenções duráveis, tentativas e providers de e-mail/WhatsApp |
 | Estoque | Futuro, add-on candidato | Produto, saldo, movimentação, inventário e consumo |
 | CRM | Futuro, add-on candidato | Lead, follow-up, campanhas, relacionamento e pós-venda |
 | Autoatendimento / Portal do Cliente | Futuro, add-on candidato | Experiência externa de catálogo, agenda, aprovações e acompanhamento, consumindo capacidades do Core |
@@ -182,6 +182,8 @@ Hoje existe uma aplicação, um SQL Server e um database multi-tenant compartilh
 | `TemplatesEmailEmpresa` | Notificações |
 | `NotificacoesEmail` | Notificações |
 | `TentativasNotificacaoEmail` | Notificações |
+| `ComunicacoesCliente` | Notificações |
+| `SessoesWhatsAppEmpresa` | Notificações |
 
 Essa matriz deve ser atualizada quando uma tabela ou agregado for introduzido.
 
@@ -370,11 +372,13 @@ A infraestrutura atual não possui um Unit of Work separado. A integração usa 
 
 `ContaReceber` referencia OS, Cliente e Veículo somente por IDs e snapshots, sem FKs cross-module. A relação conta → pagamentos é interna ao Financeiro e possui FK composta tenant-safe com delete restritivo. Pagamentos são imutáveis; correções usam estorno auditado. A conta mantém o saldo e uma versão de concorrência incrementada em cada mutação, impedindo overpayment por requests simultâneos.
 
-### Notificações por e-mail implementadas
+### Comunicação transacional implementada
 
-Notificações é dono de `ConfiguracaoNotificacaoEmpresa`, `TemplateEmailEmpresa`, `NotificacaoEmail` e `TentativaNotificacaoEmail`. Atendimento entrega somente o fato mínimo de que uma OS mudou de `EmExecucao` para `AguardandoRetirada`; Clientes e Plataforma são consultados por contratos internos estreitos para obter o e-mail atual do cliente, nome da empresa e e-mail do usuário autenticado. Nenhum agregado externo é modificado e não existem FKs cross-module.
+Notificações é dono de `ConfiguracaoNotificacaoEmpresa`, `TemplateEmailEmpresa`, `NotificacaoEmail`, `TentativaNotificacaoEmail`, `ComunicacaoCliente` e `SessaoWhatsAppEmpresa`. Atendimento entrega somente o fato mínimo de que uma OS mudou de `EmExecucao` para `AguardandoRetirada`; Clientes e Plataforma são consultados por contratos internos estreitos para obter os contatos atuais do cliente, nome da empresa e e-mail do usuário autenticado. Nenhum agregado externo é modificado e não existem FKs cross-module.
 
 Quando o envio automático está habilitado, `FinalizarExecucaoHandler` prepara a intenção durável pelo contrato `IIntegracaoNotificacoesOrdensServico`. O mesmo `DetaraDbContext` scoped e o mesmo `SaveChanges` confirmam a transição da OS, histórico, conta a receber e intenção de e-mail. A chamada ao Resend nunca ocorre nessa transação. A unicidade `(EmpresaId, Tipo, OrdemServicoId)` torna o gatilho idempotente.
+
+`ComunicacaoCliente` é o histórico de negócio neutro por canal. A configuração aceita exatamente `Nenhum`, `Email` ou `WhatsApp`; portanto, a transição da OS nunca prepara dois canais automáticos. `NotificacaoEmail` e suas tentativas continuam sendo o detalhe técnico durável do provider de e-mail e compartilham o mesmo identificador da comunicação correspondente. WhatsApp usa um provider HTTP único para um gateway Node separado; o tenant vem do contexto autenticado, e `SessaoWhatsAppEmpresa` mantém somente metadados tenant-safe enquanto as credenciais `LocalAuth` ficam no volume exclusivo do gateway.
 
 O worker pertencente a Notificações processa a fila persistente em lotes, usa versão de concorrência para claim e envia com a chave estável `notificacao-email/{id}`. Conteúdo, destinatário, Reply-To e origem do template são snapshots; alterações posteriores em Cliente, configuração ou template não reescrevem o histórico. A única relação EF é Notificação → Tentativas, interna ao módulo e com delete restritivo.
 

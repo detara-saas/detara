@@ -12,6 +12,30 @@ namespace Detara.IntegrationTests.Security;
 public sealed class DependencyInjectionSecurityTests
 {
     [Fact]
+    public void GatewayWhatsAppHabilitado_RejeitaChaveFraca()
+    {
+        var configuracao = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] =
+                    "Server=localhost;Database=unused;Integrated Security=true;TrustServerCertificate=true",
+                ["Storage:Provider"] = "Local",
+                ["Storage:Local:RootPath"] = "data/test-security-storage",
+                ["WhatsAppGateway:Enabled"] = "true",
+                ["WhatsAppGateway:BaseUrl"] = "http://gateway.test:3000/",
+                ["WhatsAppGateway:ApiKey"] = "curta",
+                ["WhatsAppGateway:TimeoutSeconds"] = "30"
+            })
+            .Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            new ServiceCollection().AdicionarInfrastructure(configuracao));
+
+        Assert.Contains("chave interna com pelo menos 32 caracteres",
+            exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AliasesResend_AlimentamEmailOptions()
     {
         var configuracao = new ConfigurationBuilder()

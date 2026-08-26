@@ -7,6 +7,7 @@ using Detara.Application.Onboarding;
 using Detara.Contracts.Autorizacao;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Entidades;
+using Detara.Domain.Notificacoes;
 using Detara.Infrastructure.Agenda;
 using Detara.Infrastructure.Atendimento;
 using Detara.Infrastructure.Autenticacao;
@@ -96,7 +97,8 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
         Assert.Equal("DEMO-JET-01", semPlaca.IdentificacaoAlternativa);
 
         var configuracao = await db.ConfiguracoesNotificacaoEmpresa.SingleAsync();
-        Assert.False(configuracao.EnviarVeiculoProntoAutomaticamente);
+        Assert.Equal(CanalComunicacaoVeiculoPronto.Nenhum,
+            configuracao.CanalAutomaticoVeiculoPronto);
         Assert.Empty(await db.NotificacoesEmail.ToListAsync());
 
         var contas = await db.ContasReceber.Include(item => item.Pagamentos).ToListAsync();

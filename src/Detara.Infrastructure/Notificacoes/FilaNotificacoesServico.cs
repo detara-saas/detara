@@ -27,36 +27,48 @@ internal sealed class FilaNotificacoesServico(IServiceScopeFactory scopeFactory,
     {
         var config = options.Value;
         var lote = Math.Clamp(config.TamanhoLote, 10, 50);
-        List<(Guid Id, Guid EmpresaId)> candidatos;
+        List<(Guid Id, Guid EmpresaId)> candidatosEmail;
+        List<(Guid Id, Guid EmpresaId)> candidatosWhatsApp;
         await using (var scope = scopeFactory.CreateAsyncScope())
         {
             var dbOptions = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
             await using var sistema = new DetaraDbContext(dbOptions, ContextoFila.Anonimo);
             var agora = DateTime.UtcNow;
             var expirou = agora.AddMinutes(-Math.Clamp(config.ProcessamentoExpiraMinutos, 2, 60));
-            candidatos = await sistema.NotificacoesEmail.IgnoreQueryFilters().AsNoTracking()
+            candidatosEmail = await sistema.NotificacoesEmail.IgnoreQueryFilters().AsNoTracking()
                 .Where(x => (x.Status == StatusNotificacaoEmail.Pendente && x.ProximaTentativaEmUtc <= agora) ||
                     (x.Status == StatusNotificacaoEmail.Processando && x.ProcessamentoIniciadoEmUtc <= expirou))
                 .OrderBy(x => x.ProximaTentativaEmUtc).ThenBy(x => x.CriadoEmUtc)
                 .Take(lote).Select(x => new ValueTuple<Guid, Guid>(x.Id, x.EmpresaId)).ToListAsync(ct);
+            candidatosWhatsApp = await sistema.ComunicacoesCliente.IgnoreQueryFilters().AsNoTracking()
+                .Where(x => x.Canal == CanalComunicacaoCliente.WhatsApp &&
+                    x.Status == StatusComunicacaoCliente.Pendente &&
+                    (x.ProcessamentoIniciadoEmUtc == null || x.ProcessamentoIniciadoEmUtc <= expirou))
+                .OrderBy(x => x.CriadoEmUtc).Take(lote)
+                .Select(x => new ValueTuple<Guid, Guid>(x.Id, x.EmpresaId)).ToListAsync(ct);
         }
 
         var processadas = 0;
-        foreach (var candidato in candidatos)
+        foreach (var candidato in candidatosEmail)
         {
-            if (await ProcessarAsync(candidato.Id, candidato.EmpresaId, config, ct)) processadas++;
+            if (await ProcessarEmailAsync(candidato.Id, candidato.EmpresaId, config, ct)) processadas++;
+        }
+        foreach (var candidato in candidatosWhatsApp)
+        {
+            if (await ProcessarWhatsAppAsync(candidato.Id, candidato.EmpresaId, config, ct)) processadas++;
         }
         return processadas;
     }
 
-    private async Task<bool> ProcessarAsync(Guid id, Guid empresaId, FilaNotificacoesOptions config, CancellationToken ct)
+    private async Task<bool> ProcessarEmailAsync(Guid id, Guid empresaId, FilaNotificacoesOptions config, CancellationToken ct)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var dbOptions = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
-        var provedor = scope.ServiceProvider.GetRequiredService<IProvedorEmail>();
+        var provedor = scope.ServiceProvider.GetRequiredService<IEmailClienteProvider>();
         await using var db = new DetaraDbContext(dbOptions, new ContextoFila(empresaId));
         var item = await db.NotificacoesEmail.Include(x => x.Tentativas).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
+        var comunicacao = await db.ComunicacoesCliente.SingleOrDefaultAsync(x => x.Id == id, ct);
         try
         {
             var agora = DateTime.UtcNow;
@@ -68,6 +80,14 @@ internal sealed class FilaNotificacoesServico(IServiceScopeFactory scopeFactory,
             }
             if (item.Status != StatusNotificacaoEmail.Pendente || item.ProximaTentativaEmUtc > agora) return false;
             item.MarcarProcessando(agora);
+            if (comunicacao is
+                {
+                    Status: StatusComunicacaoCliente.Pendente,
+                    ProcessamentoIniciadoEmUtc: null
+                })
+            {
+                comunicacao.MarcarProcessando(agora);
+            }
             await db.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException) { return false; }
@@ -79,18 +99,69 @@ internal sealed class FilaNotificacoesServico(IServiceScopeFactory scopeFactory,
         var finalizadoEm = DateTime.UtcNow;
         TentativaNotificacaoEmail tentativa;
         if (resultado.Sucesso)
+        {
             tentativa = item.RegistrarSucesso(resultado.MensagemId ?? "aceita-sem-id", finalizadoEm, tipoTentativa, solicitadoPor);
+            comunicacao?.RegistrarEnvio(resultado.MensagemId ?? "aceita-sem-id", finalizadoEm);
+        }
         else
         {
             var proxima = CalcularProxima(finalizadoEm, item.QuantidadeTentativas + 1);
             tentativa = item.RegistrarFalha(resultado.ErroSeguro ?? "Falha no provedor de e-mail.", resultado.FalhaTemporaria,
                 Math.Clamp(config.MaximoTentativas, 1, 10), finalizadoEm, proxima, tipoTentativa, solicitadoPor);
+            if (comunicacao is not null)
+            {
+                if (resultado.FalhaTemporaria && item.Status == StatusNotificacaoEmail.Pendente)
+                    comunicacao.ManterPendenteAposFalhaTemporaria(
+                        resultado.ErroSeguro ?? "Falha temporária no provedor de e-mail.");
+                else comunicacao.RegistrarFalha(
+                    resultado.ErroSeguro ?? "Falha no provedor de e-mail.");
+            }
         }
         db.TentativasNotificacaoEmail.Add(tentativa);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException ex)
         {
             logger.LogWarning(ex, "Concorrência ao concluir notificação {NotificacaoId} da empresa {EmpresaId}.", id, empresaId);
+            return false;
+        }
+        return true;
+    }
+
+    private async Task<bool> ProcessarWhatsAppAsync(Guid id, Guid empresaId,
+        FilaNotificacoesOptions config, CancellationToken ct)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var dbOptions = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+        var provedor = scope.ServiceProvider.GetRequiredService<IWhatsAppClienteProvider>();
+        await using var db = new DetaraDbContext(dbOptions, new ContextoFila(empresaId));
+        var item = await db.ComunicacoesCliente.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null || item.Canal != CanalComunicacaoCliente.WhatsApp ||
+            item.Status != StatusComunicacaoCliente.Pendente) return false;
+
+        var agora = DateTime.UtcNow;
+        if (item.ProcessamentoIniciadoEmUtc.HasValue)
+            item.RecuperarProcessamentoInterrompido(agora,
+                TimeSpan.FromMinutes(Math.Clamp(config.ProcessamentoExpiraMinutos, 2, 60)));
+        if (item.ProcessamentoIniciadoEmUtc.HasValue) return false;
+        try
+        {
+            item.MarcarProcessando(agora);
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException) { return false; }
+
+        var resultado = await provedor.EnviarAsync(new(empresaId, item.DestinatarioSnapshot!,
+            item.Mensagem, $"comunicacao-whatsapp/{item.Id:N}"), ct);
+        if (resultado.Sucesso)
+            item.RegistrarEnvio(resultado.MensagemId ?? "aceita-sem-id", DateTime.UtcNow);
+        else item.RegistrarFalha(resultado.ErroSeguro ??
+            "Falha no provider de WhatsApp.");
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            logger.LogWarning(ex,
+                "Concorrência ao concluir comunicação WhatsApp {ComunicacaoId} da empresa {EmpresaId}.",
+                id, empresaId);
             return false;
         }
         return true;
@@ -126,7 +197,7 @@ public sealed class NotificacoesWorker(IServiceScopeFactory scopeFactory, IOptio
                 await scope.ServiceProvider.GetRequiredService<IFilaNotificacoesServico>().ProcessarLoteAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex) { logger.LogError(ex, "Falha ao processar a fila de notificações por e-mail."); }
+            catch (Exception ex) { logger.LogError(ex, "Falha ao processar a fila de comunicações com clientes."); }
             await Task.Delay(intervalo, stoppingToken);
         }
     }

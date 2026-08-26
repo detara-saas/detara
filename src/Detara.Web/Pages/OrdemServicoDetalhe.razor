@@ -63,32 +63,45 @@ else
 
     @if (_ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida)
     {
-        var email = _notificacao?.Notificacao;
+        var ultimaComunicacao = _notificacao?.Comunicacoes.OrderByDescending(x => x.CriadoEmUtc).FirstOrDefault();
+        var comunicacaoPendente = _notificacao?.Comunicacoes.Any(x => x.Status == StatusComunicacaoClienteContrato.Pendente) == true;
         <section class="module-panel section-card service-order-communication">
-            <div class="section-heading section-card-heading"><div><span class="section-eyebrow">NOTIFICAÇÃO AO CLIENTE</span><h2>Veículo pronto para retirada</h2><p>“Enviado” significa aceito pelo provedor, não confirmação de entrega na caixa de entrada.</p></div><span class="status-badge @ClasseNotificacao(email?.Status)">@NomeNotificacao(email?.Status)</span></div>
+            <div class="section-heading section-card-heading"><div><span class="section-eyebrow">COMUNICAÇÃO COM O CLIENTE</span><h2>Veículo pronto para retirada</h2><p>Acompanhe o canal, o status e quando o cliente foi comunicado.</p></div><span class="status-badge @ClasseComunicacao(ultimaComunicacao?.Status)">@NomeComunicacao(ultimaComunicacao?.Status)</span></div>
             <div class="communication-summary">
-                <span><MudIcon Icon="@Icons.Material.Outlined.AlternateEmail" /><span><small>DESTINATÁRIO</small><strong title="@(email?.DestinatarioEmail ?? _notificacao?.EmailDestinoAtual)">@(email?.DestinatarioEmail ?? _notificacao?.EmailDestinoAtual ?? "E-mail não cadastrado")</strong></span></span>
-                <span><MudIcon Icon="@Icons.Material.Outlined.Autorenew" /><span><small>ENVIO AUTOMÁTICO</small><strong>@(_notificacao?.EnviarVeiculoProntoAutomaticamente == true ? "Habilitado" : "Desativado")</strong></span></span>
-                <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span><small>ÚLTIMA ATUALIZAÇÃO</small><strong>@DataComunicacao(email)</strong></span></span>
+                <span><MudIcon Icon="@Icons.Material.Outlined.Autorenew" /><span><small>CANAL AUTOMÁTICO</small><strong>@NomeCanalAutomatico(_notificacao?.CanalAutomaticoVeiculoPronto)</strong></span></span>
+                <span><MudIcon Icon="@(ultimaComunicacao?.Canal == CanalComunicacaoClienteContrato.WhatsApp ? Icons.Material.Outlined.Chat : Icons.Material.Outlined.AlternateEmail)" /><span><small>ÚLTIMO CANAL</small><strong>@NomeCanal(ultimaComunicacao?.Canal)</strong></span></span>
+                <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span><small>ÚLTIMA COMUNICAÇÃO</small><strong>@DataComunicacao(ultimaComunicacao)</strong></span></span>
+                <span><MudIcon Icon="@Icons.Material.Outlined.PhoneAndroid" /><span><small>WHATSAPP DA EMPRESA</small><strong>@NomeStatusWhatsApp(_sessaoWhatsApp?.Status)</strong></span></span>
             </div>
-            @if (_notificacao?.EnviarVeiculoProntoAutomaticamente != true && email is null)
-            { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Envio automático desativado. Você pode enviar o aviso manualmente quando desejar.</MudAlert> }
-            @if (string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual))
-            { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Cliente sem e-mail válido cadastrado. Novos envios ficam indisponíveis até o cadastro ser atualizado.</MudAlert> }
-            @if (!string.IsNullOrWhiteSpace(email?.UltimoErroSeguro))
-            { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@email.UltimoErroSeguro</MudAlert> }
+            @if (ultimaComunicacao is null)
+            { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Cliente ainda não comunicado. Você pode escolher um canal manualmente.</MudAlert> }
+            @if (string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual) && string.IsNullOrWhiteSpace(_notificacao?.WhatsAppDestinoAtual))
+            { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Cliente sem e-mail ou WhatsApp válido cadastrado. Atualize o cadastro para enviar o aviso.</MudAlert> }
+            @if (!string.IsNullOrWhiteSpace(ultimaComunicacao?.UltimoErroSeguro))
+            { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@ultimaComunicacao.UltimoErroSeguro</MudAlert> }
             @if (_ordem.Status == StatusOrdemServicoContrato.AguardandoRetirada)
             {
                 <AuthorizeView Policy="@Permissoes.NotificacoesReenviar"><Authorized>
                     <div class="form-actions communication-actions">
-                        @if (email is null)
-                        { <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Send" Disabled="@(_executandoNotificacao || string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual))" OnClick="EnviarAvisoAsync">@(_executandoNotificacao ? "Agendando..." : "Enviar aviso por e-mail")</MudButton> }
-                        else if (email.Status is StatusNotificacaoEmailContrato.Falhou or StatusNotificacaoEmailContrato.SemDestinatario)
-                        { <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Refresh" Disabled="@(_executandoNotificacao || email.Status == StatusNotificacaoEmailContrato.SemDestinatario && string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual))" OnClick="TentarNovamenteAsync">@(_executandoNotificacao ? "Agendando..." : "Tentar novamente")</MudButton> }
-                        else if (email.Status == StatusNotificacaoEmailContrato.Enviada)
-                        { <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.ForwardToInbox" Disabled="@(_executandoNotificacao || string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual))" OnClick="ReenviarAvisoAsync">@(_executandoNotificacao ? "Agendando..." : "Reenviar aviso")</MudButton> }
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Send"
+                                   Disabled="@(_executandoNotificacao || comunicacaoPendente || string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual) && string.IsNullOrWhiteSpace(_notificacao?.WhatsAppDestinoAtual))"
+                                   OnClick="ComunicarClienteAsync">@(_executandoNotificacao ? "Agendando..." : comunicacaoPendente ? "Envio em andamento" : "Comunicar cliente")</MudButton>
                     </div>
                 </Authorized></AuthorizeView>
+            }
+            @if (_notificacao?.Comunicacoes.Count > 0)
+            {
+                <div class="communication-history" aria-label="Histórico de comunicação com o cliente">
+                    <div class="communication-history-heading"><strong>Histórico</strong><span>@_notificacao.Comunicacoes.Count registro(s)</span></div>
+                    @foreach (var comunicacao in _notificacao.Comunicacoes.OrderByDescending(x => x.CriadoEmUtc))
+                    {
+                        <article>
+                            <span class="communication-history-icon"><MudIcon Icon="@(comunicacao.Canal == CanalComunicacaoClienteContrato.WhatsApp ? Icons.Material.Outlined.Chat : Icons.Material.Outlined.AlternateEmail)" /></span>
+                            <div><strong>@NomeCanal(comunicacao.Canal)</strong><span>@((comunicacao.DataEnvioUtc ?? comunicacao.CriadoEmUtc).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) · @(comunicacao.Origem == OrigemComunicacaoClienteContrato.Automatica ? "Automático" : "Manual")</span><small>@(comunicacao.Destinatario ?? "Sem destinatário")</small></div>
+                            <span class="status-badge @ClasseComunicacao(comunicacao.Status)">@NomeComunicacao(comunicacao.Status)</span>
+                        </article>
+                    }
+                </div>
             }
         </section>
     }
@@ -102,11 +115,11 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    private OrdemServicoDetalheResponse? _ordem; private Guid? _contaReceberId; private NotificacaoOrdemServicoResponse? _notificacao; private bool _executandoNotificacao; private Guid? _solicitacaoReenvioId; private bool _carregando = true; private int? _quilometragem; private string? _observacaoEntrada, _motivoCancelamento; private readonly List<RespostaEdicao> _respostas = []; private readonly Dictionary<Guid, string> _urlsFotos = [];
+    private OrdemServicoDetalheResponse? _ordem; private Guid? _contaReceberId; private NotificacaoOrdemServicoResponse? _notificacao; private SessaoWhatsAppResponse? _sessaoWhatsApp; private bool _executandoNotificacao; private Guid? _solicitacaoComunicacaoId; private bool _carregando = true; private int? _quilometragem; private string? _observacaoEntrada, _motivoCancelamento; private readonly List<RespostaEdicao> _respostas = []; private readonly Dictionary<Guid, string> _urlsFotos = [];
     private bool EhTerminal => _ordem?.Status is StatusOrdemServicoContrato.Concluida or StatusOrdemServicoContrato.Cancelada;
     private string IndicadorCheckIn => _ordem?.CheckInEmUtc.HasValue == true ? $"Checklist {_ordem.Checklist?.Itens.Count(i => i.Resposta.HasValue) ?? 0}/{_ordem.Checklist?.Itens.Count ?? 0} · Fotos entrada {_ordem.Fotos.Count(f => f.Categoria == CategoriaFotoOrdemServicoContrato.Entrada)}" : "Necessário antes da execução";
     protected override Task OnParametersSetAsync() => CarregarAsync();
-    private async Task CarregarAsync() { _carregando = true; var r = await OrdensApi.ObterAsync(Id); _ordem = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _respostas.Clear(); if (_ordem?.Checklist is not null) _respostas.AddRange(_ordem.Checklist.Itens.OrderBy(i => i.Ordem).Select(i => new RespostaEdicao(i))); _contaReceberId = null; _notificacao = null; if (_ordem is not null) { var estado = await AuthenticationState.GetAuthenticationStateAsync(); if ((await Authorization.AuthorizeAsync(estado.User, Permissoes.FinanceiroVisualizar)).Succeeded) { var financeiro = await FinanceiroApi.ObterPorOrdemServicoAsync(Id); if (financeiro.Resultado?.Existe == true) _contaReceberId = financeiro.Resultado.Id; } if (_ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida) { var comunicacao = await NotificacoesApi.ObterPorOrdemServicoAsync(Id); if (comunicacao.Sucesso) _notificacao = comunicacao.Resultado; } } await CarregarFotosAsync(); _carregando = false; }
+    private async Task CarregarAsync() { _carregando = true; var r = await OrdensApi.ObterAsync(Id); _ordem = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _respostas.Clear(); if (_ordem?.Checklist is not null) _respostas.AddRange(_ordem.Checklist.Itens.OrderBy(i => i.Ordem).Select(i => new RespostaEdicao(i))); _contaReceberId = null; _notificacao = null; _sessaoWhatsApp = null; if (_ordem is not null) { var estado = await AuthenticationState.GetAuthenticationStateAsync(); if ((await Authorization.AuthorizeAsync(estado.User, Permissoes.FinanceiroVisualizar)).Succeeded) { var financeiro = await FinanceiroApi.ObterPorOrdemServicoAsync(Id); if (financeiro.Resultado?.Existe == true) _contaReceberId = financeiro.Resultado.Id; } if (_ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida) { var comunicacaoTask = NotificacoesApi.ObterPorOrdemServicoAsync(Id); var whatsappTask = NotificacoesApi.ObterDisponibilidadeWhatsAppAsync(); await Task.WhenAll(comunicacaoTask, whatsappTask); var comunicacao = await comunicacaoTask; var whatsapp = await whatsappTask; if (comunicacao.Sucesso) _notificacao = comunicacao.Resultado; if (whatsapp.Sucesso) _sessaoWhatsApp = whatsapp.Resultado; } } await CarregarFotosAsync(); _carregando = false; }
     private async Task CarregarFotosAsync() { _urlsFotos.Clear(); if (_ordem is null) return; foreach (var foto in _ordem.Fotos) { var r = await OrdensApi.ObterFotoAsync(Id, foto.Id); if (r.Resultado is not null) _urlsFotos[foto.Id] = $"data:{r.Resultado.ContentType};base64,{Convert.ToBase64String(r.Resultado.Bytes)}"; } }
     private async Task RealizarCheckInAsync() { var r = await OrdensApi.CheckInAsync(Id, new(_quilometragem, _observacaoEntrada)); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
     private async Task SalvarChecklistAsync() { var r = await OrdensApi.AtualizarChecklistAsync(Id, new(_respostas.Where(i => i.Resposta.HasValue).Select(i => new RespostaChecklistOrdemServicoRequest(i.Id, i.Resposta!.Value, i.Observacao)).ToArray())); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
@@ -114,10 +127,7 @@ else
     private async Task ExcluirFotoAsync(Guid fotoId) { var r = await OrdensApi.ExcluirFotoAsync(Id, fotoId); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
     private async Task ExecutarTransicaoAsync(string acao) { var r = acao switch { "iniciar" => await OrdensApi.IniciarAsync(Id, null), "finalizar" => await OrdensApi.FinalizarAsync(Id, null), _ => await OrdensApi.ConcluirAsync(Id, null) }; Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
     private async Task CancelarAsync() { if (string.IsNullOrWhiteSpace(_motivoCancelamento)) { Mensagens.Mostrar("Informe o motivo do cancelamento.", true); return; } var r = await OrdensApi.CancelarAsync(Id, _motivoCancelamento); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Sucesso) await CarregarAsync(); }
-    private async Task EnviarAvisoAsync() { if (!await ConfirmarComunicacaoAsync("Enviar aviso ao cliente?", "Um e-mail de veículo pronto será agendado para")) return; _executandoNotificacao = true; var r = await NotificacoesApi.EnviarAvisoAsync(Id); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); _executandoNotificacao = false; if (r.Sucesso) await CarregarComunicacaoAsync(); }
-    private async Task TentarNovamenteAsync() { _executandoNotificacao = true; var r = await NotificacoesApi.TentarNovamenteAsync(Id); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); _executandoNotificacao = false; if (r.Sucesso) await CarregarComunicacaoAsync(); }
-    private async Task ReenviarAvisoAsync() { if (!await ConfirmarComunicacaoAsync("Reenviar aviso ao cliente?", "Um novo e-mail de veículo pronto será agendado para")) return; _solicitacaoReenvioId ??= Guid.NewGuid(); _executandoNotificacao = true; var r = await NotificacoesApi.ReenviarAsync(Id, new(_solicitacaoReenvioId.Value)); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); _executandoNotificacao = false; if (r.Sucesso) { _solicitacaoReenvioId = null; await CarregarComunicacaoAsync(); } }
-    private async Task<bool> ConfirmarComunicacaoAsync(string titulo, string mensagem) => await Dialogs.ShowMessageBoxAsync(titulo, $"{mensagem}: {_notificacao?.EmailDestinoAtual}.", yesText: titulo.StartsWith("Reenviar", StringComparison.Ordinal) ? "Reenviar" : "Enviar", cancelText: "Cancelar") == true;
+    private async Task ComunicarClienteAsync() { var parametros = new DialogParameters<ComunicarClienteDialog> { { x => x.Email, _notificacao?.EmailDestinoAtual }, { x => x.WhatsApp, _notificacao?.WhatsAppDestinoAtual }, { x => x.WhatsAppConectado, _sessaoWhatsApp?.Status == StatusSessaoWhatsAppContrato.Conectada } }; var dialogo = await Dialogs.ShowAsync<ComunicarClienteDialog>("Comunicar cliente", parametros, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true }); var resultado = await dialogo.Result; if (resultado is null || resultado.Canceled || resultado.Data is not CanalComunicacaoClienteContrato canal) return; _solicitacaoComunicacaoId ??= Guid.NewGuid(); _executandoNotificacao = true; var r = await NotificacoesApi.ComunicarClienteAsync(Id, new(canal, _solicitacaoComunicacaoId.Value)); Mensagens.Mostrar(r.Mensagem, !r.Sucesso); _executandoNotificacao = false; if (r.Sucesso) { _solicitacaoComunicacaoId = null; await CarregarComunicacaoAsync(); } }
     private async Task CarregarComunicacaoAsync() { var r = await NotificacoesApi.ObterPorOrdemServicoAsync(Id); if (r.Sucesso) _notificacao = r.Resultado; else Mensagens.Mostrar(r.Mensagem, true); }
     private bool PodeEnviar(CategoriaFotoOrdemServicoContrato c) => !EhTerminal && (c == CategoriaFotoOrdemServicoContrato.Entrada ? _ordem?.Status == StatusOrdemServicoContrato.Aberta && _ordem.FotosEntradaSnapshot != NivelExigenciaOperacionalContrato.Desabilitado : _ordem?.Status == StatusOrdemServicoContrato.EmExecucao && (c == CategoriaFotoOrdemServicoContrato.Durante || _ordem.FotosSaidaSnapshot != NivelExigenciaOperacionalContrato.Desabilitado));
     private bool PodeExcluir(OrdemServicoFotoResponse f) => PodeEnviar(f.Categoria);
@@ -131,8 +141,11 @@ else
     private static string FormatarTamanho(long b) => b >= 1024 * 1024 ? $"{b / 1024d / 1024d:N1} MiB" : $"{b / 1024d:N0} KiB";
     private static string ClasseAdicional(StatusOrcamentoContrato s) => s == StatusOrcamentoContrato.Aprovado ? "status-running" : s is StatusOrcamentoContrato.Recusado or StatusOrcamentoContrato.Cancelado ? "status-cancelled" : "status-waiting";
     private static string NomeStatusOrcamento(StatusOrcamentoContrato s) => s == StatusOrcamentoContrato.Expirado ? "Expirado" : s.ToString();
-    private static string NomeNotificacao(StatusNotificacaoEmailContrato? s) => s switch { null => "Ainda não enviado", StatusNotificacaoEmailContrato.Pendente => "Envio agendado", StatusNotificacaoEmailContrato.Processando => "Enviando", StatusNotificacaoEmailContrato.Enviada => "Enviado", StatusNotificacaoEmailContrato.SemDestinatario => "Sem destinatário", _ => "Falha no envio" };
-    private static string ClasseNotificacao(StatusNotificacaoEmailContrato? s) => s switch { StatusNotificacaoEmailContrato.Enviada => "status-confirmed", StatusNotificacaoEmailContrato.Falhou => "status-cancelled", StatusNotificacaoEmailContrato.SemDestinatario => "status-waiting", StatusNotificacaoEmailContrato.Processando => "status-running", null => "status-neutral", _ => "status-scheduled" };
-    private static string DataComunicacao(NotificacaoEmailResponse? email) => email switch { null => "Nenhum envio", { Status: StatusNotificacaoEmailContrato.Enviada, EnviadaEmUtc: not null } => email.EnviadaEmUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm"), _ => email.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") };
+    private static string NomeCanalAutomatico(CanalComunicacaoVeiculoProntoContrato? canal) => canal switch { CanalComunicacaoVeiculoProntoContrato.Email => "Email", CanalComunicacaoVeiculoProntoContrato.WhatsApp => "WhatsApp", _ => "Nenhum" };
+    private static string NomeCanal(CanalComunicacaoClienteContrato? canal) => canal switch { CanalComunicacaoClienteContrato.Email => "Email", CanalComunicacaoClienteContrato.WhatsApp => "WhatsApp", _ => "Nenhum envio" };
+    private static string NomeComunicacao(StatusComunicacaoClienteContrato? s) => s switch { null => "Ainda não comunicado", StatusComunicacaoClienteContrato.Pendente => "Pendente", StatusComunicacaoClienteContrato.Enviado => "Enviado", _ => "Falhou" };
+    private static string ClasseComunicacao(StatusComunicacaoClienteContrato? s) => s switch { StatusComunicacaoClienteContrato.Enviado => "status-confirmed", StatusComunicacaoClienteContrato.Falhou => "status-cancelled", StatusComunicacaoClienteContrato.Pendente => "status-waiting", _ => "status-neutral" };
+    private static string DataComunicacao(ComunicacaoClienteResponse? comunicacao) => comunicacao is null ? "Nenhum envio" : (comunicacao.DataEnvioUtc ?? comunicacao.CriadoEmUtc).ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+    private static string NomeStatusWhatsApp(StatusSessaoWhatsAppContrato? status) => status switch { StatusSessaoWhatsAppContrato.Conectada => "Conectado", StatusSessaoWhatsAppContrato.AguardandoQrCode => "Aguardando QR Code", StatusSessaoWhatsAppContrato.Erro => "Erro de conexão", _ => "Não conectado" };
     private sealed class RespostaEdicao(OrdemServicoChecklistItemResponse i) { public Guid Id { get; } = i.Id; public string Descricao { get; } = i.Descricao; public int Ordem { get; } = i.Ordem; public RespostaChecklistOrdemServicoContrato? Resposta { get; set; } = i.Resposta; public string? Observacao { get; set; } = i.Observacao; }
 }

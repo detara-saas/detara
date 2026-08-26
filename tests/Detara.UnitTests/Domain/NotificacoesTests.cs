@@ -52,4 +52,85 @@ public sealed class NotificacoesTests
     [Fact]
     public void Template_RejeitaAssuntoComQuebraDeLinha() => Assert.Throws<ArgumentException>(() =>
         new TemplateEmailEmpresa(Guid.NewGuid(), TipoTemplateEmail.VeiculoProntoRetirada, "Assunto\r\nBcc:x", "<p>Corpo</p>", Guid.NewGuid()));
+
+    [Fact]
+    public void Configuracao_RejeitaCanalAutomaticoInvalido() =>
+        Assert.Throws<ArgumentException>(() => new ConfiguracaoNotificacaoEmpresa(
+            Guid.NewGuid(), (CanalComunicacaoVeiculoPronto)99, null, Guid.NewGuid()));
+
+    [Fact]
+    public void ComunicacaoWhatsApp_ComDestinatarioNascePendente()
+    {
+        var comunicacao = new ComunicacaoCliente(Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), CanalComunicacaoCliente.WhatsApp,
+            TipoComunicacaoCliente.VeiculoPronto, "Mensagem", "11999998888",
+            OrigemComunicacaoCliente.Manual, Guid.NewGuid());
+
+        Assert.Equal(StatusComunicacaoCliente.Pendente, comunicacao.Status);
+        Assert.Equal(CanalComunicacaoCliente.WhatsApp, comunicacao.Canal);
+    }
+
+    [Fact]
+    public void ComunicacaoSemDestinatario_RegistraFalha()
+    {
+        var comunicacao = new ComunicacaoCliente(Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), CanalComunicacaoCliente.Email,
+            TipoComunicacaoCliente.VeiculoPronto, "Mensagem", null,
+            OrigemComunicacaoCliente.Automatica, null);
+
+        Assert.Equal(StatusComunicacaoCliente.Falhou, comunicacao.Status);
+        Assert.Contains("e-mail", comunicacao.UltimoErroSeguro);
+    }
+
+    [Fact]
+    public void Comunicacao_ProcessadaComSucessoRegistraDataEnvio()
+    {
+        var comunicacao = new ComunicacaoCliente(Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), CanalComunicacaoCliente.Email,
+            TipoComunicacaoCliente.VeiculoPronto, "Mensagem", "cliente@teste.com",
+            OrigemComunicacaoCliente.Automatica, null);
+        var agora = DateTime.UtcNow;
+
+        comunicacao.MarcarProcessando(agora);
+        comunicacao.RegistrarEnvio("provider-id", agora);
+
+        Assert.Equal(StatusComunicacaoCliente.Enviado, comunicacao.Status);
+        Assert.Equal(agora, comunicacao.DataEnvioUtc);
+    }
+
+    [Fact]
+    public void SessaoWhatsApp_UsaChaveIsoladaEAtualizaEstadoSeguro()
+    {
+        var empresaId = Guid.NewGuid();
+        var ultimaConexao = DateTime.UtcNow;
+        var sessao = new SessaoWhatsAppEmpresa(empresaId, $"tenant-{empresaId:N}");
+
+        sessao.AtualizarStatus(StatusSessaoWhatsApp.Conectada, ultimaConexao);
+
+        Assert.Equal(empresaId, sessao.EmpresaId);
+        Assert.Equal($"tenant-{empresaId:N}", sessao.SessionKey);
+        Assert.Equal(StatusSessaoWhatsApp.Conectada, sessao.Status);
+        Assert.Equal(ultimaConexao, sessao.UltimaConexaoEmUtc);
+        Assert.Null(sessao.UltimoErroSeguro);
+    }
+
+    [Fact]
+    public void SessaoWhatsApp_StatusIdenticoNaoIncrementaVersao()
+    {
+        var empresaId = Guid.NewGuid();
+        var sessao = new SessaoWhatsAppEmpresa(empresaId, $"tenant-{empresaId:N}");
+        var versao = sessao.Versao;
+
+        sessao.AtualizarStatus(StatusSessaoWhatsApp.Desconectada, null);
+
+        Assert.Equal(versao, sessao.Versao);
+    }
+
+    [Theory]
+    [InlineData("curta")]
+    [InlineData("tenant/com/barra")]
+    [InlineData("tenant com espaco")]
+    public void SessaoWhatsApp_RejeitaChaveInsegura(string sessionKey) =>
+        Assert.Throws<ArgumentException>(() =>
+            new SessaoWhatsAppEmpresa(Guid.NewGuid(), sessionKey));
 }

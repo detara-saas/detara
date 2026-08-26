@@ -157,14 +157,19 @@ pagamentos confirmados por data de recebimento; pagamentos estornados são exclu
 
 A migration `AddNotificacoesEmail` adiciona:
 
-- `ConfiguracoesNotificacaoEmpresa`, única por `EmpresaId`, com opt-in explícito para o envio automático e Reply-To opcional;
+- `ConfiguracoesNotificacaoEmpresa`, única por `EmpresaId`, com um único canal automático (`Nenhum`, `Email` ou `WhatsApp`) e Reply-To opcional;
 - `TemplatesEmailEmpresa`, único por `(EmpresaId, Tipo)`, contendo somente assunto e HTML já sanitizado;
 - `NotificacoesEmail`, com destinatário, nome, assunto, corpo HTML completo, Reply-To e origem do template preservados como snapshots;
 - `TentativasNotificacaoEmail`, com número, origem automática/manual, responsável opcional, resultado, instante, ID do provedor e erro seguro;
+- `ComunicacoesCliente`, histórico por OS com canal, tipo, mensagem snapshot, destinatário, origem, status, data de envio e erro seguro;
 - índice de histórico `(EmpresaId, Tipo, OrdemServicoId)` e índice de fila `(EmpresaId, Status, ProximaTentativaEmUtc)`;
 - FK composta tenant-safe de Tentativa para Notificação, interna ao módulo e com delete `Restrict`.
 
 A migration `PermiteReenvioNotificacaoVeiculoPronto` converte o índice por OS/tipo em não único para que reenvios intencionais preservem registros independentes. A intenção inicial usa ID determinístico e cada reenvio usa o ID idempotente da solicitação.
+
+A migration `ComunicacaoClienteEmailWhatsApp` converte o antigo booleano de envio automático em um canal exclusivo, cria o histórico unificado e retroalimenta comunicações de e-mail existentes sem alterar seus snapshots ou tentativas. `NotificacoesEmail` permanece como detalhe técnico da fila Resend; não há tabela ou fila paralela para um segundo e-mail.
+
+A migration `AddWhatsAppGatewaySession` adiciona `SessoesWhatsAppEmpresa`, única por `EmpresaId` e por `SessionKey`, com estado da conexão, última conexão, erro seguro e versão de concorrência. Ela contém somente metadados operacionais: QR Code e credenciais `LocalAuth` não entram no SQL Server. O filtro global de tenant protege as consultas, e a sessão efetiva permanece no volume persistente do gateway.
 
 A ausência de configuração significa envio automático desabilitado; GET não cria registros. O template padrão também não é seed: é materializado dinamicamente pela aplicação, e restaurar o padrão remove a customização do tenant. Não existem FKs para Empresa, OS, Cliente ou Usuário. `NotificacaoEmail.Versao` protege o claim otimista da fila, enquanto a idempotência externa usa `notificacao-email/{Id}`.
 

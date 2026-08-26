@@ -30,12 +30,32 @@ services:
       Email__ApiKey: ${DETARA_RESEND_API_KEY:-}
       Email__FromAddress: ${DETARA_EMAIL_FROM_ADDRESS:-}
       Email__FromName: ${DETARA_EMAIL_FROM_NAME:-Detara}
+      WhatsAppGateway__Enabled: "true"
+      WhatsAppGateway__BaseUrl: http://whatsapp-gateway:3000/
+      WhatsAppGateway__ApiKey: ${DETARA_WHATSAPP_GATEWAY_API_KEY:?Defina DETARA_WHATSAPP_GATEWAY_API_KEY no arquivo .env}
     ports:
       - "5090:8080"
     volumes:
       - detara-data-protection-keys:/var/lib/detara/data-protection-keys
     depends_on:
       - sqlserver
+      - whatsapp-gateway
+    restart: unless-stopped
+
+  whatsapp-gateway:
+    build:
+      context: .
+      dockerfile: whatsapp-gateway/Dockerfile
+    environment:
+      DETARA_WHATSAPP_GATEWAY_API_KEY: ${DETARA_WHATSAPP_GATEWAY_API_KEY:?Defina DETARA_WHATSAPP_GATEWAY_API_KEY no arquivo .env}
+      DETARA_WHATSAPP_SESSIONS_PATH: /app/sessions
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - detara-whatsapp-sessions:/app/sessions
+    shm_size: 256mb
     restart: unless-stopped
 
   web:
@@ -51,3 +71,4 @@ services:
 volumes:
   detara-sql-data:
   detara-data-protection-keys:
+  detara-whatsapp-sessions:

@@ -11,8 +11,8 @@ public sealed class RenderizadorTemplateEmailTests
     private static readonly DadosTemplateEmail Dados = new("Estética Norte", "Marina Souza", "Honda Civic", "ABC1D23", "OS-2026-0042");
 
     [Fact]
-    public void Padrao_TemAssuntoEmojiETokensEsperados()
-    { var padrao = _renderer.ObterPadraoVeiculoPronto(); Assert.Equal("Seu veículo está pronto para retirada 🚗", padrao.Assunto); Assert.Contains("{{ClientePrimeiroNome}}", padrao.CorpoHtml); }
+    public void Padrao_TemConteudoProfissionalETokensEsperados()
+    { var padrao = _renderer.ObterPadraoVeiculoPronto(); Assert.Equal("Seu veículo está pronto para retirada", padrao.Assunto); Assert.Contains("{{ClienteNome}}", padrao.CorpoHtml); Assert.Contains("Agradecemos pela preferência", padrao.CorpoHtml); }
 
     [Fact]
     public void Renderizar_SubstituiTodosOsTokens()
