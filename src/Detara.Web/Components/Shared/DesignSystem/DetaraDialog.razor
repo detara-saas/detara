@@ -13,7 +13,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="SecondaryClickAsync" Disabled="Carregando">@TextoSecundario</MudButton>
-        <MudButton Variant="Variant.Filled" Color="@CorPrimaria" OnClick="PrimaryClickAsync" Disabled="Carregando">
+        <MudButton Variant="Variant.Filled" Color="@CorPrimaria" OnClick="PrimaryClickAsync" Disabled="@(Carregando || PrimariaDesabilitada)">
             @if (Carregando) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
             @(Carregando ? TextoCarregando : TextoPrimario)
         </MudButton>
@@ -30,6 +30,7 @@
     [Parameter] public string TextoCarregando { get; set; } = "Processando…";
     [Parameter] public Color CorPrimaria { get; set; } = Color.Primary;
     [Parameter] public bool Carregando { get; set; }
+    [Parameter] public bool PrimariaDesabilitada { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public EventCallback OnPrimary { get; set; }
     [Parameter] public EventCallback OnSecondary { get; set; }

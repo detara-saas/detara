@@ -1,0 +1,107 @@
+<DetaraCard Titulo="Progresso do atendimento"
+            Sobretitulo="FLUXO OPERACIONAL"
+            Descricao="Marcos reais registrados nesta ordem de serviço."
+            Class="@($"service-order-progress-card {(_ordem.Status == StatusOrdemServicoContrato.Cancelada ? "is-cancelled" : null)}")"
+            ContentClass="service-order-progress-content">
+    <Acoes>
+        <DetaraStatusBadge Texto="@NomeStatus(_ordem.Status)"
+                           Tone="@TomStatus(_ordem.Status)"
+                           Icone="@IconeStatus(_ordem.Status)" />
+    </Acoes>
+    <ChildContent>
+        <ol class="service-order-progress" aria-label="Etapas da ordem de serviço">
+            @foreach (var etapa in Etapas)
+            {
+                <li class="@etapa.Classe">
+                    <span class="service-order-progress-marker" aria-hidden="true">
+                        <MudIcon Icon="@etapa.Icone" />
+                    </span>
+                    <span class="service-order-progress-copy">
+                        <strong>@etapa.Nome</strong>
+                        <small>@etapa.Descricao</small>
+                    </span>
+                </li>
+            }
+        </ol>
+    </ChildContent>
+</DetaraCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public OrdemServicoDetalheResponse Ordem { get; set; } = null!;
+
+    private OrdemServicoDetalheResponse _ordem => Ordem;
+
+    private IReadOnlyList<EtapaProgresso> Etapas =>
+    [
+        new(
+            "Ordem aberta",
+            Momento(_ordem.CriadoEmUtc),
+            Icons.Material.Outlined.ReceiptLong,
+            "is-complete"),
+        new(
+            "Check-in",
+            Momento(_ordem.CheckInEmUtc, "Aguardando entrada"),
+            Icons.Material.Outlined.Login,
+            Estado(_ordem.CheckInEmUtc.HasValue,
+                _ordem.Status == StatusOrdemServicoContrato.Aberta && !_ordem.CheckInEmUtc.HasValue)),
+        new(
+            "Execução",
+            Momento(_ordem.IniciadaEmUtc, "Não iniciada"),
+            Icons.Material.Outlined.Handyman,
+            Estado(_ordem.IniciadaEmUtc.HasValue,
+                _ordem.Status == StatusOrdemServicoContrato.EmExecucao)),
+        new(
+            "Retirada",
+            Momento(_ordem.ExecucaoFinalizadaEmUtc, "Aguardando finalização"),
+            Icons.Material.Outlined.DirectionsCar,
+            Estado(_ordem.ExecucaoFinalizadaEmUtc.HasValue,
+                _ordem.Status == StatusOrdemServicoContrato.AguardandoRetirada)),
+        new(
+            _ordem.Status == StatusOrdemServicoContrato.Cancelada ? "Cancelada" : "Concluída",
+            Momento(_ordem.Status == StatusOrdemServicoContrato.Cancelada ? _ordem.CanceladaEmUtc : _ordem.ConcluidaEmUtc,
+                _ordem.Status == StatusOrdemServicoContrato.Cancelada ? "Fluxo interrompido" : "Pendente"),
+            _ordem.Status == StatusOrdemServicoContrato.Cancelada
+                ? Icons.Material.Outlined.Cancel
+                : Icons.Material.Outlined.CheckCircle,
+            _ordem.Status == StatusOrdemServicoContrato.Cancelada
+                ? "is-cancelled"
+                : Estado(_ordem.ConcluidaEmUtc.HasValue, _ordem.Status == StatusOrdemServicoContrato.Concluida))
+    ];
+
+    private static string Estado(bool concluida, bool atual) => concluida
+        ? "is-complete"
+        : atual
+            ? "is-current"
+            : "is-pending";
+
+    private static string Momento(DateTime? data, string fallback = "Registrada") =>
+        data?.ToLocalTime().ToString("dd/MM · HH:mm") ?? fallback;
+
+    private static string NomeStatus(StatusOrdemServicoContrato status) => status switch
+    {
+        StatusOrdemServicoContrato.EmExecucao => "Em execução",
+        StatusOrdemServicoContrato.AguardandoRetirada => "Aguardando retirada",
+        StatusOrdemServicoContrato.Concluida => "Concluída",
+        _ => status.ToString()
+    };
+
+    private static DetaraStatusTone TomStatus(StatusOrdemServicoContrato status) => status switch
+    {
+        StatusOrdemServicoContrato.Aberta => DetaraStatusTone.Info,
+        StatusOrdemServicoContrato.EmExecucao or StatusOrdemServicoContrato.Concluida => DetaraStatusTone.Positive,
+        StatusOrdemServicoContrato.AguardandoRetirada => DetaraStatusTone.Warning,
+        _ => DetaraStatusTone.Critical
+    };
+
+    private static string IconeStatus(StatusOrdemServicoContrato status) => status switch
+    {
+        StatusOrdemServicoContrato.Aberta => Icons.Material.Outlined.Schedule,
+        StatusOrdemServicoContrato.EmExecucao => Icons.Material.Outlined.Handyman,
+        StatusOrdemServicoContrato.AguardandoRetirada => Icons.Material.Outlined.DirectionsCar,
+        StatusOrdemServicoContrato.Concluida => Icons.Material.Outlined.CheckCircle,
+        _ => Icons.Material.Outlined.Cancel
+    };
+
+    private sealed record EtapaProgresso(string Nome, string Descricao, string Icone, string Classe);
+}
