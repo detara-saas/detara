@@ -1,39 +1,24 @@
-<section class="dashboard-mode-bar" aria-label="Modo de visualização do Dashboard">
-    <div class="dashboard-mode-copy">
-        <span class="section-eyebrow">MODO DO DASHBOARD</span>
-        <strong>@Titulo</strong>
-        <small>@Descricao</small>
-    </div>
-    <div class="dashboard-mode-switch" role="tablist" aria-label="Alternar modo do Dashboard">
-        <MudButton Variant="@(Modo == ModoDashboard.Operacao ? Variant.Filled : Variant.Text)"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Outlined.Today"
-                   Disabled="Alterando"
-                   OnClick="() => AlterarAsync(ModoDashboard.Operacao)">
-            Operação
-        </MudButton>
-        <MudButton Variant="@(Modo == ModoDashboard.Empresa ? Variant.Filled : Variant.Text)"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Outlined.QueryStats"
-                   Disabled="Alterando"
-                   OnClick="() => AlterarAsync(ModoDashboard.Empresa)">
-            Empresa
-        </MudButton>
-    </div>
-</section>
+<div class="dashboard-mode-switch" role="tablist" aria-label="Alternar modo do Dashboard">
+    <MudButton Variant="@(Modo == ModoDashboard.Operacao ? Variant.Filled : Variant.Text)"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Outlined.Today"
+               Disabled="Alterando"
+               OnClick="() => AlterarAsync(ModoDashboard.Operacao)">
+        Operação
+    </MudButton>
+    <MudButton Variant="@(Modo == ModoDashboard.Empresa ? Variant.Filled : Variant.Text)"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Outlined.QueryStats"
+               Disabled="Alterando"
+               OnClick="() => AlterarAsync(ModoDashboard.Empresa)">
+        Empresa
+    </MudButton>
+</div>
 
 @code {
     [Parameter] public ModoDashboard Modo { get; set; }
     [Parameter] public bool Alterando { get; set; }
     [Parameter] public EventCallback<ModoDashboard> ModoAlterado { get; set; }
-
-    private string Titulo => Modo == ModoDashboard.Operacao
-        ? "Rotina de hoje"
-        : "Visão estratégica";
-
-    private string Descricao => Modo == ModoDashboard.Operacao
-        ? "Agenda, atendimentos e pendências para a equipe agir agora."
-        : "Resultados e evolução consolidada da empresa no período.";
 
     private Task AlterarAsync(ModoDashboard modo) =>
         modo == Modo ? Task.CompletedTask : ModoAlterado.InvokeAsync(modo);
