@@ -15,7 +15,8 @@ public enum CanalComunicacaoCliente
 
 public enum TipoComunicacaoCliente
 {
-    VeiculoPronto = 1
+    VeiculoPronto = 1,
+    TesteWhatsApp = 2
 }
 
 public enum StatusComunicacaoCliente
@@ -36,5 +37,7 @@ public enum StatusSessaoWhatsApp
     Desconectada = 0,
     AguardandoQrCode = 1,
     Conectada = 2,
-    Erro = 3
+    Erro = 3,
+    Conectando = 4,
+    Reconectando = 5
 }

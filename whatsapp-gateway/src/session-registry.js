@@ -4,9 +4,11 @@ import { normalizeTenantId } from './validation.js';
 
 const validStatuses = new Set([
   'Disconnected',
+  'Connecting',
   'WaitingQRCode',
   'Connected',
   'Error',
+  'Reconnecting',
 ]);
 
 export class SessionRegistry {
@@ -34,7 +36,11 @@ export class SessionRegistry {
         session.sessionKey === createSessionKey(empresaId) &&
         validStatuses.has(session?.status)
       ) {
-        this.sessions.set(empresaId, Object.freeze({ ...session, empresaId }));
+        this.sessions.set(empresaId, Object.freeze({
+          ...session,
+          empresaId,
+          phoneNumber: normalizeStoredPhone(session?.phoneNumber),
+        }));
       }
     }
     return this.list();
@@ -49,13 +55,27 @@ export class SessionRegistry {
   }
 
   async upsert(session) {
-    const normalized = Object.freeze({ ...session });
+    const normalized = Object.freeze({
+      ...session,
+      phoneNumber: normalizeStoredPhone(session?.phoneNumber),
+    });
     this.sessions.set(normalized.empresaId, normalized);
     await this.store.write({ version: 1, sessions: this.list() });
     return normalized;
+  }
+
+  async remove(empresaId) {
+    this.sessions.delete(empresaId);
+    await this.store.write({ version: 1, sessions: this.list() });
   }
 }
 
 export function createSessionKey(empresaId) {
   return `tenant-${empresaId.replaceAll('-', '')}`;
+}
+
+function normalizeStoredPhone(value) {
+  if (typeof value !== 'string') return null;
+  const digits = value.replace(/\D/g, '');
+  return /^\d{8,15}$/.test(digits) ? digits : null;
 }

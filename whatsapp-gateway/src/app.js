@@ -60,6 +60,12 @@ export function createApp({ service, apiKey, logger }) {
     response.json(result);
   });
 
+  app.delete('/sessions/:empresaId', async (request, response) => {
+    const empresaId = validateTenantBinding(request, request.params.empresaId);
+    const result = await service.disconnect(empresaId);
+    response.json(result);
+  });
+
   app.post('/messages/send', async (request, response) => {
     if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
       throw new ValidationError('Payload inválido.');

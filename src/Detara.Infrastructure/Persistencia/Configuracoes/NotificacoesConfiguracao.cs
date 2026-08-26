@@ -11,6 +11,7 @@ internal sealed class ConfiguracaoNotificacaoEmpresaConfiguracao : IEntityTypeCo
         builder.ToTable("ConfiguracoesNotificacaoEmpresa");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.ResponderParaEmail).HasMaxLength(200);
+        builder.Property(x => x.PermitirComunicacaoWhatsApp).IsRequired();
         builder.Property(x => x.CanalAutomaticoVeiculoPronto).HasConversion<string>()
             .HasMaxLength(16).IsRequired();
         builder.Property(x => x.Versao).IsConcurrencyToken();
@@ -45,6 +46,7 @@ internal sealed class SessaoWhatsAppEmpresaConfiguracao : IEntityTypeConfigurati
         builder.ToTable("SessoesWhatsAppEmpresa");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.SessionKey).HasMaxLength(80).IsRequired();
+        builder.Property(x => x.NumeroConectado).HasMaxLength(20);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(x => x.UltimoErroSeguro).HasMaxLength(500);
         builder.Property(x => x.Versao).IsConcurrencyToken();

@@ -59,13 +59,13 @@ public sealed class WhatsAppGatewayClienteProviderSecurityTests
                 request.Headers.Authorization?.Parameter,
                 request.Headers.GetValues("X-Detara-Tenant-Id").Single(), null);
             return Task.FromResult(Json(HttpStatusCode.OK,
-                $$"""{"status":"WaitingQRCode","qrCode":"{{qrCode}}","updatedAt":"2026-08-25T22:00:00Z","lastConnectedAt":null}"""));
+                $$"""{"status":"WaitingQRCode","qrCode":"{{qrCode}}","updatedAt":"2026-08-25T22:00:00Z","lastConnectedAt":null,"phoneNumber":null}"""));
         }));
         var provider = CriarProvider(http);
 
         var resultado = await provider.IniciarConexaoAsync(empresaId, CancellationToken.None);
 
-        Assert.Equal(StatusSessaoWhatsApp.AguardandoQrCode, resultado.Status);
+        Assert.Equal(StatusSessaoWhatsApp.Conectando, resultado.Status);
         Assert.Equal(qrCode, resultado.QrCodeDataUrl);
         Assert.Equal(HttpMethod.Post, capturada?.Method);
         Assert.Equal($"https://gateway.detara.test/sessions/{empresaId:D}/connect",
@@ -101,8 +101,33 @@ public sealed class WhatsAppGatewayClienteProviderSecurityTests
 
         var resultado = await provider.ObterStatusAsync(Guid.NewGuid(), CancellationToken.None);
 
-        Assert.Equal(StatusSessaoWhatsApp.AguardandoQrCode, resultado.Status);
+        Assert.Equal(StatusSessaoWhatsApp.Conectando, resultado.Status);
         Assert.Null(resultado.QrCodeDataUrl);
+    }
+
+    [Fact]
+    public async Task Desconexao_UsaDeleteComTenantAutenticado()
+    {
+        var empresaId = Guid.NewGuid();
+        RequisicaoCapturada? capturada = null;
+        using var http = new HttpClient(new HandlerFixo((request, _) =>
+        {
+            capturada = new(request.Method, request.RequestUri,
+                request.Headers.Authorization?.Scheme,
+                request.Headers.Authorization?.Parameter,
+                request.Headers.GetValues("X-Detara-Tenant-Id").Single(), null);
+            return Task.FromResult(Json(HttpStatusCode.OK,
+                """{"status":"Disconnected","phoneNumber":null}"""));
+        }));
+
+        var resultado = await CriarProvider(http).DesconectarAsync(
+            empresaId, CancellationToken.None);
+
+        Assert.Equal(StatusSessaoWhatsApp.Desconectada, resultado.Status);
+        Assert.Equal(HttpMethod.Delete, capturada?.Method);
+        Assert.Equal($"https://gateway.detara.test/sessions/{empresaId:D}",
+            capturada?.Uri?.ToString());
+        Assert.Equal(empresaId.ToString("D"), capturada?.TenantHeader);
     }
 
     private static WhatsAppGatewayClienteProvider CriarProvider(HttpClient http) => new(

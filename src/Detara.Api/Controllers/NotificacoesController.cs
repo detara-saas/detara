@@ -24,7 +24,8 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
         Ok(RespostaApi<ConfiguracaoNotificacaoResponse>.Ok(Mapear(await sender.Send(
             new AtualizarConfiguracaoNotificacaoCommand(
                 (CanalComunicacaoVeiculoPronto)(int)request.CanalAutomaticoVeiculoPronto,
-                request.ResponderParaEmail), ct)),
+                request.ResponderParaEmail,
+                request.PermitirComunicacaoWhatsApp), ct)),
             "Configurações de comunicação atualizadas."));
 
     [HttpGet("templates/veiculo-pronto"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
@@ -83,6 +84,30 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
             new IniciarConexaoWhatsAppCommand(), ct), incluirQrCode: true),
             "Conexão WhatsApp iniciada."));
 
+    [HttpDelete("whatsapp/conexao"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
+    [EnableRateLimiting("whatsapp-conectar")]
+    public async Task<ActionResult<RespostaApi<SessaoWhatsAppResponse>>> DesconectarWhatsApp(
+        CancellationToken ct) =>
+        Ok(RespostaApi<SessaoWhatsAppResponse>.Ok(Mapear(await sender.Send(
+            new DesconectarWhatsAppCommand(), ct), incluirQrCode: false),
+            "WhatsApp desconectado desta empresa."));
+
+    [HttpPost("whatsapp/teste"), Authorize(Policy = Permissoes.ConfiguracoesEditar)]
+    [EnableRateLimiting("notificacao-teste")]
+    public async Task<ActionResult<RespostaApi<ComunicacaoClienteResponse>>> TestarWhatsApp(
+        EnviarTesteWhatsAppRequest request, CancellationToken ct) =>
+        Ok(RespostaApi<ComunicacaoClienteResponse>.Ok(Mapear(await sender.Send(
+            new EnviarTesteWhatsAppCommand(request.Numero, request.Confirmado,
+                request.SolicitacaoId), ct)),
+            "Mensagem de teste agendada."));
+
+    [HttpGet("whatsapp/testes"), Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
+    public async Task<ActionResult<RespostaApi<IReadOnlyCollection<ComunicacaoClienteResponse>>>>
+        ObterTestesWhatsApp(CancellationToken ct) =>
+        Ok(RespostaApi<IReadOnlyCollection<ComunicacaoClienteResponse>>.Ok(
+            (await sender.Send(new ObterHistoricoTesteWhatsAppQuery(), ct))
+                .Select(Mapear).ToArray()));
+
     [HttpGet("ordens-servico/{ordemServicoId:guid}"), Authorize(Policy = Permissoes.OrdemServicoVisualizar)]
     public async Task<ActionResult<RespostaApi<NotificacaoOrdemServicoResponse>>> ObterPorOrdemServico(Guid ordemServicoId,
         CancellationToken ct)
@@ -126,7 +151,9 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
 
     private static ConfiguracaoNotificacaoResponse Mapear(ConfiguracaoNotificacaoVisualizacao x) =>
         new((CanalComunicacaoVeiculoProntoContrato)(int)x.CanalAutomaticoVeiculoPronto,
-            x.ResponderParaEmail, x.AtualizadoEmUtc);
+            x.ResponderParaEmail, x.PermitirComunicacaoWhatsApp,
+            x.DataAtivacaoWhatsAppEmUtc, x.UsuarioAtivacaoWhatsApp,
+            x.AtualizadoEmUtc);
     private static TemplateEmailResponse Mapear(TemplateEmailVisualizacao x) =>
         new(x.Assunto, x.CorpoHtml, (OrigemTemplateEmailContrato)(int)x.Origem, x.AtualizadoEmUtc);
     private static NotificacaoEmailResponse Mapear(NotificacaoEmailVisualizacao x) => new(x.Id, x.OrdemServicoId,
@@ -140,10 +167,12 @@ public sealed class NotificacoesController(ISender sender) : ControllerBase
             (TipoComunicacaoClienteContrato)(int)x.Tipo,
             (StatusComunicacaoClienteContrato)(int)x.Status,
             (OrigemComunicacaoClienteContrato)(int)x.Origem, x.Destinatario,
-            x.CriadoEmUtc, x.DataEnvioUtc, x.UltimoErroSeguro);
+            x.Mensagem, x.SolicitadoPorUsuarioNome, x.CriadoEmUtc,
+            x.DataEnvioUtc, x.UltimoErroSeguro);
     private static SessaoWhatsAppResponse Mapear(SessaoWhatsAppVisualizacao x,
         bool incluirQrCode) =>
         new((StatusSessaoWhatsAppContrato)(int)x.Status,
             incluirQrCode ? x.QrCodeDataUrl : null,
-            x.AtualizadoEmUtc, x.UltimaConexaoEmUtc, x.UltimoErroSeguro);
+            x.AtualizadoEmUtc, x.UltimaConexaoEmUtc, x.NumeroConectado,
+            x.UltimoErroSeguro);
 }

@@ -14,6 +14,14 @@ internal sealed class RenderizadorTemplateWhatsApp : IRenderizadorTemplateWhatsA
             $"Ficamos à disposição.\n\n{empresa}";
     }
 
+    public string RenderizarTeste(string empresaNome)
+    {
+        var empresa = Limpar(empresaNome);
+        return "Olá!\n\nEsta é uma mensagem de teste do Detara.\n\n" +
+            "Sua conexão WhatsApp está funcionando corretamente.\n\n" +
+            empresa;
+    }
+
     private static string Limpar(string valor) =>
         valor.Replace("\r", " ", StringComparison.Ordinal)
             .Replace("\n", " ", StringComparison.Ordinal).Trim();

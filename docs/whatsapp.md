@@ -12,11 +12,11 @@ O browser nunca acessa o gateway diretamente. A API resolve `EmpresaId` a partir
 
 ## Isolamento e persistência
 
-Cada empresa recebe a chave determinística `tenant-{EmpresaId:N}`. O `LocalAuth` do `whatsapp-web.js` usa essa chave como `clientId`, criando credenciais de sessão separadas no volume `detara-whatsapp-sessions`. O registro do gateway guarda somente metadados de sessão; QR Code, telefone e mensagem não são persistidos nele.
+Cada empresa recebe a chave determinística `tenant-{EmpresaId:N}`. O `LocalAuth` do `whatsapp-web.js` usa essa chave como `clientId`, criando credenciais de sessão separadas no volume `detara-whatsapp-sessions`. O registro do gateway guarda somente metadados de sessão e o número da conta conectada; QR Code, destinatários e mensagens não são persistidos nele.
 
-O SQL Server mantém `SessaoWhatsAppEmpresa`, com `EmpresaId`, `SessionKey`, status, datas, erro seguro e versão de concorrência. O filtro global de tenant e os índices únicos por empresa/chave impedem leitura cruzada no monólito. A credencial efetiva do WhatsApp permanece exclusivamente no volume do gateway.
+O SQL Server mantém `SessaoWhatsAppEmpresa`, com `EmpresaId`, `SessionKey`, status, número conectado, datas, erro seguro e versão de concorrência. O filtro global de tenant e os índices únicos por empresa/chave impedem leitura cruzada no monólito. A credencial efetiva do WhatsApp permanece exclusivamente no volume do gateway.
 
-Após reinício, o gateway carrega todas as sessões conhecidas e inicializa um cliente separado para cada empresa. Durante a restauração o estado é `Disconnected`; somente o evento `ready` libera envios novamente. Assim, metadados antigos não produzem um falso estado conectado.
+Após reinício, o gateway carrega todas as sessões conhecidas e inicializa um cliente separado para cada empresa. Durante a restauração o estado é `Reconnecting`; somente o evento `ready` libera envios novamente. Assim, metadados antigos não produzem um falso estado conectado.
 
 Faça backup criptografado do volume de sessões junto com o plano de recuperação. Perder esse volume exige nova leitura do QR Code. Não copie uma pasta de sessão entre empresas.
 
@@ -58,6 +58,14 @@ O default local escuta apenas `127.0.0.1:3000`. No Compose, a porta de diagnóst
 3. No celular da empresa, use **Aparelhos conectados** e leia o QR Code.
 4. Aguarde o estado **Conectado**.
 
+Os estados apresentados são **Desconectado**, **Conectando**, **Conectado**, **Erro** e **Reconectando**. Desconectar encerra somente a sessão do tenant atual e exige um novo QR Code na próxima conexão.
+
+## Consentimento e teste
+
+A preferência **Ativar envio de avisos operacionais via WhatsApp** controla somente o fluxo automático. Sua ativação registra data e usuário responsável; desativá-la não remove o histórico e não altera as permissões do envio manual.
+
+O teste de conexão exige número, confirmação explícita e `SolicitacaoId` idempotente. A mensagem usa o template fixo de teste, entra em `ComunicacoesCliente` com o tipo `TesteWhatsApp` e passa pelo mesmo worker tenant-safe do envio operacional.
+
 O QR Code é temporário, recebe `Cache-Control: no-store`, não é salvo pela API e só é devolvido nos endpoints protegidos de conexão. Consultas informativas da OS retornam apenas status.
 
 ## Envio e idempotência
@@ -72,10 +80,13 @@ Ao preparar uma comunicação WhatsApp, o worker envia `EmpresaId`, telefone, me
 
 Uma chave já enviada retorna o mesmo ID sem novo disparo. Se a conexão cair depois do início e o resultado ficar incerto, o registro permanece `InProgress` e o gateway bloqueia repetição automática para evitar mensagem duplicada. O operador recebe erro seguro e deve reconciliar antes de tentar outra solicitação.
 
+Além da idempotência técnica, uma OS bloqueia outra comunicação idêntica de veículo pronto para o mesmo canal, destinatário e mensagem durante cinco minutos após um envio confirmado. A resposta padrão é `Já existe uma comunicação enviada recentemente para este cliente.`
+
 Endpoints internos autenticados:
 
 - `POST /sessions/{empresaId}/connect`
 - `GET /sessions/{empresaId}/status`
+- `DELETE /sessions/{empresaId}`
 - `POST /messages/send`
 - `GET /healthz`
 

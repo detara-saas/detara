@@ -9,7 +9,9 @@ using MediatR;
 namespace Detara.Application.Notificacoes;
 
 public sealed record ConfiguracaoNotificacaoVisualizacao(CanalComunicacaoVeiculoPronto CanalAutomaticoVeiculoPronto,
-    string? ResponderParaEmail, DateTime? AtualizadoEmUtc);
+    string? ResponderParaEmail, bool PermitirComunicacaoWhatsApp,
+    DateTime? DataAtivacaoWhatsAppEmUtc, string? UsuarioAtivacaoWhatsApp,
+    DateTime? AtualizadoEmUtc);
 public sealed record TemplateEmailVisualizacao(string Assunto, string CorpoHtml, OrigemTemplateEmail Origem,
     DateTime? AtualizadoEmUtc);
 public sealed record NotificacaoEmailVisualizacao(Guid Id, Guid OrdemServicoId, StatusNotificacaoEmail Status,
@@ -20,17 +22,20 @@ public sealed record NotificacaoOrdemServicoVisualizacao(
     CanalComunicacaoVeiculoPronto CanalAutomaticoVeiculoPronto, string? EmailDestinoAtual,
     string? WhatsAppDestinoAtual, NotificacaoEmailVisualizacao? Notificacao,
     IReadOnlyCollection<ComunicacaoClienteVisualizacao> Comunicacoes);
-public sealed record ComunicacaoClienteVisualizacao(Guid Id, Guid OrdemServicoId,
+public sealed record ComunicacaoClienteVisualizacao(Guid Id, Guid? OrdemServicoId,
     CanalComunicacaoCliente Canal, TipoComunicacaoCliente Tipo, StatusComunicacaoCliente Status,
-    OrigemComunicacaoCliente Origem, string? Destinatario,
-    DateTime CriadoEmUtc, DateTime? DataEnvioUtc, string? UltimoErroSeguro);
+    OrigemComunicacaoCliente Origem, string? Destinatario, string Mensagem,
+    string? SolicitadoPorUsuarioNome, DateTime CriadoEmUtc,
+    DateTime? DataEnvioUtc, string? UltimoErroSeguro);
 public sealed record SessaoWhatsAppVisualizacao(StatusSessaoWhatsApp Status,
     string? QrCodeDataUrl, DateTime? AtualizadoEmUtc,
-    DateTime? UltimaConexaoEmUtc, string? UltimoErroSeguro);
+    DateTime? UltimaConexaoEmUtc, string? NumeroConectado,
+    string? UltimoErroSeguro);
 
 public sealed record ObterConfiguracaoNotificacaoQuery : IRequest<ConfiguracaoNotificacaoVisualizacao>;
 public sealed record AtualizarConfiguracaoNotificacaoCommand(CanalComunicacaoVeiculoPronto CanalAutomaticoVeiculoPronto,
-    string? ResponderParaEmail) : IRequest<ConfiguracaoNotificacaoVisualizacao>;
+    string? ResponderParaEmail, bool PermitirComunicacaoWhatsApp)
+    : IRequest<ConfiguracaoNotificacaoVisualizacao>;
 public sealed record ObterTemplateVeiculoProntoQuery : IRequest<TemplateEmailVisualizacao>;
 public sealed record SalvarTemplateVeiculoProntoCommand(string Assunto, string CorpoHtml) : IRequest<TemplateEmailVisualizacao>;
 public sealed record RestaurarTemplateVeiculoProntoCommand : IRequest<TemplateEmailVisualizacao>;
@@ -45,6 +50,11 @@ public sealed record ComunicarClienteVeiculoProntoCommand(Guid OrdemServicoId,
     CanalComunicacaoCliente Canal, Guid SolicitacaoId) : IRequest<ComunicacaoClienteVisualizacao>;
 public sealed record ObterStatusSessaoWhatsAppQuery : IRequest<SessaoWhatsAppVisualizacao>;
 public sealed record IniciarConexaoWhatsAppCommand : IRequest<SessaoWhatsAppVisualizacao>;
+public sealed record DesconectarWhatsAppCommand : IRequest<SessaoWhatsAppVisualizacao>;
+public sealed record EnviarTesteWhatsAppCommand(string Numero, bool Confirmado,
+    Guid SolicitacaoId) : IRequest<ComunicacaoClienteVisualizacao>;
+public sealed record ObterHistoricoTesteWhatsAppQuery
+    : IRequest<IReadOnlyCollection<ComunicacaoClienteVisualizacao>>;
 
 internal sealed class ComunicarClienteVeiculoProntoValidator : AbstractValidator<ComunicarClienteVeiculoProntoCommand>
 {
@@ -52,6 +62,19 @@ internal sealed class ComunicarClienteVeiculoProntoValidator : AbstractValidator
     {
         RuleFor(x => x.SolicitacaoId).NotEmpty();
         RuleFor(x => x.Canal).IsInEnum();
+    }
+}
+
+internal sealed class EnviarTesteWhatsAppValidator : AbstractValidator<EnviarTesteWhatsAppCommand>
+{
+    public EnviarTesteWhatsAppValidator()
+    {
+        RuleFor(x => x.SolicitacaoId).NotEmpty();
+        RuleFor(x => x.Numero).NotEmpty().MaximumLength(32)
+            .Must(x => NotificacoesFluxo.NormalizarWhatsAppValido(x) is not null)
+            .WithMessage("Informe um número de WhatsApp válido com DDD e código do país.");
+        RuleFor(x => x.Confirmado).Equal(true)
+            .WithMessage("Confirme o envio da mensagem de teste.");
     }
 }
 
@@ -89,17 +112,26 @@ internal sealed class VisualizarTemplateVeiculoProntoValidator : AbstractValidat
     }
 }
 
-internal sealed class ObterConfiguracaoNotificacaoHandler(INotificacoesRepositorio repositorio)
+internal sealed class ObterConfiguracaoNotificacaoHandler(IUsuarioContexto usuario,
+    INotificacoesRepositorio repositorio, IPlataformaNotificacoesConsulta plataforma)
     : IRequestHandler<ObterConfiguracaoNotificacaoQuery, ConfiguracaoNotificacaoVisualizacao>
 {
     public async Task<ConfiguracaoNotificacaoVisualizacao> Handle(ObterConfiguracaoNotificacaoQuery request, CancellationToken ct)
     {
         var item = await repositorio.ObterConfiguracaoAsync(ct);
-        return item is null ? new(CanalComunicacaoVeiculoPronto.Nenhum, null, null) : NotificacoesFluxo.Mapear(item);
+        if (item is null)
+            return new(CanalComunicacaoVeiculoPronto.Nenhum, null, false,
+                null, null, null);
+        var nomeUsuario = item.UsuarioAtivacaoWhatsAppId.HasValue
+            ? (await plataforma.ObterUsuarioAsync(usuario.EmpresaId,
+                item.UsuarioAtivacaoWhatsAppId.Value, ct))?.Nome
+            : null;
+        return NotificacoesFluxo.Mapear(item, nomeUsuario);
     }
 }
 
-internal sealed class AtualizarConfiguracaoNotificacaoHandler(IUsuarioContexto usuario, INotificacoesRepositorio repositorio)
+internal sealed class AtualizarConfiguracaoNotificacaoHandler(IUsuarioContexto usuario,
+    INotificacoesRepositorio repositorio, IPlataformaNotificacoesConsulta plataforma)
     : IRequestHandler<AtualizarConfiguracaoNotificacaoCommand, ConfiguracaoNotificacaoVisualizacao>
 {
     public async Task<ConfiguracaoNotificacaoVisualizacao> Handle(AtualizarConfiguracaoNotificacaoCommand request, CancellationToken ct)
@@ -107,12 +139,20 @@ internal sealed class AtualizarConfiguracaoNotificacaoHandler(IUsuarioContexto u
         var item = await repositorio.ObterConfiguracaoAsync(ct);
         if (item is null)
         {
-            item = new(usuario.EmpresaId, request.CanalAutomaticoVeiculoPronto, request.ResponderParaEmail, usuario.UsuarioId);
+            item = new(usuario.EmpresaId, request.CanalAutomaticoVeiculoPronto,
+                request.PermitirComunicacaoWhatsApp, request.ResponderParaEmail,
+                usuario.UsuarioId);
             repositorio.Adicionar(item);
         }
-        else item.Atualizar(request.CanalAutomaticoVeiculoPronto, request.ResponderParaEmail, usuario.UsuarioId);
+        else item.Atualizar(request.CanalAutomaticoVeiculoPronto,
+            request.PermitirComunicacaoWhatsApp, request.ResponderParaEmail,
+            usuario.UsuarioId);
         await repositorio.SalvarAsync(ct);
-        return NotificacoesFluxo.Mapear(item);
+        var nomeUsuario = item.UsuarioAtivacaoWhatsAppId.HasValue
+            ? (await plataforma.ObterUsuarioAsync(usuario.EmpresaId,
+                item.UsuarioAtivacaoWhatsAppId.Value, ct))?.Nome
+            : null;
+        return NotificacoesFluxo.Mapear(item, nomeUsuario);
     }
 }
 
@@ -128,7 +168,7 @@ internal sealed class ObterStatusSessaoWhatsAppHandler(IUsuarioContexto usuario,
         if (sessao is not null)
         {
             sessao.AtualizarStatus(estado.Status, estado.UltimaConexaoEmUtc,
-                estado.ErroSeguro);
+                estado.ErroSeguro, estado.NumeroConectado);
             await repositorio.SalvarAsync(ct);
         }
         return Mapear(estado);
@@ -137,7 +177,8 @@ internal sealed class ObterStatusSessaoWhatsAppHandler(IUsuarioContexto usuario,
     internal static SessaoWhatsAppVisualizacao Mapear(
         EstadoConexaoWhatsAppClienteProvider estado) =>
         new(estado.Status, estado.QrCodeDataUrl, estado.AtualizadoEmUtc,
-            estado.UltimaConexaoEmUtc, estado.ErroSeguro);
+            estado.UltimaConexaoEmUtc, estado.NumeroConectado,
+            estado.ErroSeguro);
 }
 
 internal sealed class IniciarConexaoWhatsAppHandler(IUsuarioContexto usuario,
@@ -156,8 +197,27 @@ internal sealed class IniciarConexaoWhatsAppHandler(IUsuarioContexto usuario,
         }
         var estado = await provider.IniciarConexaoAsync(usuario.EmpresaId, ct);
         sessao.AtualizarStatus(estado.Status, estado.UltimaConexaoEmUtc,
-            estado.ErroSeguro);
+            estado.ErroSeguro, estado.NumeroConectado);
         await repositorio.SalvarAsync(ct);
+        return ObterStatusSessaoWhatsAppHandler.Mapear(estado);
+    }
+}
+
+internal sealed class DesconectarWhatsAppHandler(IUsuarioContexto usuario,
+    INotificacoesRepositorio repositorio, IWhatsAppClienteProvider provider)
+    : IRequestHandler<DesconectarWhatsAppCommand, SessaoWhatsAppVisualizacao>
+{
+    public async Task<SessaoWhatsAppVisualizacao> Handle(
+        DesconectarWhatsAppCommand request, CancellationToken ct)
+    {
+        var estado = await provider.DesconectarAsync(usuario.EmpresaId, ct);
+        var sessao = await repositorio.ObterSessaoWhatsAppAsync(true, ct);
+        if (sessao is not null)
+        {
+            sessao.AtualizarStatus(StatusSessaoWhatsApp.Desconectada,
+                estado.UltimaConexaoEmUtc, null, null);
+            await repositorio.SalvarAsync(ct);
+        }
         return ObterStatusSessaoWhatsAppHandler.Mapear(estado);
     }
 }
@@ -233,9 +293,70 @@ internal sealed class EnviarTesteVeiculoProntoHandler(IUsuarioContexto usuario, 
     }
 }
 
+internal sealed class EnviarTesteWhatsAppHandler(IUsuarioContexto usuario,
+    INotificacoesRepositorio repositorio, IPlataformaNotificacoesConsulta plataforma,
+    IRenderizadorTemplateWhatsApp renderer, IWhatsAppClienteProvider provider)
+    : IRequestHandler<EnviarTesteWhatsAppCommand, ComunicacaoClienteVisualizacao>
+{
+    public async Task<ComunicacaoClienteVisualizacao> Handle(
+        EnviarTesteWhatsAppCommand request, CancellationToken ct)
+    {
+        if (!request.Confirmado)
+            throw new ConflitoRegraNegocioException(
+                "Confirme o envio da mensagem de teste.");
+        var repetida = await repositorio.ObterComunicacaoPorIdAsync(
+            request.SolicitacaoId, false, ct);
+        if (repetida is not null)
+        {
+            if (repetida.Tipo != TipoComunicacaoCliente.TesteWhatsApp)
+                throw new ConflitoRegraNegocioException(
+                    "A solicitação de teste é inválida.");
+            return NotificacoesFluxo.Mapear(repetida, null);
+        }
+
+        var estado = await provider.ObterStatusAsync(usuario.EmpresaId, ct);
+        if (estado.Status != StatusSessaoWhatsApp.Conectada)
+            throw new ConflitoRegraNegocioException(
+                "Conecte o WhatsApp da empresa antes de testar o envio.");
+        var empresa = await plataforma.ObterEmpresaAsync(usuario.EmpresaId, ct)
+            ?? throw new RecursoNaoEncontradoException("Empresa não encontrada.");
+        var numero = NotificacoesFluxo.NormalizarWhatsAppValido(request.Numero)
+            ?? throw new ConflitoRegraNegocioException(
+                "Informe um número de WhatsApp válido com DDD e código do país.");
+        var comunicacao = ComunicacaoCliente.CriarTesteWhatsApp(
+            request.SolicitacaoId, usuario.EmpresaId,
+            renderer.RenderizarTeste(empresa.Nome), numero, usuario.UsuarioId);
+        if (!await repositorio.TentarAdicionarComunicacaoESalvarAsync(
+            comunicacao, null, ct))
+        {
+            var concorrente = await repositorio.ObterComunicacaoPorIdAsync(
+                request.SolicitacaoId, false, ct)
+                ?? throw new ConflitoRegraNegocioException(
+                    "O teste já foi solicitado.");
+            return NotificacoesFluxo.Mapear(concorrente, null);
+        }
+        var solicitante = await plataforma.ObterUsuarioAsync(usuario.EmpresaId,
+            usuario.UsuarioId, ct);
+        return NotificacoesFluxo.Mapear(comunicacao, solicitante?.Nome);
+    }
+}
+
+internal sealed class ObterHistoricoTesteWhatsAppHandler(IUsuarioContexto usuario,
+    INotificacoesRepositorio repositorio, IPlataformaNotificacoesConsulta plataforma)
+    : IRequestHandler<ObterHistoricoTesteWhatsAppQuery,
+        IReadOnlyCollection<ComunicacaoClienteVisualizacao>>
+{
+    public async Task<IReadOnlyCollection<ComunicacaoClienteVisualizacao>> Handle(
+        ObterHistoricoTesteWhatsAppQuery request, CancellationToken ct) =>
+        await NotificacoesFluxo.MapearComUsuariosAsync(
+            await repositorio.ObterTestesWhatsAppAsync(10, ct), plataforma,
+            usuario.EmpresaId, ct);
+}
+
 internal sealed class ObterNotificacaoOrdemServicoHandler(IUsuarioContexto usuario,
     INotificacoesRepositorio repositorio, IClientesNotificacoesConsulta clientes,
-    IAtendimentoNotificacoesConsulta atendimento)
+    IAtendimentoNotificacoesConsulta atendimento,
+    IPlataformaNotificacoesConsulta plataforma)
     : IRequestHandler<ObterNotificacaoOrdemServicoQuery, NotificacaoOrdemServicoVisualizacao>
 {
     public async Task<NotificacaoOrdemServicoVisualizacao> Handle(
@@ -255,7 +376,8 @@ internal sealed class ObterNotificacaoOrdemServicoHandler(IUsuarioContexto usuar
             NotificacoesFluxo.NormalizarEmailValido(cliente?.Email),
             NotificacoesFluxo.NormalizarWhatsAppValido(cliente?.WhatsApp),
             item is null ? null : NotificacoesFluxo.Mapear(item),
-            comunicacoes.Select(NotificacoesFluxo.Mapear).ToArray());
+            await NotificacoesFluxo.MapearComUsuariosAsync(comunicacoes,
+                plataforma, usuario.EmpresaId, ct));
     }
 }
 
@@ -363,6 +485,8 @@ public sealed class ComunicacaoClienteService(IUsuarioContexto usuario,
         var config = await repositorio.ObterConfiguracaoAsync(ct);
         var canal = NotificacoesFluxo.MapearCanal(config?.CanalAutomaticoVeiculoPronto ??
             CanalComunicacaoVeiculoPronto.Nenhum);
+        if (canal == CanalComunicacaoCliente.WhatsApp &&
+            config?.PermitirComunicacaoWhatsApp != true) return;
         if (!canal.HasValue || await repositorio.ObterComunicacaoPorIdAsync(
             evento.OrdemServicoId, false, ct) is not null) return;
 
@@ -402,6 +526,13 @@ public sealed class ComunicacaoClienteService(IUsuarioContexto usuario,
         var preparada = await CriarAsync(solicitacaoId, ordem, canal,
             OrigemComunicacaoCliente.Manual, usuario.UsuarioId, config,
             exigirDestinatario: true, ct);
+        if (await repositorio.ExisteComunicacaoEnviadaRecenteAsync(
+            ordemServicoId, canal, TipoComunicacaoCliente.VeiculoPronto,
+            preparada.Comunicacao.Mensagem,
+            preparada.Comunicacao.DestinatarioSnapshot!,
+            DateTime.UtcNow.AddMinutes(-5), ct))
+            throw new ConflitoRegraNegocioException(
+                "Já existe uma comunicação enviada recentemente para este cliente.");
         if (!await repositorio.TentarAdicionarComunicacaoESalvarAsync(
             preparada.Comunicacao, preparada.NotificacaoEmail, ct))
         {
@@ -512,8 +643,11 @@ internal static class NotificacoesFluxo
         StatusNotificacaoEmail.Enviada => "O aviso já foi enviado. Use a ação de reenvio para criar uma nova comunicação.",
         _ => "A notificação existente deve ser tentada novamente antes de criar outro envio."
     };
-    public static ConfiguracaoNotificacaoVisualizacao Mapear(ConfiguracaoNotificacaoEmpresa item) =>
-        new(item.CanalAutomaticoVeiculoPronto, item.ResponderParaEmail, item.AtualizadoEmUtc ?? item.CriadoEmUtc);
+    public static ConfiguracaoNotificacaoVisualizacao Mapear(
+        ConfiguracaoNotificacaoEmpresa item, string? usuarioAtivacaoWhatsApp) =>
+        new(item.CanalAutomaticoVeiculoPronto, item.ResponderParaEmail,
+            item.PermitirComunicacaoWhatsApp, item.DataAtivacaoWhatsAppEmUtc,
+            usuarioAtivacaoWhatsApp, item.AtualizadoEmUtc ?? item.CriadoEmUtc);
     public static TemplateEmailVisualizacao Mapear(TemplateEmailEmpresa? item, IRenderizadorTemplateEmail renderer)
     {
         if (item is not null) return new(item.Assunto, item.CorpoHtmlSanitizado,
@@ -525,8 +659,31 @@ internal static class NotificacoesFluxo
         item.Status, item.DestinatarioEmailSnapshot, item.DestinatarioNomeSnapshot, item.OrigemTemplate,
         item.QuantidadeTentativas, item.CriadoEmUtc, item.EnviadaEmUtc, item.UltimoErroSeguro,
         item.Tentativas.OrderByDescending(x => x.Numero).ToArray());
-    public static ComunicacaoClienteVisualizacao Mapear(ComunicacaoCliente item) =>
+    public static ComunicacaoClienteVisualizacao Mapear(ComunicacaoCliente item,
+        string? solicitadoPorUsuarioNome = null) =>
         new(item.Id, item.OrdemServicoId, item.Canal, item.Tipo, item.Status,
-            item.Origem, item.DestinatarioSnapshot, item.CriadoEmUtc,
+            item.Origem, item.DestinatarioSnapshot, item.Mensagem,
+            solicitadoPorUsuarioNome, item.CriadoEmUtc,
             item.DataEnvioUtc, item.UltimoErroSeguro);
+
+    public static async Task<IReadOnlyCollection<ComunicacaoClienteVisualizacao>>
+        MapearComUsuariosAsync(IReadOnlyCollection<ComunicacaoCliente> itens,
+            IPlataformaNotificacoesConsulta plataforma, Guid empresaId,
+            CancellationToken ct)
+    {
+        var nomes = new Dictionary<Guid, string>();
+        foreach (var usuarioId in itens.Where(x => x.SolicitadoPorUsuarioId.HasValue)
+                     .Select(x => x.SolicitadoPorUsuarioId!.Value).Distinct())
+        {
+            var usuario = await plataforma.ObterUsuarioAsync(empresaId, usuarioId, ct);
+            if (usuario is not null) nomes[usuarioId] = usuario.Nome;
+        }
+        return itens.Select(x => Mapear(x,
+            x.SolicitadoPorUsuarioId.HasValue &&
+            nomes.TryGetValue(x.SolicitadoPorUsuarioId.Value, out var nome)
+                ? nome
+                : x.Origem == OrigemComunicacaoCliente.Automatica
+                    ? "Automático Detara"
+                    : null)).ToArray();
+    }
 }

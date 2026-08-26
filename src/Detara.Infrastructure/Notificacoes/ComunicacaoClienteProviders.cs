@@ -44,6 +44,11 @@ internal sealed class WhatsAppGatewayClienteProvider(HttpClient httpClient,
         ConsultarConexaoAsync(HttpMethod.Get,
             $"sessions/{empresaId:D}/status", empresaId, cancellationToken);
 
+    public Task<EstadoConexaoWhatsAppClienteProvider> DesconectarAsync(
+        Guid empresaId, CancellationToken cancellationToken) =>
+        ConsultarConexaoAsync(HttpMethod.Delete,
+            $"sessions/{empresaId:D}", empresaId, cancellationToken);
+
     public async Task<ResultadoEnvioComunicacaoCliente> EnviarAsync(
         MensagemWhatsAppClienteProvider mensagem, CancellationToken cancellationToken)
     {
@@ -103,7 +108,8 @@ internal sealed class WhatsAppGatewayClienteProvider(HttpClient httpClient,
             if (payload is null || !TentarMapearStatus(payload.Status, out var status))
                 return Erro("O gateway WhatsApp retornou uma resposta inválida.");
             return new(status, ValidarQrCode(payload.QrCode),
-                payload.UpdatedAt?.UtcDateTime, payload.LastConnectedAt?.UtcDateTime, null);
+                payload.UpdatedAt?.UtcDateTime, payload.LastConnectedAt?.UtcDateTime,
+                ValidarNumero(payload.PhoneNumber), null);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -140,12 +146,20 @@ internal sealed class WhatsAppGatewayClienteProvider(HttpClient httpClient,
         resultado = status switch
         {
             "Disconnected" => StatusSessaoWhatsApp.Desconectada,
-            "WaitingQRCode" => StatusSessaoWhatsApp.AguardandoQrCode,
+            "Connecting" or "WaitingQRCode" => StatusSessaoWhatsApp.Conectando,
             "Connected" => StatusSessaoWhatsApp.Conectada,
             "Error" => StatusSessaoWhatsApp.Erro,
+            "Reconnecting" => StatusSessaoWhatsApp.Reconectando,
             _ => (StatusSessaoWhatsApp)(-1)
         };
         return Enum.IsDefined(resultado);
+    }
+
+    private static string? ValidarNumero(string? numero)
+    {
+        if (string.IsNullOrWhiteSpace(numero)) return null;
+        var digitos = new string(numero.Where(char.IsDigit).ToArray());
+        return digitos.Length is >= 8 and <= 15 ? digitos : null;
     }
 
     private static string? ValidarQrCode(string? qrCode)
@@ -194,10 +208,11 @@ internal sealed class WhatsAppGatewayClienteProvider(HttpClient httpClient,
     }
 
     private static EstadoConexaoWhatsAppClienteProvider Erro(string mensagem) =>
-        new(StatusSessaoWhatsApp.Erro, null, null, null, mensagem);
+        new(StatusSessaoWhatsApp.Erro, null, null, null, null, mensagem);
 
     private sealed record StatusGatewayResponse(string? Status, string? QrCode,
-        DateTimeOffset? UpdatedAt, DateTimeOffset? LastConnectedAt);
+        DateTimeOffset? UpdatedAt, DateTimeOffset? LastConnectedAt,
+        string? PhoneNumber);
     private sealed record EnvioGatewayResponse(string? Status, string? MessageId,
         DateTimeOffset? SentAt, bool Reused);
     private sealed record ErroGatewayResponse(string? Code);

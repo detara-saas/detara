@@ -13,7 +13,13 @@ public interface INotificacoesRepositorio
         CancellationToken cancellationToken);
     Task<IReadOnlyCollection<ComunicacaoCliente>> ObterComunicacoesPorOrdemServicoAsync(
         Guid ordemServicoId, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<ComunicacaoCliente>> ObterTestesWhatsAppAsync(
+        int limite, CancellationToken cancellationToken);
     Task<bool> ExisteComunicacaoPendenteAsync(Guid ordemServicoId, CancellationToken cancellationToken);
+    Task<bool> ExisteComunicacaoEnviadaRecenteAsync(Guid ordemServicoId,
+        CanalComunicacaoCliente canal, TipoComunicacaoCliente tipo,
+        string mensagem, string destinatario, DateTime desdeEmUtc,
+        CancellationToken cancellationToken);
     Task<SessaoWhatsAppEmpresa?> ObterSessaoWhatsAppAsync(bool paraAlteracao,
         CancellationToken cancellationToken);
     Task<bool> ExistePorOrdemServicoAsync(Guid ordemServicoId, TipoTemplateEmail tipo, CancellationToken cancellationToken);
@@ -71,6 +77,7 @@ public interface IRenderizadorTemplateEmail
 public interface IRenderizadorTemplateWhatsApp
 {
     string RenderizarVeiculoPronto(DadosTemplateEmail dados);
+    string RenderizarTeste(string empresaNome);
 }
 
 public sealed record OrdemServicoFinalizadaNotificacoes(Guid EmpresaId, Guid OrdemServicoId,

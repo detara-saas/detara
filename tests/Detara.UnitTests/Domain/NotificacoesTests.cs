@@ -59,6 +59,18 @@ public sealed class NotificacoesTests
             Guid.NewGuid(), (CanalComunicacaoVeiculoPronto)99, null, Guid.NewGuid()));
 
     [Fact]
+    public void Configuracao_AtivacaoWhatsAppRegistraAuditoria()
+    {
+        var usuarioId = Guid.NewGuid();
+        var configuracao = new ConfiguracaoNotificacaoEmpresa(Guid.NewGuid(),
+            CanalComunicacaoVeiculoPronto.WhatsApp, true, null, usuarioId);
+
+        Assert.True(configuracao.PermitirComunicacaoWhatsApp);
+        Assert.Equal(usuarioId, configuracao.UsuarioAtivacaoWhatsAppId);
+        Assert.NotNull(configuracao.DataAtivacaoWhatsAppEmUtc);
+    }
+
+    [Fact]
     public void ComunicacaoWhatsApp_ComDestinatarioNascePendente()
     {
         var comunicacao = new ComunicacaoCliente(Guid.NewGuid(), Guid.NewGuid(),
@@ -80,6 +92,18 @@ public sealed class NotificacoesTests
 
         Assert.Equal(StatusComunicacaoCliente.Falhou, comunicacao.Status);
         Assert.Contains("e-mail", comunicacao.UltimoErroSeguro);
+    }
+
+    [Fact]
+    public void TesteWhatsApp_NaoInventaClienteOuOrdemServico()
+    {
+        var comunicacao = ComunicacaoCliente.CriarTesteWhatsApp(Guid.NewGuid(),
+            Guid.NewGuid(), "Mensagem de teste", "5541999990000", Guid.NewGuid());
+
+        Assert.Equal(TipoComunicacaoCliente.TesteWhatsApp, comunicacao.Tipo);
+        Assert.Null(comunicacao.ClienteId);
+        Assert.Null(comunicacao.OrdemServicoId);
+        Assert.Equal(StatusComunicacaoCliente.Pendente, comunicacao.Status);
     }
 
     [Fact]
@@ -105,12 +129,14 @@ public sealed class NotificacoesTests
         var ultimaConexao = DateTime.UtcNow;
         var sessao = new SessaoWhatsAppEmpresa(empresaId, $"tenant-{empresaId:N}");
 
-        sessao.AtualizarStatus(StatusSessaoWhatsApp.Conectada, ultimaConexao);
+        sessao.AtualizarStatus(StatusSessaoWhatsApp.Conectada, ultimaConexao,
+            numeroConectado: "5541999990000");
 
         Assert.Equal(empresaId, sessao.EmpresaId);
         Assert.Equal($"tenant-{empresaId:N}", sessao.SessionKey);
         Assert.Equal(StatusSessaoWhatsApp.Conectada, sessao.Status);
         Assert.Equal(ultimaConexao, sessao.UltimaConexaoEmUtc);
+        Assert.Equal("5541999990000", sessao.NumeroConectado);
         Assert.Null(sessao.UltimoErroSeguro);
     }
 
