@@ -6,7 +6,8 @@ namespace Detara.Application.Notificacoes;
 public interface INotificacoesRepositorio
 {
     Task<ConfiguracaoNotificacaoEmpresa?> ObterConfiguracaoAsync(CancellationToken cancellationToken);
-    Task<TemplateEmailEmpresa?> ObterTemplateAsync(TipoTemplateEmail tipo, bool paraAlteracao, CancellationToken cancellationToken);
+    Task<TemplateComunicacaoEmpresa?> ObterTemplateAsync(CanalComunicacaoCliente canal,
+        TipoTemplateComunicacao tipo, bool paraAlteracao, CancellationToken cancellationToken);
     Task<NotificacaoEmail?> ObterUltimaPorOrdemServicoAsync(Guid ordemServicoId, bool paraAlteracao, CancellationToken cancellationToken);
     Task<NotificacaoEmail?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken);
     Task<ComunicacaoCliente?> ObterComunicacaoPorIdAsync(Guid id, bool paraAlteracao,
@@ -24,11 +25,11 @@ public interface INotificacoesRepositorio
         CancellationToken cancellationToken);
     Task<bool> ExistePorOrdemServicoAsync(Guid ordemServicoId, TipoTemplateEmail tipo, CancellationToken cancellationToken);
     void Adicionar(ConfiguracaoNotificacaoEmpresa configuracao);
-    void Adicionar(TemplateEmailEmpresa template);
+    void Adicionar(TemplateComunicacaoEmpresa template);
     void Adicionar(NotificacaoEmail notificacao);
     void Adicionar(ComunicacaoCliente comunicacao);
     void Adicionar(SessaoWhatsAppEmpresa sessao);
-    void Remover(TemplateEmailEmpresa template);
+    void Remover(TemplateComunicacaoEmpresa template);
     Task<bool> TentarAdicionarESalvarAsync(NotificacaoEmail notificacao, CancellationToken cancellationToken);
     Task<bool> TentarAdicionarComunicacaoESalvarAsync(ComunicacaoCliente comunicacao,
         NotificacaoEmail? notificacaoEmail, CancellationToken cancellationToken);
@@ -62,6 +63,8 @@ public interface IAtendimentoNotificacoesConsulta
 }
 
 public sealed record ConteudoTemplateEmail(string Assunto, string CorpoHtml, OrigemTemplateEmail Origem);
+public sealed record ConteudoTemplateWhatsApp(string Nome, string Mensagem,
+    OrigemTemplateComunicacao Origem);
 public sealed record DadosTemplateEmail(string EmpresaNome, string ClienteNome, string VeiculoDescricao,
     string? Placa, string OrdemServicoCodigo);
 public sealed record EmailRenderizado(string Assunto, string CorpoHtmlCompleto);
@@ -76,7 +79,10 @@ public interface IRenderizadorTemplateEmail
 
 public interface IRenderizadorTemplateWhatsApp
 {
-    string RenderizarVeiculoPronto(DadosTemplateEmail dados);
+    ConteudoTemplateWhatsApp ObterPadraoVeiculoPronto();
+    string SanitizarEValidarMensagem(string mensagem);
+    void ValidarTokens(string mensagem);
+    string RenderizarVeiculoPronto(ConteudoTemplateWhatsApp template, DadosTemplateEmail dados);
     string RenderizarTeste(string empresaNome);
 }
 

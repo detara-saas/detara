@@ -158,7 +158,7 @@ pagamentos confirmados por data de recebimento; pagamentos estornados são exclu
 A migration `AddNotificacoesEmail` adiciona:
 
 - `ConfiguracoesNotificacaoEmpresa`, única por `EmpresaId`, com um único canal automático (`Nenhum`, `Email` ou `WhatsApp`) e Reply-To opcional;
-- `TemplatesEmailEmpresa`, único por `(EmpresaId, Tipo)`, contendo somente assunto e HTML já sanitizado;
+- `TemplatesEmailEmpresa`, estrutura original de templates exclusivos de e-mail;
 - `NotificacoesEmail`, com destinatário, nome, assunto, corpo HTML completo, Reply-To e origem do template preservados como snapshots;
 - `TentativasNotificacaoEmail`, com número, origem automática/manual, responsável opcional, resultado, instante, ID do provedor e erro seguro;
 - `ComunicacoesCliente`, histórico por OS com canal, tipo, mensagem snapshot, destinatário, origem, status, data de envio e erro seguro;
@@ -173,7 +173,9 @@ A migration `AddWhatsAppGatewaySession` adiciona `SessoesWhatsAppEmpresa`, únic
 
 A migration `FinalizaExperienciaWhatsApp` adiciona o número da conta conectada aos metadados da sessão, o consentimento auditável (`PermitirComunicacaoWhatsApp`, data e usuário de ativação) e permite que `ComunicacoesCliente` registre testes de conexão sem inventar Cliente ou Ordem de Serviço. Testes usam `ClienteId` e `OrdemServicoId` nulos, tipo explícito `TesteWhatsApp` e continuam protegidos pelo `EmpresaId` obrigatório e pelo filtro global de tenant.
 
-A ausência de configuração significa envio automático desabilitado; GET não cria registros. O template padrão também não é seed: é materializado dinamicamente pela aplicação, e restaurar o padrão remove a customização do tenant. Não existem FKs para Empresa, OS, Cliente ou Usuário. `NotificacaoEmail.Versao` protege o claim otimista da fila, enquanto a idempotência externa usa `notificacao-email/{Id}`.
+A migration `RefinaTemplatesComunicacao` renomeia `TemplatesEmailEmpresa` para `TemplatesComunicacaoEmpresa` sem descartar os registros existentes, preserva o HTML na coluna genérica `Conteudo` e classifica os dados migrados como canal `Email`. A nova chave única `(EmpresaId, Canal, Tipo)` permite que Email e WhatsApp mantenham templates independentes. `ComunicacoesCliente.TemplateNomeSnapshot` registra o template efetivamente usado sem reescrever históricos anteriores.
+
+A ausência de configuração significa envio automático desabilitado; GET não cria registros. Os templates padrão de Email e WhatsApp também não são seed: são materializados dinamicamente pela aplicação, e restaurar o padrão remove somente a customização daquele canal no tenant. Não existem FKs para Empresa, OS, Cliente ou Usuário. `NotificacaoEmail.Versao` protege o claim otimista da fila, enquanto a idempotência externa usa `notificacao-email/{Id}`.
 
 Aplicação de migration:
 

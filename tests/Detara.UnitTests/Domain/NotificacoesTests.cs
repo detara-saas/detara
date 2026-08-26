@@ -51,7 +51,15 @@ public sealed class NotificacoesTests
 
     [Fact]
     public void Template_RejeitaAssuntoComQuebraDeLinha() => Assert.Throws<ArgumentException>(() =>
-        new TemplateEmailEmpresa(Guid.NewGuid(), TipoTemplateEmail.VeiculoProntoRetirada, "Assunto\r\nBcc:x", "<p>Corpo</p>", Guid.NewGuid()));
+        new TemplateComunicacaoEmpresa(Guid.NewGuid(), CanalComunicacaoCliente.Email,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, "Veículo pronto para retirada",
+            "Assunto\r\nBcc:x", "<p>Corpo</p>", Guid.NewGuid()));
+
+    [Fact]
+    public void TemplateWhatsApp_RejeitaAssunto() => Assert.Throws<ArgumentException>(() =>
+        new TemplateComunicacaoEmpresa(Guid.NewGuid(), CanalComunicacaoCliente.WhatsApp,
+            TipoTemplateComunicacao.VeiculoProntoRetirada, "Veículo pronto para retirada",
+            "Assunto indevido", "Olá, {ClienteNome}!", Guid.NewGuid()));
 
     [Fact]
     public void Configuracao_RejeitaCanalAutomaticoInvalido() =>

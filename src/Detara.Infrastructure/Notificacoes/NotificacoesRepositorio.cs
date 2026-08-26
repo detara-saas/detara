@@ -11,9 +11,10 @@ internal sealed class NotificacoesRepositorio(DetaraDbContext db) : INotificacoe
     public Task<ConfiguracaoNotificacaoEmpresa?> ObterConfiguracaoAsync(CancellationToken ct) =>
         db.ConfiguracoesNotificacaoEmpresa.SingleOrDefaultAsync(ct);
 
-    public Task<TemplateEmailEmpresa?> ObterTemplateAsync(TipoTemplateEmail tipo, bool paraAlteracao, CancellationToken ct)
+    public Task<TemplateComunicacaoEmpresa?> ObterTemplateAsync(CanalComunicacaoCliente canal,
+        TipoTemplateComunicacao tipo, bool paraAlteracao, CancellationToken ct)
     {
-        var query = db.TemplatesEmailEmpresa.Where(x => x.Tipo == tipo);
+        var query = db.TemplatesComunicacaoEmpresa.Where(x => x.Canal == canal && x.Tipo == tipo);
         return (paraAlteracao ? query : query.AsNoTracking()).SingleOrDefaultAsync(ct);
     }
 
@@ -90,11 +91,11 @@ internal sealed class NotificacoesRepositorio(DetaraDbContext db) : INotificacoe
         return db.NotificacoesEmail.AnyAsync(x => x.OrdemServicoId == ordemServicoId && x.Tipo == tipo, ct);
     }
     public void Adicionar(ConfiguracaoNotificacaoEmpresa item) => db.Add(item);
-    public void Adicionar(TemplateEmailEmpresa item) => db.Add(item);
+    public void Adicionar(TemplateComunicacaoEmpresa item) => db.Add(item);
     public void Adicionar(NotificacaoEmail item) => db.Add(item);
     public void Adicionar(ComunicacaoCliente item) => db.Add(item);
     public void Adicionar(SessaoWhatsAppEmpresa item) => db.Add(item);
-    public void Remover(TemplateEmailEmpresa item) => db.Remove(item);
+    public void Remover(TemplateComunicacaoEmpresa item) => db.Remove(item);
     public async Task<bool> TentarAdicionarESalvarAsync(NotificacaoEmail item, CancellationToken ct)
     {
         db.Add(item);

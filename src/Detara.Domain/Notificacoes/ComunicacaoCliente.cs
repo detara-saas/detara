@@ -9,7 +9,7 @@ public sealed class ComunicacaoCliente : EntidadeEmpresaBase
     public ComunicacaoCliente(Guid id, Guid empresaId, Guid clienteId, Guid ordemServicoId,
         CanalComunicacaoCliente canal, TipoComunicacaoCliente tipo, string mensagem,
         string? destinatarioSnapshot, OrigemComunicacaoCliente origem,
-        Guid? solicitadoPorUsuarioId) : base(id, empresaId)
+        Guid? solicitadoPorUsuarioId, string? templateNomeSnapshot = null) : base(id, empresaId)
     {
         if (id == Guid.Empty) throw new ArgumentException("A comunicação deve possuir um identificador.", nameof(id));
         if (clienteId == Guid.Empty) throw new ArgumentException("O cliente deve ser informado.", nameof(clienteId));
@@ -33,6 +33,7 @@ public sealed class ComunicacaoCliente : EntidadeEmpresaBase
         DestinatarioSnapshot = NormalizarDestinatario(destinatarioSnapshot);
         Origem = origem;
         SolicitadoPorUsuarioId = solicitadoPorUsuarioId;
+        TemplateNomeSnapshot = NormalizarOpcional(templateNomeSnapshot, 160);
         Status = StatusComunicacaoCliente.Pendente;
         if (DestinatarioSnapshot is null)
         {
@@ -52,6 +53,7 @@ public sealed class ComunicacaoCliente : EntidadeEmpresaBase
     public StatusComunicacaoCliente Status { get; private set; }
     public OrigemComunicacaoCliente Origem { get; private set; }
     public Guid? SolicitadoPorUsuarioId { get; private set; }
+    public string? TemplateNomeSnapshot { get; private set; }
     public DateTime? DataEnvioUtc { get; private set; }
     public DateTime? ProcessamentoIniciadoEmUtc { get; private set; }
     public string? ProvedorMensagemId { get; private set; }
@@ -77,6 +79,7 @@ public sealed class ComunicacaoCliente : EntidadeEmpresaBase
                 ?? throw new ArgumentException("O destinatário deve ser informado.", nameof(destinatario)),
             Origem = OrigemComunicacaoCliente.Manual,
             SolicitadoPorUsuarioId = solicitadoPorUsuarioId,
+            TemplateNomeSnapshot = "Teste de conexão WhatsApp",
             Status = StatusComunicacaoCliente.Pendente
         };
     }

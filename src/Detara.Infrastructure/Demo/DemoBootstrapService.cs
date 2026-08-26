@@ -729,7 +729,7 @@ public sealed class DemoBootstrapService(
     {
         await db.TentativasNotificacaoEmail.ExecuteDeleteAsync(cancellationToken);
         await db.NotificacoesEmail.ExecuteDeleteAsync(cancellationToken);
-        await db.TemplatesEmailEmpresa.ExecuteDeleteAsync(cancellationToken);
+        await db.TemplatesComunicacaoEmpresa.ExecuteDeleteAsync(cancellationToken);
         await db.ConfiguracoesNotificacaoEmpresa.ExecuteDeleteAsync(cancellationToken);
         await db.Pagamentos.ExecuteDeleteAsync(cancellationToken);
         await db.ContasReceber.ExecuteDeleteAsync(cancellationToken);

@@ -5,6 +5,17 @@ public enum TipoTemplateEmail
     VeiculoProntoRetirada = 1
 }
 
+public enum TipoTemplateComunicacao
+{
+    VeiculoProntoRetirada = 1
+}
+
+public enum OrigemTemplateComunicacao
+{
+    PadraoDetara = 1,
+    PersonalizadoEmpresa = 2
+}
+
 public enum StatusNotificacaoEmail
 {
     Pendente = 1,

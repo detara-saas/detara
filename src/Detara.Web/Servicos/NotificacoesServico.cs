@@ -11,14 +11,24 @@ public sealed class NotificacoesServico(HttpClient http)
     public Task<ResultadoServico<ConfiguracaoNotificacaoResponse>> SalvarConfiguracaoAsync(
         AtualizarConfiguracaoNotificacaoRequest request, CancellationToken ct = default) =>
         EnviarAsync<ConfiguracaoNotificacaoResponse>(() => http.PutAsJsonAsync("api/notificacoes/configuracao", request, ct), ct);
-    public Task<ResultadoServico<TemplateEmailResponse>> ObterTemplateAsync(CancellationToken ct = default) =>
-        ObterAsync<TemplateEmailResponse>("api/notificacoes/templates/veiculo-pronto", ct);
-    public Task<ResultadoServico<TemplateEmailResponse>> SalvarTemplateAsync(SalvarTemplateEmailRequest request, CancellationToken ct = default) =>
-        EnviarAsync<TemplateEmailResponse>(() => http.PutAsJsonAsync("api/notificacoes/templates/veiculo-pronto", request, ct), ct);
-    public Task<ResultadoServico<TemplateEmailResponse>> RestaurarTemplateAsync(CancellationToken ct = default) =>
-        EnviarAsync<TemplateEmailResponse>(() => http.DeleteAsync("api/notificacoes/templates/veiculo-pronto", ct), ct);
-    public Task<ResultadoServico<PreviewTemplateEmailResponse>> PreviewAsync(PreviewTemplateEmailRequest request, CancellationToken ct = default) =>
-        EnviarAsync<PreviewTemplateEmailResponse>(() => http.PostAsJsonAsync("api/notificacoes/templates/veiculo-pronto/preview", request, ct), ct);
+    public Task<ResultadoServico<TemplateComunicacaoResponse>> ObterTemplateAsync(
+        CanalComunicacaoClienteContrato canal, CancellationToken ct = default) =>
+        ObterAsync<TemplateComunicacaoResponse>(
+            $"api/notificacoes/templates/veiculo-pronto/{canal}", ct);
+    public Task<ResultadoServico<TemplateComunicacaoResponse>> SalvarTemplateAsync(
+        CanalComunicacaoClienteContrato canal, SalvarTemplateComunicacaoRequest request,
+        CancellationToken ct = default) =>
+        EnviarAsync<TemplateComunicacaoResponse>(() => http.PutAsJsonAsync(
+            $"api/notificacoes/templates/veiculo-pronto/{canal}", request, ct), ct);
+    public Task<ResultadoServico<TemplateComunicacaoResponse>> RestaurarTemplateAsync(
+        CanalComunicacaoClienteContrato canal, CancellationToken ct = default) =>
+        EnviarAsync<TemplateComunicacaoResponse>(() => http.DeleteAsync(
+            $"api/notificacoes/templates/veiculo-pronto/{canal}", ct), ct);
+    public Task<ResultadoServico<PreviewTemplateComunicacaoResponse>> PreviewAsync(
+        CanalComunicacaoClienteContrato canal, PreviewTemplateComunicacaoRequest request,
+        CancellationToken ct = default) =>
+        EnviarAsync<PreviewTemplateComunicacaoResponse>(() => http.PostAsJsonAsync(
+            $"api/notificacoes/templates/veiculo-pronto/{canal}/preview", request, ct), ct);
     public Task<ResultadoServico<object>> EnviarTesteAsync(CancellationToken ct = default) =>
         EnviarAsync<object>(() => http.PostAsync("api/notificacoes/templates/veiculo-pronto/teste", null, ct), ct);
     public Task<ResultadoServico<SessaoWhatsAppResponse>> ObterStatusWhatsAppAsync(

@@ -30,6 +30,7 @@ internal sealed class ComunicacaoClienteConfiguracao : IEntityTypeConfiguration<
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(x => x.Origem).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(x => x.Mensagem).HasMaxLength(100 * 1024).IsRequired();
+        builder.Property(x => x.TemplateNomeSnapshot).HasMaxLength(160);
         builder.Property(x => x.DestinatarioSnapshot).HasMaxLength(200);
         builder.Property(x => x.ProvedorMensagemId).HasMaxLength(200);
         builder.Property(x => x.UltimoErroSeguro).HasMaxLength(500);
@@ -55,16 +56,18 @@ internal sealed class SessaoWhatsAppEmpresaConfiguracao : IEntityTypeConfigurati
     }
 }
 
-internal sealed class TemplateEmailEmpresaConfiguracao : IEntityTypeConfiguration<TemplateEmailEmpresa>
+internal sealed class TemplateComunicacaoEmpresaConfiguracao : IEntityTypeConfiguration<TemplateComunicacaoEmpresa>
 {
-    public void Configure(EntityTypeBuilder<TemplateEmailEmpresa> builder)
+    public void Configure(EntityTypeBuilder<TemplateComunicacaoEmpresa> builder)
     {
-        builder.ToTable("TemplatesEmailEmpresa");
+        builder.ToTable("TemplatesComunicacaoEmpresa");
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.Canal).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(40).IsRequired();
-        builder.Property(x => x.Assunto).HasMaxLength(200).IsRequired();
-        builder.Property(x => x.CorpoHtmlSanitizado).HasMaxLength(50 * 1024).IsRequired();
-        builder.HasIndex(x => new { x.EmpresaId, x.Tipo }).IsUnique();
+        builder.Property(x => x.Nome).HasMaxLength(160).IsRequired();
+        builder.Property(x => x.Assunto).HasMaxLength(200);
+        builder.Property(x => x.Conteudo).HasMaxLength(50 * 1024).IsRequired();
+        builder.HasIndex(x => new { x.EmpresaId, x.Canal, x.Tipo }).IsUnique();
     }
 }
 
