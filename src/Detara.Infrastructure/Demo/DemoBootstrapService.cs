@@ -352,7 +352,7 @@ public sealed class DemoBootstrapService(
             NivelExigenciaOperacional.Desabilitado,
             NivelExigenciaOperacional.Desabilitado), cancellationToken);
         await sender.Send(new AtualizarConfiguracaoNotificacaoCommand(
-            CanalComunicacaoVeiculoPronto.Nenhum, null), cancellationToken);
+            CanalComunicacaoVeiculoPronto.Nenhum, null, false), cancellationToken);
 
         var categorias = new Dictionary<string, Guid>(StringComparer.Ordinal);
         foreach (var item in new[]

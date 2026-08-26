@@ -171,6 +171,8 @@ A migration `ComunicacaoClienteEmailWhatsApp` converte o antigo booleano de envi
 
 A migration `AddWhatsAppGatewaySession` adiciona `SessoesWhatsAppEmpresa`, única por `EmpresaId` e por `SessionKey`, com estado da conexão, última conexão, erro seguro e versão de concorrência. Ela contém somente metadados operacionais: QR Code e credenciais `LocalAuth` não entram no SQL Server. O filtro global de tenant protege as consultas, e a sessão efetiva permanece no volume persistente do gateway.
 
+A migration `FinalizaExperienciaWhatsApp` adiciona o número da conta conectada aos metadados da sessão, o consentimento auditável (`PermitirComunicacaoWhatsApp`, data e usuário de ativação) e permite que `ComunicacoesCliente` registre testes de conexão sem inventar Cliente ou Ordem de Serviço. Testes usam `ClienteId` e `OrdemServicoId` nulos, tipo explícito `TesteWhatsApp` e continuam protegidos pelo `EmpresaId` obrigatório e pelo filtro global de tenant.
+
 A ausência de configuração significa envio automático desabilitado; GET não cria registros. O template padrão também não é seed: é materializado dinamicamente pela aplicação, e restaurar o padrão remove a customização do tenant. Não existem FKs para Empresa, OS, Cliente ou Usuário. `NotificacaoEmail.Versao` protege o claim otimista da fila, enquanto a idempotência externa usa `notificacao-email/{Id}`.
 
 Aplicação de migration:

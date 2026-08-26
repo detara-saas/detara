@@ -8,6 +8,7 @@ const disconnectedStatus = Object.freeze({
   createdAt: null,
   updatedAt: null,
   lastConnectedAt: null,
+  phoneNumber: null,
 });
 
 export class WhatsAppGatewayService {
@@ -37,7 +38,7 @@ export class WhatsAppGatewayService {
     for (const session of sessions) {
       const restoring = await this.registry.upsert({
         ...session,
-        status: 'Disconnected',
+        status: 'Reconnecting',
         updatedAt: this.now(),
       });
       const context = this.ensureContext(session.empresaId, restoring);
@@ -57,6 +58,7 @@ export class WhatsAppGatewayService {
         createdAt: timestamp,
         updatedAt: timestamp,
         lastConnectedAt: null,
+        phoneNumber: null,
       });
       this.logger.info('Conexão WhatsApp criada.', { empresaId });
     }
@@ -66,6 +68,7 @@ export class WhatsAppGatewayService {
       return this.toPublicStatus(context);
     }
 
+    await this.updateStatus(context, 'Connecting');
     const statusChanged = this.waitForStatus(context);
     this.initialize(context);
     await Promise.race([
@@ -73,6 +76,27 @@ export class WhatsAppGatewayService {
       new Promise((resolve) => setTimeout(resolve, this.connectWaitMs)),
     ]);
     return this.toPublicStatus(context);
+  }
+
+  async disconnect(empresaId) {
+    const context = this.contexts.get(empresaId);
+    if (context) {
+      context.closing = true;
+      this.contexts.delete(empresaId);
+      try {
+        await context.client.logout();
+      } catch (error) {
+        this.logger.warn('Falha ao encerrar sessão no cliente WhatsApp.', {
+          empresaId,
+          errorType: error?.name ?? 'Error',
+        });
+      } finally {
+        await Promise.resolve(context.client.destroy()).catch(() => {});
+      }
+    }
+    await this.registry.remove(empresaId);
+    this.logger.info('Sessão WhatsApp desconectada por solicitação.', { empresaId });
+    return disconnectedStatus;
   }
 
   async getStatus(empresaId) {
@@ -175,6 +199,7 @@ export class WhatsAppGatewayService {
       qrCode: null,
       initializationPromise: null,
       waiters: new Set(),
+      closing: false,
     };
     this.bindEvents(context);
     this.contexts.set(empresaId, context);
@@ -208,7 +233,8 @@ export class WhatsAppGatewayService {
     });
     context.client.on('ready', () => this.trackEvent(async () => {
       context.qrCode = null;
-      await this.updateStatus(context, 'Connected', this.now());
+      const phoneNumber = normalizeConnectedPhone(context.client.info?.wid);
+      await this.updateStatus(context, 'Connected', this.now(), phoneNumber);
       this.logger.info('Sessão WhatsApp conectada.', {
         empresaId: context.empresaId,
       });
@@ -221,6 +247,7 @@ export class WhatsAppGatewayService {
       });
     }));
     context.client.on('disconnected', () => this.trackEvent(async () => {
+      if (context.closing) return;
       context.qrCode = null;
       await this.updateStatus(context, 'Disconnected');
       this.logger.warn('Sessão WhatsApp desconectada.', {
@@ -247,7 +274,9 @@ export class WhatsAppGatewayService {
     return context.initializationPromise;
   }
 
-  async updateStatus(context, status, lastConnectedAt = undefined) {
+  async updateStatus(context, status, lastConnectedAt = undefined,
+    phoneNumber = undefined) {
+    if (context.closing) return;
     context.metadata = await this.registry.upsert({
       ...context.metadata,
       status,
@@ -256,6 +285,10 @@ export class WhatsAppGatewayService {
         lastConnectedAt === undefined
           ? context.metadata.lastConnectedAt
           : lastConnectedAt,
+      phoneNumber:
+        phoneNumber === undefined
+          ? context.metadata.phoneNumber
+          : phoneNumber,
     });
     for (const resolve of context.waiters) {
       resolve();
@@ -288,6 +321,14 @@ export class WhatsAppGatewayService {
       createdAt: context.metadata.createdAt,
       updatedAt: context.metadata.updatedAt,
       lastConnectedAt: context.metadata.lastConnectedAt,
+      phoneNumber: context.metadata.phoneNumber ?? null,
     };
   }
+}
+
+function normalizeConnectedPhone(wid) {
+  const raw = wid?.user ?? wid?._serialized?.split('@')[0];
+  if (typeof raw !== 'string') return null;
+  const digits = raw.replace(/\D/g, '');
+  return /^\d{8,15}$/.test(digits) ? digits : null;
 }

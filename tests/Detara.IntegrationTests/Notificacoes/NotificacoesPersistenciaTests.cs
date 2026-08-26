@@ -46,7 +46,9 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     public async Task GetAusente_RetornaDefaultDesativadoSemEscrever()
     {
         await using var db = Db(_empresaA); var repo = new NotificacoesRepositorio(db);
-        var r = await new ObterConfiguracaoNotificacaoHandler(repo).Handle(new(), default);
+        var r = await new ObterConfiguracaoNotificacaoHandler(
+            new Contexto(_empresaA, _usuarioA), repo,
+            new PlataformaNotificacoesConsulta(db)).Handle(new(), default);
         Assert.Equal(CanalComunicacaoVeiculoPronto.Nenhum, r.CanalAutomaticoVeiculoPronto);
         Assert.Equal(0, await db.ConfiguracoesNotificacaoEmpresa.CountAsync());
     }
@@ -66,7 +68,7 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         await using var db = Db(_empresaA);
         var repo = new NotificacoesRepositorio(db);
         repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
-            CanalComunicacaoVeiculoPronto.WhatsApp, null, _usuarioA));
+            CanalComunicacaoVeiculoPronto.WhatsApp, true, null, _usuarioA));
         await db.SaveChangesAsync();
 
         await Integracao(db, repo).PrepararNotificacaoAsync(Evento(Guid.NewGuid()), default);
@@ -139,10 +141,12 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         var resultado = await handler.Handle(new(), default);
 
         Assert.Equal(StatusSessaoWhatsApp.Conectada, resultado.Status);
+        Assert.Equal("5541999990000", resultado.NumeroConectado);
         Assert.Equal([_empresaA], provider.EmpresasConectadas);
         var persistida = await db.SessoesWhatsAppEmpresa.SingleAsync();
         Assert.Equal(_empresaA, persistida.EmpresaId);
         Assert.Equal($"tenant-{_empresaA:N}", persistida.SessionKey);
+        Assert.Equal("5541999990000", persistida.NumeroConectado);
     }
 
     [Fact]
@@ -181,6 +185,126 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
         Assert.Contains("disponível para retirada", resultado.Mensagem);
         Assert.Equal(0, await db.NotificacoesEmail.CountAsync());
         Assert.Single(await db.ComunicacoesCliente.ToListAsync());
+    }
+
+    [Fact]
+    public async Task WhatsAppAutomaticoSemConsentimento_NaoCriaComunicacao()
+    {
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        repo.Adicionar(new ConfiguracaoNotificacaoEmpresa(_empresaA,
+            CanalComunicacaoVeiculoPronto.WhatsApp, false, null, _usuarioA));
+        await db.SaveChangesAsync();
+
+        await Integracao(db, repo).PrepararNotificacaoAsync(
+            Evento(Guid.NewGuid()), default);
+        await db.SaveChangesAsync();
+
+        Assert.Empty(await db.ComunicacoesCliente.ToListAsync());
+    }
+
+    [Fact]
+    public async Task AtivarWhatsApp_RegistraDataEUsuarioResponsavel()
+    {
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        var handler = new AtualizarConfiguracaoNotificacaoHandler(
+            new Contexto(_empresaA, _usuarioA), repo,
+            new PlataformaNotificacoesConsulta(db));
+
+        var resultado = await handler.Handle(new(
+            CanalComunicacaoVeiculoPronto.WhatsApp, null, true), default);
+
+        Assert.True(resultado.PermitirComunicacaoWhatsApp);
+        Assert.NotNull(resultado.DataAtivacaoWhatsAppEmUtc);
+        Assert.Equal("Admin A", resultado.UsuarioAtivacaoWhatsApp);
+        var persistida = await db.ConfiguracoesNotificacaoEmpresa.SingleAsync();
+        Assert.Equal(_usuarioA, persistida.UsuarioAtivacaoWhatsAppId);
+    }
+
+    [Fact]
+    public async Task AvisoWhatsAppEnviadoRecentemente_BloqueiaDuplicidade()
+    {
+        var osId = Guid.NewGuid();
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        var servico = CriarServico(db, repo, Ordem(osId));
+        var primeira = await servico.PrepararManualAsync(osId,
+            CanalComunicacaoCliente.WhatsApp, Guid.NewGuid(), default);
+        primeira.MarcarProcessando(DateTime.UtcNow);
+        primeira.RegistrarEnvio("wamid-1", DateTime.UtcNow);
+        await db.SaveChangesAsync();
+
+        var erro = await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            servico.PrepararManualAsync(osId, CanalComunicacaoCliente.WhatsApp,
+                Guid.NewGuid(), default));
+
+        Assert.Equal("Já existe uma comunicação enviada recentemente para este cliente.",
+            erro.Message);
+        Assert.Single(await db.ComunicacoesCliente.ToListAsync());
+    }
+
+    [Fact]
+    public async Task TesteWhatsAppConfirmado_CriaHistoricoSemOrdemOuCliente()
+    {
+        await using var db = Db(_empresaA);
+        var repo = new NotificacoesRepositorio(db);
+        var provider = new WhatsAppProviderFake(new(true, false, "id", null));
+        var handler = new EnviarTesteWhatsAppHandler(
+            new Contexto(_empresaA, _usuarioA), repo,
+            new PlataformaNotificacoesConsulta(db),
+            new RenderizadorTemplateWhatsApp(), provider);
+
+        var resultado = await handler.Handle(new("5541999990000", true,
+            Guid.NewGuid()), default);
+
+        Assert.Equal(TipoComunicacaoCliente.TesteWhatsApp, resultado.Tipo);
+        Assert.Null(resultado.OrdemServicoId);
+        Assert.Contains("mensagem de teste do Detara", resultado.Mensagem);
+        var persistida = await db.ComunicacoesCliente.SingleAsync();
+        Assert.Null(persistida.ClienteId);
+        Assert.Null(persistida.OrdemServicoId);
+        Assert.Equal(_usuarioA, persistida.SolicitadoPorUsuarioId);
+    }
+
+    [Fact]
+    public async Task TesteWhatsAppSemConfirmacao_EhRejeitadoNaValidacao()
+    {
+        var command = new EnviarTesteWhatsAppCommand(
+            "5541999990000", false, Guid.NewGuid());
+        var validacao = await new EnviarTesteWhatsAppValidator()
+            .ValidateAsync(command);
+
+        Assert.False(validacao.IsValid);
+        Assert.Contains(validacao.Errors,
+            x => x.PropertyName == nameof(EnviarTesteWhatsAppCommand.Confirmado));
+    }
+
+    [Fact]
+    public async Task HistoricoTesteWhatsApp_IsolaEmpresas()
+    {
+        await using (var dbA = Db(_empresaA))
+        {
+            dbA.ComunicacoesCliente.Add(ComunicacaoCliente.CriarTesteWhatsApp(
+                Guid.NewGuid(), _empresaA, "Teste A", "5541999990000", _usuarioA));
+            await dbA.SaveChangesAsync();
+        }
+        await using (var dbB = Db(_empresaB))
+        {
+            dbB.ComunicacoesCliente.Add(ComunicacaoCliente.CriarTesteWhatsApp(
+                Guid.NewGuid(), _empresaB, "Teste B", "5541888880000", Guid.NewGuid()));
+            await dbB.SaveChangesAsync();
+        }
+
+        await using var consultarA = Db(_empresaA);
+        await using var consultarB = Db(_empresaB);
+        var historicoA = await new NotificacoesRepositorio(consultarA)
+            .ObterTestesWhatsAppAsync(10, default);
+        var historicoB = await new NotificacoesRepositorio(consultarB)
+            .ObterTestesWhatsAppAsync(10, default);
+
+        Assert.Equal(_empresaA, Assert.Single(historicoA).EmpresaId);
+        Assert.Equal(_empresaB, Assert.Single(historicoB).EmpresaId);
     }
 
     [Fact]
@@ -631,7 +755,12 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
             Guid empresaId, CancellationToken cancellationToken) =>
             Task.FromResult(new EstadoConexaoWhatsAppClienteProvider(
                 StatusSessaoWhatsApp.Conectada, null, DateTime.UtcNow,
-                DateTime.UtcNow, null));
+                DateTime.UtcNow, "5541999990000", null));
+        public Task<EstadoConexaoWhatsAppClienteProvider> DesconectarAsync(
+            Guid empresaId, CancellationToken cancellationToken) =>
+            Task.FromResult(new EstadoConexaoWhatsAppClienteProvider(
+                StatusSessaoWhatsApp.Desconectada, null, DateTime.UtcNow,
+                DateTime.UtcNow, null, null));
         public Task<ResultadoEnvioComunicacaoCliente> EnviarAsync(
             MensagemWhatsAppClienteProvider mensagem, CancellationToken cancellationToken)
         {

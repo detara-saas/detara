@@ -56,7 +56,9 @@ test('sessões A e B usam clientes e QR Codes isolados', async () => {
     method: 'POST',
     tenantId: empresaB,
   });
-  assert.equal((await connectA.json()).status, 'Connected');
+  const statusA = await connectA.json();
+  assert.equal(statusA.status, 'Connected');
+  assert.equal(statusA.phoneNumber, '5541999990000');
   const statusB = await connectB.json();
   assert.equal(statusB.status, 'WaitingQRCode');
   assert.equal(statusB.qrCode, 'data:image/png;base64,cXItZW1wcmVzYS1i');
@@ -181,7 +183,7 @@ test('sessão restaurada não aceita envio antes do evento ready', async () => {
   const restoredFactory = new FakeClientFactory();
   const restored = createService(root, restoredFactory);
   await restored.start();
-  assert.equal((await restored.getStatus(empresaA)).status, 'Disconnected');
+  assert.equal((await restored.getStatus(empresaA)).status, 'Reconnecting');
   await assert.rejects(
     restored.sendMessage({
       empresaId: empresaA,
@@ -198,6 +200,31 @@ test('sessão restaurada não aceita envio antes do evento ready', async () => {
     'Connected',
   );
   await restored.shutdown();
+});
+
+test('desconexão remove somente a sessão solicitada e exige novo QR', async () => {
+  const harness = await createHarness({
+    initialize: (client) => queueMicrotask(() => client.emit('ready')),
+  });
+  await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  await harness.request(`/sessions/${empresaB}/connect`, {
+    method: 'POST',
+    tenantId: empresaB,
+  });
+
+  const disconnected = await harness.request(`/sessions/${empresaA}`, {
+    method: 'DELETE',
+    tenantId: empresaA,
+  });
+
+  assert.equal(disconnected.status, 200);
+  assert.equal((await disconnected.json()).status, 'Disconnected');
+  assert.equal(harness.factory.forTenant(empresaA).logoutCount, 1);
+  assert.equal((await harness.service.getStatus(empresaA)).status, 'Disconnected');
+  assert.equal((await harness.service.getStatus(empresaB)).status, 'Connected');
 });
 
 test('registro adulterado não cria cliente nem atravessa diretório de sessão', async () => {
@@ -290,6 +317,7 @@ async function createHarness(options = {}) {
   return {
     baseUrl,
     factory,
+    service,
     request: (route, options = {}) =>
       fetch(`${baseUrl}${route}`, {
         method: options.method ?? 'GET',
@@ -351,6 +379,8 @@ class FakeClient extends EventEmitter {
     this.initializeBehavior = initialize;
     this.sent = [];
     this.numberLookups = [];
+    this.logoutCount = 0;
+    this.info = { wid: { user: '5541999990000' } };
   }
 
   async initialize() {
@@ -368,6 +398,10 @@ class FakeClient extends EventEmitter {
   }
 
   async destroy() {}
+
+  async logout() {
+    this.logoutCount += 1;
+  }
 }
 
 const silentLogger = Object.freeze({

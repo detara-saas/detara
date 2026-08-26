@@ -20,6 +20,7 @@ public sealed record EstadoConexaoWhatsAppClienteProvider(
     string? QrCodeDataUrl,
     DateTime? AtualizadoEmUtc,
     DateTime? UltimaConexaoEmUtc,
+    string? NumeroConectado,
     string? ErroSeguro);
 
 public sealed record ResultadoEnvioComunicacaoCliente(
@@ -41,6 +42,9 @@ public interface IWhatsAppClienteProvider
         Guid empresaId,
         CancellationToken cancellationToken);
     Task<EstadoConexaoWhatsAppClienteProvider> ObterStatusAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken);
+    Task<EstadoConexaoWhatsAppClienteProvider> DesconectarAsync(
         Guid empresaId,
         CancellationToken cancellationToken);
     Task<ResultadoEnvioComunicacaoCliente> EnviarAsync(

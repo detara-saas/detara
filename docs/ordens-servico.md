@@ -19,6 +19,11 @@ uma comunicação pendente bloqueia outro disparo concorrente. WhatsApp exige a 
 isolada da empresa conectada no gateway; a OS mostra essa disponibilidade e desabilita
 o canal manual enquanto a sessão não estiver pronta.
 
+Depois de um envio confirmado, outra comunicação idêntica para o mesmo canal,
+destinatário e mensagem é bloqueada por cinco minutos. O histórico da OS preserva
+mensagem, usuário, data, canal, status e resultado; Email e WhatsApp permanecem opções
+mutuamente exclusivas em cada solicitação.
+
 O check-in captura os níveis atuais de checklist, fotos de entrada e fotos de saída.
 Checklist obrigatório exige todas as respostas, inclusive `NaoConforme` ou
 `NaoAplicavel`; fotos obrigatórias exigem uma evidência na etapa correspondente. Fotos de

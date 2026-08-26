@@ -44,12 +44,37 @@ internal sealed class NotificacoesRepositorio(DetaraDbContext db) : INotificacoe
             .OrderByDescending(x => x.CriadoEmUtc).ThenByDescending(x => x.Id)
             .ToArrayAsync(ct);
 
+    public async Task<IReadOnlyCollection<ComunicacaoCliente>> ObterTestesWhatsAppAsync(
+        int limite, CancellationToken ct) =>
+        await db.ComunicacoesCliente.AsNoTracking()
+            .Where(x => x.Tipo == TipoComunicacaoCliente.TesteWhatsApp)
+            .OrderByDescending(x => x.CriadoEmUtc).ThenByDescending(x => x.Id)
+            .Take(Math.Clamp(limite, 1, 20))
+            .ToArrayAsync(ct);
+
     public Task<bool> ExisteComunicacaoPendenteAsync(Guid ordemServicoId, CancellationToken ct)
     {
         if (db.ComunicacoesCliente.Local.Any(x => x.OrdemServicoId == ordemServicoId &&
             x.Status == StatusComunicacaoCliente.Pendente)) return Task.FromResult(true);
         return db.ComunicacoesCliente.AnyAsync(x => x.OrdemServicoId == ordemServicoId &&
             x.Status == StatusComunicacaoCliente.Pendente, ct);
+    }
+
+    public Task<bool> ExisteComunicacaoEnviadaRecenteAsync(Guid ordemServicoId,
+        CanalComunicacaoCliente canal, TipoComunicacaoCliente tipo,
+        string mensagem, string destinatario, DateTime desdeEmUtc,
+        CancellationToken ct)
+    {
+        if (db.ComunicacoesCliente.Local.Any(x =>
+            x.OrdemServicoId == ordemServicoId && x.Canal == canal &&
+            x.Tipo == tipo && x.Status == StatusComunicacaoCliente.Enviado &&
+            x.Mensagem == mensagem && x.DestinatarioSnapshot == destinatario &&
+            x.DataEnvioUtc >= desdeEmUtc)) return Task.FromResult(true);
+        return db.ComunicacoesCliente.AnyAsync(x =>
+            x.OrdemServicoId == ordemServicoId && x.Canal == canal &&
+            x.Tipo == tipo && x.Status == StatusComunicacaoCliente.Enviado &&
+            x.Mensagem == mensagem && x.DestinatarioSnapshot == destinatario &&
+            x.DataEnvioUtc >= desdeEmUtc, ct);
     }
 
     public Task<SessaoWhatsAppEmpresa?> ObterSessaoWhatsAppAsync(bool paraAlteracao,

@@ -34,6 +34,18 @@ public sealed class NotificacoesServico(HttpClient http)
         CancellationToken ct = default) =>
         EnviarAsync<SessaoWhatsAppResponse>(() => http.PostAsync(
             "api/notificacoes/whatsapp/conectar", null, ct), ct);
+    public Task<ResultadoServico<SessaoWhatsAppResponse>> DesconectarWhatsAppAsync(
+        CancellationToken ct = default) =>
+        EnviarAsync<SessaoWhatsAppResponse>(() => http.DeleteAsync(
+            "api/notificacoes/whatsapp/conexao", ct), ct);
+    public Task<ResultadoServico<ComunicacaoClienteResponse>> TestarWhatsAppAsync(
+        EnviarTesteWhatsAppRequest request, CancellationToken ct = default) =>
+        EnviarAsync<ComunicacaoClienteResponse>(() => http.PostAsJsonAsync(
+            "api/notificacoes/whatsapp/teste", request, ct), ct);
+    public Task<ResultadoServico<IReadOnlyCollection<ComunicacaoClienteResponse>>>
+        ObterTestesWhatsAppAsync(CancellationToken ct = default) =>
+        ObterAsync<IReadOnlyCollection<ComunicacaoClienteResponse>>(
+            "api/notificacoes/whatsapp/testes", ct);
     public Task<ResultadoServico<NotificacaoOrdemServicoResponse>> ObterPorOrdemServicoAsync(Guid id, CancellationToken ct = default) =>
         ObterAsync<NotificacaoOrdemServicoResponse>($"api/notificacoes/ordens-servico/{id}", ct);
     public Task<ResultadoServico<NotificacaoEmailResponse>> EnviarAvisoAsync(Guid id, CancellationToken ct = default) =>

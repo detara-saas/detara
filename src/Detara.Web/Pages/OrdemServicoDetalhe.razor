@@ -97,7 +97,7 @@ else
                     {
                         <article>
                             <span class="communication-history-icon"><MudIcon Icon="@(comunicacao.Canal == CanalComunicacaoClienteContrato.WhatsApp ? Icons.Material.Outlined.Chat : Icons.Material.Outlined.AlternateEmail)" /></span>
-                            <div><strong>@NomeCanal(comunicacao.Canal)</strong><span>@((comunicacao.DataEnvioUtc ?? comunicacao.CriadoEmUtc).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) · @(comunicacao.Origem == OrigemComunicacaoClienteContrato.Automatica ? "Automático" : "Manual")</span><small>@(comunicacao.Destinatario ?? "Sem destinatário")</small></div>
+                            <div class="communication-history-copy"><strong>@NomeCanal(comunicacao.Canal)</strong><span>@((comunicacao.DataEnvioUtc ?? comunicacao.CriadoEmUtc).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) · @(comunicacao.Origem == OrigemComunicacaoClienteContrato.Automatica ? "Automático" : "Manual")</span><small>@(comunicacao.Destinatario ?? "Sem destinatário")</small><details><summary>Ver detalhes</summary><div class="communication-history-detail"><span><b>Usuário</b>@(comunicacao.SolicitadoPorUsuarioNome ?? (comunicacao.Origem == OrigemComunicacaoClienteContrato.Automatica ? "Automático Detara" : "Não identificado"))</span><span><b>Data</b>@comunicacao.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span><span><b>Resultado</b>@NomeComunicacao(comunicacao.Status)</span><p>@comunicacao.Mensagem</p></div></details></div>
                             <span class="status-badge @ClasseComunicacao(comunicacao.Status)">@NomeComunicacao(comunicacao.Status)</span>
                         </article>
                     }

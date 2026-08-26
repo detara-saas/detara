@@ -16,11 +16,13 @@ public sealed class SessaoWhatsAppEmpresa : EntidadeEmpresaBase
     public string SessionKey { get; private set; } = string.Empty;
     public StatusSessaoWhatsApp Status { get; private set; }
     public DateTime? UltimaConexaoEmUtc { get; private set; }
+    public string? NumeroConectado { get; private set; }
     public string? UltimoErroSeguro { get; private set; }
     public long Versao { get; private set; } = 1;
 
     public void AtualizarStatus(StatusSessaoWhatsApp status,
-        DateTime? ultimaConexaoEmUtc, string? erroSeguro = null)
+        DateTime? ultimaConexaoEmUtc, string? erroSeguro = null,
+        string? numeroConectado = null)
     {
         if (!Enum.IsDefined(status))
             throw new ArgumentException("O status da sessão WhatsApp é inválido.", nameof(status));
@@ -28,14 +30,25 @@ public sealed class SessaoWhatsAppEmpresa : EntidadeEmpresaBase
         var novoErro = status == StatusSessaoWhatsApp.Erro
             ? NormalizarErro(erroSeguro)
             : null;
+        var novoNumero = status == StatusSessaoWhatsApp.Desconectada
+            ? null
+            : NormalizarNumero(numeroConectado) ?? NumeroConectado;
         if (Status == status && UltimaConexaoEmUtc == novaUltimaConexao &&
-            UltimoErroSeguro == novoErro)
+            UltimoErroSeguro == novoErro && NumeroConectado == novoNumero)
             return;
         Status = status;
         UltimaConexaoEmUtc = novaUltimaConexao;
         UltimoErroSeguro = novoErro;
+        NumeroConectado = novoNumero;
         Versao++;
         MarcarComoAtualizada();
+    }
+
+    private static string? NormalizarNumero(string? numero)
+    {
+        if (string.IsNullOrWhiteSpace(numero)) return null;
+        var digitos = new string(numero.Where(char.IsDigit).ToArray());
+        return digitos.Length is >= 8 and <= 15 ? digitos : null;
     }
 
     private static string NormalizarSessionKey(string sessionKey)

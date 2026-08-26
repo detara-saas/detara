@@ -43,8 +43,8 @@ public sealed class ComunicacaoCliente : EntidadeEmpresaBase
         }
     }
 
-    public Guid ClienteId { get; private set; }
-    public Guid OrdemServicoId { get; private set; }
+    public Guid? ClienteId { get; private set; }
+    public Guid? OrdemServicoId { get; private set; }
     public CanalComunicacaoCliente Canal { get; private set; }
     public TipoComunicacaoCliente Tipo { get; private set; }
     public string Mensagem { get; private set; } = string.Empty;
@@ -57,6 +57,31 @@ public sealed class ComunicacaoCliente : EntidadeEmpresaBase
     public string? ProvedorMensagemId { get; private set; }
     public string? UltimoErroSeguro { get; private set; }
     public long Versao { get; private set; } = 1;
+
+    public static ComunicacaoCliente CriarTesteWhatsApp(Guid id, Guid empresaId,
+        string mensagem, string destinatario, Guid solicitadoPorUsuarioId)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException("A comunicação deve possuir um identificador.", nameof(id));
+        if (solicitadoPorUsuarioId == Guid.Empty)
+            throw new ArgumentException("O usuário deve ser informado.", nameof(solicitadoPorUsuarioId));
+        var mensagemNormalizada = mensagem?.Trim() ?? string.Empty;
+        if (mensagemNormalizada.Length is < 1 or > 100 * 1024)
+            throw new ArgumentException("A mensagem deve possuir entre 1 e 100 KB.", nameof(mensagem));
+        return new ComunicacaoCliente(id, empresaId)
+        {
+            Canal = CanalComunicacaoCliente.WhatsApp,
+            Tipo = TipoComunicacaoCliente.TesteWhatsApp,
+            Mensagem = mensagemNormalizada,
+            DestinatarioSnapshot = NormalizarDestinatario(destinatario)
+                ?? throw new ArgumentException("O destinatário deve ser informado.", nameof(destinatario)),
+            Origem = OrigemComunicacaoCliente.Manual,
+            SolicitadoPorUsuarioId = solicitadoPorUsuarioId,
+            Status = StatusComunicacaoCliente.Pendente
+        };
+    }
+
+    private ComunicacaoCliente(Guid id, Guid empresaId) : base(id, empresaId) { }
 
     public void MarcarProcessando(DateTime agoraUtc)
     {
