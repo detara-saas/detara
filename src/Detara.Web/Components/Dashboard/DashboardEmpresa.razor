@@ -1,0 +1,105 @@
+<div class="dashboard-mode-content dashboard-company-mode">
+    @if (PossuiIndicadores)
+    {
+        <section class="executive-summary-grid" aria-label="Indicadores estratégicos da empresa">
+            @if (Dados.Financeiro is not null)
+            {
+                <DetaraMetricCard Titulo="Receita líquida recebida"
+                                  Valor="@Moeda(Dados.Financeiro.ReceitaLiquida)"
+                                  Descricao="@(Dados.Resumo.VariacaoReceitaPercentual.HasValue ? null : "Recebido menos taxas · não é lucro")"
+                                  Tendencia="@(Dados.Resumo.VariacaoReceitaPercentual.HasValue ? $"{Math.Abs(Dados.Resumo.VariacaoReceitaPercentual.Value).ToString("N1", Cultura)}% vs. período anterior" : null)"
+                                  Contexto="@RotuloPeriodo"
+                                  Icone="@Icons.Material.Outlined.Payments"
+                                  Tone="@(Dados.Resumo.VariacaoReceitaPercentual < 0 ? DetaraMetricTone.Warning : DetaraMetricTone.Positive)"
+                                  ValorSemQuebra="true" />
+                <DetaraMetricCard Titulo="Ticket médio"
+                                  Valor="@Moeda(Dados.Financeiro.TicketMedio)"
+                                  Descricao="Média dos pagamentos confirmados"
+                                  Contexto="@RotuloPeriodo"
+                                  Icone="@Icons.Material.Outlined.Analytics"
+                                  Tone="DetaraMetricTone.Info"
+                                  ValorSemQuebra="true" />
+            }
+            @if (Dados.Operacional?.ClientesAtendidos is not null)
+            {
+                <DetaraMetricCard Titulo="Clientes atendidos"
+                                  Valor="@Dados.Operacional.ClientesAtendidos.Value.ToString(Cultura)"
+                                  Descricao="Clientes distintos com serviço concluído"
+                                  Contexto="@RotuloPeriodo"
+                                  Icone="@Icons.Material.Outlined.Groups"
+                                  Tone="DetaraMetricTone.Positive" />
+            }
+            @if (Dados.Operacional?.ServicosRealizados is not null)
+            {
+                <DetaraMetricCard Titulo="Serviços realizados"
+                                  Valor="@Dados.Operacional.ServicosRealizados.Value.ToString(Cultura)"
+                                  Descricao="Itens efetivamente concluídos"
+                                  Contexto="@RotuloPeriodo"
+                                  Icone="@Icons.Material.Outlined.AutoAwesome"
+                                  Tone="DetaraMetricTone.Info" />
+            }
+        </section>
+    }
+    else
+    {
+        <DetaraEmptyState Titulo="Ainda não há indicadores para este período" Descricao="A visão estratégica será preenchida conforme serviços e pagamentos forem concluídos." Icone="@Icons.Material.Outlined.QueryStats" />
+    }
+
+    @if (Dados.Financeiro is not null || PossuiInsights)
+    {
+        <section class="executive-grid executive-grid-main dashboard-company-primary">
+            @if (Dados.Financeiro is not null)
+            {
+                <DashboardFinanceiroChart Dados="Dados.Financeiro" Granularidade="Dados.Periodo.Granularidade" />
+            }
+            <DetaraCard Titulo="Insights da operação" Sobretitulo="LEITURA DO PERÍODO" Descricao="Destaques extraídos dos registros reais da empresa." Class="dashboard-insights-card">
+                @if (PossuiInsights)
+                {
+                    <div class="dashboard-insights-list">
+                        @if (Dados.Comercial?.ServicosMaisRealizados?.FirstOrDefault() is { } servico)
+                        {
+                            <div><span><MudIcon Icon="@Icons.Material.Outlined.StarOutline" /></span><div><small>SERVIÇO MAIS REALIZADO</small><strong>@servico.Nome</strong><p>@servico.Quantidade no período · @servico.Percentual.ToString("N1", Cultura)% dos itens concluídos</p></div></div>
+                        }
+                        @if (Dados.Comercial?.TaxaConversao is not null)
+                        {
+                            <div><span><MudIcon Icon="@Icons.Material.Outlined.ThumbUpAlt" /></span><div><small>CONVERSÃO DE ORÇAMENTOS</small><strong>@Dados.Comercial.TaxaConversao.Value.ToString("N1", Cultura)%</strong><p>@Valor(Dados.Comercial.OrcamentosAprovados) aprovados de @Valor(Dados.Comercial.OrcamentosCriados) criados</p></div></div>
+                        }
+                        @if (Dados.Operacional?.VeiculosEntregues is not null)
+                        {
+                            <div><span><MudIcon Icon="@Icons.Material.Outlined.TaskAlt" /></span><div><small>VEÍCULOS ENTREGUES</small><strong>@Dados.Operacional.VeiculosEntregues.Value.ToString(Cultura)</strong><p>Ordens concluídas no período selecionado</p></div></div>
+                        }
+                        @if (Dados.Financeiro is not null && Dados.Financeiro.ValorEmAberto > 0)
+                        {
+                            <div class="attention"><span><MudIcon Icon="@Icons.Material.Outlined.AccountBalanceWallet" /></span><div><small>VALOR EM ABERTO</small><strong>@Moeda(Dados.Financeiro.ValorEmAberto)</strong><p>@Dados.Financeiro.ContasPendentes conta(s) pendente(s)</p></div></div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <DetaraEmptyState Titulo="Dados insuficientes para destacar insights" Descricao="Conclua atendimentos, orçamentos ou pagamentos para formar esta leitura." Icone="@Icons.Material.Outlined.Lightbulb" Compacto="true" />
+                }
+            </DetaraCard>
+        </section>
+    }
+
+    @if (Dados.Comercial is not null)
+    {
+        <section class="executive-grid executive-grid-balanced"><DashboardOrcamentosFunil Dados="Dados.Comercial" /><DashboardServicosRanking Itens="Dados.Comercial.ServicosMaisRealizados" /></section>
+    }
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    [Parameter, EditorRequired] public DashboardExecutivoResponse Dados { get; set; } = null!;
+    [Parameter] public string RotuloPeriodo { get; set; } = "PERÍODO";
+
+    private bool PossuiIndicadores => Dados.Financeiro is not null || Dados.Operacional?.ClientesAtendidos is not null || Dados.Operacional?.ServicosRealizados is not null;
+    private bool PossuiInsights =>
+        Dados.Comercial?.ServicosMaisRealizados?.Count > 0 ||
+        Dados.Comercial?.TaxaConversao is not null ||
+        Dados.Operacional?.VeiculosEntregues is not null ||
+        Dados.Financeiro?.ValorEmAberto > 0;
+
+    private static string Moeda(decimal valor) => valor.ToString("C2", Cultura);
+    private static string Valor(int? valor) => (valor ?? 0).ToString(Cultura);
+}

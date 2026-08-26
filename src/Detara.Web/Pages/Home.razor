@@ -6,7 +6,7 @@
 @inject PreferenciasInterfaceServico Preferencias
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
-<PageTitle>Dashboard executivo | Detara</PageTitle>
+<PageTitle>Dashboard | Detara</PageTitle>
 
 <div class="page-container page-container-fluid executive-dashboard-page">
     <header class="executive-dashboard-header">
@@ -28,6 +28,8 @@
             }
         </div>
     </header>
+
+    <DashboardModoSelector Modo="_modoDashboard" Alterando="_salvandoModo" ModoAlterado="AlternarModoAsync" />
 
     @if (_carregandoInicial)
     {
@@ -59,58 +61,14 @@
         else
         {
             <div class="dashboard-refresh-layer @(_carregandoDashboard ? "refreshing" : null)">
-                <DashboardResumoCards Resumo="_dashboard.Resumo" RotuloPeriodo="@RotuloPeriodoCurto" />
-
-                @if (_dashboard.Operacional is not null || _dashboard.Financeiro is not null || _dashboard.Comercial is not null)
+                @if (_modoDashboard == ModoDashboard.Operacao)
                 {
-                    <section class="business-overview" aria-labelledby="business-overview-title">
-                        <div class="business-overview-heading"><span class="section-eyebrow">VISÃO DO NEGÓCIO</span><h2 id="business-overview-title">Desempenho · @RotuloPeriodoTexto</h2></div>
-                        <div class="business-kpi-grid">
-                            @if (_dashboard.Operacional?.ServicosRealizados is not null) { <BusinessKpi Icone="@Icons.Material.Outlined.AutoAwesome" Rotulo="Serviços realizados" Valor="@_dashboard.Operacional.ServicosRealizados.Value.ToString(Cultura)" /> }
-                            @if (_dashboard.Operacional?.VeiculosEntregues is not null) { <BusinessKpi Icone="@Icons.Material.Outlined.TaskAlt" Rotulo="Veículos entregues" Valor="@_dashboard.Operacional.VeiculosEntregues.Value.ToString(Cultura)" /> }
-                            @if (_dashboard.Financeiro is not null) { <BusinessKpi Icone="@Icons.Material.Outlined.Analytics" Rotulo="Ticket médio" Valor="@Moeda(_dashboard.Financeiro.TicketMedio)" /> }
-                            @if (_dashboard.Operacional?.ClientesAtendidos is not null) { <BusinessKpi Icone="@Icons.Material.Outlined.Groups" Rotulo="Clientes atendidos" Valor="@_dashboard.Operacional.ClientesAtendidos.Value.ToString(Cultura)" /> }
-                            @if (_dashboard.Financeiro is not null) { <BusinessKpi Icone="@Icons.Material.Outlined.AccountBalanceWallet" Rotulo="Valor em aberto" Valor="@Moeda(_dashboard.Financeiro.ValorEmAberto)" Destaque="true" /> }
-                            @if (_dashboard.Comercial?.OrcamentosAprovados is not null) { <BusinessKpi Icone="@Icons.Material.Outlined.ThumbUp" Rotulo="Orçamentos aprovados" Valor="@_dashboard.Comercial.OrcamentosAprovados.Value.ToString(Cultura)" /> }
-                        </div>
-                    </section>
+                    <DashboardOperacao Dados="_dashboard" />
                 }
-
-                @if (_dashboard.Operacional?.AgendaHoje is not null)
+                else
                 {
-                    <DetaraCard Titulo="Próximos compromissos" Sobretitulo="AGENDA DE HOJE" Descricao="Até cinco agendamentos válidos em ordem de horário." Class="agenda-panel dashboard-next-appointments">
-                        <Acoes><MudButton Href="/agenda" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton></Acoes>
-                        <ChildContent>
-                            @if (_dashboard.Operacional.AgendaHoje.Count == 0)
-                            {
-                                <DetaraEmptyState Titulo="Nenhum agendamento válido hoje" Descricao="Cancelamentos e faltas não entram nesta visão." Icone="@Icons.Material.Outlined.EventAvailable" Compacto="true" />
-                            }
-                            else
-                            {
-                                <div class="executive-agenda-list">
-                                    @foreach (var item in _dashboard.Operacional.AgendaHoje)
-                                    {
-                                        <a href="@($"/agenda/{item.Id}")"><time>@item.InicioLocal.ToString("HH:mm")</time><div><strong>@item.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca) · @(item.ItemPrincipal ?? "Sem item informado")</span></div><DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" /><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
-                                    }
-                                </div>
-                            }
-                        </ChildContent>
-                    </DetaraCard>
+                    <DashboardEmpresa Dados="_dashboard" RotuloPeriodo="@RotuloPeriodoCurto" />
                 }
-
-                @if (_dashboard.Financeiro is not null || _dashboard.Atividade.Atencoes.Count > 0)
-                {
-                    <section class="executive-grid executive-grid-main">
-                        @if (_dashboard.Financeiro is not null) { <DashboardFinanceiroChart Dados="_dashboard.Financeiro" Granularidade="_dashboard.Periodo.Granularidade" /> }
-                        <DashboardAlertas Itens="_dashboard.Atividade.Atencoes" />
-                    </section>
-                }
-
-                @if (_dashboard.Comercial is not null)
-                {
-                    <section class="executive-grid executive-grid-balanced"><DashboardOrcamentosFunil Dados="_dashboard.Comercial" /><DashboardServicosRanking Itens="_dashboard.Comercial.ServicosMaisRealizados" /></section>
-                }
-
             </div>
         }
     }
@@ -123,17 +81,21 @@
     private OnboardingEmpresaResponse? _onboarding;
     private DashboardExecutivoResponse? _dashboard;
     private PeriodoDashboardContrato _periodo = PeriodoDashboardContrato.EsteMes;
-    private bool _carregandoInicial = true, _carregandoDashboard, _onboardingRecolhido, _onboardingAbertoManualmente;
+    private bool _carregandoInicial = true, _carregandoDashboard, _onboardingRecolhido, _onboardingAbertoManualmente, _salvandoModo;
+    private ModoDashboard _modoDashboard = ModoDashboard.Operacao;
     private Guid _usuarioId;
     private string _nomeUsuario = "Administrador";
     private string _erroDashboard = "Não foi possível carregar os dados executivos.";
 
     private string DataAtual => _dashboard is null ? "VISÃO EXECUTIVA" : _dashboard.DataReferencia.ToDateTime(TimeOnly.MinValue).ToString("dddd, d 'de' MMMM", Cultura).ToUpper(Cultura);
     private string Saudacao { get { if (_onboarding?.Concluido is not true) return $"Bem-vindo ao Detara, {_nomeUsuario}"; var momento = _dashboard?.AtualizadoEmLocal.Hour switch { < 12 => "Bom dia", < 18 => "Boa tarde", _ => "Boa noite" }; return $"{momento}, {_nomeUsuario}"; } }
-    private string DescricaoDashboard => _onboarding?.Concluido is true ? "Acompanhe a operação de hoje e a evolução real do seu negócio em uma única visão." : "Sua conta está pronta. Vamos organizar os primeiros passos.";
+    private string DescricaoDashboard => _onboarding?.Concluido is not true
+        ? "Sua conta está pronta. Vamos organizar os primeiros passos."
+        : _modoDashboard == ModoDashboard.Operacao
+            ? "Priorize a agenda, os atendimentos em curso e as pendências que pedem ação hoje."
+            : "Acompanhe resultados, evolução financeira e indicadores consolidados da empresa.";
     private bool PossuiAlgumPainel => _dashboard is not null && (_dashboard.Operacional is not null || _dashboard.Comercial is not null || _dashboard.Financeiro is not null);
     private string RotuloPeriodoCurto => _periodo switch { PeriodoDashboardContrato.Hoje => "HOJE", PeriodoDashboardContrato.Ultimos7Dias => "7 DIAS", PeriodoDashboardContrato.EsteAno => "ESTE ANO", _ => "ESTE MÊS" };
-    private string RotuloPeriodoTexto => _periodo switch { PeriodoDashboardContrato.Hoje => "Hoje", PeriodoDashboardContrato.Ultimos7Dias => "Últimos 7 dias", PeriodoDashboardContrato.EsteAno => "Este ano", _ => "Este mês" };
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,6 +103,7 @@
         var usuario = autenticacao.User;
         _nomeUsuario = usuario.Identity?.Name?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Administrador";
         Guid.TryParse(usuario.FindFirst("sub")?.Value, out _usuarioId);
+        _modoDashboard = Preferencias.ModoDashboardAtual;
         _onboardingRecolhido = await Preferencias.ObterOnboardingRecolhidoAsync(_usuarioId);
         var onboardingTask = OnboardingApi.ObterAsync(); var dashboardTask = DashboardApi.ObterAsync(_periodo);
         await Task.WhenAll(onboardingTask, dashboardTask);
@@ -150,11 +113,16 @@
         _carregandoInicial = false;
     }
     private async Task AlterarPeriodoAsync(PeriodoDashboardContrato periodo) { if (_periodo == periodo) return; _periodo = periodo; await CarregarDashboardAsync(); }
+    private async Task AlternarModoAsync(ModoDashboard modo)
+    {
+        if (_modoDashboard == modo || _salvandoModo) return;
+        _modoDashboard = modo;
+        _salvandoModo = true;
+        try { await Preferencias.DefinirModoDashboardAsync(modo); }
+        finally { _salvandoModo = false; }
+    }
     private async Task CarregarDashboardAsync() { _carregandoDashboard = true; AplicarDashboard(await DashboardApi.ObterAsync(_periodo)); _carregandoDashboard = false; }
     private void AplicarDashboard(ResultadoServico<DashboardExecutivoResponse> resultado) { _dashboard = resultado.Sucesso ? resultado.Resultado : null; _erroDashboard = resultado.Mensagem ?? "Não foi possível carregar os dados executivos."; }
     private async Task RecolherOnboardingAsync() { _onboardingRecolhido = true; _onboardingAbertoManualmente = false; await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, true); }
     private async Task ReabrirOnboardingAsync() { _onboardingRecolhido = false; _onboardingAbertoManualmente = true; await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, false); }
-    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "Agendado", StatusAgendamentoContrato.Confirmado => "Confirmado", StatusAgendamentoContrato.Compareceu => "Em atendimento", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
-    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => DetaraStatusTone.Info, StatusAgendamentoContrato.Confirmado => DetaraStatusTone.Positive, StatusAgendamentoContrato.Compareceu => DetaraStatusTone.Positive, StatusAgendamentoContrato.Concluido => DetaraStatusTone.Positive, _ => DetaraStatusTone.Neutral };
-    private static string Moeda(decimal valor) => valor.ToString("C2", Cultura);
 }

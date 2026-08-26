@@ -94,7 +94,7 @@ internal sealed class AtualizarPreferenciasUsuarioHandler(
 
         if (request.Favoritos is null ||
             request.Favoritos.Count > 12 ||
-            !PaginasDetara.Permitidas.Contains(request.PaginaInicial) ||
+            !PaginasDetara.PaginasIniciaisPermitidas.Contains(request.PaginaInicial) ||
             request.Favoritos.Any(pagina => !PaginasDetara.Permitidas.Contains(pagina)) ||
             request.Favoritos.Count != request.Favoritos.Distinct(StringComparer.OrdinalIgnoreCase).Count())
         {
@@ -106,5 +106,5 @@ internal sealed class AtualizarPreferenciasUsuarioHandler(
 internal static class PreferenciasUsuarioPadrao
 {
     public static PreferenciasUsuarioResultado Criar() =>
-        new("Sistema", "pt-BR", false, "dashboard", []);
+        new("Sistema", "pt-BR", false, PaginasDetara.Dashboard, []);
 }
