@@ -169,6 +169,19 @@ Os padrões são implementados em `app.css` e nos componentes `CabecalhoPagina`,
 - **Modais:** decisões focadas; grandes CRUDs não cabem em modal por padrão.
 - **Ícones:** MudBlazor/Material Icons, preferencialmente outlined; uma família consistente e sem emoji funcional.
 
+### Componentes de produto compartilhados
+
+Os componentes canônicos abaixo ficam em `src/Detara.Web/Components/Shared/DesignSystem/` e devem ser preferidos a marcação local equivalente:
+
+- `DetaraMetricCard`: título, valor, contexto, descrição ou tendência e tom semântico (`Neutral`, `Positive`, `Warning`, `Info`).
+- `DetaraStatusBadge`: texto e tom semântico (`Neutral`, `Positive`, `Warning`, `Info`, `Critical`), sem alterar enums ou regras de domínio.
+- `DetaraCard`: container de seção com título, sobretítulo, descrição, ações e conteúdo opcionais.
+- `DetaraEmptyState`: ausência de dados com ícone, orientação e ação contextual; use `Compacto` dentro de cards.
+- `DetaraSkeleton`: carregamento de cards, tabelas e detalhes sem texto ou spinner solto.
+- `DetaraDialog`: título, descrição, erro, ações primária/secundária e estado de processamento consistentes.
+
+Componentes legados podem delegar para estes padrões durante a migração gradual. O tom visual é sempre decidido na camada de apresentação; contratos e enums de negócio não devem conhecer o Design System.
+
 ## Shell e navegação
 
 Desktop: sidebar de 248 px, recolhível para 72 px; no modo compacto, exibe somente símbolo, ícones e tooltips. Tablet usa rail compacto quando necessário. Mobile usa drawer sobreposto e topbar compacta.

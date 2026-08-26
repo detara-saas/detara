@@ -1,37 +1,11 @@
 @inject OrcamentosServico OrcamentosApi
 
-<MudDialog>
-    <TitleContent><MudText Typo="Typo.h6">@Titulo</MudText></TitleContent>
-    <DialogContent>
-        <div class="dialog-content-stack quotation-action-dialog">
-            <MudAlert Severity="@Severidade" Variant="Variant.Outlined">@Descricao</MudAlert>
-            @if (!string.IsNullOrWhiteSpace(_erro))
-            {
-                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_erro</MudAlert>
-            }
-            @if (Acao != "nova")
-            {
-                <MudTextField T="string"
-                              @bind-Value="_observacao"
-                              Label="Observação (opcional)"
-                              Variant="Variant.Outlined"
-                              Lines="3"
-                              MaxLength="1000"
-                              Counter="1000"
-                              Disabled="_enviando" />
-            }
-        </div>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="Cancelar" Disabled="_enviando">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled"
-                   Color="@CorConfirmacao"
-                   OnClick="ConfirmarAsync"
-                   Disabled="_enviando">
-            @(_enviando ? "Processando..." : TextoConfirmacao)
-        </MudButton>
-    </DialogActions>
-</MudDialog>
+<DetaraDialog Titulo="@Titulo" Descricao="@Descricao" Erro="@_erro" TextoPrimario="@TextoConfirmacao" CorPrimaria="@CorConfirmacao" Carregando="@_enviando" OnPrimary="ConfirmarAsync" OnSecondary="Cancelar">
+    @if (Acao != "nova")
+    {
+        <MudTextField T="string" @bind-Value="_observacao" Label="Observação (opcional)" Variant="Variant.Outlined" Lines="3" MaxLength="1000" Counter="1000" Disabled="_enviando" />
+    }
+</DetaraDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
@@ -75,10 +49,6 @@
     private Color CorConfirmacao => Acao is "recusar" or "cancelar"
         ? Color.Warning
         : Acao == "aprovar" ? Color.Success : Color.Primary;
-
-    private Severity Severidade => Acao is "recusar" or "cancelar"
-        ? Severity.Warning
-        : Severity.Info;
 
     private void Cancelar() => MudDialog.Cancel();
 

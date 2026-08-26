@@ -1,12 +1,4 @@
-<section class="empty-state module-empty-state">
-    <div class="empty-icon"><MudIcon Icon="@Icone" Size="Size.Large" /></div>
-    <MudText Typo="Typo.h5">@Titulo</MudText>
-    <MudText Typo="Typo.body2" Color="Color.Secondary">@Descricao</MudText>
-    @if (Acao is not null)
-    {
-        <div class="empty-action">@Acao</div>
-    }
-</section>
+<DetaraEmptyState Titulo="@Titulo" Descricao="@Descricao" Icone="@Icone" Acao="@Acao" />
 
 @code {
     [Parameter, EditorRequired]

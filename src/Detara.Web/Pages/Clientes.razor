@@ -39,11 +39,11 @@
 
 @if (_carregando)
 {
-    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    <DetaraSkeleton Variant="DetaraSkeletonVariant.Table" Rotulo="Carregando clientes" />
 }
 else if (_pagina is null || _pagina.Itens.Count == 0)
 {
-    <EstadoVazio Titulo="@(TemFiltrosAtivos ? "Nenhum cliente corresponde aos filtros" : "Cadastre seu primeiro cliente")"
+    <DetaraEmptyState Titulo="@(TemFiltrosAtivos ? "Nenhum cliente corresponde aos filtros" : "Cadastre seu primeiro cliente")"
                  Descricao="@(TemFiltrosAtivos ? "Revise a pesquisa, o status ou o tipo de pessoa para ampliar os resultados." : "Clientes concentram os dados de contato e os veículos atendidos pela sua operação.")"
                  Icone="@Icons.Material.Outlined.PeopleOutline">
         <Acao>
@@ -54,7 +54,7 @@ else if (_pagina is null || _pagina.Itens.Count == 0)
                 </AuthorizeView>
             }
         </Acao>
-    </EstadoVazio>
+    </DetaraEmptyState>
 }
 else
 {
@@ -69,7 +69,7 @@ else
                     <td>@FormatarTelefone(cliente.Telefone)</td>
                     <td>@FormatarDocumento(cliente.CpfCnpj)</td>
                     <td>@cliente.QuantidadeVeiculos</td>
-                    <td><span class="status-badge @(cliente.EhAtivo ? "status-running" : "status-neutral")">@(cliente.EhAtivo ? "Ativo" : "Inativo")</span></td>
+                    <td><DetaraStatusBadge Texto="@(cliente.EhAtivo ? "Ativo" : "Inativo")" Tone="@(cliente.EhAtivo ? DetaraStatusTone.Positive : DetaraStatusTone.Neutral)" /></td>
                     <td class="table-actions">
                         <MudIconButton Href="@($"/clientes/{cliente.Id}")" Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" aria-label="Abrir cliente" />
                         <AuthorizeView Policy="@Permissoes.ClientesEditar">
@@ -87,7 +87,7 @@ else
         {
             <a class="mobile-record" href="@($"/clientes/{cliente.Id}")">
                 <div class="mobile-record-main"><strong>@cliente.Nome</strong><span>@FormatarTelefone(cliente.Telefone)</span><span>@cliente.QuantidadeVeiculos veículo(s)</span></div>
-                <span class="status-badge @(cliente.EhAtivo ? "status-running" : "status-neutral")">@(cliente.EhAtivo ? "Ativo" : "Inativo")</span>
+                <DetaraStatusBadge Texto="@(cliente.EhAtivo ? "Ativo" : "Inativo")" Tone="@(cliente.EhAtivo ? DetaraStatusTone.Positive : DetaraStatusTone.Neutral)" />
                 <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
             </a>
         }

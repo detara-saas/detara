@@ -1,0 +1,39 @@
+<article class="detara-metric-card @ToneClass @Class" aria-label="@($"{Titulo}: {Valor}")">
+    <div class="detara-metric-card__top">
+        <span class="detara-metric-card__icon" aria-hidden="true"><MudIcon Icon="@Icone" /></span>
+        @if (!string.IsNullOrWhiteSpace(Contexto))
+        {
+            <small>@Contexto</small>
+        }
+    </div>
+    <p>@Titulo</p>
+    <strong class="@(ValorSemQuebra ? "currency-value" : null)">@Valor</strong>
+    @if (!string.IsNullOrWhiteSpace(Tendencia))
+    {
+        <span class="detara-metric-card__trend">
+            <MudIcon Icon="@TrendIcon" Size="Size.Small" />
+            @Tendencia
+        </span>
+    }
+    else if (!string.IsNullOrWhiteSpace(Descricao))
+    {
+        <small class="detara-metric-card__description">@Descricao</small>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Valor { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Icone { get; set; } = string.Empty;
+    [Parameter] public string? Descricao { get; set; }
+    [Parameter] public string? Tendencia { get; set; }
+    [Parameter] public string? Contexto { get; set; }
+    [Parameter] public DetaraMetricTone Tone { get; set; }
+    [Parameter] public bool ValorSemQuebra { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string ToneClass => $"tone-{Tone.ToString().ToLowerInvariant()}";
+    private string TrendIcon => Tone == DetaraMetricTone.Warning
+        ? Icons.Material.Outlined.TrendingDown
+        : Icons.Material.Outlined.TrendingUp;
+}

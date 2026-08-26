@@ -1,0 +1,3 @@
+.detara-dialog__heading { display: grid; gap: 4px; }
+.detara-dialog__heading ::deep .mud-typography-body2 { max-width: 560px; line-height: 1.5; }
+.detara-dialog__content { display: grid; gap: 18px; padding-top: 4px; }

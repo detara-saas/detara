@@ -9,14 +9,14 @@
 @inject IDialogService Dialogs
 
 <PageTitle>@(_ordem?.Codigo ?? "Ordem de Serviço") | Detara</PageTitle>
-@if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
+@if (_carregando) { <div class="page-container page-container-wide"><DetaraSkeleton Variant="DetaraSkeletonVariant.Detail" Rotulo="Carregando ordem de serviço" /></div> }
 else if (_ordem is null) { <EstadoVazio Titulo="Ordem de serviço não encontrada" Descricao="O registro não existe ou pertence a outra empresa." Icone="@Icons.Material.Outlined.FactCheck" /> }
 else
 {
     <div class="page-container page-container-wide service-order-detail-page">
         <div class="service-order-detail-header">
             <CabecalhoPagina Titulo="@_ordem.Codigo" Descricao="@($"{_ordem.ClienteNome} · {FormatacaoVeiculo.Exibir(_ordem.VeiculoDescricao, _ordem.VeiculoPlaca)}")" Sobretitulo="ORDEM DE SERVIÇO">
-                <Acoes><span class="status-badge @ClasseStatus(_ordem.Status)">@NomeStatus(_ordem.Status)</span>@if (_ordem.AgendamentoOrigemId.HasValue) { <AuthorizeView Policy="@Permissoes.AgendaVisualizar"><Authorized><MudButton Href="@($"/agenda/{_ordem.AgendamentoOrigemId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EventAvailable">Ver agendamento</MudButton></Authorized></AuthorizeView> }@if (_contaReceberId.HasValue) { <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar"><Authorized><MudButton Href="@($"/financeiro/contas-receber/{_contaReceberId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.AccountBalanceWallet">Ver conta a receber</MudButton></Authorized></AuthorizeView> }</Acoes>
+                <Acoes><DetaraStatusBadge Texto="@NomeStatus(_ordem.Status)" Tone="@TomStatus(_ordem.Status)" />@if (_ordem.AgendamentoOrigemId.HasValue) { <AuthorizeView Policy="@Permissoes.AgendaVisualizar"><Authorized><MudButton Href="@($"/agenda/{_ordem.AgendamentoOrigemId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.EventAvailable">Ver agendamento</MudButton></Authorized></AuthorizeView> }@if (_contaReceberId.HasValue) { <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar"><Authorized><MudButton Href="@($"/financeiro/contas-receber/{_contaReceberId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.AccountBalanceWallet">Ver conta a receber</MudButton></Authorized></AuthorizeView> }</Acoes>
             </CabecalhoPagina>
         </div>
 
@@ -136,6 +136,7 @@ else
     private static string OrigemItem(OrdemServicoItemResponse i) => i.OrigemComercial switch { OrigemComercialOrdemServicoContrato.Orcamento => "Autorizado por orçamento", OrigemComercialOrdemServicoContrato.Cortesia => "Cortesia", _ => "Acordo direto" };
     private static string NomeStatus(StatusOrdemServicoContrato s) => s switch { StatusOrdemServicoContrato.EmExecucao => "Em execução", StatusOrdemServicoContrato.AguardandoRetirada => "Aguardando retirada", StatusOrdemServicoContrato.Concluida => "Concluída", _ => s.ToString() };
     private static string ClasseStatus(StatusOrdemServicoContrato s) => s switch { StatusOrdemServicoContrato.Aberta => "status-scheduled", StatusOrdemServicoContrato.EmExecucao => "status-running", StatusOrdemServicoContrato.AguardandoRetirada => "status-waiting", StatusOrdemServicoContrato.Concluida => "status-confirmed", _ => "status-cancelled" };
+    private static DetaraStatusTone TomStatus(StatusOrdemServicoContrato s) => s switch { StatusOrdemServicoContrato.Aberta => DetaraStatusTone.Info, StatusOrdemServicoContrato.EmExecucao or StatusOrdemServicoContrato.Concluida => DetaraStatusTone.Positive, StatusOrdemServicoContrato.AguardandoRetirada => DetaraStatusTone.Warning, _ => DetaraStatusTone.Critical };
     private static string NomeExigencia(NivelExigenciaOperacionalContrato? n) => n switch { NivelExigenciaOperacionalContrato.Obrigatorio => "Obrigatório", NivelExigenciaOperacionalContrato.Opcional => "Opcional", _ => "Desabilitado" };
     private static string NomeCategoria(CategoriaFotoOrdemServicoContrato c) => c switch { CategoriaFotoOrdemServicoContrato.Entrada => "Entrada", CategoriaFotoOrdemServicoContrato.Durante => "Durante a execução", _ => "Saída" };
     private static string FormatarTamanho(long b) => b >= 1024 * 1024 ? $"{b / 1024d / 1024d:N1} MiB" : $"{b / 1024d:N0} KiB";

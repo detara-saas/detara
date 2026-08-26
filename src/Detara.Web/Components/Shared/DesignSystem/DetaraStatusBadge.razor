@@ -1,0 +1,23 @@
+<span class="status-badge detara-status-badge @ToneClass @Class">
+    @if (!string.IsNullOrWhiteSpace(Icone))
+    {
+        <MudIcon Icon="@Icone" Size="Size.Small" aria-hidden="true" />
+    }
+    @Texto
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Texto { get; set; } = string.Empty;
+    [Parameter] public DetaraStatusTone Tone { get; set; }
+    [Parameter] public string? Icone { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string ToneClass => Tone switch
+    {
+        DetaraStatusTone.Positive => "status-running",
+        DetaraStatusTone.Warning => "status-waiting",
+        DetaraStatusTone.Info => "status-scheduled",
+        DetaraStatusTone.Critical => "status-cancelled",
+        _ => "status-neutral"
+    };
+}

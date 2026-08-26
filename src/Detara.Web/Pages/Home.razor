@@ -31,7 +31,7 @@
 
     @if (_carregandoInicial)
     {
-        <section class="dashboard-loading" aria-label="Carregando Dashboard executivo"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="112px" /><div class="dashboard-loading-metrics">@for (var indice = 0; indice < 4; indice++) { <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="178px" /> }</div><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="360px" /></section>
+        <section class="dashboard-loading" aria-label="Carregando Dashboard executivo"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="112px" /><DetaraSkeleton Variant="DetaraSkeletonVariant.Cards" Quantidade="4" Rotulo="Carregando indicadores" /><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="360px" /></section>
     }
     else
     {
@@ -39,7 +39,7 @@
         {
             <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="page-alert onboarding-error">Não foi possível carregar a configuração inicial. Os dados executivos continuam disponíveis abaixo.</MudAlert>
         }
-        else
+        else if (!_onboarding.Concluido)
         {
             <OnboardingEmpresaCard Estado="_onboarding" Compacto="@(_onboardingRecolhido || _onboarding.Concluido && !_onboardingAbertoManualmente)" OnRecolher="RecolherOnboardingAsync" OnReabrir="ReabrirOnboardingAsync" />
         }
@@ -76,6 +76,28 @@
                     </section>
                 }
 
+                @if (_dashboard.Operacional?.AgendaHoje is not null)
+                {
+                    <DetaraCard Titulo="Próximos compromissos" Sobretitulo="AGENDA DE HOJE" Descricao="Até cinco agendamentos válidos em ordem de horário." Class="agenda-panel dashboard-next-appointments">
+                        <Acoes><MudButton Href="/agenda" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton></Acoes>
+                        <ChildContent>
+                            @if (_dashboard.Operacional.AgendaHoje.Count == 0)
+                            {
+                                <DetaraEmptyState Titulo="Nenhum agendamento válido hoje" Descricao="Cancelamentos e faltas não entram nesta visão." Icone="@Icons.Material.Outlined.EventAvailable" Compacto="true" />
+                            }
+                            else
+                            {
+                                <div class="executive-agenda-list">
+                                    @foreach (var item in _dashboard.Operacional.AgendaHoje)
+                                    {
+                                        <a href="@($"/agenda/{item.Id}")"><time>@item.InicioLocal.ToString("HH:mm")</time><div><strong>@item.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca) · @(item.ItemPrincipal ?? "Sem item informado")</span></div><DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" /><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+                                    }
+                                </div>
+                            }
+                        </ChildContent>
+                    </DetaraCard>
+                }
+
                 @if (_dashboard.Financeiro is not null || _dashboard.Atividade.Atencoes.Count > 0)
                 {
                     <section class="executive-grid executive-grid-main">
@@ -89,28 +111,6 @@
                     <section class="executive-grid executive-grid-balanced"><DashboardOrcamentosFunil Dados="_dashboard.Comercial" /><DashboardServicosRanking Itens="_dashboard.Comercial.ServicosMaisRealizados" /></section>
                 }
 
-                @if (_dashboard.Operacional is not null)
-                {
-                    <DashboardFluxoOperacional Fluxo="_dashboard.Operacional.Fluxo" />
-                }
-
-                <section class="executive-grid executive-grid-main executive-grid-activity">
-                    @if (_dashboard.Operacional?.AgendaHoje is not null)
-                    {
-                        <article class="executive-panel agenda-panel">
-                            <div class="executive-panel-heading"><div><span class="section-eyebrow">AGENDA DE HOJE</span><h2>Próximos compromissos</h2><p>Até cinco agendamentos válidos em ordem de horário.</p></div><MudButton Href="/agenda" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver agenda</MudButton></div>
-                            @if (_dashboard.Operacional.AgendaHoje.Count == 0)
-                            {
-                                <div class="executive-empty compact"><span><MudIcon Icon="@Icons.Material.Outlined.EventAvailable" /></span><div><strong>Nenhum agendamento válido hoje</strong><p>Cancelamentos e faltas não entram nesta visão.</p></div></div>
-                            }
-                            else
-                            {
-                                <div class="executive-agenda-list">@foreach (var item in _dashboard.Operacional.AgendaHoje) { <a href="@($"/agenda/{item.Id}")"><time>@item.InicioLocal.ToString("HH:mm")</time><div><strong>@item.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca) · @(item.ItemPrincipal ?? "Sem item informado")</span></div><span class="status-badge @ClasseStatus(item.Status)">@NomeStatus(item.Status)</span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }</div>
-                            }
-                        </article>
-                    }
-                    <DashboardTimeline Itens="_dashboard.Atividade.Itens" />
-                </section>
             </div>
         }
     }
@@ -155,6 +155,6 @@
     private async Task RecolherOnboardingAsync() { _onboardingRecolhido = true; _onboardingAbertoManualmente = false; await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, true); }
     private async Task ReabrirOnboardingAsync() { _onboardingRecolhido = false; _onboardingAbertoManualmente = true; await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, false); }
     private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "Agendado", StatusAgendamentoContrato.Confirmado => "Confirmado", StatusAgendamentoContrato.Compareceu => "Em atendimento", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
-    private static string ClasseStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "status-scheduled", StatusAgendamentoContrato.Confirmado => "status-confirmed", StatusAgendamentoContrato.Compareceu => "status-running", StatusAgendamentoContrato.Concluido => "status-success", _ => "status-neutral" };
+    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => DetaraStatusTone.Info, StatusAgendamentoContrato.Confirmado => DetaraStatusTone.Positive, StatusAgendamentoContrato.Compareceu => DetaraStatusTone.Positive, StatusAgendamentoContrato.Concluido => DetaraStatusTone.Positive, _ => DetaraStatusTone.Neutral };
     private static string Moeda(decimal valor) => valor.ToString("C2", Cultura);
 }
