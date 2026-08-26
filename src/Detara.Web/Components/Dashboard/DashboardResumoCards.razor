@@ -1,0 +1,48 @@
+<section class="executive-summary-grid" aria-label="Indicadores principais">
+    @if (Resumo.AgendamentosHoje.HasValue)
+    {
+        <article class="executive-metric-card metric-teal">
+            <div class="executive-metric-top"><span><MudIcon Icon="@Icons.Material.Outlined.CalendarToday" /></span><small>HOJE</small></div>
+            <p>Agendamentos</p><strong>@Resumo.AgendamentosHoje.Value</strong>
+            <small>@(Resumo.AgendamentosConcluidosHoje == 1 ? "1 atendimento concluído" : $"{Resumo.AgendamentosConcluidosHoje ?? 0} atendimentos concluídos")</small>
+        </article>
+    }
+    @if (Resumo.OrdensEmExecucao.HasValue)
+    {
+        <article class="executive-metric-card metric-blue">
+            <div class="executive-metric-top"><span><MudIcon Icon="@Icons.Material.Outlined.Handyman" /></span><small>AGORA</small></div>
+            <p>Em execução</p><strong>@Resumo.OrdensEmExecucao.Value</strong>
+            <small>Ordens em atendimento</small>
+        </article>
+        <article class="executive-metric-card metric-amber">
+            <div class="executive-metric-top"><span><MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" /></span><small>AGORA</small></div>
+            <p>Aguardando retirada</p><strong>@(Resumo.OrdensAguardandoRetirada ?? 0)</strong>
+            <small>Veículos prontos para entrega</small>
+        </article>
+    }
+    @if (Resumo.ReceitaLiquida.HasValue)
+    {
+        <article class="executive-metric-card metric-green">
+            <div class="executive-metric-top"><span><MudIcon Icon="@Icons.Material.Outlined.Payments" /></span><small>@RotuloPeriodo</small></div>
+            <p>Receita líquida recebida</p><strong class="currency-value">@Moeda(Resumo.ReceitaLiquida.Value)</strong>
+            @if (Resumo.VariacaoReceitaPercentual.HasValue)
+            {
+                <small class="metric-comparison @(Resumo.VariacaoReceitaPercentual >= 0 ? "positive" : "negative")">
+                    <MudIcon Icon="@(Resumo.VariacaoReceitaPercentual >= 0 ? Icons.Material.Outlined.TrendingUp : Icons.Material.Outlined.TrendingDown)" />
+                    @Math.Abs(Resumo.VariacaoReceitaPercentual.Value).ToString("N1", Cultura)% vs. período anterior
+                </small>
+            }
+            else
+            {
+                <small>Recebido menos taxas · não é lucro</small>
+            }
+        </article>
+    }
+</section>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    [Parameter, EditorRequired] public DashboardResumoResponse Resumo { get; set; } = null!;
+    [Parameter] public string RotuloPeriodo { get; set; } = "PERÍODO";
+    private static string Moeda(decimal valor) => valor.ToString("C2", Cultura);
+}

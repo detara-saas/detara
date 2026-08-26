@@ -1,0 +1,26 @@
+<article class="executive-panel funnel-panel">
+    <div class="executive-panel-heading"><div><span class="section-eyebrow">COMERCIAL</span><h2>Funil de orçamentos</h2><p>Conversão das propostas criadas no período selecionado.</p></div>@if (Dados.TaxaConversao.HasValue) { <span class="conversion-badge"><strong>@Dados.TaxaConversao.Value.ToString("N1")%</strong> conversão</span> }</div>
+    @if (!Dados.OrcamentosCriados.HasValue || Dados.OrcamentosCriados == 0)
+    {
+        <div class="executive-empty compact"><span><MudIcon Icon="@Icons.Material.Outlined.RequestQuote" /></span><div><strong>Nenhum orçamento criado no período</strong><p>O funil será preenchido com propostas reais.</p></div></div>
+    }
+    else
+    {
+        <div class="quote-funnel" aria-label="Etapas do funil de orçamentos">
+            @foreach (var etapa in Etapas)
+            {
+                <div class="funnel-stage"><div><span>@etapa.Nome</span><strong>@etapa.Valor</strong></div><span class="funnel-track"><i style="width: @Largura(etapa.Valor)%"></i></span></div>
+            }
+        </div>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public DashboardComercialResponse Dados { get; set; } = null!;
+    private IEnumerable<(string Nome, int Valor)> Etapas => new[]
+    {
+        ("Criados", Dados.OrcamentosCriados ?? 0), ("Enviados", Dados.OrcamentosEnviados ?? 0),
+        ("Aprovados", Dados.OrcamentosAprovados ?? 0), ("Recusados", Dados.OrcamentosRecusados ?? 0)
+    };
+    private decimal Largura(int valor) => Math.Max(4, valor * 100m / Math.Max(Dados.OrcamentosCriados ?? 1, 1));
+}

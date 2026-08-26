@@ -1,0 +1,22 @@
+<article class="executive-panel flow-panel">
+    <div class="executive-panel-heading"><div><span class="section-eyebrow">OPERAÇÃO</span><h2>Fluxo operacional</h2><p>Volume real registrado em cada marco do período.</p></div></div>
+    <div class="operational-flow" aria-label="Fluxo da agenda até a conclusão">
+        @foreach (var etapa in Etapas)
+        {
+            <div class="flow-stage @(etapa.Valor.HasValue ? null : "unavailable")"><span><MudIcon Icon="@etapa.Icone" /></span><strong>@(etapa.Valor?.ToString() ?? "—")</strong><small>@etapa.Nome</small></div>
+            @if (etapa != Etapas.Last()) { <MudIcon Class="flow-arrow" Icon="@Icons.Material.Outlined.ChevronRight" /> }
+        }
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public DashboardFluxoResponse Fluxo { get; set; } = null!;
+    private IReadOnlyList<(string Nome, int? Valor, string Icone)> Etapas =>
+    [
+        ("Agenda", Fluxo.Agenda, Icons.Material.Outlined.Event),
+        ("Cliente chegou", Fluxo.ClienteChegou, Icons.Material.Outlined.PersonPinCircle),
+        ("Em execução", Fluxo.EmExecucao, Icons.Material.Outlined.Handyman),
+        ("Aguardando retirada", Fluxo.AguardandoRetirada, Icons.Material.Outlined.Key),
+        ("Concluído", Fluxo.Concluido, Icons.Material.Outlined.TaskAlt)
+    ];
+}

@@ -1,0 +1,20 @@
+<article class="executive-panel ranking-panel">
+    <div class="executive-panel-heading"><div><span class="section-eyebrow">PORTFÓLIO</span><h2>Serviços mais realizados</h2><p>Participação dos itens concluídos no período.</p></div></div>
+    @if (Itens is null || Itens.Count == 0)
+    {
+        <div class="executive-empty compact"><span><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" /></span><div><strong>Sem serviços concluídos no período</strong><p>O ranking usa apenas itens efetivamente realizados.</p></div></div>
+    }
+    else
+    {
+        <ol class="service-ranking">
+            @{ var posicao = 0; }
+            @foreach (var item in Itens)
+            {
+                posicao++;
+                <li><span class="ranking-position">@posicao.ToString("00")</span><div><strong>@item.Nome</strong><span><i style="width: @item.Percentual.ToString(System.Globalization.CultureInfo.InvariantCulture)%"></i></span></div><div><strong>@item.Quantidade</strong><small>@item.Percentual.ToString("N1")%</small></div></li>
+            }
+        </ol>
+    }
+</article>
+
+@code { [Parameter] public IReadOnlyCollection<DashboardServicoRankingResponse>? Itens { get; set; } }

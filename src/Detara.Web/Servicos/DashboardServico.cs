@@ -8,44 +8,45 @@ namespace Detara.Web.Servicos;
 
 public sealed class DashboardServico(HttpClient httpClient)
 {
-    public async Task<ResultadoServico<DashboardOperacionalResponse>> ObterAsync(
+    public async Task<ResultadoServico<DashboardExecutivoResponse>> ObterAsync(
+        PeriodoDashboardContrato periodo = PeriodoDashboardContrato.EsteMes,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            using var response = await httpClient.GetAsync("api/dashboard", cancellationToken);
+            using var response = await httpClient.GetAsync($"api/dashboard?periodo={(int)periodo}", cancellationToken);
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                return ResultadoServico<DashboardOperacionalResponse>.Falha(
+                return ResultadoServico<DashboardExecutivoResponse>.Falha(
                     "Seu perfil não possui acesso aos dados operacionais do Dashboard.");
             }
             if (response.StatusCode == HttpStatusCode.Unauthorized ||
                 response.Content.Headers.ContentLength == 0)
             {
-                return ResultadoServico<DashboardOperacionalResponse>.Falha(
+                return ResultadoServico<DashboardExecutivoResponse>.Falha(
                     "Sua sessão não está disponível. Entre novamente para continuar.");
             }
 
             var envelope = await response.Content
-                .ReadFromJsonAsync<RespostaApi<DashboardOperacionalResponse>>(cancellationToken);
+                .ReadFromJsonAsync<RespostaApi<DashboardExecutivoResponse>>(cancellationToken);
             return response.IsSuccessStatusCode && envelope is { Sucesso: true, Resultado: not null }
-                ? ResultadoServico<DashboardOperacionalResponse>.Ok(envelope.Resultado)
-                : ResultadoServico<DashboardOperacionalResponse>.Falha(
+                ? ResultadoServico<DashboardExecutivoResponse>.Ok(envelope.Resultado)
+                : ResultadoServico<DashboardExecutivoResponse>.Falha(
                     envelope?.Info ?? "Não foi possível carregar o Dashboard.");
         }
         catch (HttpRequestException)
         {
-            return ResultadoServico<DashboardOperacionalResponse>.Falha(
+            return ResultadoServico<DashboardExecutivoResponse>.Falha(
                 "O Dashboard não está disponível no momento.");
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return ResultadoServico<DashboardOperacionalResponse>.Falha(
+            return ResultadoServico<DashboardExecutivoResponse>.Falha(
                 "A API não respondeu dentro do tempo esperado.");
         }
         catch (JsonException)
         {
-            return ResultadoServico<DashboardOperacionalResponse>.Falha(
+            return ResultadoServico<DashboardExecutivoResponse>.Falha(
                 "A API retornou uma resposta inválida para o Dashboard.");
         }
     }

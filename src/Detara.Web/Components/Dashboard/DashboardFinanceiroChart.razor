@@ -1,0 +1,45 @@
+<article class="executive-panel revenue-panel">
+    <div class="executive-panel-heading">
+        <div><span class="section-eyebrow">DESEMPENHO FINANCEIRO</span><h2>Receita ao longo do período</h2><p>Pagamentos confirmados, já descontadas as taxas registradas.</p></div>
+        <div class="revenue-total"><small>RECEITA LÍQUIDA</small><strong>@Moeda(Dados.ReceitaLiquida)</strong></div>
+    </div>
+    @if (Dados.ReceitaAoLongoPeriodo.Count == 0 || Dados.ReceitaAoLongoPeriodo.All(item => item.ReceitaLiquida == 0))
+    {
+        <div class="executive-empty compact"><span><MudIcon Icon="@Icons.Material.Outlined.ShowChart" /></span><div><strong>Ainda não há recebimentos neste período</strong><p>A evolução aparecerá após o primeiro pagamento confirmado.</p></div></div>
+    }
+    else
+    {
+        <div class="revenue-chart" role="img" aria-label="Gráfico da receita líquida no período">
+            <div class="chart-scale"><span>@MoedaCompacta(Maximo)</span><span>@MoedaCompacta(Maximo / 2)</span><span>R$ 0</span></div>
+            <svg viewBox="0 0 720 220" preserveAspectRatio="none" aria-hidden="true">
+                <defs><linearGradient id="detaraRevenueArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--detara-primary)" stop-opacity=".28"/><stop offset="1" stop-color="var(--detara-primary)" stop-opacity="0"/></linearGradient></defs>
+                <line x1="0" y1="20" x2="720" y2="20" class="chart-grid-line"/><line x1="0" y1="110" x2="720" y2="110" class="chart-grid-line"/><line x1="0" y1="200" x2="720" y2="200" class="chart-grid-line"/>
+                <polygon points="@AreaPontos" fill="url(#detaraRevenueArea)" />
+                <polyline points="@LinhaPontos" class="revenue-line" />
+            </svg>
+            <div class="chart-labels"><span>@Rotulo(Dados.ReceitaAoLongoPeriodo.First().Data)</span><span>@Rotulo(Dados.ReceitaAoLongoPeriodo.ElementAt(Dados.ReceitaAoLongoPeriodo.Count / 2).Data)</span><span>@Rotulo(Dados.ReceitaAoLongoPeriodo.Last().Data)</span></div>
+        </div>
+        <div class="financial-footnotes"><span>Bruto <strong>@Moeda(Dados.RecebidoBruto)</strong></span><span>Taxas <strong>@Moeda(Dados.Taxas)</strong></span><span>Ticket médio <strong>@Moeda(Dados.TicketMedio)</strong></span></div>
+    }
+</article>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    [Parameter, EditorRequired] public DashboardFinanceiroResponse Dados { get; set; } = null!;
+    [Parameter] public GranularidadeDashboardContrato Granularidade { get; set; }
+    private decimal Maximo => Math.Max(Dados.ReceitaAoLongoPeriodo.Max(item => item.ReceitaLiquida), 1);
+    private string LinhaPontos => CriarPontos();
+    private string AreaPontos => $"0,200 {CriarPontos()} 720,200";
+    private string CriarPontos()
+    {
+        var itens = Dados.ReceitaAoLongoPeriodo.ToArray();
+        if (itens.Length == 1) return $"0,{Y(itens[0].ReceitaLiquida)} 720,{Y(itens[0].ReceitaLiquida)}";
+        return string.Join(' ', itens.Select((item, indice) => string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"{indice * 720d / (itens.Length - 1):0.##},{Y(item.ReceitaLiquida):0.##}")));
+    }
+    private double Y(decimal valor) => 200d - (double)(valor / Maximo) * 180d;
+    private string Rotulo(DateOnly data) => Granularidade == GranularidadeDashboardContrato.Mes ? data.ToString("MMM", Cultura) : data.ToString("dd/MM", Cultura);
+    private static string Moeda(decimal valor) => valor.ToString("C2", Cultura);
+    private static string MoedaCompacta(decimal valor) => valor >= 1000 ? $"R$ {valor / 1000:N1} mil" : $"R$ {valor:N0}";
+}

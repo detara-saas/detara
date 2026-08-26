@@ -1,3 +1,4 @@
+using Detara.Application.Agenda;
 using Detara.Application.Dashboard;
 using Detara.Domain.Financeiro;
 using Detara.Infrastructure.Persistencia;
@@ -5,73 +6,90 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Financeiro;
 
-internal sealed class FinanceiroDashboardConsulta(DetaraDbContext db)
+internal sealed class FinanceiroDashboardConsulta(
+    DetaraDbContext db,
+    IConversorFusoHorario conversor)
     : IFinanceiroDashboardConsulta
 {
-    public async Task<DashboardFinanceiroResultado> ObterAsync(
+    public async Task<DashboardFinanceiroConsultaResultado> ObterAsync(
         Guid empresaId,
-        DateTime inicioPeriodoUtc,
-        DateTime fimPeriodoExclusivoUtc,
+        DashboardPeriodoDto periodo,
+        string fusoHorario,
+        int limiteAtividades,
         CancellationToken cancellationToken)
     {
-        var pagamentos = db.Pagamentos
+        var pagamentosPeriodo = await db.Pagamentos
             .AsNoTracking()
-            .Where(pagamento =>
-                pagamento.EmpresaId == empresaId &&
-                pagamento.Status == StatusPagamento.Confirmado &&
-                pagamento.RecebidoEmUtc >= inicioPeriodoUtc &&
-                pagamento.RecebidoEmUtc < fimPeriodoExclusivoUtc);
-        var contasPendentes = db.ContasReceber
+            .Where(item =>
+                item.EmpresaId == empresaId &&
+                item.Status == StatusPagamento.Confirmado &&
+                item.RecebidoEmUtc >= periodo.InicioUtc &&
+                item.RecebidoEmUtc < periodo.FimExclusivoUtc)
+            .Select(item => new
+            {
+                item.ContaReceberId,
+                item.Valor,
+                item.Taxa,
+                item.RecebidoEmUtc,
+                item.ContaReceber.VeiculoDescricaoSnapshot
+            })
+            .ToArrayAsync(cancellationToken);
+
+        var pagamentosAnteriores = await db.Pagamentos
             .AsNoTracking()
-            .Where(conta =>
-                conta.EmpresaId == empresaId &&
-                conta.Status != StatusContaReceber.Pago);
+            .Where(item =>
+                item.EmpresaId == empresaId &&
+                item.Status == StatusPagamento.Confirmado &&
+                item.RecebidoEmUtc >= periodo.InicioAnteriorUtc &&
+                item.RecebidoEmUtc < periodo.FimAnteriorExclusivoUtc)
+            .Select(item => new { item.Valor, item.Taxa })
+            .ToArrayAsync(cancellationToken);
 
-        decimal recebidoBruto;
-        decimal taxas;
-        int quantidadePendentes;
-        decimal valorPendente;
+        var contasPeriodo = await db.ContasReceber
+            .AsNoTracking()
+            .Where(item =>
+                item.EmpresaId == empresaId &&
+                item.DataCompetencia >= periodo.Inicio &&
+                item.DataCompetencia <= periodo.Fim)
+            .Select(item => item.ValorOriginal)
+            .ToArrayAsync(cancellationToken);
 
-        if (string.Equals(
-            db.Database.ProviderName,
-            "Microsoft.EntityFrameworkCore.Sqlite",
-            StringComparison.Ordinal))
-        {
-            var pagamentosProjetados = await pagamentos
-                .Select(pagamento => new { pagamento.Valor, pagamento.Taxa })
-                .ToArrayAsync(cancellationToken);
-            var contasProjetadas = await contasPendentes
-                .Select(conta => new { conta.ValorOriginal, conta.ValorRecebido })
-                .ToArrayAsync(cancellationToken);
-            recebidoBruto = pagamentosProjetados.Sum(item => item.Valor);
-            taxas = pagamentosProjetados.Sum(item => item.Taxa);
-            quantidadePendentes = contasProjetadas.Length;
-            valorPendente = contasProjetadas.Sum(item => item.ValorOriginal - item.ValorRecebido);
-        }
-        else
-        {
-            var resumoPagamentos = await pagamentos
-                .GroupBy(_ => 1)
-                .Select(grupo => new
-                {
-                    Recebido = grupo.Sum(item => item.Valor),
-                    Taxas = grupo.Sum(item => item.Taxa)
-                })
-                .SingleOrDefaultAsync(cancellationToken);
-            var resumoPendencias = await contasPendentes
-                .GroupBy(_ => 1)
-                .Select(grupo => new
-                {
-                    Quantidade = grupo.Count(),
-                    Valor = grupo.Sum(item => item.ValorOriginal - item.ValorRecebido)
-                })
-                .SingleOrDefaultAsync(cancellationToken);
-            recebidoBruto = resumoPagamentos?.Recebido ?? 0;
-            taxas = resumoPagamentos?.Taxas ?? 0;
-            quantidadePendentes = resumoPendencias?.Quantidade ?? 0;
-            valorPendente = resumoPendencias?.Valor ?? 0;
-        }
+        var contasPendentes = await db.ContasReceber
+            .AsNoTracking()
+            .Where(item =>
+                item.EmpresaId == empresaId &&
+                item.Status != StatusContaReceber.Pago)
+            .Select(item => new { item.ValorOriginal, item.ValorRecebido })
+            .ToArrayAsync(cancellationToken);
 
-        return new(recebidoBruto, taxas, quantidadePendentes, valorPendente);
+        var recebidoBruto = pagamentosPeriodo.Sum(item => item.Valor);
+        var taxas = pagamentosPeriodo.Sum(item => item.Taxa);
+        var receitaAnterior = pagamentosAnteriores.Sum(item => item.Valor - item.Taxa);
+        var receita = pagamentosPeriodo
+            .GroupBy(item => DateOnly.FromDateTime(conversor.ParaLocal(item.RecebidoEmUtc, fusoHorario)))
+            .Select(grupo => new DashboardReceitaPontoConsulta(
+                grupo.Key,
+                grupo.Sum(item => item.Valor - item.Taxa)))
+            .OrderBy(item => item.Data)
+            .ToArray();
+        var atividades = pagamentosPeriodo
+            .OrderByDescending(item => item.RecebidoEmUtc)
+            .Take(limiteAtividades)
+            .Select(item => new DashboardAtividadeItemDto(
+                TipoAtividadeDashboard.PagamentoRecebido,
+                item.ContaReceberId,
+                item.RecebidoEmUtc,
+                item.VeiculoDescricaoSnapshot))
+            .ToArray();
+
+        return new(
+            recebidoBruto,
+            taxas,
+            receitaAnterior,
+            contasPeriodo.Length == 0 ? 0 : decimal.Round(contasPeriodo.Average(), 2),
+            contasPendentes.Length,
+            contasPendentes.Sum(item => item.ValorOriginal - item.ValorRecebido),
+            receita,
+            atividades);
     }
 }

@@ -15,6 +15,7 @@ using Detara.Infrastructure.Catalogo;
 using Detara.Infrastructure.Clientes;
 using Detara.Infrastructure.Demo;
 using Detara.Infrastructure.Financeiro;
+using Detara.Infrastructure.Notificacoes;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
 using Microsoft.AspNetCore.Identity;
@@ -123,19 +124,20 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
             new PlataformaDashboardConsulta(db),
             new AgendaDashboardConsulta(db),
             new AtendimentoDashboardConsulta(db),
-            new FinanceiroDashboardConsulta(db),
+            new FinanceiroDashboardConsulta(db, new ConversorFusoHorario()),
+            new NotificacoesDashboardConsulta(db),
             new ConversorFusoHorario(),
             _relogio).Handle(
-                new ObterDashboardOperacionalQuery(new(true, true, true, true)),
+                new ObterDashboardOperacionalQuery(PeriodoDashboard.EsteMes, new(true, true, true, true)),
                 CancellationToken.None);
-        Assert.Equal(2, dashboard.Agenda?.AgendamentosHoje);
-        Assert.Equal(1, dashboard.Atendimento?.OrdensEmExecucao);
-        Assert.Equal(2, dashboard.Atendimento?.OrdensAguardandoRetirada);
-        Assert.Equal(1, dashboard.Atendimento?.OrcamentosEmAberto);
+        Assert.Equal(2, dashboard.Resumo.AgendamentosHoje);
+        Assert.Equal(1, dashboard.Resumo.OrdensEmExecucao);
+        Assert.Equal(2, dashboard.Resumo.OrdensAguardandoRetirada);
+        Assert.Equal(1, dashboard.Comercial?.OrcamentosAguardandoAprovacao);
         Assert.Equal(1390m, dashboard.Financeiro?.RecebidoBruto);
         Assert.Equal(18m, dashboard.Financeiro?.Taxas);
         Assert.Equal(1, dashboard.Financeiro?.ContasPendentes);
-        Assert.Equal(450m, dashboard.Financeiro?.ValorPendente);
+        Assert.Equal(450m, dashboard.Financeiro?.ValorEmAberto);
     }
 
     [Fact]

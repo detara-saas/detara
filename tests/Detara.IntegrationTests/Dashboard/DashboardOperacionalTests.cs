@@ -11,6 +11,7 @@ using Detara.Infrastructure.Atendimento;
 using Detara.Infrastructure.Financeiro;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
+using Detara.Infrastructure.Notificacoes;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,13 +46,12 @@ public sealed class DashboardOperacionalTests : IAsyncLifetime
         var resultado = await ObterDashboardAsync(empresa.Id, TodasPermissoes);
 
         Assert.Equal(new DateOnly(2026, 8, 21), resultado.DataReferencia);
-        Assert.NotNull(resultado.Agenda);
-        Assert.Equal(0, resultado.Agenda.AgendamentosHoje);
-        Assert.Empty(resultado.Agenda.Itens);
-        Assert.NotNull(resultado.Atendimento);
-        Assert.Equal(0, resultado.Atendimento.OrdensEmExecucao);
-        Assert.Equal(0, resultado.Atendimento.OrdensAguardandoRetirada);
-        Assert.Equal(0, resultado.Atendimento.OrcamentosEmAberto);
+        Assert.NotNull(resultado.Operacional);
+        Assert.Equal(0, resultado.Resumo.AgendamentosHoje);
+        Assert.Empty(resultado.Operacional.AgendaHoje!);
+        Assert.Equal(0, resultado.Resumo.OrdensEmExecucao);
+        Assert.Equal(0, resultado.Resumo.OrdensAguardandoRetirada);
+        Assert.Equal(0, resultado.Comercial?.OrcamentosAguardandoAprovacao);
         Assert.NotNull(resultado.Financeiro);
         Assert.Equal(0, resultado.Financeiro.RecebidoBruto);
         Assert.Equal(0, resultado.Financeiro.ContasPendentes);
@@ -68,27 +68,26 @@ public sealed class DashboardOperacionalTests : IAsyncLifetime
         var dashboardA = await ObterDashboardAsync(empresaA.Id, TodasPermissoes);
         var dashboardB = await ObterDashboardAsync(empresaB.Id, TodasPermissoes);
 
-        Assert.NotNull(dashboardA.Agenda);
-        Assert.Equal(1, dashboardA.Agenda.AgendamentosHoje);
-        Assert.Single(dashboardA.Agenda.Itens);
+        Assert.NotNull(dashboardA.Operacional?.AgendaHoje);
+        Assert.Equal(1, dashboardA.Resumo.AgendamentosHoje);
+        Assert.Single(dashboardA.Operacional.AgendaHoje);
         Assert.DoesNotContain(
-            dashboardA.Agenda.Itens,
+            dashboardA.Operacional.AgendaHoje,
             item => item.Status is StatusAgendamento.Cancelado or StatusAgendamento.NaoCompareceu);
-        Assert.NotNull(dashboardA.Atendimento);
-        Assert.Equal(1, dashboardA.Atendimento.OrdensEmExecucao);
-        Assert.Equal(0, dashboardA.Atendimento.OrdensAguardandoRetirada);
-        Assert.Equal(1, dashboardA.Atendimento.OrcamentosEmAberto);
+        Assert.Equal(1, dashboardA.Resumo.OrdensEmExecucao);
+        Assert.Equal(0, dashboardA.Resumo.OrdensAguardandoRetirada);
+        Assert.Equal(1, dashboardA.Comercial?.OrcamentosAguardandoAprovacao);
         Assert.NotNull(dashboardA.Financeiro);
         Assert.Equal(400m, dashboardA.Financeiro.RecebidoBruto);
         Assert.Equal(10m, dashboardA.Financeiro.Taxas);
         Assert.Equal(1, dashboardA.Financeiro.ContasPendentes);
-        Assert.Equal(600m, dashboardA.Financeiro.ValorPendente);
+        Assert.Equal(600m, dashboardA.Financeiro.ValorEmAberto);
 
-        Assert.NotNull(dashboardB.Agenda);
-        Assert.Equal(5, dashboardB.Agenda.AgendamentosHoje);
-        Assert.Equal(3, dashboardB.Atendimento?.OrdensEmExecucao);
-        Assert.Equal(1, dashboardB.Atendimento?.OrdensAguardandoRetirada);
-        Assert.Equal(0, dashboardB.Atendimento?.OrcamentosEmAberto);
+        Assert.NotNull(dashboardB.Operacional?.AgendaHoje);
+        Assert.Equal(5, dashboardB.Resumo.AgendamentosHoje);
+        Assert.Equal(3, dashboardB.Resumo.OrdensEmExecucao);
+        Assert.Equal(1, dashboardB.Resumo.OrdensAguardandoRetirada);
+        Assert.Equal(0, dashboardB.Comercial?.OrcamentosAguardandoAprovacao);
         Assert.Equal(150m, dashboardB.Financeiro?.RecebidoBruto);
         Assert.Equal(0, dashboardB.Financeiro?.ContasPendentes);
     }
@@ -103,9 +102,91 @@ public sealed class DashboardOperacionalTests : IAsyncLifetime
             empresa.Id,
             new(true, true, true, false));
 
-        Assert.NotNull(resultado.Agenda);
-        Assert.NotNull(resultado.Atendimento);
+        Assert.NotNull(resultado.Operacional);
+        Assert.NotNull(resultado.Comercial);
         Assert.Null(resultado.Financeiro);
+    }
+
+    [Theory]
+    [InlineData(PeriodoDashboard.Hoje, 8, 21, GranularidadeDashboard.Dia, 1)]
+    [InlineData(PeriodoDashboard.Ultimos7Dias, 8, 15, GranularidadeDashboard.Dia, 7)]
+    [InlineData(PeriodoDashboard.EsteMes, 8, 1, GranularidadeDashboard.Dia, 21)]
+    [InlineData(PeriodoDashboard.EsteAno, 1, 1, GranularidadeDashboard.Mes, 8)]
+    public async Task FiltroPeriodo_DefineLimitesEGranularidadeCorretos(
+        PeriodoDashboard periodo,
+        int mesInicio,
+        int diaInicio,
+        GranularidadeDashboard granularidade,
+        int quantidadePontos)
+    {
+        var empresa = await CriarEmpresaAsync($"periodo-{(int)periodo}");
+
+        var resultado = await ObterDashboardAsync(empresa.Id, TodasPermissoes, periodo);
+
+        Assert.Equal(new DateOnly(2026, mesInicio, diaInicio), resultado.Periodo.Inicio);
+        Assert.Equal(new DateOnly(2026, 8, 21), resultado.Periodo.Fim);
+        Assert.Equal(granularidade, resultado.Periodo.Granularidade);
+        Assert.Equal(quantidadePontos, resultado.Financeiro?.ReceitaAoLongoPeriodo.Count);
+    }
+
+    [Fact]
+    public async Task ReceitaHoje_AgregaPagamentosCalculaTicketEComparaPeriodoAnteriorReal()
+    {
+        var empresa = await CriarEmpresaAsync("dashboard-receita");
+        await using (var db = CriarContexto(new ContextoTeste(empresa.Id)))
+        {
+            var primeira = CriarConta(empresa.Id, 250m);
+            primeira.RegistrarPagamento(FormaPagamento.Pix, 250m, 10m, null, null,
+                new DateTime(2026, 8, 21, 12, 0, 0, DateTimeKind.Utc), Guid.NewGuid());
+            var segunda = CriarConta(empresa.Id, 150m);
+            segunda.RegistrarPagamento(FormaPagamento.Dinheiro, 150m, 0, null, null,
+                new DateTime(2026, 8, 21, 14, 0, 0, DateTimeKind.Utc), Guid.NewGuid());
+            var anterior = new ContaReceber(
+                empresa.Id, Guid.NewGuid(), "OS-ANTERIOR", Guid.NewGuid(), "Cliente anterior",
+                Guid.NewGuid(), "Veículo anterior", null, 200m, 0, 0, 200m,
+                new DateOnly(2026, 8, 20));
+            anterior.RegistrarPagamento(FormaPagamento.Pix, 200m, 0, null, null,
+                new DateTime(2026, 8, 20, 12, 0, 0, DateTimeKind.Utc), Guid.NewGuid());
+            db.ContasReceber.AddRange(primeira, segunda, anterior);
+            await db.SaveChangesAsync();
+        }
+
+        var resultado = await ObterDashboardAsync(
+            empresa.Id, TodasPermissoes, PeriodoDashboard.Hoje);
+
+        Assert.NotNull(resultado.Financeiro);
+        Assert.Equal(400m, resultado.Financeiro.RecebidoBruto);
+        Assert.Equal(10m, resultado.Financeiro.Taxas);
+        Assert.Equal(390m, resultado.Financeiro.ReceitaLiquida);
+        Assert.Equal(200m, resultado.Financeiro.TicketMedio);
+        Assert.Equal(95m, resultado.Resumo.VariacaoReceitaPercentual);
+        var ponto = Assert.Single(resultado.Financeiro.ReceitaAoLongoPeriodo);
+        Assert.Equal(390m, ponto.ReceitaLiquida);
+    }
+
+    [Fact]
+    public async Task UsuarioSomenteAgenda_NaoRecebeBlocosComerciaisOperacionaisOuFinanceiros()
+    {
+        var empresa = await CriarEmpresaAsync("dashboard-somente-agenda");
+        await PopularTenantAAsync(empresa.Id);
+
+        var resultado = await ObterDashboardAsync(empresa.Id, new(true, false, false, false));
+
+        Assert.NotNull(resultado.Operacional?.AgendaHoje);
+        Assert.Null(resultado.Operacional.ServicosRealizados);
+        Assert.Null(resultado.Comercial);
+        Assert.Null(resultado.Financeiro);
+        Assert.Null(resultado.Resumo.OrdensEmExecucao);
+        Assert.Null(resultado.Resumo.ReceitaLiquida);
+    }
+
+    [Fact]
+    public async Task PeriodoInvalido_ERejeitadoAntesDasConsultasDeNegocio()
+    {
+        var empresa = await CriarEmpresaAsync("dashboard-periodo-invalido");
+
+        await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            ObterDashboardAsync(empresa.Id, TodasPermissoes, (PeriodoDashboard)999));
     }
 
     private async Task PopularTenantAAsync(Guid empresaId)
@@ -147,9 +228,10 @@ public sealed class DashboardOperacionalTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    private async Task<DashboardOperacionalResultado> ObterDashboardAsync(
+    private async Task<DashboardExecutivoResultado> ObterDashboardAsync(
         Guid empresaId,
-        PermissoesDashboardOperacional permissoes)
+        PermissoesDashboardOperacional permissoes,
+        PeriodoDashboard periodo = PeriodoDashboard.EsteMes)
     {
         await using var db = CriarContexto(new ContextoTeste(empresaId));
         return await new ObterDashboardOperacionalHandler(
@@ -157,10 +239,11 @@ public sealed class DashboardOperacionalTests : IAsyncLifetime
             new PlataformaDashboardConsulta(db),
             new AgendaDashboardConsulta(db),
             new AtendimentoDashboardConsulta(db),
-            new FinanceiroDashboardConsulta(db),
+            new FinanceiroDashboardConsulta(db, new ConversorFusoHorario()),
+            new NotificacoesDashboardConsulta(db),
             new ConversorFusoHorario(),
             new RelogioTeste(Agora)).Handle(
-                new ObterDashboardOperacionalQuery(permissoes),
+                new ObterDashboardOperacionalQuery(periodo, permissoes),
                 CancellationToken.None);
     }
 
