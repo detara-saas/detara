@@ -70,7 +70,7 @@ else
                         </AuthorizeView>
                     }
                     <MudButton Href="/ordens-servico"
-                               Variant="Variant.Text"
+                               Variant="Variant.Outlined"
                                StartIcon="@Icons.Material.Outlined.ArrowBack">
                         Voltar
                     </MudButton>
@@ -430,7 +430,8 @@ else
                     <DetaraCard Titulo="Comunicação com o cliente"
                                 Sobretitulo="VEÍCULO PRONTO"
                                 Descricao="Canal, resultado e histórico real dos avisos enviados."
-                                Class="service-order-communication">
+                                Class="service-order-communication"
+                                ContentClass="service-order-communication-content">
                         <Acoes>
                             <DetaraStatusBadge Texto="@NomeComunicacao(ultimaComunicacao?.Status)"
                                                Tone="@TomComunicacao(ultimaComunicacao?.Status)" />
@@ -444,19 +445,19 @@ else
                             </div>
                             @if (ultimaComunicacao is null)
                             {
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="service-order-communication-alert">
                                     Cliente ainda não comunicado. Você pode escolher um canal manualmente.
                                 </MudAlert>
                             }
                             @if (string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual) && string.IsNullOrWhiteSpace(_notificacao?.WhatsAppDestinoAtual))
                             {
-                                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">
                                     Cliente sem e-mail ou WhatsApp válido cadastrado. Atualize o cadastro para enviar o aviso.
                                 </MudAlert>
                             }
                             @if (!string.IsNullOrWhiteSpace(ultimaComunicacao?.UltimoErroSeguro))
                             {
-                                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">@ultimaComunicacao.UltimoErroSeguro</MudAlert>
+                                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">@ultimaComunicacao.UltimoErroSeguro</MudAlert>
                             }
                             @if (_ordem.Status == StatusOrdemServicoContrato.AguardandoRetirada)
                             {
@@ -527,7 +528,7 @@ else
                         else
                         {
                             <div class="service-order-timeline">
-                                @foreach (var historico in _ordem.Historico.OrderBy(item => item.DataUtc))
+                                @foreach (var historico in _ordem.Historico.OrderByDescending(item => item.DataUtc))
                                 {
                                     <article>
                                         <span class="service-order-timeline-marker @ClasseStatus(historico.Status)">
