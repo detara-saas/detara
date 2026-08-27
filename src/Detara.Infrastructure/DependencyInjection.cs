@@ -76,6 +76,8 @@ public static class DependencyInjection
         services.AddScoped<IFinanceiroDashboardConsulta, FinanceiroDashboardConsulta>();
         services.AddScoped<INotificacoesDashboardConsulta, NotificacoesDashboardConsulta>();
         services.AddScoped<IClientesRepositorio, ClientesRepositorio>();
+        services.AddScoped<IAtendimentoClienteRelacionamentoConsulta, AtendimentoClienteRelacionamentoConsulta>();
+        services.AddScoped<INotificacoesClienteRelacionamentoConsulta, NotificacoesClienteRelacionamentoConsulta>();
         services.AddScoped<IVeiculosRepositorio, VeiculosRepositorio>();
         services.AddScoped<ICategoriasServicoRepositorio, CategoriasServicoRepositorio>();
         services.AddScoped<IServicosRepositorio, ServicosRepositorio>();

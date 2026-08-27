@@ -32,6 +32,13 @@ public sealed class ClientesServico(HttpClient httpClient)
         CancellationToken cancellationToken = default) =>
         ObterAsync<ClienteDetalheResponse>($"api/clientes/{id}", cancellationToken);
 
+    public Task<ResultadoServico<ClienteRelacionamentoResponse>> ObterRelacionamentoAsync(
+        Guid id,
+        CancellationToken cancellationToken = default) =>
+        ObterAsync<ClienteRelacionamentoResponse>(
+            $"api/clientes/{id}/relacionamento",
+            cancellationToken);
+
     public Task<ResultadoServico<IReadOnlyCollection<ClienteBuscaResponse>>> BuscarAsync(
         string pesquisa,
         CancellationToken cancellationToken = default) =>

@@ -105,6 +105,8 @@ else
 
 @code {
     [Parameter] public Guid? OrcamentoId { get; set; }
+    [Parameter] public Guid? ClienteInicialId { get; set; }
+    [Parameter] public string? ClienteInicialNome { get; set; }
     private readonly ModeloFormulario _modelo = new();
     private readonly List<ItemEdicao> _itens = [];
     private IReadOnlyCollection<VeiculoOrcamentoResponse> _veiculos = [];
@@ -124,7 +126,18 @@ else
             var contexto = await OrcamentosApi.ObterContextoAsync(); _validoAte = contexto.Resultado?.ValidadeSugerida.ToDateTime(TimeOnly.MinValue);
             _ordemServicoOrigemId = LerQueryId("ordemServicoId");
             if (_ordemServicoOrigemId.HasValue) await CarregarOrigemOrdemServicoAsync(_ordemServicoOrigemId.Value);
-            else { var origemId = LerQueryId("agendamentoId"); if (origemId.HasValue) await CarregarOrigemAsync(origemId.Value); }
+            else
+            {
+                var origemId = LerQueryId("agendamentoId");
+                if (origemId.HasValue) await CarregarOrigemAsync(origemId.Value);
+                else if (ClienteInicialId.HasValue && !string.IsNullOrWhiteSpace(ClienteInicialNome))
+                {
+                    _clienteId = ClienteInicialId;
+                    _clienteNome = ClienteInicialNome;
+                    _veiculos = (await OrcamentosApi.ListarVeiculosAsync(ClienteInicialId.Value)).Resultado ?? [];
+                    if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id;
+                }
+            }
         }
         _carregando = false;
     }
