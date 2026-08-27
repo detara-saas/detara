@@ -127,9 +127,10 @@
         else
         {
             var clienteId = LerId("clienteId");
+            var veiculoId = LerId("veiculoId");
             var clienteNome = LerTexto("clienteNome");
             var contextoCliente = clienteId.HasValue && !string.IsNullOrWhiteSpace(clienteNome)
-                ? $"&clienteId={clienteId}&clienteNome={Uri.EscapeDataString(clienteNome)}"
+                ? $"&clienteId={clienteId}&clienteNome={Uri.EscapeDataString(clienteNome)}{(veiculoId.HasValue ? $"&veiculoId={veiculoId}" : string.Empty)}"
                 : string.Empty;
             Navegacao.NavigateTo($"/agenda/novo?agora=true{contextoCliente}");
             return;

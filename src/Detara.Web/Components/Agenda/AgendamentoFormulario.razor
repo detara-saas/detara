@@ -73,6 +73,7 @@ else
     [Parameter] public bool AtendimentoAgora { get; set; }
     [Parameter] public Guid? ClienteInicialId { get; set; }
     [Parameter] public string? ClienteInicialNome { get; set; }
+    [Parameter] public Guid? VeiculoInicialId { get; set; }
     private MudForm? _form; private bool _carregando = true; private bool _salvando;
     private Guid? _clienteId; private string? _clienteNome; private Guid? _veiculoId; private IReadOnlyCollection<VeiculoAgendaResponse> _veiculos = [];
     private DateTime? _data; private TimeSpan? _hora;
@@ -134,7 +135,8 @@ else
                 _clienteId = ClienteInicialId;
                 _clienteNome = ClienteInicialNome;
                 _veiculos = (await AgendaApi.ListarVeiculosAsync(ClienteInicialId.Value)).Resultado ?? [];
-                if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id;
+                if (VeiculoInicialId.HasValue && _veiculos.Any(item => item.Id == VeiculoInicialId.Value)) _veiculoId = VeiculoInicialId;
+                else if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id;
             }
         }
         await BuscarCatalogoAsync(); _carregando = false;

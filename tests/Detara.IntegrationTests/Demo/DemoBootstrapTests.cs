@@ -96,6 +96,15 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
         Assert.Equal("Sea-Doo", semPlaca.Marca);
         Assert.Equal("GTX 300", semPlaca.Modelo);
         Assert.Equal("DEMO-JET-01", semPlaca.IdentificacaoAlternativa);
+        var clientesDemo = await db.Clientes.AsNoTracking().Select(item => item.Nome).ToListAsync();
+        Assert.Contains("Mariana Oliveira", clientesDemo);
+        Assert.Contains("João Mendes", clientesDemo);
+        Assert.Contains("Carlos Henrique", clientesDemo);
+        var modelosDemo = await db.Veiculos.AsNoTracking().Select(item => item.Modelo).ToListAsync();
+        Assert.Contains("Civic Touring", modelosDemo);
+        Assert.Contains("Corolla", modelosDemo);
+        Assert.Contains("Compass", modelosDemo);
+        Assert.Contains("320i", modelosDemo);
 
         var configuracao = await db.ConfiguracoesNotificacaoEmpresa.SingleAsync();
         Assert.Equal(CanalComunicacaoVeiculoPronto.Nenhum,
@@ -218,14 +227,14 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Reset_RecalculaDatasDaAgendaRelativasAoNovoMomento()
+    public async Task Presentation_ReconstroiCenarioERecalculaDatasRelativasAoNovoMomento()
     {
         var servico = CriarServico();
         var resultado = await servico.CriarAsync(_senhaTeste);
         var primeiraData = await ObterPrimeiraDataAgendaAsync(resultado.Status.EmpresaId!.Value);
 
         _relogio.Avancar(TimeSpan.FromDays(2));
-        await servico.ResetarAsync(_senhaTeste);
+        await servico.PrepararApresentacaoAsync(_senhaTeste);
         var segundaData = await ObterPrimeiraDataAgendaAsync(resultado.Status.EmpresaId.Value);
 
         Assert.Equal(primeiraData.AddDays(2), segundaData);

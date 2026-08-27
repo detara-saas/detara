@@ -1,9 +1,11 @@
 @page "/"
 @page "/dashboard"
 @attribute [Authorize]
+@implements IDisposable
 @inject OnboardingServico OnboardingApi
 @inject DashboardServico DashboardApi
 @inject PreferenciasInterfaceServico Preferencias
+@inject AdministracaoTenantServico AdministracaoTenant
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Dashboard | Detara</PageTitle>
@@ -85,11 +87,14 @@
 
     private string DataAtual => _dashboard is null ? "VISÃO EXECUTIVA" : _dashboard.DataReferencia.ToDateTime(TimeOnly.MinValue).ToString("dddd, d 'de' MMMM", Cultura).ToUpper(Cultura);
     private string Saudacao { get { if (_onboarding?.Concluido is not true) return $"Bem-vindo ao Detara, {_nomeUsuario}"; var momento = _dashboard?.AtualizadoEmLocal.Hour switch { < 12 => "Bom dia", < 18 => "Boa tarde", _ => "Boa noite" }; return $"{momento}, {_nomeUsuario}"; } }
+    private string EmpresaContexto => string.Equals(AdministracaoTenant.EmpresaNomeAtual, "Empresa", StringComparison.Ordinal)
+        ? "sua empresa"
+        : AdministracaoTenant.EmpresaNomeAtual;
     private string DescricaoDashboard => _onboarding?.Concluido is not true
         ? "Sua conta está pronta. Vamos organizar os primeiros passos."
         : _modoDashboard == ModoDashboard.Operacao
-            ? "Priorize a agenda, os atendimentos em curso e as pendências que pedem ação hoje."
-            : "Acompanhe resultados, evolução financeira e indicadores consolidados da empresa.";
+            ? $"Aqui está o resumo da {EmpresaContexto} hoje. Priorize a agenda, os atendimentos em curso e as pendências que pedem ação."
+            : $"Acompanhe os resultados, a evolução financeira e os indicadores consolidados da {EmpresaContexto}.";
     private bool PossuiAlgumPainel => _dashboard is not null && (_dashboard.Operacional is not null || _dashboard.Comercial is not null || _dashboard.Financeiro is not null);
     private string RotuloPeriodoCurto => _periodo switch { PeriodoDashboardContrato.Hoje => "HOJE", PeriodoDashboardContrato.Ultimos7Dias => "7 DIAS", PeriodoDashboardContrato.EsteAno => "ESTE ANO", _ => "ESTE MÊS" };
 
@@ -108,6 +113,7 @@
         AplicarDashboard(dashboard);
         _carregandoInicial = false;
     }
+    protected override void OnInitialized() => AdministracaoTenant.ContextoAlterado += AtualizarContextoEmpresa;
     private async Task AlterarPeriodoAsync(PeriodoDashboardContrato periodo) { if (_periodo == periodo) return; _periodo = periodo; await CarregarDashboardAsync(); }
     private async Task AlternarModoAsync(ModoDashboard modo)
     {
@@ -121,4 +127,6 @@
     private void AplicarDashboard(ResultadoServico<DashboardExecutivoResponse> resultado) { _dashboard = resultado.Sucesso ? resultado.Resultado : null; _erroDashboard = resultado.Mensagem ?? "Não foi possível carregar os dados executivos."; }
     private async Task RecolherOnboardingAsync() { _onboardingRecolhido = true; _onboardingAbertoManualmente = false; await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, true); }
     private async Task ReabrirOnboardingAsync() { _onboardingRecolhido = false; _onboardingAbertoManualmente = true; await Preferencias.DefinirOnboardingRecolhidoAsync(_usuarioId, false); }
+    private void AtualizarContextoEmpresa() => InvokeAsync(StateHasChanged);
+    public void Dispose() => AdministracaoTenant.ContextoAlterado -= AtualizarContextoEmpresa;
 }

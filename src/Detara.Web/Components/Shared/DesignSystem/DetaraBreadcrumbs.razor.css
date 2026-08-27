@@ -1,0 +1,28 @@
+.detara-breadcrumbs {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+    color: var(--detara-text-secondary);
+    font-size: .72rem;
+    line-height: 1.4;
+}
+
+.detara-breadcrumbs a {
+    color: var(--detara-text-secondary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.detara-breadcrumbs a:hover,
+.detara-breadcrumbs a:focus-visible {
+    color: var(--detara-primary-dark);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.detara-breadcrumbs span { color: var(--detara-text); font-weight: 700; }
+.detara-breadcrumbs ::deep .mud-icon-root { flex: 0 0 auto; font-size: .9rem; }
+.detara-breadcrumbs-grid { margin-bottom: 0; }

@@ -5,12 +5,13 @@
 <PageTitle>Novo agendamento | Detara</PageTitle>
 <div class="page-container page-container-wide">
 <CabecalhoPagina Titulo="@(_atendimentoAgora ? "Atendimento agora" : _orcamentoId.HasValue ? "Agendar orçamento aprovado" : "Novo agendamento")" Descricao="@(_atendimentoAgora ? "Registre a chegada sem horário prévio e siga para a ordem de serviço." : "Planeje cliente, veículo, itens e duração operacional.")" Sobretitulo="AGENDA" />
-<AgendamentoFormulario OrcamentoId="_orcamentoId" AtendimentoAgora="_atendimentoAgora" ClienteInicialId="_clienteId" ClienteInicialNome="@_clienteNome" />
+<AgendamentoFormulario OrcamentoId="_orcamentoId" AtendimentoAgora="_atendimentoAgora" ClienteInicialId="_clienteId" ClienteInicialNome="@_clienteNome" VeiculoInicialId="_veiculoId" />
 </div>
 
 @code {
     private Guid? _orcamentoId;
     private Guid? _clienteId;
+    private Guid? _veiculoId;
     private string? _clienteNome;
     private bool _atendimentoAgora;
 
@@ -26,6 +27,8 @@
             if (itens[0].Equals("clienteId", StringComparison.OrdinalIgnoreCase)
                 && Guid.TryParse(Uri.UnescapeDataString(itens[1]), out var clienteId)) _clienteId = clienteId;
             if (itens[0].Equals("clienteNome", StringComparison.OrdinalIgnoreCase)) _clienteNome = Uri.UnescapeDataString(itens[1]);
+            if (itens[0].Equals("veiculoId", StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(Uri.UnescapeDataString(itens[1]), out var veiculoId)) _veiculoId = veiculoId;
             if (itens[0].Equals("agora", StringComparison.OrdinalIgnoreCase)
                 && bool.TryParse(Uri.UnescapeDataString(itens[1]), out var agora)) _atendimentoAgora = agora;
         }

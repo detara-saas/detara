@@ -5,11 +5,12 @@
 <PageTitle>Novo orçamento | Detara</PageTitle>
 <div class="page-container page-container-wide">
     <CabecalhoPagina Titulo="Novo orçamento" Descricao="Defina o que será oferecido e o valor negociado neste caso." Sobretitulo="ATENDIMENTO" />
-    <OrcamentoFormulario ClienteInicialId="_clienteId" ClienteInicialNome="@_clienteNome" />
+    <OrcamentoFormulario ClienteInicialId="_clienteId" ClienteInicialNome="@_clienteNome" VeiculoInicialId="_veiculoId" />
 </div>
 
 @code {
     private Guid? _clienteId;
+    private Guid? _veiculoId;
     private string? _clienteNome;
 
     protected override void OnInitialized()
@@ -21,6 +22,7 @@
             if (itens.Length != 2) continue;
             if (itens[0].Equals("clienteId", StringComparison.OrdinalIgnoreCase) && Guid.TryParse(Uri.UnescapeDataString(itens[1]), out var id)) _clienteId = id;
             if (itens[0].Equals("clienteNome", StringComparison.OrdinalIgnoreCase)) _clienteNome = Uri.UnescapeDataString(itens[1]);
+            if (itens[0].Equals("veiculoId", StringComparison.OrdinalIgnoreCase) && Guid.TryParse(Uri.UnescapeDataString(itens[1]), out var veiculoId)) _veiculoId = veiculoId;
         }
     }
 }

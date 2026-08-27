@@ -20,12 +20,12 @@ static async Task<int> ExecutarAsync(string[] args)
         DemoBootstrapPolicy.ExigirDevelopment(
             Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"));
         var comando = args[0].ToLowerInvariant();
-        if (comando is not ("create" or "reset" or "status"))
+        if (comando is not ("create" or "reset" or "status" or "presentation"))
         {
             throw new ArgumentException("Comando desconhecido. Use --help.");
         }
 
-        if (comando is "create" or "reset")
+        if (comando is "create" or "reset" or "presentation")
         {
             DemoBootstrapPolicy.ExigirConfirmacao(
                 args.Contains(DemoBootstrapPolicy.Confirmacao, StringComparer.OrdinalIgnoreCase));
@@ -33,7 +33,7 @@ static async Task<int> ExecutarAsync(string[] args)
 
         var argumentosExtras = args.Skip(1).ToArray();
         if (comando == "status" && argumentosExtras.Length > 0 ||
-            comando is "create" or "reset" &&
+            comando is "create" or "reset" or "presentation" &&
             (argumentosExtras.Length != 1 ||
              !string.Equals(
                  argumentosExtras[0],
@@ -89,6 +89,17 @@ static async Task<int> ExecutarAsync(string[] args)
                     Console.WriteLine("Prime Detail reconstruída.");
                     ExibirStatus(resultado.Status);
                     ExibirLogin();
+                    return 0;
+                }
+            case "presentation":
+                {
+                    Console.WriteLine($"E-mail do administrador Demo: {DemoBootstrapService.EmailAdministrador}");
+                    var senha = LerSenhaConfirmada("Senha: ");
+                    var resultado = await service.PrepararApresentacaoAsync(senha);
+                    Console.WriteLine("Prime Detail preparada para apresentação.");
+                    ExibirStatus(resultado.Status);
+                    ExibirLogin();
+                    ExibirRoteiro();
                     return 0;
                 }
             default:
@@ -171,6 +182,17 @@ static void ExibirStatus(DemoBootstrapStatus status)
     Console.WriteLine($"OS: {status.OrdensServico}");
     Console.WriteLine($"Recebíveis: {status.ContasReceber}");
     Console.WriteLine($"Pagamentos: {status.Pagamentos}");
+    Console.WriteLine($"Notificações pendentes: {status.Notificacoes}");
+}
+
+static void ExibirRoteiro()
+{
+    Console.WriteLine("Roteiro sugerido:");
+    Console.WriteLine("1. Dashboard Operação — /dashboard");
+    Console.WriteLine("2. Cliente 360° — /clientes");
+    Console.WriteLine("3. Agenda e orçamento — /agenda e /orcamentos");
+    Console.WriteLine("4. Execução e comunicação — /ordens-servico");
+    Console.WriteLine("5. Resultado do negócio — Dashboard Empresa e /financeiro");
 }
 
 static void ExibirLogin()
@@ -194,6 +216,7 @@ static void ExibirAjuda()
     Console.WriteLine("Disponível exclusivamente com ASPNETCORE_ENVIRONMENT=Development.");
     Console.WriteLine("  create --confirm-local-demo");
     Console.WriteLine("  reset --confirm-local-demo");
+    Console.WriteLine("  presentation --confirm-local-demo");
     Console.WriteLine("  status");
     Console.WriteLine("A senha é solicitada sem echo, nunca é aceita por argumento e nunca é repetida.");
     Console.WriteLine("Todos os dados criados são sintéticos e locais.");
