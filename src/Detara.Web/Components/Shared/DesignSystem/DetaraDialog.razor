@@ -12,11 +12,13 @@
         </div>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="SecondaryClickAsync" Disabled="Carregando">@TextoSecundario</MudButton>
-        <MudButton Variant="Variant.Filled" Color="@CorPrimaria" OnClick="PrimaryClickAsync" Disabled="@(Carregando || PrimariaDesabilitada)">
-            @if (Carregando) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
-            @(Carregando ? TextoCarregando : TextoPrimario)
-        </MudButton>
+        <div class="detara-dialog__actions">
+            <MudButton Variant="Variant.Text" OnClick="SecondaryClickAsync" Disabled="Carregando">@TextoSecundario</MudButton>
+            <MudButton Variant="Variant.Filled" Color="@CorPrimaria" OnClick="PrimaryClickAsync" Disabled="@(Carregando || PrimariaDesabilitada)">
+                @if (Carregando) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
+                @(Carregando ? TextoCarregando : TextoPrimario)
+            </MudButton>
+        </div>
     </DialogActions>
 </MudDialog>
 

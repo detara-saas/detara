@@ -35,7 +35,15 @@ else
         </section>
     }
 
-    @if (_agendamento.QuantidadeSobreposicoes > 0) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="agenda-overlap-warning">Existem @_agendamento.QuantidadeSobreposicoes agendamento(s) sobrepostos. Sobreposições são permitidas e não representam capacidade bloqueada.</MudAlert> }
+    @if (_agendamento.QuantidadeSobreposicoes > 0)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="agenda-overlap-warning agenda-detail-overlap-warning">
+            <div class="agenda-overlap-copy">
+                <strong>@TextoConflitoHorario(_agendamento.QuantidadeSobreposicoes)</strong>
+                <span>Sobreposições são permitidas e não bloqueiam a capacidade da agenda.</span>
+            </div>
+        </MudAlert>
+    }
 
     <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">ITENS PLANEJADOS</span><h2>@_agendamento.Itens.Count serviço(s)/pacote(s)</h2></div></div><div class="appointment-items">
         @foreach (var item in _agendamento.Itens.OrderBy(x => x.Ordem))
@@ -117,6 +125,9 @@ else
     private static string NomeStatusOrcamento(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Aprovado => "Aprovado", StatusOrcamentoContrato.Emitido => "Emitido", StatusOrcamentoContrato.Substituido => "Substituído", _ => status.ToString() };
     private static string ClasseStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "status-scheduled", StatusAgendamentoContrato.Confirmado => "status-confirmed", StatusAgendamentoContrato.Compareceu => "status-waiting", StatusAgendamentoContrato.Concluido => "status-running", StatusAgendamentoContrato.Cancelado => "status-cancelled", _ => "status-neutral" };
     private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => DetaraStatusTone.Info, StatusAgendamentoContrato.Confirmado or StatusAgendamentoContrato.Concluido => DetaraStatusTone.Positive, StatusAgendamentoContrato.Compareceu => DetaraStatusTone.Warning, StatusAgendamentoContrato.Cancelado => DetaraStatusTone.Critical, _ => DetaraStatusTone.Neutral };
+    private static string TextoConflitoHorario(int quantidade) => quantidade == 1
+        ? "1 conflito de horário identificado"
+        : $"{quantidade} conflitos de horário identificados";
     private static string FormatarDuracao(int minutos) => minutos >= 60 ? $"{minutos / 60}h{(minutos % 60 > 0 ? $" {minutos % 60}min" : string.Empty)}" : $"{minutos} min";
     private static string FormatarDuracao(int? minutos) => minutos.HasValue ? FormatarDuracao(minutos.Value) : "Não informada";
 }

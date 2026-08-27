@@ -1,3 +1,9 @@
 .detara-dialog__heading { display: grid; gap: 4px; }
 .detara-dialog__heading ::deep .mud-typography-body2 { max-width: 560px; line-height: 1.5; }
 .detara-dialog__content { display: grid; gap: 18px; padding-top: 4px; }
+.detara-dialog__actions { width: 100%; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 6px 8px 8px; }
+
+@media (max-width: 600px) {
+    .detara-dialog__actions { display: grid; grid-template-columns: 1fr; padding-inline: 4px; }
+    .detara-dialog__actions ::deep .mud-button-root { width: 100%; min-height: 44px; }
+}

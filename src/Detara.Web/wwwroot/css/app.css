@@ -202,13 +202,15 @@
 .service-order-aside-note { margin: 14px 0; color: var(--detara-text-secondary); font-size: .7rem; line-height: 1.55; }
 .service-order-context-list { padding: 0; }
 .service-order-communication { display: grid; gap: 18px; }
+.service-order-communication-content { display: grid; gap: 18px; }
+.service-order-communication-alert { margin: 0; border-radius: var(--detara-radius-md) !important; }
 .communication-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 10px; }
 .communication-summary > span { min-width: 0; display: flex; align-items: center; gap: 11px; padding: 14px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
 .communication-summary > span > .mud-icon-root { color: var(--detara-primary-dark); }
 .communication-summary > span > span { min-width: 0; display: grid; gap: 3px; }
 .communication-summary small { color: var(--detara-text-secondary); font-size: .65rem; font-weight: 700; letter-spacing: .06em; }
 .communication-summary strong { overflow: hidden; color: var(--detara-text); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
-.communication-actions { padding-top: 2px; }
+.communication-actions { margin-top: 0; padding-top: 18px; }
 .communication-actions .mud-button-root { min-height: 44px; }
 .communication-history { display: grid; gap: 10px; padding-top: 4px; }
 .communication-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid var(--detara-border-soft); }
@@ -582,13 +584,14 @@ h1:focus { outline: none; }
 .communication-dialog { min-width: 0; }
 .communication-dialog-intro { display: grid; gap: 5px; }
 .communication-dialog-intro p { margin: 0; color: var(--detara-text-secondary); line-height: 1.55; }
-.communication-dialog-options { display: grid; gap: 10px; }
+.communication-dialog-options { width: 100%; display: grid; gap: 10px; }
 .communication-dialog-option { display: grid; grid-template-columns: auto auto minmax(0,1fr); align-items: center; gap: 10px; min-height: 64px; padding: 10px 14px 10px 6px; color: var(--detara-text); background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); cursor: pointer; }
 .communication-dialog-option > .mud-icon-root { color: var(--detara-primary-dark); }
 .communication-dialog-option > span { min-width: 0; display: grid; gap: 2px; }
 .communication-dialog-option strong { font-size: .84rem; }
 .communication-dialog-option small { color: var(--detara-text-secondary); font-size: .72rem; overflow-wrap: anywhere; }
 .communication-dialog-option.is-disabled { opacity: .58; cursor: not-allowed; }
+.communication-dialog-alert { margin: 0; border-radius: var(--detara-radius-md) !important; }
 .whatsapp-consent-card { display: grid; gap: 4px; padding: 14px 16px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
 .whatsapp-consent-card > span, .whatsapp-consent-card > small { color: var(--detara-text-secondary); font-size: .72rem; line-height: 1.5; }
 .whatsapp-management-card { display: grid; gap: 18px; padding: 20px; background: linear-gradient(135deg,color-mix(in srgb,var(--detara-primary) 6%,var(--detara-surface)),var(--detara-surface)); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); }
@@ -801,6 +804,10 @@ h1:focus { outline: none; }
 .selected-agenda-items article { display: grid; grid-template-columns: minmax(0,1fr) 44px; align-items: center; gap: 8px; min-height: 62px; padding: 8px 10px 8px 16px; border-left: 3px solid var(--detara-primary); background: var(--detara-surface-alt); border-radius: var(--detara-radius-sm); }
 .selected-agenda-items article > div { display: grid; gap: 3px; }
 .agenda-overlap-warning, .commercial-reference-note { margin-top: 18px; }
+.agenda-detail-overlap-warning { margin: 0 0 var(--detara-section-gap); border-radius: var(--detara-radius-md) !important; }
+.agenda-overlap-copy { display: grid; gap: 3px; }
+.agenda-overlap-copy strong { color: var(--detara-text); font-size: .82rem; }
+.agenda-overlap-copy span { color: var(--detara-text-secondary); font-size: .76rem; line-height: 1.5; }
 .appointment-hero { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0; margin-bottom: 18px; overflow: hidden; }
 .appointment-hero > div { min-height: 126px; display: grid; align-content: center; gap: 5px; padding: 22px; border-right: 1px solid var(--detara-border-soft); }
 .appointment-hero > div:last-child { border-right: 0; }
