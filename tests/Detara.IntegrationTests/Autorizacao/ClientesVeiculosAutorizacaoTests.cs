@@ -10,6 +10,7 @@ using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Onboarding;
+using Detara.Contracts.Veiculos;
 using Detara.Domain.Entidades;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
@@ -58,6 +59,117 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         UsarPermissoes(Permissoes.ClientesVisualizar);
         var response = await _client.GetAsync("/api/clientes");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RelacionamentoSemClientesVisualizar_Recebe403()
+    {
+        var response = await _client.GetAsync($"/api/clientes/{_factory.ClienteId}/relacionamento");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RelacionamentoDeOutroTenant_NaoPodeSerLido()
+    {
+        UsarPermissoes(
+            Permissoes.ClientesVisualizar,
+            Permissoes.OrdemServicoVisualizar,
+            Permissoes.OrcamentosVisualizar);
+
+        var response = await _client.GetAsync(
+            $"/api/clientes/{_factory.ClienteOutroTenantId}/relacionamento");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RelacionamentoSemPermissoesOperacionais_OmiteDadosProtegidosEPreservaVeiculos()
+    {
+        UsarPermissoes(Permissoes.ClientesVisualizar, Permissoes.VeiculosCriar);
+        var criacaoVeiculo = await _client.PostAsJsonAsync("/api/veiculos", new SalvarVeiculoRequest(
+            _factory.ClienteId,
+            TipoVeiculoContrato.Moto,
+            "DEF2E34",
+            null,
+            "Honda",
+            "CB 500",
+            null,
+            2025,
+            2025,
+            "Vermelha",
+            1200,
+            null));
+
+        var response = await _client.GetAsync($"/api/clientes/{_factory.ClienteId}/relacionamento");
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<ClienteRelacionamentoResponse>>();
+
+        Assert.Equal(HttpStatusCode.Created, criacaoVeiculo.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(corpo?.Resultado);
+        Assert.Equal(2, corpo.Resultado.Veiculos.Count);
+        Assert.Null(corpo.Resultado.Resumo);
+        Assert.Empty(corpo.Resultado.Atendimentos);
+        Assert.Empty(corpo.Resultado.Orcamentos);
+        Assert.Null(corpo.Resultado.UltimaComunicacao);
+        Assert.False(corpo.Resultado.PodeVisualizarAtendimentos);
+        Assert.False(corpo.Resultado.PodeVisualizarOrcamentos);
+        Assert.False(corpo.Resultado.PodeVisualizarComunicacoes);
+    }
+
+    [Fact]
+    public async Task RelacionamentoSemHistorico_RetornaMetricasReaisZeradasEOrcamentoExistente()
+    {
+        UsarPermissoes(
+            Permissoes.ClientesVisualizar,
+            Permissoes.OrdemServicoVisualizar,
+            Permissoes.OrcamentosVisualizar);
+
+        var response = await _client.GetAsync($"/api/clientes/{_factory.ClienteId}/relacionamento");
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<ClienteRelacionamentoResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var relacionamento = Assert.IsType<ClienteRelacionamentoResponse>(corpo?.Resultado);
+        Assert.NotNull(relacionamento.Resumo);
+        Assert.Equal(0, relacionamento.Resumo.QuantidadeAtendimentos);
+        Assert.Equal(0, relacionamento.Resumo.TotalInvestido);
+        Assert.Null(relacionamento.Resumo.TicketMedio);
+        Assert.Null(relacionamento.Resumo.UltimaVisitaEmUtc);
+        Assert.Empty(relacionamento.Atendimentos);
+        Assert.Single(relacionamento.Orcamentos, item => item.Id == _factory.OrcamentoId);
+        Assert.True(relacionamento.PodeVisualizarAtendimentos);
+        Assert.True(relacionamento.PodeVisualizarOrcamentos);
+    }
+
+    [Fact]
+    public async Task RelacionamentoComMultiplosVeiculos_ConsolidaSomenteOrdensConcluidas()
+    {
+        UsarPermissoes(Permissoes.ClientesVisualizar, Permissoes.VeiculosCriar);
+        var criacao = await _client.PostAsJsonAsync("/api/veiculos", new SalvarVeiculoRequest(
+            _factory.ClienteId, TipoVeiculoContrato.Moto, "GHI3J45", null, "Honda", "CB 500",
+            null, 2025, 2025, "Vermelha", 1200, null));
+        var veiculo = (await criacao.Content.ReadFromJsonAsync<RespostaApi<VeiculoDetalheResponse>>())?.Resultado;
+        Assert.NotNull(veiculo);
+        await _factory.AdicionarOrdensConcluidasAsync(veiculo.Id);
+        UsarPermissoes(
+            Permissoes.ClientesVisualizar,
+            Permissoes.OrdemServicoVisualizar,
+            Permissoes.OrcamentosVisualizar);
+
+        var response = await _client.GetAsync($"/api/clientes/{_factory.ClienteId}/relacionamento");
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<ClienteRelacionamentoResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var relacionamento = Assert.IsType<ClienteRelacionamentoResponse>(corpo?.Resultado);
+        Assert.Equal(2, relacionamento.Veiculos.Count);
+        Assert.Equal(2, relacionamento.Atendimentos.Count);
+        Assert.NotNull(relacionamento.Resumo);
+        Assert.Equal(2, relacionamento.Resumo.QuantidadeAtendimentos);
+        Assert.Equal(500m, relacionamento.Resumo.TotalInvestido);
+        Assert.Equal(250m, relacionamento.Resumo.TicketMedio);
+        Assert.Equal("Lavagem técnica", relacionamento.Resumo.ServicoMaisRealizado);
+        Assert.Equal(30, relacionamento.Resumo.FrequenciaRetornoDias);
+        Assert.All(relacionamento.Veiculos, item => Assert.Equal(1, item.QuantidadeAtendimentos));
     }
 
     [Fact]
@@ -764,6 +876,58 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             tenantContext.Orcamentos.Add(orcamento);
             await tenantContext.SaveChangesAsync();
             OrcamentoId = orcamento.Id;
+        }
+
+        public async Task AdicionarOrdensConcluidasAsync(Guid segundoVeiculoId)
+        {
+            using var scope = Services.CreateScope();
+            var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+            await using var context = new DetaraDbContext(options, new TestUserContext(EmpresaId));
+            var usuarioId = Guid.NewGuid();
+            var primeira = CriarOrdemConcluida(
+                EmpresaId, ClienteId, VeiculoId, "Honda Civic", "ABC1D23",
+                "Lavagem técnica", 100m, 2, usuarioId, DateTime.UtcNow.AddDays(-30));
+            var segunda = CriarOrdemConcluida(
+                EmpresaId, ClienteId, segundoVeiculoId, "Honda CB 500", "GHI3J45",
+                "Polimento", 300m, 1, usuarioId, DateTime.UtcNow);
+            context.OrdensServico.AddRange(primeira, segunda);
+            await context.SaveChangesAsync();
+        }
+
+        private static OrdemServico CriarOrdemConcluida(
+            Guid empresaId,
+            Guid clienteId,
+            Guid veiculoId,
+            string veiculoDescricao,
+            string placa,
+            string servico,
+            decimal valor,
+            int quantidade,
+            Guid usuarioId,
+            DateTime concluidaEmUtc)
+        {
+            var ordem = new OrdemServico(
+                empresaId,
+                concluidaEmUtc.Year,
+                new(clienteId, "Cliente Teste", "52998224725", null, veiculoId, veiculoDescricao, placa),
+                OrigemOrdemServico.AtendimentoDireto,
+                null,
+                null,
+                90,
+                0,
+                0,
+                [new(TipoItemOrcamento.Personalizado, null, null, null, servico, null, valor,
+                    quantidade, 1, OrigemComercialOrdemServico.AcordoDireto, concluidaEmUtc,
+                    usuarioId, null)],
+                usuarioId,
+                concluidaEmUtc,
+                "Autorizado no teste.");
+            ordem.IniciarExecucao(usuarioId, null, false);
+            ordem.FinalizarExecucao(usuarioId, null);
+            ordem.Concluir(usuarioId, null);
+            typeof(OrdemServico).GetProperty(nameof(OrdemServico.ConcluidaEmUtc))!
+                .SetValue(ordem, concluidaEmUtc);
+            return ordem;
         }
 
         public async Task<string> ObterNomeClienteGlobalAsync(Guid id) =>

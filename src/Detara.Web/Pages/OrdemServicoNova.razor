@@ -124,7 +124,16 @@
             var r = await OrcamentosApi.ObterOrigemAsync(_agendamentoId.Value); var origem = r.Resultado;
             if (origem is not null) { _clienteId = origem.ClienteId; _clienteNome = origem.ClienteNome; _veiculoId = origem.VeiculoId; _veiculos = [new(origem.VeiculoId, origem.VeiculoDescricao, origem.VeiculoPlaca)]; _itens.AddRange(origem.Itens.Select(item => new ItemEdicao(item.TipoItem, item.Id, item.Nome, item.PrecoReferencia ?? 0, 1, Referencia(item)))); }
         }
-        else { Navegacao.NavigateTo("/agenda/novo?agora=true"); return; }
+        else
+        {
+            var clienteId = LerId("clienteId");
+            var clienteNome = LerTexto("clienteNome");
+            var contextoCliente = clienteId.HasValue && !string.IsNullOrWhiteSpace(clienteNome)
+                ? $"&clienteId={clienteId}&clienteNome={Uri.EscapeDataString(clienteNome)}"
+                : string.Empty;
+            Navegacao.NavigateTo($"/agenda/novo?agora=true{contextoCliente}");
+            return;
+        }
         _carregando = false;
     }
     private async Task ClienteSelecionadoAsync(ClienteOrcamentoResponse? cliente) { _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = cliente is null ? [] : (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? []; }
@@ -141,6 +150,7 @@
         var r = await OrdensApi.CriarAsync(request); _salvando = false; Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Resultado is not null) Navegacao.NavigateTo($"/ordens-servico/{r.Resultado.Id}");
     }
     private Guid? LerId(string nome) { var query = Navegacao.ToAbsoluteUri(Navegacao.Uri).Query.TrimStart('?'); foreach (var parte in query.Split('&', StringSplitOptions.RemoveEmptyEntries)) { var p = parte.Split('=', 2); if (p.Length == 2 && p[0].Equals(nome, StringComparison.OrdinalIgnoreCase) && Guid.TryParse(Uri.UnescapeDataString(p[1]), out var id)) return id; } return null; }
+    private string? LerTexto(string nome) { var query = Navegacao.ToAbsoluteUri(Navegacao.Uri).Query.TrimStart('?'); foreach (var parte in query.Split('&', StringSplitOptions.RemoveEmptyEntries)) { var p = parte.Split('=', 2); if (p.Length == 2 && p[0].Equals(nome, StringComparison.OrdinalIgnoreCase)) return Uri.UnescapeDataString(p[1]); } return null; }
     private static string Referencia(ItemCatalogoOrcamentoResponse item) => item.TipoPrecificacao == TipoPrecificacaoCatalogo.APartirDe && item.PrecoReferencia.HasValue ? $"A partir de {item.PrecoReferencia:C2}" : item.PrecoReferencia?.ToString("C2") ?? "Sob consulta";
     private sealed class ItemEdicao(TipoItemOrcamentoContrato tipo, Guid? id, string nome, decimal valor, int quantidade, string referencia) { public TipoItemOrcamentoContrato Tipo { get; } = tipo; public Guid? Id { get; } = id; public string Nome { get; set; } = nome; public decimal Valor { get; set; } = valor; public int Quantidade { get; set; } = quantidade; public string Referencia { get; } = referencia; }
 }

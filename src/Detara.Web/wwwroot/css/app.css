@@ -1369,6 +1369,90 @@ h1:focus { outline: none; }
     .platform-login-form { padding: 16px; }
 }
 
+/* Cliente 360° — visão de relacionamento */
+.customer-360-page { display: grid; gap: var(--detara-page-gap); }
+.customer-360-hero { display: flex; align-items: center; justify-content: space-between; gap: var(--detara-section-gap); padding: 28px 30px; color: var(--detara-text); background: linear-gradient(130deg, color-mix(in srgb,var(--detara-primary) 10%,var(--detara-surface)) 0%, var(--detara-surface) 58%); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); box-shadow: var(--detara-shadow-sm); }
+.customer-360-identity { min-width: 0; display: flex; align-items: center; gap: 18px; }
+.customer-360-avatar { width: 64px; height: 64px; flex: 0 0 64px; display: grid; place-items: center; color: var(--detara-surface); background: linear-gradient(145deg,var(--detara-primary),var(--detara-primary-dark)); border-radius: var(--detara-radius-lg); font-size: 1.2rem; font-weight: 800; letter-spacing: .04em; box-shadow: 0 9px 22px color-mix(in srgb,var(--detara-primary) 22%,transparent); }
+.customer-360-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.customer-360-title-row h1 { margin: 2px 0 5px; color: var(--detara-text); font-size: clamp(1.45rem,2.5vw,2.05rem); line-height: 1.12; }
+.customer-360-contact { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--detara-text-secondary); font-size: .76rem; }
+.customer-360-contact span { display: inline-flex; align-items: center; gap: 6px; }
+.customer-360-contact .mud-icon-root { font-size: 1rem; color: var(--detara-primary-dark); }
+.customer-360-hero-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.customer-360-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: var(--detara-section-gap); }
+.customer-360-action-grid { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.customer-360-workspace { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) minmax(310px,350px); align-items: start; gap: var(--detara-section-gap); }
+.customer-360-main, .customer-360-aside { min-width: 0; display: grid; gap: var(--detara-section-gap); }
+.customer-360-aside { position: sticky; top: calc(var(--detara-topbar-height) + var(--detara-section-gap)); }
+.customer-360-vehicle-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.customer-360-vehicle { min-width: 0; display: grid; gap: 16px; padding: 18px; color: inherit; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); text-decoration: none; transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+.customer-360-vehicle:hover { border-color: color-mix(in srgb,var(--detara-primary) 38%,var(--detara-border)); box-shadow: var(--detara-shadow-sm); transform: translateY(-1px); }
+.customer-360-vehicle-head { min-width: 0; display: grid; grid-template-columns: 42px minmax(0,1fr) 20px; align-items: center; gap: 12px; }
+.customer-360-vehicle-head > div { min-width: 0; display: grid; gap: 2px; }
+.customer-360-vehicle-head strong, .customer-360-vehicle-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.customer-360-vehicle-head span { color: var(--detara-text-secondary); font-size: .7rem; }
+.customer-360-vehicle-icon, .customer-360-communication-icon { width: 42px; height: 42px; display: grid; place-items: center; color: var(--detara-primary-dark); background: color-mix(in srgb,var(--detara-primary) 10%,var(--detara-surface)); border-radius: var(--detara-radius-sm); }
+.customer-360-vehicle dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 0; }
+.customer-360-vehicle dl div { min-width: 0; display: grid; gap: 2px; }
+.customer-360-vehicle dt, .customer-360-summary-list dt { color: var(--detara-text-secondary); font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.customer-360-vehicle dd, .customer-360-summary-list dd { min-width: 0; margin: 0; color: var(--detara-text); font-size: .76rem; font-weight: 700; overflow-wrap: anywhere; }
+.customer-360-timeline { display: grid; }
+.customer-360-timeline-item { position: relative; min-width: 0; display: grid; grid-template-columns: 54px minmax(0,1fr) auto auto; align-items: center; gap: 14px; padding: 14px 4px 14px 28px; color: inherit; border-top: 1px solid var(--detara-border-soft); text-decoration: none; }
+.customer-360-timeline-item:first-child { border-top: 0; }
+.customer-360-timeline-marker { position: absolute; left: 7px; width: 9px; height: 9px; background: var(--detara-primary); border: 2px solid var(--detara-surface); border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb,var(--detara-primary) 28%,transparent); }
+.customer-360-timeline-item:not(:last-child)::before { content: ""; position: absolute; left: 11px; top: 50%; bottom: -50%; width: 1px; background: var(--detara-border); }
+.customer-360-timeline-date, .customer-360-timeline-copy { min-width: 0; display: grid; gap: 2px; }
+.customer-360-timeline-date strong { color: var(--detara-primary-dark); font-size: 1.05rem; }
+.customer-360-timeline-date span, .customer-360-timeline-copy span { color: var(--detara-text-secondary); font-size: .65rem; }
+.customer-360-timeline-copy strong { overflow: hidden; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
+.customer-360-quotes { display: grid; }
+.customer-360-quote { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto auto 20px; align-items: center; gap: 14px; padding: 14px 4px; color: inherit; border-top: 1px solid var(--detara-border-soft); text-decoration: none; }
+.customer-360-quote:first-child { border-top: 0; }
+.customer-360-quote > div { min-width: 0; display: grid; gap: 3px; }
+.customer-360-quote > div span { overflow: hidden; color: var(--detara-text-secondary); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.customer-360-summary-list { display: grid; gap: 0; margin: 0; }
+.customer-360-summary-list div { display: grid; gap: 4px; padding: 13px 0; border-top: 1px solid var(--detara-border-soft); }
+.customer-360-summary-list div:first-child { padding-top: 0; border-top: 0; }
+.customer-360-summary-list div:last-child { padding-bottom: 0; }
+.customer-360-communication { display: grid; grid-template-columns: 42px minmax(0,1fr); gap: 12px; align-items: center; }
+.customer-360-communication > div { min-width: 0; display: grid; gap: 2px; }
+.customer-360-communication > div span { color: var(--detara-text-secondary); font-size: .66rem; }
+.customer-360-communication .status-badge { grid-column: 2; justify-self: start; }
+
+@media (max-width: 1199px) {
+    .customer-360-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .customer-360-workspace { grid-template-columns: 1fr; }
+    .customer-360-aside { position: static; grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .customer-360-aside > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+@media (max-width: 767px) {
+    .customer-360-hero { align-items: flex-start; flex-direction: column; padding: 20px; }
+    .customer-360-identity { align-items: flex-start; }
+    .customer-360-avatar { width: 52px; height: 52px; flex-basis: 52px; }
+    .customer-360-contact { display: grid; gap: 7px; }
+    .customer-360-hero-actions, .customer-360-hero-actions .mud-button-root { width: 100%; }
+    .customer-360-action-grid { display: grid; grid-template-columns: 1fr 1fr; }
+    .customer-360-action-grid .mud-button-root { min-width: 0; min-height: 44px; }
+    .customer-360-vehicle-grid, .customer-360-aside { grid-template-columns: 1fr; }
+    .customer-360-aside > :last-child:nth-child(odd) { grid-column: auto; }
+    .customer-360-timeline-item { grid-template-columns: 42px minmax(0,1fr) auto; gap: 10px; padding-left: 24px; }
+    .customer-360-timeline-item > .currency-value { grid-column: 2; }
+    .customer-360-timeline-item .status-badge { justify-self: end; }
+    .customer-360-quote { grid-template-columns: minmax(0,1fr) 20px; }
+    .customer-360-quote .status-badge, .customer-360-quote > .currency-value { grid-column: 1; justify-self: start; }
+    .customer-360-quote > .mud-icon-root { grid-column: 2; grid-row: 1 / span 3; }
+}
+
+@media (max-width: 479px) {
+    .customer-360-metrics { grid-template-columns: 1fr; }
+    .customer-360-action-grid { grid-template-columns: 1fr; }
+    .customer-360-identity { width: 100%; }
+    .customer-360-title-row { align-items: flex-start; flex-direction: column; }
+    .customer-360-vehicle dl { grid-template-columns: 1fr 1fr; }
+}
+
 /* Administração básica do tenant */
 .tenant-form-panel, .tenant-invite-panel, .tenant-list-panel, .tenant-permissions-panel { padding: var(--detara-card-padding); }
 .tenant-form-panel > .section-heading, .tenant-invite-panel > .section-heading, .tenant-permissions-panel > .section-heading { margin-bottom: 24px; }

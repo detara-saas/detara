@@ -2,130 +2,232 @@
 @attribute [Authorize(Policy = Permissoes.ClientesVisualizar)]
 @inject ClientesServico ClientesApi
 @inject IMensagemServico Mensagens
-@inject NavigationManager Navigation
+@inject IDialogService Dialogos
 
-<PageTitle>@(_cliente?.Nome ?? "Cliente") | Detara</PageTitle>
-<div class="page-container page-container-wide">
+<PageTitle>@(_relacionamento?.Cliente.Nome ?? "Cliente") | Detara</PageTitle>
 
+<div class="page-container page-container-wide customer-360-page">
 @if (_carregando)
 {
-    <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    <DetaraSkeleton Variant="DetaraSkeletonVariant.Detail" Rotulo="Carregando visão completa do cliente" />
 }
-else if (_cliente is null)
+else if (_relacionamento is null)
 {
-    <EstadoVazio Titulo="Cliente não encontrado" Descricao="O cliente não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.PersonOff" />
+    <DetaraEmptyState Titulo="Cliente não encontrado" Descricao="O cliente não existe ou não pertence à empresa atual." Icone="@Icons.Material.Outlined.PersonOff" />
 }
 else
 {
-    <CabecalhoPagina Titulo="@_cliente.Nome" Descricao="@ResumoContato" Sobretitulo="CLIENTE">
-        <Acoes>
-            <span class="status-badge @(_cliente.EhAtivo ? "status-running" : "status-neutral")">@(_cliente.EhAtivo ? "Ativo" : "Inativo")</span>
-            <AuthorizeView Policy="@Permissoes.ClientesEditar">
-                <Authorized>
-                    <MudButton Href="@($"/clientes/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton>
-                    <MudButton Variant="Variant.Text" Color="@(_cliente.EhAtivo ? Color.Error : Color.Success)" OnClick="SolicitarAlteracaoStatus">
-                        @(_cliente.EhAtivo ? "Inativar" : "Ativar")
-                    </MudButton>
-                </Authorized>
-            </AuthorizeView>
-        </Acoes>
-    </CabecalhoPagina>
+    var cliente = _relacionamento.Cliente;
+    <header class="customer-360-hero">
+        <div class="customer-360-identity">
+            <div class="customer-360-avatar" aria-hidden="true">@Iniciais(cliente.Nome)</div>
+            <div>
+                <span class="section-eyebrow">CLIENTE 360°</span>
+                <div class="customer-360-title-row">
+                    <h1>@cliente.Nome</h1>
+                    <DetaraStatusBadge Texto="@(cliente.EhAtivo ? "Ativo" : "Inativo")" Tone="@(cliente.EhAtivo ? DetaraStatusTone.Positive : DetaraStatusTone.Neutral)" />
+                </div>
+                <div class="customer-360-contact">
+                    <span><MudIcon Icon="@Icons.Material.Outlined.Phone" Size="Size.Small" />@Valor(cliente.Telefone)</span>
+                    <span><MudIcon Icon="@Icons.Material.Outlined.Email" Size="Size.Small" />@Valor(cliente.Email)</span>
+                    <span><MudIcon Icon="@Icons.Material.Outlined.CalendarToday" Size="Size.Small" />Cliente desde @cliente.CriadoEmUtc.ToLocalTime().ToString("MMM/yyyy")</span>
+                </div>
+            </div>
+        </div>
+        <div class="customer-360-hero-actions">
+            <AuthorizeView Policy="@Permissoes.ClientesEditar"><Authorized>
+                <MudButton Href="@($"/clientes/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton>
+                <MudButton Variant="Variant.Text" Color="@(cliente.EhAtivo ? Color.Error : Color.Success)" OnClick="AlterarStatusAsync">@(cliente.EhAtivo ? "Inativar" : "Ativar")</MudButton>
+            </Authorized></AuthorizeView>
+        </div>
+    </header>
 
-    @if (_confirmandoStatus)
+    @if (_relacionamento.Resumo is { } resumo)
     {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip">
-            <div><strong>Confirmar @(_cliente.EhAtivo ? "inativação" : "ativação")?</strong><span>O histórico será preservado.</span></div>
-            <div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div>
-        </MudAlert>
+        <section class="customer-360-metrics" aria-label="Indicadores do relacionamento">
+            <DetaraMetricCard Titulo="Total investido" Valor="@resumo.TotalInvestido.ToString("C")" Icone="@Icons.Material.Outlined.Payments" Tone="DetaraMetricTone.Positive" ValorSemQuebra="true" Descricao="Em ordens concluídas" />
+            <DetaraMetricCard Titulo="Atendimentos" Valor="@resumo.QuantidadeAtendimentos.ToString()" Icone="@Icons.Material.Outlined.Handyman" Tone="DetaraMetricTone.Info" Descricao="Ordens concluídas" />
+            <DetaraMetricCard Titulo="Ticket médio" Valor="@(resumo.TicketMedio?.ToString("C") ?? "—")" Icone="@Icons.Material.Outlined.ReceiptLong" ValorSemQuebra="true" Descricao="Por atendimento concluído" />
+            <DetaraMetricCard Titulo="Última visita" Valor="@DataCurta(resumo.UltimaVisitaEmUtc)" Icone="@Icons.Material.Outlined.EventAvailable" Descricao="@TempoRelativo(resumo.UltimaVisitaEmUtc)" />
+        </section>
     }
 
-    <div class="detail-grid">
-        <section class="module-panel detail-card">
-            <div class="section-heading"><div><span class="section-eyebrow">RESUMO</span><h2>Dados do cliente</h2></div></div>
-            <dl class="detail-list">
-                <div><dt>Tipo</dt><dd>@(_cliente.TipoPessoa == "PessoaJuridica" ? "Pessoa jurídica" : "Pessoa física")</dd></div>
-                <div><dt>CPF/CNPJ</dt><dd>@Valor(_cliente.CpfCnpj)</dd></div>
-                <div><dt>Telefone</dt><dd>@Valor(_cliente.Telefone)</dd></div>
-                <div><dt>WhatsApp</dt><dd>@Valor(_cliente.WhatsApp)</dd></div>
-                <div><dt>E-mail</dt><dd>@Valor(_cliente.Email)</dd></div>
-                <div><dt>Nascimento</dt><dd>@(_cliente.DataNascimento?.ToString("dd/MM/yyyy") ?? "—")</dd></div>
-            </dl>
-        </section>
-
-        <section class="module-panel detail-card detail-observation">
-            <div class="section-heading"><div><span class="section-eyebrow">OBSERVAÇÕES</span><h2>Contexto operacional</h2></div></div>
-            <p>@Valor(_cliente.Observacao, "Nenhuma observação registrada.")</p>
-        </section>
-    </div>
-
-    <section class="module-panel related-section">
-        <div class="section-heading">
-            <div><span class="section-eyebrow">VEÍCULOS</span><h2>@_cliente.Veiculos.Count veículo(s) associado(s)</h2></div>
-            <AuthorizeView Policy="@Permissoes.VeiculosCriar">
-                <Authorized><MudButton Href="@($"/veiculos/novo?clienteId={Id}")" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Adicionar veículo</MudButton></Authorized>
-            </AuthorizeView>
+    <DetaraCard Class="customer-360-quick-actions" Sobretitulo="ATALHOS" Titulo="Próxima ação">
+        <div class="customer-360-action-grid">
+            <AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="@LinkAgenda(cliente, false)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.EventAvailable">Novo agendamento</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="@LinkOrcamento(cliente)" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RequestQuote">Novo orçamento</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="@LinkOrdemServico(cliente)" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.BuildCircle">Nova ordem de serviço</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.VeiculosCriar"><Authorized><MudButton Href="@($"/veiculos/novo?clienteId={Id}")" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.AddRoad">Adicionar veículo</MudButton></Authorized></AuthorizeView>
         </div>
-        @if (_cliente.Veiculos.Count == 0)
-        {
-            <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" /><div><strong>Nenhum veículo cadastrado</strong><span>Adicione o primeiro veículo deste cliente.</span></div></div>
-        }
-        else
-        {
-            <div class="related-grid">
-                @foreach (var veiculo in _cliente.Veiculos)
+    </DetaraCard>
+
+    <div class="customer-360-workspace">
+        <main class="customer-360-main">
+            <DetaraCard Sobretitulo="GARAGEM" Titulo="Veículos" Descricao="Histórico consolidado por veículo">
+                @if (_relacionamento.Veiculos.Count == 0)
                 {
-                    <article class="vehicle-summary-card">
-                        <div class="vehicle-summary-icon"><MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" /></div>
-                        <div><strong>@veiculo.Descricao</strong><span>@FormatacaoVeiculo.NomeTipo(veiculo.Tipo) · @(veiculo.AnoModelo?.ToString() ?? "Ano não informado")</span><span>@Valor(veiculo.Cor) · @(veiculo.Quilometragem?.ToString("N0") ?? "—") km</span></div>
-                        <span class="status-badge @(veiculo.EhAtivo ? "status-running" : "status-neutral")">@(veiculo.EhAtivo ? "Ativo" : "Inativo")</span>
-                        <MudIconButton Href="@($"/veiculos/{veiculo.Id}")" Icon="@Icons.Material.Outlined.ArrowForward" aria-label="Abrir veículo" />
-                    </article>
+                    <DetaraEmptyState Compacto="true" Titulo="Nenhum veículo cadastrado" Descricao="Adicione o primeiro veículo para iniciar o histórico operacional." Icone="@Icons.Material.Outlined.DirectionsCar">
+                        <Acao><AuthorizeView Policy="@Permissoes.VeiculosCriar"><Authorized><MudButton Href="@($"/veiculos/novo?clienteId={Id}")" Variant="Variant.Outlined">Adicionar veículo</MudButton></Authorized></AuthorizeView></Acao>
+                    </DetaraEmptyState>
                 }
-            </div>
-        }
-    </section>
+                else
+                {
+                    <div class="customer-360-vehicle-grid">
+                    @foreach (var item in _relacionamento.Veiculos)
+                    {
+                        <a class="customer-360-vehicle" href="@($"/veiculos/{item.Veiculo.Id}")">
+                            <div class="customer-360-vehicle-head">
+                                <span class="customer-360-vehicle-icon"><MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" /></span>
+                                <div><strong>@item.Veiculo.Descricao</strong><span>@Identificacao(item.Veiculo)</span></div>
+                                <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" />
+                            </div>
+                            <dl>
+                                <div><dt>Último serviço</dt><dd>@Valor(item.UltimoServico, "Sem histórico")</dd></div>
+                                <div><dt>Última visita</dt><dd>@DataCurta(item.UltimaVisitaEmUtc)</dd></div>
+                                <div><dt>Atendimentos</dt><dd>@item.QuantidadeAtendimentos</dd></div>
+                                <div><dt>Serviços</dt><dd>@item.QuantidadeServicos</dd></div>
+                            </dl>
+                        </a>
+                    }
+                    </div>
+                }
+            </DetaraCard>
 
-    <section class="module-panel related-section">
-        <div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Atendimentos</h2></div></div>
-        <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhum atendimento registrado</strong><span>O histórico aparecerá aqui quando houver ordens de serviço.</span></div></div>
-    </section>
+            @if (_relacionamento.PodeVisualizarAtendimentos)
+            {
+                <DetaraCard Sobretitulo="JORNADA" Titulo="Histórico de atendimentos" Descricao="Ordens de serviço mais recentes">
+                    @if (_relacionamento.Atendimentos.Count == 0)
+                    {
+                        <DetaraEmptyState Compacto="true" Titulo="Ainda não há atendimentos" Descricao="As ordens de serviço deste cliente aparecerão aqui." Icone="@Icons.Material.Outlined.History" />
+                    }
+                    else
+                    {
+                        <div class="customer-360-timeline">
+                        @foreach (var atendimento in _relacionamento.Atendimentos)
+                        {
+                            <a href="@($"/ordens-servico/{atendimento.Id}")" class="customer-360-timeline-item">
+                                <span class="customer-360-timeline-marker"></span>
+                                <div class="customer-360-timeline-date"><strong>@atendimento.DataEmUtc.ToLocalTime().ToString("dd")</strong><span>@atendimento.DataEmUtc.ToLocalTime().ToString("MMM yyyy")</span></div>
+                                <div class="customer-360-timeline-copy"><strong>@atendimento.Codigo · @atendimento.VeiculoDescricao</strong><span>@ResumoItens(atendimento.Servicos)</span></div>
+                                <DetaraStatusBadge Texto="@NomeStatus(atendimento.Status)" Tone="@TomStatus(atendimento.Status)" />
+                                <strong class="currency-value">@atendimento.TotalAutorizado.ToString("C")</strong>
+                            </a>
+                        }
+                        </div>
+                    }
+                </DetaraCard>
+            }
+
+            @if (_relacionamento.PodeVisualizarOrcamentos)
+            {
+                <DetaraCard Sobretitulo="COMERCIAL" Titulo="Orçamentos recentes">
+                    @if (_relacionamento.Orcamentos.Count == 0)
+                    {
+                        <DetaraEmptyState Compacto="true" Titulo="Nenhum orçamento registrado" Descricao="As propostas deste cliente aparecerão aqui." Icone="@Icons.Material.Outlined.RequestQuote" />
+                    }
+                    else
+                    {
+                        <div class="customer-360-quotes">
+                        @foreach (var orcamento in _relacionamento.Orcamentos)
+                        {
+                            <a href="@($"/orcamentos/{orcamento.Id}")" class="customer-360-quote">
+                                <div><strong>@(orcamento.Codigo ?? "Rascunho")</strong><span>@orcamento.DataEmUtc.ToLocalTime().ToString("dd/MM/yyyy") · @orcamento.VeiculoDescricao</span></div>
+                                <DetaraStatusBadge Texto="@NomeStatus(orcamento.Status)" Tone="@TomStatus(orcamento.Status)" />
+                                <strong class="currency-value">@orcamento.Total.ToString("C")</strong>
+                                <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                            </a>
+                        }
+                        </div>
+                    }
+                </DetaraCard>
+            }
+        </main>
+
+        <aside class="customer-360-aside">
+            @if (_relacionamento.Resumo is { } relacionamento)
+            {
+                <DetaraCard Sobretitulo="RELACIONAMENTO" Titulo="Leitura estratégica">
+                    <dl class="customer-360-summary-list">
+                        <div><dt>Serviço mais realizado</dt><dd>@Valor(relacionamento.ServicoMaisRealizado, "Histórico insuficiente")</dd></div>
+                        <div><dt>Frequência de retorno</dt><dd>@Frequencia(relacionamento.FrequenciaRetornoDias)</dd></div>
+                        <div><dt>Veículos cadastrados</dt><dd>@_relacionamento.Veiculos.Count</dd></div>
+                    </dl>
+                </DetaraCard>
+            }
+            @if (_relacionamento.PodeVisualizarComunicacoes)
+            {
+                <DetaraCard Sobretitulo="COMUNICAÇÃO" Titulo="Último contato">
+                    @if (_relacionamento.UltimaComunicacao is { } comunicacao)
+                    {
+                        <div class="customer-360-communication">
+                            <span class="customer-360-communication-icon"><MudIcon Icon="@(comunicacao.Canal == CanalComunicacaoClienteContrato.Email ? Icons.Material.Outlined.Email : Icons.Custom.Brands.WhatsApp)" /></span>
+                            <div><strong>Aviso de veículo pronto</strong><span>@NomeCanal(comunicacao.Canal) · @comunicacao.DataEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
+                            <DetaraStatusBadge Texto="@NomeStatus(comunicacao.Status)" Tone="@TomStatus(comunicacao.Status)" />
+                        </div>
+                    }
+                    else
+                    {
+                        <DetaraEmptyState Compacto="true" Titulo="Sem comunicações" Descricao="Nenhum aviso de veículo pronto foi registrado." Icone="@Icons.Material.Outlined.MarkEmailUnread" />
+                    }
+                </DetaraCard>
+            }
+            <DetaraCard Sobretitulo="CADASTRO" Titulo="Dados do cliente">
+                <dl class="customer-360-summary-list">
+                    <div><dt>Tipo</dt><dd>@(cliente.TipoPessoa == "PessoaJuridica" ? "Pessoa jurídica" : "Pessoa física")</dd></div>
+                    <div><dt>CPF/CNPJ</dt><dd>@Valor(cliente.CpfCnpj)</dd></div>
+                    <div><dt>WhatsApp</dt><dd>@Valor(cliente.WhatsApp)</dd></div>
+                    <div><dt>Nascimento</dt><dd>@(cliente.DataNascimento?.ToString("dd/MM/yyyy") ?? "—")</dd></div>
+                    <div><dt>Observações</dt><dd>@Valor(cliente.Observacao, "Nenhuma observação registrada.")</dd></div>
+                </dl>
+            </DetaraCard>
+        </aside>
+    </div>
 }
-
 </div>
 
 @code {
-    [Parameter]
-    public Guid Id { get; set; }
-
-    private ClienteDetalheResponse? _cliente;
+    [Parameter] public Guid Id { get; set; }
+    private ClienteRelacionamentoResponse? _relacionamento;
     private bool _carregando = true;
-    private bool _confirmandoStatus;
-    private string ResumoContato => string.Join(" · ", new[] { _cliente?.Telefone, _cliente?.Email }.Where(item => !string.IsNullOrWhiteSpace(item)));
 
     protected override async Task OnParametersSetAsync()
     {
         _carregando = true;
-        var resultado = await ClientesApi.ObterAsync(Id);
-        _cliente = resultado.Resultado;
-        if (!resultado.Sucesso)
-        {
-            Mensagens.Mostrar(resultado.Mensagem, true);
-        }
-
+        var resultado = await ClientesApi.ObterRelacionamentoAsync(Id);
+        _relacionamento = resultado.Resultado;
+        if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true);
         _carregando = false;
     }
 
-    private void SolicitarAlteracaoStatus() => _confirmandoStatus = true;
-    private void CancelarStatus() => _confirmandoStatus = false;
-
-    private async Task ConfirmarStatusAsync()
+    private async Task AlterarStatusAsync()
     {
-        if (_cliente is null) return;
-        var resultado = await ClientesApi.AlterarStatusAsync(Id, !_cliente.EhAtivo);
+        if (_relacionamento is null) return;
+        var cliente = _relacionamento.Cliente;
+        var parametros = new DialogParameters<AlterarStatusClienteDialog> { { x => x.Nome, cliente.Nome }, { x => x.EhAtivo, cliente.EhAtivo } };
+        var opcoes = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogo = await Dialogos.ShowAsync<AlterarStatusClienteDialog>(cliente.EhAtivo ? "Inativar cliente" : "Ativar cliente", parametros, opcoes);
+        var retorno = await dialogo.Result;
+        if (retorno is not { Canceled: false }) return;
+        var resultado = await ClientesApi.AlterarStatusAsync(Id, !cliente.EhAtivo);
         Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
-        _confirmandoStatus = false;
         if (resultado.Sucesso) await OnParametersSetAsync();
     }
 
+    private static string Iniciais(string nome) => string.Concat(nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
     private static string Valor(string? valor, string padrao = "—") => string.IsNullOrWhiteSpace(valor) ? padrao : valor;
+    private static string DataCurta(DateTime? data) => data?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—";
+    private static string TempoRelativo(DateTime? data) => data is null ? "Sem visitas concluídas" : $"Há {Math.Max(0, (DateTime.Now.Date - data.Value.ToLocalTime().Date).Days)} dia(s)";
+    private static string Frequencia(int? dias) => dias switch { null => "Histórico insuficiente", 0 => "Retorno no mesmo dia", 1 => "A cada dia", _ => $"A cada {dias} dias" };
+    private static string ResumoItens(IReadOnlyCollection<string> itens) => itens.Count == 0 ? "Sem itens" : string.Join(" · ", itens.Take(3));
+    private static string Identificacao(VeiculoResumoClienteResponse veiculo) => !string.IsNullOrWhiteSpace(veiculo.Placa) ? veiculo.Placa : Valor(veiculo.IdentificacaoAlternativa, FormatacaoVeiculo.NomeTipo(veiculo.Tipo));
+    private string LinkAgenda(ClienteDetalheResponse cliente, bool agora) => $"/agenda/novo?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}{(agora ? "&agora=true" : string.Empty)}";
+    private string LinkOrdemServico(ClienteDetalheResponse cliente) => $"/ordens-servico/nova?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}";
+    private string LinkOrcamento(ClienteDetalheResponse cliente) => $"/orcamentos/novo?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}";
+    private static string NomeCanal(CanalComunicacaoClienteContrato canal) => canal == CanalComunicacaoClienteContrato.Email ? "E-mail" : "WhatsApp";
+    private static string NomeStatus(StatusOrdemServicoContrato status) => status switch { StatusOrdemServicoContrato.EmExecucao => "Em execução", StatusOrdemServicoContrato.AguardandoRetirada => "Aguardando retirada", StatusOrdemServicoContrato.Concluida => "Concluída", StatusOrdemServicoContrato.Cancelada => "Cancelada", _ => "Aberta" };
+    private static DetaraStatusTone TomStatus(StatusOrdemServicoContrato status) => status switch { StatusOrdemServicoContrato.EmExecucao or StatusOrdemServicoContrato.Concluida => DetaraStatusTone.Positive, StatusOrdemServicoContrato.AguardandoRetirada => DetaraStatusTone.Warning, StatusOrdemServicoContrato.Cancelada => DetaraStatusTone.Critical, _ => DetaraStatusTone.Info };
+    private static string NomeStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Substituido => "Substituído", StatusOrcamentoContrato.Expirado => "Expirado", _ => status.ToString() };
+    private static DetaraStatusTone TomStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Aprovado => DetaraStatusTone.Positive, StatusOrcamentoContrato.Emitido => DetaraStatusTone.Info, StatusOrcamentoContrato.Expirado => DetaraStatusTone.Warning, StatusOrcamentoContrato.Recusado or StatusOrcamentoContrato.Cancelado => DetaraStatusTone.Critical, _ => DetaraStatusTone.Neutral };
+    private static string NomeStatus(StatusComunicacaoClienteContrato status) => status switch { StatusComunicacaoClienteContrato.Enviado => "Enviado", StatusComunicacaoClienteContrato.Falhou => "Falhou", _ => "Pendente" };
+    private static DetaraStatusTone TomStatus(StatusComunicacaoClienteContrato status) => status switch { StatusComunicacaoClienteContrato.Enviado => DetaraStatusTone.Positive, StatusComunicacaoClienteContrato.Falhou => DetaraStatusTone.Critical, _ => DetaraStatusTone.Warning };
 }

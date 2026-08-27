@@ -1,0 +1,10 @@
+<DetaraDialog Titulo="@(EhAtivo ? "Inativar cliente" : "Ativar cliente")" Descricao="O histórico do relacionamento será preservado." TextoPrimario="@(EhAtivo ? "Inativar" : "Ativar")" CorPrimaria="@(EhAtivo ? Color.Error : Color.Success)" OnPrimary="Confirmar">
+    <MudText Typo="Typo.body1">Confirma a @(EhAtivo ? "inativação" : "ativação") de <strong>@Nome</strong>?</MudText>
+</DetaraDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public string Nome { get; set; } = string.Empty;
+    [Parameter] public bool EhAtivo { get; set; }
+    private void Confirmar() => MudDialog.Close(DialogResult.Ok(true));
+}
