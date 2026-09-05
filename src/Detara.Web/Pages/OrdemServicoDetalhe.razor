@@ -25,6 +25,7 @@ else if (_ordem is null)
 else
 {
     <div class="page-container page-container-wide service-order-detail-page">
+        <DetaraBreadcrumbs Itens="@BreadcrumbsOrdemServico" Class="detara-breadcrumbs-grid" />
         <section class="module-panel service-order-hero" aria-labelledby="service-order-vehicle-title">
             <div class="service-order-hero-main">
                 <span class="service-order-hero-icon" aria-hidden="true">
@@ -69,6 +70,11 @@ else
                             </Authorized>
                         </AuthorizeView>
                     }
+                    <MudButton Href="@($"/clientes/{_ordem.ClienteId}")"
+                               Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Outlined.Person">
+                        Cliente
+                    </MudButton>
                     <MudButton Href="/ordens-servico"
                                Variant="Variant.Outlined"
                                StartIcon="@Icons.Material.Outlined.ArrowBack">
@@ -891,6 +897,15 @@ else
     }
     private static string FormatacaoVeiculoPlaca(string? placa) => string.IsNullOrWhiteSpace(placa) ? "Sem placa" : placa;
     private static string FormatarDuracao(int? minutos) => minutos switch { null => "Não informada", < 60 => $"{minutos} min", _ when minutos % 60 == 0 => $"{minutos / 60} h", _ => $"{minutos / 60} h {minutos % 60} min" };
+    private IReadOnlyList<DetaraBreadcrumbItem> BreadcrumbsOrdemServico => _ordem is null
+        ? []
+        :
+        [
+            new("Clientes", "/clientes"),
+            new(_ordem.ClienteNome, $"/clientes/{_ordem.ClienteId}"),
+            new(NomeVeiculo(_ordem), $"/veiculos/{_ordem.VeiculoId}"),
+            new(_ordem.Codigo)
+        ];
     private static string NomeCategoria(CategoriaFotoOrdemServicoContrato categoria) => categoria switch { CategoriaFotoOrdemServicoContrato.Entrada => "Antes", CategoriaFotoOrdemServicoContrato.Durante => "Durante", _ => "Depois" };
     private static string DescricaoCategoria(CategoriaFotoOrdemServicoContrato categoria) => categoria switch { CategoriaFotoOrdemServicoContrato.Entrada => "Condição de recebimento", CategoriaFotoOrdemServicoContrato.Durante => "Acompanhamento do trabalho", _ => "Resultado da entrega" };
     private static string IconeCategoria(CategoriaFotoOrdemServicoContrato categoria) => categoria switch { CategoriaFotoOrdemServicoContrato.Entrada => Icons.Material.Outlined.PhotoCameraFront, CategoriaFotoOrdemServicoContrato.Durante => Icons.Material.Outlined.Construction, _ => Icons.Material.Outlined.AutoAwesome };

@@ -166,6 +166,11 @@ public sealed class DemoBootstrapService(
         return new DemoBootstrapResult(false, await ObterStatusAsync(cancellationToken));
     }
 
+    public Task<DemoBootstrapResult> PrepararApresentacaoAsync(
+        string senhaAdministrador,
+        CancellationToken cancellationToken = default) =>
+        ResetarAsync(senhaAdministrador, cancellationToken);
+
     public async Task<DemoBootstrapStatus> ObterStatusAsync(
         CancellationToken cancellationToken = default)
     {
@@ -303,7 +308,7 @@ public sealed class DemoBootstrapService(
         var admin = new Usuario(
             empresaId,
             administrador.Id,
-            "Administrador Prime Detail",
+            "Gustavo — Demonstração",
             EmailAdministrador,
             "hash-pendente");
         admin.AlterarSenhaHash(passwordHasher.HashPassword(admin, senhaAdministrador));
@@ -399,11 +404,11 @@ public sealed class DemoBootstrapService(
         var clientes = new List<ClienteVeiculoDemo>();
         var dadosClientes = new[]
         {
-            new ClienteDemo("André Moreira", "andre.moreira@example.com", "1100000001", "Honda", "Civic", "DMO1A01", "Prata", 38200),
-            new ClienteDemo("Camila Duarte", "camila.duarte@example.com", "1100000002", "Toyota", "Corolla", "DMO1A02", "Branco", 27400),
-            new ClienteDemo("Bruno Ferraz", "bruno.ferraz@example.com", "1100000003", "Volkswagen", "T-Cross", "DMO1A03", "Cinza", 21900),
-            new ClienteDemo("Mariana Lopes", "mariana.lopes@example.com", "1100000004", "Jeep", "Compass", "DMO1A04", "Preto", 43100),
-            new ClienteDemo("Eduardo Nascimento", "eduardo.nascimento@example.com", "1100000005", "BMW", "320i", "DMO1A05", "Azul", 18700),
+            new ClienteDemo("Mariana Oliveira", "mariana.oliveira@example.com", "1100000001", "Honda", "Civic Touring", "DMO1A01", "Prata", 38200),
+            new ClienteDemo("João Mendes", "joao.mendes@example.com", "1100000002", "Toyota", "Corolla", "DMO1A02", "Branco", 27400),
+            new ClienteDemo("Carlos Henrique", "carlos.henrique@example.com", "1100000003", "Jeep", "Compass", "DMO1A03", "Cinza", 21900),
+            new ClienteDemo("Isabela Martins", "isabela.martins@example.com", "1100000004", "BMW", "320i", "DMO1A04", "Preto", 43100),
+            new ClienteDemo("Eduardo Nascimento", "eduardo.nascimento@example.com", "1100000005", "Volvo", "XC60", "DMO1A05", "Azul", 18700),
             new ClienteDemo("Fernanda Ribeiro", "fernanda.ribeiro@example.com", "1100000006", "Chevrolet", "Tracker", "DMO1A06", "Vermelho", 30500),
             new ClienteDemo("Lucas Barreto", "lucas.barreto@example.com", "1100000007", "Volkswagen", "Golf", "DMO1A07", "Branco", 59200),
             new ClienteDemo("Juliana Prado", "juliana.prado@example.com", "1100000008", "Audi", "A3", "DMO1A08", "Cinza", 24600),
@@ -454,7 +459,7 @@ public sealed class DemoBootstrapService(
             StatusAgendamento.Cancelado,
             "Cancelamento sintético para demonstrar histórico."), cancellationToken);
 
-        _ = await CriarOrcamentoAsync(sender, clientes[1], servicos["Higienização Interna"], hoje, "rascunho", cancellationToken);
+        _ = await CriarOrcamentoAsync(sender, clientes[1], servicos["Higienização Interna"], hoje, "emitido", cancellationToken);
         var aprovadoVitrificacao = await CriarOrcamentoAsync(sender, clientes[4], servicos["Vitrificação de Pintura"], hoje, "aprovado", cancellationToken, agendamentos[3].Agendamento.Id);
         _ = await CriarOrcamentoAsync(sender, clientes[5], servicos["Polimento Comercial"], hoje, "recusado", cancellationToken);
         var aprovadoLavagem = await CriarOrcamentoAsync(sender, clientes[0], servicos["Lavagem Detalhada"], hoje, "aprovado", cancellationToken, agendamentos[0].Agendamento.Id);

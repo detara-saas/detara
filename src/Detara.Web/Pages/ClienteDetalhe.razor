@@ -18,6 +18,7 @@ else if (_relacionamento is null)
 else
 {
     var cliente = _relacionamento.Cliente;
+    <DetaraBreadcrumbs Itens="@BreadcrumbsCliente(cliente)" Class="detara-breadcrumbs-grid" />
     <header class="customer-360-hero">
         <div class="customer-360-identity">
             <div class="customer-360-avatar" aria-hidden="true">@Iniciais(cliente.Nome)</div>
@@ -95,6 +96,7 @@ else
 
             @if (_relacionamento.PodeVisualizarAtendimentos)
             {
+                <section id="historico-atendimentos">
                 <DetaraCard Sobretitulo="JORNADA" Titulo="Histórico de atendimentos" Descricao="Ordens de serviço mais recentes">
                     @if (_relacionamento.Atendimentos.Count == 0)
                     {
@@ -116,6 +118,7 @@ else
                         </div>
                     }
                 </DetaraCard>
+                </section>
             }
 
             @if (_relacionamento.PodeVisualizarOrcamentos)
@@ -220,6 +223,8 @@ else
     private static string Frequencia(int? dias) => dias switch { null => "Histórico insuficiente", 0 => "Retorno no mesmo dia", 1 => "A cada dia", _ => $"A cada {dias} dias" };
     private static string ResumoItens(IReadOnlyCollection<string> itens) => itens.Count == 0 ? "Sem itens" : string.Join(" · ", itens.Take(3));
     private static string Identificacao(VeiculoResumoClienteResponse veiculo) => !string.IsNullOrWhiteSpace(veiculo.Placa) ? veiculo.Placa : Valor(veiculo.IdentificacaoAlternativa, FormatacaoVeiculo.NomeTipo(veiculo.Tipo));
+    private static IReadOnlyList<DetaraBreadcrumbItem> BreadcrumbsCliente(ClienteDetalheResponse cliente) =>
+        [new("Clientes", "/clientes"), new(cliente.Nome)];
     private string LinkAgenda(ClienteDetalheResponse cliente, bool agora) => $"/agenda/novo?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}{(agora ? "&agora=true" : string.Empty)}";
     private string LinkOrdemServico(ClienteDetalheResponse cliente) => $"/ordens-servico/nova?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}";
     private string LinkOrcamento(ClienteDetalheResponse cliente) => $"/orcamentos/novo?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}";

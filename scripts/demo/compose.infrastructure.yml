@@ -1,0 +1,15 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${DETARA_SQL_PASSWORD:?Defina DETARA_SQL_PASSWORD no arquivo .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - detara-sql-data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  detara-sql-data:

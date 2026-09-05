@@ -1,0 +1,24 @@
+<nav class="detara-breadcrumbs @Class" aria-label="Navegação contextual">
+    @for (var indice = 0; indice < Itens.Count; indice++)
+    {
+        var item = Itens[indice];
+        @if (!string.IsNullOrWhiteSpace(item.Href))
+        {
+            <a href="@item.Href">@item.Texto</a>
+        }
+        else
+        {
+            <span aria-current="page">@item.Texto</span>
+        }
+
+        @if (indice < Itens.Count - 1)
+        {
+            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" aria-hidden="true" />
+        }
+    }
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<DetaraBreadcrumbItem> Itens { get; set; } = [];
+    [Parameter] public string? Class { get; set; }
+}

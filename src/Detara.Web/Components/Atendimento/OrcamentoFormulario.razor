@@ -107,6 +107,7 @@ else
     [Parameter] public Guid? OrcamentoId { get; set; }
     [Parameter] public Guid? ClienteInicialId { get; set; }
     [Parameter] public string? ClienteInicialNome { get; set; }
+    [Parameter] public Guid? VeiculoInicialId { get; set; }
     private readonly ModeloFormulario _modelo = new();
     private readonly List<ItemEdicao> _itens = [];
     private IReadOnlyCollection<VeiculoOrcamentoResponse> _veiculos = [];
@@ -135,7 +136,8 @@ else
                     _clienteId = ClienteInicialId;
                     _clienteNome = ClienteInicialNome;
                     _veiculos = (await OrcamentosApi.ListarVeiculosAsync(ClienteInicialId.Value)).Resultado ?? [];
-                    if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id;
+                    if (VeiculoInicialId.HasValue && _veiculos.Any(item => item.Id == VeiculoInicialId.Value)) _veiculoId = VeiculoInicialId;
+                    else if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id;
                 }
             }
         }

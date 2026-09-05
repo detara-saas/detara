@@ -19,12 +19,22 @@ else if (_veiculo is null)
 }
 else
 {
+    <DetaraBreadcrumbs Itens="@BreadcrumbsVeiculo" />
     <CabecalhoPagina Titulo="@DescricaoVeiculo" Descricao="@FormatacaoVeiculo.NomeTipo(_veiculo.Tipo)" Sobretitulo="VEÍCULO">
         <Acoes>
             <span class="status-badge @(_veiculo.EhAtivo ? "status-running" : "status-neutral")">@(_veiculo.EhAtivo ? "Ativo" : "Inativo")</span>
             <AuthorizeView Policy="@Permissoes.VeiculosEditar"><Authorized><MudButton Href="@($"/veiculos/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Variant="Variant.Text" Color="@(_veiculo.EhAtivo ? Color.Error : Color.Success)" OnClick="SolicitarStatus">@(_veiculo.EhAtivo ? "Inativar" : "Ativar")</MudButton></Authorized></AuthorizeView>
         </Acoes>
     </CabecalhoPagina>
+
+    <DetaraCard Class="vehicle-context-actions" Sobretitulo="JORNADA DO VEÍCULO" Titulo="Continuar atendimento" Descricao="Atalhos preservam o cliente e o veículo deste contexto.">
+        <div class="vehicle-context-action-grid">
+            <AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="@LinkAgenda" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.EventAvailable">Novo agendamento</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="@LinkOrcamento" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RequestQuote">Novo orçamento</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="@LinkOrdemServico" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.CarRepair">Nova ordem de serviço</MudButton></Authorized></AuthorizeView>
+            <MudButton Href="@($"/clientes/{_veiculo.ClienteId}#historico-atendimentos")" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.History">Ver histórico</MudButton>
+        </div>
+    </DetaraCard>
 
     @if (_confirmandoStatus)
     {
@@ -135,10 +145,6 @@ else
         }
     </section>
 
-    <section class="future-grid vehicle-future-grid">
-        <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Histórico</strong><span>Nenhum serviço registrado.</span></div></article>
-        <article class="module-panel future-card"><MudIcon Icon="@Icons.Material.Outlined.Event" /><div><strong>Próximo agendamento</strong><span>Nenhum agendamento futuro.</span></div></article>
-    </section>
 }
 
 </div>
@@ -158,6 +164,15 @@ else
         ? string.Empty
         : FormatacaoVeiculo.Exibir($"{_veiculo.Marca} {_veiculo.Modelo}",
             _veiculo.Placa ?? _veiculo.IdentificacaoAlternativa);
+    private IReadOnlyList<DetaraBreadcrumbItem> BreadcrumbsVeiculo => _veiculo is null
+        ? []
+        : [new("Clientes", "/clientes"), new(_veiculo.ClienteNome, $"/clientes/{_veiculo.ClienteId}"), new(DescricaoVeiculo)];
+    private string ContextoQuery => _veiculo is null
+        ? string.Empty
+        : $"clienteId={_veiculo.ClienteId}&clienteNome={Uri.EscapeDataString(_veiculo.ClienteNome)}&veiculoId={_veiculo.Id}";
+    private string LinkAgenda => $"/agenda/novo?{ContextoQuery}";
+    private string LinkOrcamento => $"/orcamentos/novo?{ContextoQuery}";
+    private string LinkOrdemServico => $"/ordens-servico/nova?{ContextoQuery}";
 
     protected override async Task OnParametersSetAsync()
     {
