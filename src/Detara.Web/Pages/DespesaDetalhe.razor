@@ -1,0 +1,54 @@
+@page "/financeiro/despesas/{Id:guid}"
+@attribute [Authorize(Policy = Permissoes.FinanceiroVisualizar)]
+@inject DespesasServico Api
+@inject IDialogService Dialogos
+<PageTitle>Despesa | Detara</PageTitle>
+<div class="page-container page-container-wide detail-stack">
+    @if (_carregando) { <DetaraSkeleton Variant="DetaraSkeletonVariant.Detail" Rotulo="Carregando despesa" /> }
+    else if (_dados is not null)
+    {
+        var x = _dados.Conta;
+        <CabecalhoPagina Titulo="@x.Descricao" Descricao="@($"{x.Categoria} · {x.Origem}")" Sobretitulo="CONTA A PAGAR">
+            <Acoes><DetaraStatusBadge Texto="@Despesas.Status(x)" Tone="@Despesas.Tom(x)" /><MudButton Href="/financeiro/despesas" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ArrowBack">Voltar</MudButton></Acoes>
+        </CabecalhoPagina>
+        <section class="detail-metrics detail-metrics-four">
+            <DetaraMetricCard Titulo="Valor previsto" Valor="@Despesas.Moeda(x.Valor)" Icone="@Icons.Material.Outlined.ReceiptLong" />
+            <DetaraMetricCard Titulo="Valor pago" Valor="@Despesas.Moeda(x.ValorPago ?? 0)" Icone="@Icons.Material.Outlined.Payments" />
+            <DetaraMetricCard Titulo="Competência" Valor="@x.Competencia.ToString("MM/yyyy")" Icone="@Icons.Material.Outlined.CalendarMonth" />
+            <DetaraMetricCard Titulo="Vencimento" Valor="@x.Vencimento.ToString("dd/MM/yyyy")" Icone="@Icons.Material.Outlined.Event" />
+        </section>
+        <section class="module-panel section-card">
+            <div class="section-heading"><div><span class="section-eyebrow">DETALHES</span><h2>Compromisso financeiro</h2></div></div>
+            <p>Fornecedor: @(x.Fornecedor ?? "Não informado")</p><p>Observação: @(x.Observacao ?? "Não informada")</p>
+            @if (x.RecorrenciaId.HasValue) { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Esta conta é um retrato da regra no momento da geração. Editar a regra não altera esta ocorrência.</MudAlert><MudButton Href="/financeiro/despesas/recorrencias" Variant="Variant.Outlined" Class="mt-4">Ver recorrências</MudButton> }
+            <div class="form-actions page-actions">
+                @if (x.Status == StatusDespesaContrato.Pendente)
+                {
+                    <AuthorizeView Policy="@Permissoes.FinanceiroEditar"><MudButton Href="@($"/financeiro/despesas/{Id}/editar")" Variant="Variant.Outlined">Editar</MudButton><MudButton OnClick="@(() => AcaoAsync("cancelar"))" Variant="Variant.Outlined" Color="Color.Error">Cancelar despesa</MudButton></AuthorizeView>
+                    <AuthorizeView Policy="@Permissoes.FinanceiroRegistrarPagamento"><MudButton OnClick="@(() => AcaoAsync("pagar"))" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Payments">Registrar pagamento</MudButton></AuthorizeView>
+                }
+                @if (x.Status == StatusDespesaContrato.Pago) { <AuthorizeView Policy="@Permissoes.FinanceiroEstornarPagamento"><MudButton OnClick="@(() => AcaoAsync("estornar"))" Variant="Variant.Outlined" Color="Color.Error">Estornar pagamento</MudButton></AuthorizeView> }
+            </div>
+        </section>
+        <section class="module-panel section-card detail-stack">
+            <div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Pagamentos e estornos</h2><p>Os registros anteriores permanecem disponíveis para conferência.</p></div></div>
+            @if (_dados.Pagamentos.Count == 0) { <DetaraEmptyState Titulo="Nenhum pagamento registrado" Descricao="Ao quitar esta conta, o pagamento aparecerá aqui." Compacto="true" /> }
+            @foreach (var p in _dados.Pagamentos.OrderByDescending(p => p.RegistradoEmUtc))
+            { <article class="module-panel section-card"><div class="section-heading"><strong>@Despesas.Moeda(p.Valor) · @p.DataPagamento.ToString("dd/MM/yyyy")</strong><DetaraStatusBadge Texto="@(p.Estornado ? "Estornado" : "Confirmado")" /></div>@if (p.Estornado) { <p>Motivo: @p.MotivoEstorno</p> }</article> }
+        </section>
+    }
+    else { <MudAlert Severity="Severity.Error">@_erro</MudAlert><MudButton Href="/financeiro/despesas" Variant="Variant.Outlined">Voltar para despesas</MudButton> }
+</div>
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private DespesaDetalheResponse? _dados; private string? _erro; private bool _carregando = true;
+    protected override Task OnParametersSetAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var r = await Api.ObterAsync<DespesaDetalheResponse>($"/{Id}"); _dados = r.Resultado; _erro = r.Mensagem; _carregando = false; }
+    private async Task AcaoAsync(string acao)
+    {
+        if (_dados is null) return;
+        var p = new DialogParameters<DespesaAcaoDialog> { { x => x.Conta, _dados.Conta }, { x => x.Acao, acao } };
+        var d = await Dialogos.ShowAsync<DespesaAcaoDialog>("Despesa", p, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, BackdropClick = false });
+        if (await d.Result is { Canceled: false }) await CarregarAsync();
+    }
+}

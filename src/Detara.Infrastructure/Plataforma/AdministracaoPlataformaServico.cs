@@ -158,6 +158,7 @@ internal sealed class AdministracaoPlataformaServico(
             }
 
             contexto.Empresas.Add(empresa);
+            await Financeiro.CategoriasDespesaIniciais.PrepararAsync(contexto, empresa.Id, cancellationToken);
             var perfil = new Perfil(
                 empresa.Id,
                 "Administrador",

@@ -1,0 +1,107 @@
+@page "/financeiro/despesas/nova"
+@page "/financeiro/despesas/{Id:guid}/editar"
+@page "/financeiro/despesas/recorrencias/{RecorrenciaId:guid}/editar"
+@attribute [Authorize(Policy = Permissoes.FinanceiroVisualizar)]
+@attribute [Authorize(Policy = Permissoes.FinanceiroEditar)]
+@inject DespesasServico Api
+@inject NavigationManager Navegacao
+
+<PageTitle>@Titulo | Detara</PageTitle>
+<div class="page-container page-container-focused form-page">
+    <CabecalhoPagina Titulo="@Titulo" Sobretitulo="FINANCEIRO" Descricao="Organize o compromisso, a competência e o vencimento.">
+        <Acoes><MudButton Href="@Voltar" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ArrowBack">Voltar</MudButton></Acoes>
+    </CabecalhoPagina>
+    @if (_carregando) { <DetaraSkeleton Variant="DetaraSkeletonVariant.Detail" Rotulo="Carregando despesa" /> }
+    else
+    {
+        <div class="detail-stack">
+            @if (_erro is not null) { <MudAlert Severity="Severity.Error">@_erro</MudAlert> }
+            @if (!_indisponivel)
+            {
+                <MudForm @ref="_form">
+                    <section class="module-panel section-card">
+                        <div class="section-heading"><div><span class="section-eyebrow">COMPROMISSO FINANCEIRO</span><h2>Dados da despesa</h2></div></div>
+                        <MudGrid Spacing="3">
+                            @if (!Editando)
+                            {
+                                <MudItem xs="12"><MudSelect T="bool" @bind-Value="_recorrente" Label="Tipo de despesa" Variant="Variant.Outlined"><MudSelectItem Value="false">Avulsa · uma única conta</MudSelectItem><MudSelectItem Value="true">Mensal recorrente · uma conta por mês</MudSelectItem></MudSelect></MudItem>
+                            }
+                            <MudItem xs="12"><MudTextField @bind-Value="_descricao" Label="Descrição" Required="true" MaxLength="200" Variant="Variant.Outlined" /></MudItem>
+                            <MudItem xs="12" sm="6"><MudSelect T="Guid?" @bind-Value="_categoria" Label="Categoria" Required="true" Variant="Variant.Outlined">
+                                @foreach (var c in _categorias.Where(x => x.Ativa || x.Id == _categoria)) { <MudSelectItem T="Guid?" Value="c.Id" Disabled="@(!c.Ativa)">@c.Nome@(!c.Ativa ? " (inativa)" : "")</MudSelectItem> }
+                            </MudSelect></MudItem>
+                            <MudItem xs="12" sm="6"><MudNumericField T="decimal" @bind-Value="_valor" Label="Valor previsto (R$)" Format="N2" Min="0.01m" Required="true" Variant="Variant.Outlined" /></MudItem>
+                            <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_competencia" Label="@(_recorrente ? "Competência inicial" : "Competência")" DateFormat="MM/yyyy" OpenTo="OpenTo.Month" FixDay="1" Required="true" Disabled="@(RecorrenciaId.HasValue || _origemRecorrente)" Variant="Variant.Outlined" /></MudItem>
+                            @if (_recorrente)
+                            {
+                                <MudItem xs="12" sm="6"><MudNumericField T="int" @bind-Value="_dia" Label="Dia do vencimento" Min="1" Max="31" Required="true" HelperText="Em meses menores, usamos o último dia." Variant="Variant.Outlined" /></MudItem>
+                                <MudItem xs="12"><MudDatePicker @bind-Date="_fim" Label="Competência final (opcional)" DateFormat="MM/yyyy" OpenTo="OpenTo.Month" FixDay="1" Clearable="true" Variant="Variant.Outlined" /></MudItem>
+                            }
+                            else { <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_vencimento" Label="Vencimento" DateFormat="dd/MM/yyyy" Required="true" Variant="Variant.Outlined" /></MudItem> }
+                            <MudItem xs="12"><MudTextField @bind-Value="_fornecedor" Label="Fornecedor (opcional)" MaxLength="160" Variant="Variant.Outlined" /></MudItem>
+                            <MudItem xs="12"><MudTextField @bind-Value="_observacao" Label="Observação (opcional)" MaxLength="2000" Lines="3" Variant="Variant.Outlined" /></MudItem>
+                        </MudGrid>
+                    </section>
+                </MudForm>
+                @if (_recorrente) { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Uma conta real será criada a cada competência. Alterar a regra não modifica contas já geradas. O início no passado não gera despesas retroativas.</MudAlert> }
+                <div class="form-actions"><MudButton Href="@Voltar" Variant="Variant.Outlined" Disabled="_salvando">Cancelar</MudButton><MudButton OnClick="SalvarAsync" Variant="Variant.Filled" Color="Color.Primary" Disabled="_salvando">@(_salvando ? "Salvando…" : "Salvar despesa")</MudButton></div>
+            }
+        </div>
+    }
+</div>
+@code {
+    [Parameter] public Guid? Id { get; set; }
+    [Parameter] public Guid? RecorrenciaId { get; set; }
+    private bool Editando => Id.HasValue || RecorrenciaId.HasValue;
+    private string Titulo => Editando ? (_recorrente ? "Editar recorrência" : "Editar despesa") : "Nova despesa";
+    private string Voltar => RecorrenciaId.HasValue ? "/financeiro/despesas/recorrencias" : Id.HasValue ? $"/financeiro/despesas/{Id}" : "/financeiro/despesas";
+    private MudForm? _form;
+    private IReadOnlyCollection<CategoriaDespesaResponse> _categorias = [];
+    private bool _carregando = true, _salvando, _indisponivel, _recorrente, _origemRecorrente;
+    private string? _erro, _descricao, _fornecedor, _observacao;
+    private Guid? _categoria; private decimal _valor; private int _dia = 10; private long _versao;
+    private DateTime? _competencia, _vencimento, _fim;
+    protected override async Task OnParametersSetAsync()
+    {
+        _carregando = true; _indisponivel = false; _erro = null;
+        var categorias = await Api.ObterAsync<IReadOnlyCollection<CategoriaDespesaResponse>>("/categorias");
+        _categorias = categorias.Resultado ?? [];
+        if (!categorias.Sucesso) { _erro = categorias.Mensagem; _indisponivel = true; }
+        _recorrente = RecorrenciaId.HasValue;
+        if (Id.HasValue)
+        {
+            var r = await Api.ObterAsync<DespesaDetalheResponse>($"/{Id}");
+            if (r.Resultado is { Conta: var x })
+            { _descricao = x.Descricao; _categoria = x.CategoriaId; _valor = x.Valor; _competencia = Data(x.Competencia); _vencimento = Data(x.Vencimento); _fornecedor = x.Fornecedor; _observacao = x.Observacao; _versao = x.Versao; _origemRecorrente = x.Origem == OrigemDespesaContrato.Recorrente; if (x.Status != StatusDespesaContrato.Pendente) { _indisponivel = true; _erro = "Somente despesas pendentes podem ser editadas."; } }
+            else { _erro = r.Mensagem; _indisponivel = true; }
+        }
+        else if (RecorrenciaId.HasValue)
+        {
+            var r = await Api.ObterAsync<RecorrenciaDespesaResponse>($"/recorrencias/{RecorrenciaId}");
+            if (r.Resultado is { } x) { _descricao = x.Descricao; _categoria = x.CategoriaId; _valor = x.Valor; _competencia = Data(x.CompetenciaInicial); _fim = x.CompetenciaFinal.HasValue ? Data(x.CompetenciaFinal.Value) : null; _dia = x.DiaVencimento; _fornecedor = x.Fornecedor; _observacao = x.Observacao; _versao = x.Versao; }
+            else { _erro = r.Mensagem; _indisponivel = true; }
+        }
+        else
+        {
+            var r = await Api.ObterAsync<DespesasResponse>();
+            if (r.Resultado is { } x) { _competencia = Data(x.Competencia); _vencimento = Data(x.Hoje); }
+            else { _erro = r.Mensagem; _indisponivel = true; }
+        }
+        _carregando = false;
+    }
+    private static DateTime Data(DateOnly x) => x.ToDateTime(TimeOnly.MinValue);
+    private static DateOnly Mes(DateTime x) => new(x.Year, x.Month, 1);
+    private async Task SalvarAsync()
+    {
+        if (_salvando || _form is null) return;
+        await _form.ValidateAsync();
+        if (!_form.IsValid || !_categoria.HasValue || !_competencia.HasValue || (!_recorrente && !_vencimento.HasValue)) return;
+        _salvando = true; _erro = null;
+        var r = _recorrente
+            ? await Api.SalvarAsync(RecorrenciaId.HasValue ? $"/recorrencias/{RecorrenciaId}" : "/recorrencias", new SalvarRecorrenciaRequest(_descricao!, _categoria.Value, _valor, _dia, Mes(_competencia.Value), _fim.HasValue ? Mes(_fim.Value) : null, _fornecedor, _observacao, _versao), RecorrenciaId.HasValue)
+            : await Api.SalvarAsync(Id.HasValue ? $"/{Id}" : "", new SalvarDespesaRequest(_descricao!, _categoria.Value, _valor, Mes(_competencia.Value), DateOnly.FromDateTime(_vencimento!.Value), _fornecedor, _observacao, _versao), Id.HasValue);
+        _salvando = false;
+        if (r.Sucesso) Navegacao.NavigateTo(_recorrente ? "/financeiro/despesas/recorrencias" : $"/financeiro/despesas/{r.Resultado!.Id}");
+        else _erro = r.Mensagem;
+    }
+}

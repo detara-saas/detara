@@ -1,0 +1,92 @@
+@page "/financeiro/despesas"
+@attribute [Authorize(Policy = Permissoes.FinanceiroVisualizar)]
+@inject DespesasServico Api
+@inject IMensagemServico Mensagens
+
+<PageTitle>Despesas e contas a pagar | Detara</PageTitle>
+<div class="page-container page-container-fluid list-page">
+    <CabecalhoPagina Titulo="Despesas e contas a pagar" Descricao="Acompanhe os compromissos financeiros e despesas da sua operação." Sobretitulo="FINANCEIRO">
+        <Acoes>
+            <MudButton Href="/financeiro/despesas/recorrencias" Variant="Variant.Outlined">Recorrências</MudButton>
+            <MudButton Href="/financeiro/despesas/categorias" Variant="Variant.Outlined">Categorias</MudButton>
+            <AuthorizeView Policy="@Permissoes.FinanceiroEditar"><MudButton Href="/financeiro/despesas/nova" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add">Nova despesa</MudButton></AuthorizeView>
+        </Acoes>
+    </CabecalhoPagina>
+    <div class="detail-stack">
+    @if (_resultado is not null)
+    {
+        <section class="detail-metrics detail-metrics-four" aria-label="Resumo da competência">
+            <DetaraMetricCard Titulo="Total da competência" Valor="@Moeda(_resultado.Resumo.Total)" Descricao="Previsto, sem canceladas" Icone="@Icons.Material.Outlined.ReceiptLong" />
+            <DetaraMetricCard Titulo="Pago" Valor="@Moeda(_resultado.Resumo.Pago)" Descricao="Valor efetivamente pago" Tone="DetaraMetricTone.Positive" Icone="@Icons.Material.Outlined.Payments" />
+            <DetaraMetricCard Titulo="A pagar" Valor="@Moeda(_resultado.Resumo.APagar)" Descricao="Pendentes ainda não vencidas" Icone="@Icons.Material.Outlined.PendingActions" />
+            <DetaraMetricCard Titulo="Vencido" Valor="@Moeda(_resultado.Resumo.Vencido)" Descricao="Pendentes com vencimento passado" Tone="DetaraMetricTone.Warning" Icone="@Icons.Material.Outlined.EventBusy" />
+        </section>
+    }
+    <section class="module-panel section-card" aria-label="Filtros de despesas">
+        <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6" lg="2"><MudDatePicker @bind-Date="_competencia" Label="Competência" DateFormat="MM/yyyy" OpenTo="OpenTo.Month" FixDay="1" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        <MudItem xs="12" sm="6" lg="2">
+        <MudSelect T="StatusDespesaContrato?" @bind-Value="_status" Label="Status" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            @foreach (var status in Enum.GetValues<StatusDespesaContrato>()) { <MudSelectItem T="StatusDespesaContrato?" Value="status">@status</MudSelectItem> }
+        </MudSelect>
+        </MudItem><MudItem xs="12" sm="6" lg="2">
+        <MudSelect T="Guid?" @bind-Value="_categoria" Label="Categoria" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            @foreach (var c in _categorias) { <MudSelectItem T="Guid?" Value="c.Id">@c.Nome</MudSelectItem> }
+        </MudSelect>
+        </MudItem><MudItem xs="12" sm="6" lg="2">
+        <MudSelect T="OrigemDespesaContrato?" @bind-Value="_origem" Label="Origem" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            @foreach (var origem in Enum.GetValues<OrigemDespesaContrato>()) { <MudSelectItem T="OrigemDespesaContrato?" Value="origem">@origem</MudSelectItem> }
+        </MudSelect>
+        </MudItem><MudItem xs="12" sm="6" lg="2">
+        <MudTextField T="string" @bind-Value="_pesquisa" Label="Buscar despesa" Placeholder="Descrição ou fornecedor" Variant="Variant.Outlined" Margin="Margin.Dense" />
+        </MudItem><MudItem xs="12" sm="6" lg="2" Class="d-flex align-center">
+        <MudButton OnClick="PesquisarAsync" Variant="Variant.Outlined" FullWidth="true" Disabled="_carregando">Aplicar filtros</MudButton>
+        </MudItem></MudGrid>
+    </section>
+    @if (_carregando) { <DetaraSkeleton Variant="DetaraSkeletonVariant.Table" Rotulo="Carregando despesas" /> }
+    else if (_erro is not null) { <MudAlert Severity="Severity.Error" Class="page-alert">@_erro</MudAlert> }
+    else if (_resultado?.Contas.Itens.Count is not > 0)
+    {
+        <DetaraEmptyState Titulo="Nenhuma despesa nesta competência" Descricao="As despesas avulsas e contas recorrentes deste período aparecerão aqui. Revise os filtros ou registre uma nova despesa." Icone="@Icons.Material.Outlined.ReceiptLong">
+            <Acao><AuthorizeView Policy="@Permissoes.FinanceiroEditar"><MudButton Href="/financeiro/despesas/nova" Variant="Variant.Filled" Color="Color.Primary">Nova despesa</MudButton></AuthorizeView></Acao>
+        </DetaraEmptyState>
+    }
+    else
+    {
+        <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Descrição</th><th>Categoria</th><th>Origem</th><th>Competência</th><th>Vencimento</th><th>Valor previsto</th><th>Status</th><th>Ação</th></tr></thead><tbody>
+            @foreach (var x in _resultado.Contas.Itens)
+            { <tr><td><a class="primary-link" href="@Link(x)">@x.Descricao</a><MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">@x.Fornecedor</MudText></td><td>@x.Categoria</td><td>@x.Origem</td><td>@x.Competencia.ToString("MM/yyyy")</td><td>@x.Vencimento.ToString("dd/MM/yyyy")</td><td class="currency-value">@Moeda(x.Valor)</td><td><DetaraStatusBadge Texto="@Status(x)" Tone="@Tom(x)" /></td><td><MudButton Href="@Link(x)" Variant="Variant.Text">Abrir</MudButton></td></tr> }
+        </tbody></table></section>
+        <section class="mobile-list">
+            @foreach (var x in _resultado.Contas.Itens)
+            { <a class="mobile-record" href="@Link(x)"><div class="mobile-record-main"><strong>@x.Descricao</strong><strong class="currency-value">@Moeda(x.Valor)</strong><span>Vence @x.Vencimento.ToString("dd/MM/yyyy") · @x.Origem</span><span>@x.Categoria · @x.Competencia.ToString("MM/yyyy")</span><DetaraStatusBadge Texto="@Status(x)" Tone="@Tom(x)" /><span>Abrir despesa</span></div><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }
+        </section>
+        <div class="module-pagination"><span>@_resultado.Contas.TotalItens despesas · Página @_pagina de @Math.Max(1, _resultado.Contas.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" aria-label="Página anterior" Disabled="@(_pagina <= 1)" OnClick="@(() => MoverAsync(-1))" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" aria-label="Próxima página" Disabled="@(_pagina >= _resultado.Contas.TotalPaginas)" OnClick="@(() => MoverAsync(1))" /></div></div>
+    }
+    </div>
+</div>
+@code {
+    private DespesasResponse? _resultado; private IReadOnlyCollection<CategoriaDespesaResponse> _categorias = [];
+    private DateTime? _competencia; private StatusDespesaContrato? _status; private OrigemDespesaContrato? _origem;
+    private Guid? _categoria; private string? _pesquisa, _erro; private bool _carregando = true; private int _pagina = 1;
+    protected override async Task OnInitializedAsync() { _categorias = (await Api.ObterAsync<IReadOnlyCollection<CategoriaDespesaResponse>>("/categorias")).Resultado ?? []; await CarregarAsync(); }
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var query = $"?pagina={_pagina}";
+        if (_competencia.HasValue) query += $"&competencia={_competencia:yyyy-MM}-01";
+        if (_status.HasValue) query += $"&status={(int)_status}";
+        if (_origem.HasValue) query += $"&origem={(int)_origem}";
+        if (_categoria.HasValue) query += $"&categoriaId={_categoria}";
+        if (!string.IsNullOrWhiteSpace(_pesquisa)) query += $"&pesquisa={Uri.EscapeDataString(_pesquisa)}";
+        var r = await Api.ObterAsync<DespesasResponse>(query); _resultado = r.Resultado; _erro = r.Sucesso ? null : r.Mensagem;
+        if (_resultado is not null) _competencia = _resultado.Competencia.ToDateTime(TimeOnly.MinValue);
+        _carregando = false;
+    }
+    private async Task PesquisarAsync() { _pagina = 1; await CarregarAsync(); }
+    private async Task MoverAsync(int delta) { _pagina += delta; await CarregarAsync(); }
+    internal static string Moeda(decimal valor) => valor.ToString("C2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+    internal static string Status(DespesaResponse x) => x.Vencida ? "Vencido" : x.Status.ToString();
+    internal static DetaraStatusTone Tom(DespesaResponse x) => x.Vencida ? DetaraStatusTone.Critical : x.Status == StatusDespesaContrato.Pago ? DetaraStatusTone.Positive : DetaraStatusTone.Neutral;
+    private static string Link(DespesaResponse x) => $"/financeiro/despesas/{x.Id}";
+}

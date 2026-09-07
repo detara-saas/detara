@@ -94,6 +94,9 @@ public static class DependencyInjection
         services.AddScoped<IPlataformaAtendimentoConsulta, PlataformaAtendimentoConsulta>();
         services.AddScoped<IConfiguracoesOperacionaisRepositorio, ConfiguracoesOperacionaisRepositorio>();
         services.AddScoped<IFinanceiroRepositorio, FinanceiroRepositorio>();
+        services.AddScoped<IDespesasRepositorio, DespesasRepositorio>();
+        services.AddSingleton<MaterializadorDespesas>();
+        services.AddHostedService<DespesasWorker>();
         services.AddScoped<IPlataformaFinanceiroConsulta, PlataformaFinanceiroConsulta>();
         services.AddScoped<INotificacoesRepositorio, NotificacoesRepositorio>();
         services.AddScoped<IPlataformaNotificacoesConsulta, PlataformaNotificacoesConsulta>();

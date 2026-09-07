@@ -1,0 +1,33 @@
+@page "/financeiro/despesas/categorias"
+@attribute [Authorize(Policy = Permissoes.FinanceiroVisualizar)]
+@inject DespesasServico Api
+@inject IDialogService Dialogos
+<PageTitle>Categorias de despesas | Detara</PageTitle>
+<div class="page-container page-container-wide list-page">
+    <CabecalhoPagina Titulo="Categorias de despesas" Sobretitulo="FINANCEIRO" Descricao="Organize os gastos da empresa sem perder o histórico.">
+        <Acoes><MudButton Href="/financeiro/despesas" Variant="Variant.Outlined">Voltar</MudButton><AuthorizeView Policy="@Permissoes.FinanceiroEditar"><MudButton OnClick="@(() => EditarAsync(null))" Variant="Variant.Filled" Color="Color.Primary">Nova categoria</MudButton></AuthorizeView></Acoes>
+    </CabecalhoPagina>
+    @if (_carregando) { <DetaraSkeleton Variant="DetaraSkeletonVariant.Table" /> }
+    else if (_erro is not null) { <MudAlert Severity="Severity.Error">@_erro</MudAlert> }
+    else if (_categorias.Count == 0) { <DetaraEmptyState Titulo="Nenhuma categoria" Descricao="Crie a primeira categoria para organizar suas despesas." /> }
+    else
+    {
+        <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Nome</th><th>Status</th><th>Ação</th></tr></thead><tbody>
+        @foreach (var c in _categorias) { <tr><td>@c.Nome</td><td><DetaraStatusBadge Texto="@(c.Ativa ? "Ativa" : "Inativa")" /></td><td><AuthorizeView Policy="@Permissoes.FinanceiroEditar"><MudButton OnClick="@(() => EditarAsync(c))" Variant="Variant.Outlined">Editar</MudButton></AuthorizeView></td></tr> }
+        </tbody></table></section>
+        <section class="mobile-list">
+            @foreach (var c in _categorias) { <article class="mobile-record"><div class="mobile-record-main"><strong>@c.Nome</strong><DetaraStatusBadge Texto="@(c.Ativa ? "Ativa" : "Inativa")" /><AuthorizeView Policy="@Permissoes.FinanceiroEditar"><MudButton OnClick="@(() => EditarAsync(c))" Variant="Variant.Outlined">Editar</MudButton></AuthorizeView></div></article> }
+        </section>
+    }
+</div>
+@code {
+    private IReadOnlyCollection<CategoriaDespesaResponse> _categorias = []; private bool _carregando = true; private string? _erro;
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var r = await Api.ObterAsync<IReadOnlyCollection<CategoriaDespesaResponse>>("/categorias"); _categorias = r.Resultado ?? []; _erro = r.Sucesso ? null : r.Mensagem; _carregando = false; }
+    private async Task EditarAsync(CategoriaDespesaResponse? categoria)
+    {
+        var p = new DialogParameters<CategoriaDespesaDialog> { { x => x.Categoria, categoria } };
+        var d = await Dialogos.ShowAsync<CategoriaDespesaDialog>("Categoria", p, new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small, CloseButton = true, BackdropClick = false });
+        if (await d.Result is { Canceled: false }) await CarregarAsync();
+    }
+}

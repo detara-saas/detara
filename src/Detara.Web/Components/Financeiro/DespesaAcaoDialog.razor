@@ -1,0 +1,36 @@
+@inject DespesasServico Api
+@using Detara.Web.Pages
+<DetaraDialog Titulo="@Titulo" Descricao="@Descricao" Erro="@_erro" TextoPrimario="@(Acao == "pagar" ? "Registrar pagamento" : "Confirmar")" Carregando="_salvando" OnPrimary="SalvarAsync">
+    <div class="dialog-financial-summary"><span>@Conta.Descricao</span><strong>@Despesas.Moeda(Conta.Valor)</strong></div>
+    <MudText Typo="Typo.body2">Vencimento: @Conta.Vencimento.ToString("dd/MM/yyyy")</MudText>
+    @if (Acao == "pagar")
+    {
+        <MudDatePicker @bind-Date="_data" Label="Data do pagamento" DateFormat="dd/MM/yyyy" Required="true" Variant="Variant.Outlined" />
+        <MudNumericField T="decimal" @bind-Value="_valor" Label="Valor efetivamente pago (R$)" Format="N2" Min="0.01m" Required="true" Variant="Variant.Outlined" />
+        <MudText Typo="Typo.body2">O pagamento quita a conta integralmente, mesmo que o valor pago seja diferente do previsto. Não há pagamento parcial.</MudText>
+    }
+    @if (Acao == "estornar") { <MudTextField @bind-Value="_motivo" Label="Motivo do estorno" Required="true" Lines="3" MaxLength="500" Variant="Variant.Outlined" /> }
+</DetaraDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public DespesaResponse Conta { get; set; } = null!;
+    [Parameter] public string Acao { get; set; } = "pagar";
+    private string Titulo => Acao switch { "pagar" => "Registrar pagamento", "estornar" => "Estornar pagamento", _ => "Cancelar despesa" };
+    private string Descricao => Acao switch { "pagar" => "Registre a saída real, sem alterar o valor previsto.", "estornar" => "A conta voltará a ficar pendente. O pagamento original e o motivo serão preservados.", _ => "A conta será mantida no histórico e deixará de compor os totais. Essa ação não cancela a regra recorrente." };
+    private DateTime? _data; private decimal _valor; private string? _motivo, _erro; private bool _salvando;
+    protected override async Task OnInitializedAsync()
+    {
+        _valor = Conta.Valor;
+        if (Acao == "pagar") { var r = await Api.ObterAsync<DespesasResponse>(); if (r.Resultado is { } x) _data = x.Hoje.ToDateTime(TimeOnly.MinValue); else _erro = r.Mensagem; }
+    }
+    private async Task SalvarAsync()
+    {
+        if (_salvando) return;
+        if (Acao == "pagar" && (!_data.HasValue || _valor <= 0)) { _erro = "Informe a data e um valor positivo."; return; }
+        if (Acao == "estornar" && string.IsNullOrWhiteSpace(_motivo)) { _erro = "Informe o motivo do estorno."; return; }
+        _salvando = true;
+        object dados = Acao switch { "pagar" => new PagarDespesaRequest(DateOnly.FromDateTime(_data!.Value), _valor, Conta.Versao), "estornar" => new EstornarDespesaRequest(_motivo!, Conta.Versao), _ => new VersaoDespesaRequest(Conta.Versao) };
+        var r = await Api.SalvarAsync($"/{Conta.Id}/{Acao}", dados); _salvando = false;
+        if (r.Sucesso) MudDialog.Close(DialogResult.Ok(true)); else _erro = r.Mensagem;
+    }
+}

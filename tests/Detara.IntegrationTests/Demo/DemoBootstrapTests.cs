@@ -27,7 +27,7 @@ namespace Detara.IntegrationTests.Demo;
 public sealed class DemoBootstrapTests : IAsyncLifetime
 {
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
-    private readonly RelogioTeste _relogio = new(new DateTimeOffset(2026, 8, 21, 15, 0, 0, TimeSpan.Zero));
+    private readonly RelogioTeste _relogio = new(DateTimeOffset.UtcNow);
     private readonly string _senhaTeste = $"Local-{Guid.NewGuid():N}";
     private DbContextOptions<DetaraDbContext> _options = null!;
 
@@ -110,6 +110,14 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
         Assert.Equal(CanalComunicacaoVeiculoPronto.Nenhum,
             configuracao.CanalAutomaticoVeiculoPronto);
         Assert.Empty(await db.NotificacoesEmail.ToListAsync());
+        var despesas = await db.ContasPagar.ToListAsync();
+        Assert.Equal(6, despesas.Count);
+        Assert.Equal(4, await db.DespesasRecorrentes.CountAsync());
+        Assert.Contains(despesas, x => x.Valor == 4500 && x.Origem == Domain.Financeiro.OrigemContaPagar.Recorrente);
+        Assert.Contains(despesas, x => x.ValorPago == 2000 && x.Status == Domain.Financeiro.StatusContaPagar.Pago);
+        var hojeDemo = DateOnly.FromDateTime(new ConversorFusoHorario().ParaLocal(_relogio.GetUtcNow().UtcDateTime, DemoBootstrapService.FusoHorario));
+        Assert.Contains(despesas, x => x.EstaVencidaEm(hojeDemo));
+        Assert.All(despesas, x => Assert.Equal(new DateOnly(hojeDemo.Year, hojeDemo.Month, 1), x.Competencia));
 
         var contas = await db.ContasReceber.Include(item => item.Pagamentos).ToListAsync();
         Assert.Equal(3, contas.Select(item => item.OrdemServicoId).Distinct().Count());

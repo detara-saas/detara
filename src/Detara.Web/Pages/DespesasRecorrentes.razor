@@ -1,0 +1,44 @@
+@page "/financeiro/despesas/recorrencias"
+@attribute [Authorize(Policy = Permissoes.FinanceiroVisualizar)]
+@inject DespesasServico Api
+@inject IDialogService Dialogos
+<PageTitle>Recorrências | Detara</PageTitle>
+<div class="page-container page-container-fluid list-page">
+    <CabecalhoPagina Titulo="Despesas recorrentes" Sobretitulo="FINANCEIRO" Descricao="Regras mensais que geram contas a pagar reais, sem duplicar competências.">
+        <Acoes><MudButton Href="/financeiro/despesas" Variant="Variant.Outlined">Voltar</MudButton><AuthorizeView Policy="@Permissoes.FinanceiroEditar"><MudButton Href="/financeiro/despesas/nova" Variant="Variant.Filled" Color="Color.Primary">Nova despesa</MudButton></AuthorizeView></Acoes>
+    </CabecalhoPagina>
+    <div class="detail-stack">
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert">Editar uma regra afeta somente contas ainda não geradas. Ao reativar, os meses inativos não são cobrados retroativamente.</MudAlert>
+    @if (_erro is not null) { <MudAlert Severity="Severity.Error" Class="page-alert">@_erro</MudAlert> }
+    @if (_carregando) { <DetaraSkeleton Variant="DetaraSkeletonVariant.Table" /> }
+    else if (_lista?.Itens.Count is not > 0) { <DetaraEmptyState Titulo="Nenhuma recorrência cadastrada" Descricao="Cadastre aluguel, internet ou outros compromissos mensais em Nova despesa, escolhendo o tipo mensal recorrente." /> }
+    else
+    {
+        <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Vencimento</th><th>Período</th><th>Próxima competência</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+            @foreach (var x in _lista.Itens)
+            { <tr><td>@x.Descricao<MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">@x.Fornecedor</MudText></td><td>@x.Categoria</td><td class="currency-value">@Despesas.Moeda(x.Valor)</td><td>Dia @x.DiaVencimento</td><td>@x.CompetenciaInicial.ToString("MM/yyyy") — @(x.CompetenciaFinal?.ToString("MM/yyyy") ?? "sem fim")</td><td>@Proxima(x)</td><td><DetaraStatusBadge Texto="@(x.Ativa ? "Ativa" : "Inativa")" /></td><td>@Acoes(x)</td></tr> }
+        </tbody></table></section>
+        <section class="mobile-list">
+            @foreach (var x in _lista.Itens) { <article class="mobile-record"><div class="mobile-record-main"><strong>@x.Descricao · @Despesas.Moeda(x.Valor)</strong><span>@x.Categoria · Vence no dia @x.DiaVencimento</span><span>Próxima: @Proxima(x)</span><DetaraStatusBadge Texto="@(x.Ativa ? "Ativa" : "Inativa")" />@Acoes(x)</div></article> }
+        </section>
+        <div class="module-pagination"><span>@_lista.TotalItens regras · Página @_pagina</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" aria-label="Página anterior" Disabled="@(_pagina == 1)" OnClick="@(() => MoverAsync(-1))" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" aria-label="Próxima página" Disabled="@(_pagina >= _lista.TotalPaginas)" OnClick="@(() => MoverAsync(1))" /></div></div>
+    }
+    </div>
+</div>
+@code {
+    private PaginaResponse<RecorrenciaDespesaResponse>? _lista; private bool _carregando = true, _salvando; private string? _erro; private int _pagina = 1;
+    private RenderFragment Acoes(RecorrenciaDespesaResponse x) => @<AuthorizeView Policy="@Permissoes.FinanceiroEditar"><div class="page-actions"><MudButton Href="@($"/financeiro/despesas/recorrencias/{x.Id}/editar")" Variant="Variant.Outlined">Editar</MudButton><MudButton Variant="Variant.Outlined" Disabled="_salvando" OnClick="@(() => AtividadeAsync(x))">@(x.Ativa ? "Inativar" : "Reativar")</MudButton></div></AuthorizeView>;
+    private static string Proxima(RecorrenciaDespesaResponse x) => !x.Ativa ? "Pausada" : x.CompetenciaFinal.HasValue && x.ProximaCompetencia > x.CompetenciaFinal ? "Período encerrado" : x.ProximaCompetencia.ToString("MM/yyyy");
+    protected override Task OnInitializedAsync() => CarregarAsync();
+    private async Task CarregarAsync() { _carregando = true; var r = await Api.ObterAsync<PaginaResponse<RecorrenciaDespesaResponse>>($"/recorrencias?pagina={_pagina}"); _lista = r.Resultado; _erro = r.Sucesso ? null : r.Mensagem; _carregando = false; }
+    private async Task MoverAsync(int delta) { _pagina += delta; await CarregarAsync(); }
+    private async Task AtividadeAsync(RecorrenciaDespesaResponse x)
+    {
+        if (_salvando) return;
+        var p = new DialogParameters<RecorrenciaAtividadeDialog> { { d => d.Regra, x } };
+        _salvando = true;
+        var d = await Dialogos.ShowAsync<RecorrenciaAtividadeDialog>("Recorrência", p, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, BackdropClick = false });
+        if (await d.Result is { Canceled: false }) await CarregarAsync();
+        _salvando = false;
+    }
+}

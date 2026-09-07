@@ -230,6 +230,7 @@ public sealed class DemoBootstrapService(
             usuarioContexto.DefinirUsuario(admin.Id);
             var sender = provider.GetRequiredService<ISender>();
             await PopularOperacaoAsync(sender, cancellationToken);
+            await PopularDespesasAsync(db, sender, empresaId, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
         catch
@@ -688,11 +689,34 @@ public sealed class DemoBootstrapService(
         return TimeZoneInfo.ConvertTime(_timeProvider.GetUtcNow(), fuso).DateTime;
     }
 
+    private async Task PopularDespesasAsync(DetaraDbContext db, ISender sender, Guid empresaId, CancellationToken ct)
+    {
+        await CategoriasDespesaIniciais.PrepararAsync(db, empresaId, ct);
+        await db.SaveChangesAsync(ct);
+        var categorias = await db.CategoriasDespesa.ToDictionaryAsync(x => x.Nome, x => x.Id, ct);
+        var hoje = ObterHojeLocal();
+        var mes = new DateOnly(hoje.Year, hoje.Month, 1);
+        foreach (var item in new[] {
+            ("Aluguel do espaço", "Aluguel", 4500m, 5),
+            ("Internet da operação", "Internet e telefonia", 189.90m, 10),
+            ("Contabilidade", "Serviços de terceiros", 650m, 15),
+            ("Software de gestão", "Software e assinaturas", 149.90m, 31) })
+            await sender.Send(new CriarRecorrenciaCommand(new(item.Item1, categorias[item.Item2], item.Item3, item.Item4,
+                mes, null, "Fornecedor demonstrativo", "Dado demonstrativo local.")), ct);
+        var produtosId = await sender.Send(new CriarDespesaCommand(new("Compra de produtos", categorias["Produtos e insumos"],
+            2000m, mes, hoje, "Distribuidora demonstrativa", null)), ct);
+        var produtos = await db.ContasPagar.SingleAsync(x => x.Id == produtosId, ct);
+        await sender.Send(new PagarDespesaCommand(produtos.Id, produtos.Versao, hoje, 2000m), ct);
+        await sender.Send(new CriarDespesaCommand(new("Manutenção de equipamento", categorias["Manutenção"],
+            480m, mes, hoje.AddDays(-1), "Assistência demonstrativa", "Pendente para demonstração de conta vencida.")), ct);
+    }
+
     private ServiceProvider CriarProvider(DetaraDbContext db, ContextoDemo usuario)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AdicionarApplication();
+        services.AddSingleton(_timeProvider);
         services.AddSingleton<IUsuarioContexto>(usuario);
         services.AddSingleton(db);
         services.AddSingleton<IClientesRepositorio, ClientesRepositorio>();
@@ -712,6 +736,7 @@ public sealed class DemoBootstrapService(
         services.AddSingleton<IPlataformaAtendimentoConsulta, PlataformaAtendimentoConsulta>();
         services.AddSingleton<IConfiguracoesOperacionaisRepositorio, ConfiguracoesOperacionaisRepositorio>();
         services.AddSingleton<IFinanceiroRepositorio, FinanceiroRepositorio>();
+        services.AddSingleton<IDespesasRepositorio, DespesasRepositorio>();
         services.AddSingleton<IPlataformaFinanceiroConsulta, PlataformaFinanceiroConsulta>();
         services.AddSingleton<INotificacoesRepositorio, NotificacoesRepositorio>();
         services.AddSingleton<IPlataformaNotificacoesConsulta, PlataformaNotificacoesConsulta>();
@@ -737,6 +762,10 @@ public sealed class DemoBootstrapService(
         await db.TemplatesComunicacaoEmpresa.ExecuteDeleteAsync(cancellationToken);
         await db.ConfiguracoesNotificacaoEmpresa.ExecuteDeleteAsync(cancellationToken);
         await db.Pagamentos.ExecuteDeleteAsync(cancellationToken);
+        await db.PagamentosContasPagar.ExecuteDeleteAsync(cancellationToken);
+        await db.ContasPagar.ExecuteDeleteAsync(cancellationToken);
+        await db.DespesasRecorrentes.ExecuteDeleteAsync(cancellationToken);
+        await db.CategoriasDespesa.ExecuteDeleteAsync(cancellationToken);
         await db.ContasReceber.ExecuteDeleteAsync(cancellationToken);
         await db.OrdensServicoChecklistItens.ExecuteDeleteAsync(cancellationToken);
         await db.OrdensServicoChecklists.ExecuteDeleteAsync(cancellationToken);

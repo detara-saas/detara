@@ -1,0 +1,18 @@
+@inject DespesasServico Api
+<DetaraDialog Titulo="@(Categoria is null ? "Nova categoria" : "Editar categoria")" Descricao="Categorias inativas permanecem no histórico e não podem ser usadas em novos lançamentos." Erro="@_erro" TextoPrimario="Salvar categoria" Carregando="_salvando" OnPrimary="SalvarAsync">
+    <MudTextField @bind-Value="_nome" Label="Nome" Required="true" MaxLength="100" Variant="Variant.Outlined" />
+    @if (Categoria is not null) { <MudSwitch T="bool" @bind-Value="_ativa" Color="Color.Primary" Label="Categoria ativa" /> }
+</DetaraDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public CategoriaDespesaResponse? Categoria { get; set; }
+    private string? _nome, _erro; private bool _ativa = true, _salvando;
+    protected override void OnInitialized() { _nome = Categoria?.Nome; _ativa = Categoria?.Ativa ?? true; }
+    private async Task SalvarAsync()
+    {
+        if (_salvando) return;
+        if (string.IsNullOrWhiteSpace(_nome)) { _erro = "Informe o nome da categoria."; return; }
+        _salvando = true; var r = await Api.SalvarAsync(Categoria is null ? "/categorias" : $"/categorias/{Categoria.Id}", new CategoriaDespesaRequest(_nome, _ativa, Categoria?.Versao ?? 0), Categoria is not null);
+        _salvando = false; if (r.Sucesso) MudDialog.Close(DialogResult.Ok(true)); else _erro = r.Mensagem;
+    }
+}
