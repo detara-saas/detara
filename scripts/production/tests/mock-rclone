@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${QA_UPLOAD_FAIL:-false}" != true ]] || exit 9
+if [[ "$1" == copyto ]]; then
+  path="/tmp/remote/${3#*:}"
+  mkdir -p "$(dirname "$path")"
+  cp "$2" "$path"
+elif [[ "$1" == cat ]]; then
+  if [[ "${QA_CORRUPT:-false}" == true ]]; then printf corrupted; else cat "/tmp/remote/${2#*:}"; fi
+else exit 2
+fi

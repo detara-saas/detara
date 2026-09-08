@@ -9,6 +9,7 @@ using Detara.Application.Abstracoes;
 using Detara.Application.Plataforma;
 using Detara.Contracts.Comum;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
@@ -535,6 +536,92 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
 
         Assert.Contains("secrets aleatórios reais", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("https://app.detara.example", true)]
+    [InlineData("https://arbitraria.example", false)]
+    public async Task ProductionCors_RestringeOrigem(string origem, bool permitido)
+    {
+        await using var factory = new ProductionFactory("api.detara.example");
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://api.detara.example") });
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/clientes");
+        request.Headers.Add("Origin", origem);
+        request.Headers.Add("Access-Control-Request-Method", "GET");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(permitido, response.Headers.Contains("Access-Control-Allow-Origin"));
+    }
+
+    [Fact]
+    public async Task ProductionSqlIndisponivel_LiveContinuaSaudavelEReadyFalhaSemDetalhes()
+    {
+        await using var factory = new ProductionFactory("api.detara.example", new Dictionary<string, string?>
+        {
+            ["ConnectionStrings__DefaultConnection"] = "Server=127.0.0.1,1;Database=unused;User Id=detara_runtime;Password=synthetic-health-password;Encrypt=True;TrustServerCertificate=True;Connect Timeout=1"
+        });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://api.detara.example") });
+        using var live = await client.GetAsync("/health/live");
+        using var ready = await client.GetAsync("/health/ready");
+        Assert.Equal(HttpStatusCode.OK, live.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, ready.StatusCode);
+        var body = await ready.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("synthetic-health-password", body);
+        Assert.DoesNotContain("SqlException", body);
+    }
+
+    [Fact]
+    public async Task ProductionHsts_PodeSerDelegadoAoProxy()
+    {
+        await using var factory = new ProductionFactory("api.detara.example", new Dictionary<string, string?> { ["Security__HstsEnabled"] = "false" });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://api.detara.example") });
+        using var response = await client.GetAsync("/health/live");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(response.Headers.Contains("Strict-Transport-Security"));
+    }
+
+    [Theory]
+    [InlineData("127.0.0.1", "198.51.100.27", "https")]
+    [InlineData("192.0.2.10", "192.0.2.10", "http")]
+    public async Task ProductionForwardedHeaders_AceitaSomenteProxyConfigurado(string peer, string esperado, string esquema)
+    {
+        await using var factory = new ProductionFactory("api.detara.example");
+        var probe = new ForwardedHeadersProbe(peer);
+        using var configured = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter>(probe)));
+        using var client = configured.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("http://api.detara.example"), AllowAutoRedirect = false });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        request.Headers.Add("X-Forwarded-For", "198.51.100.27");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(esperado, probe.Endereco);
+        Assert.Equal(esquema, probe.Esquema);
+    }
+
+    private sealed class ForwardedHeadersProbe(string peer) : IStartupFilter
+    {
+        public string? Endereco { get; private set; }
+        public string? Esquema { get; private set; }
+
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use(async (context, following) =>
+            {
+                context.Connection.RemoteIpAddress = IPAddress.Parse(peer);
+                await following();
+                Endereco = context.Connection.RemoteIpAddress?.ToString();
+                Esquema = context.Request.Scheme;
+            });
+            next(app);
+        };
+    }
+
+    [Theory]
+    [InlineData("Jwt__ChaveAssinatura", "")]
+    [InlineData("PlatformJwt__ChaveAssinatura", "curta")]
+    [InlineData("ConnectionStrings__DefaultConnection", "")]
+    public async Task ProductionSecretAusenteOuFraco_NaoInicia(string key, string value)
+    {
+        await using var factory = new ProductionFactory("api.detara.example", new Dictionary<string, string?> { [key] = value });
+        Assert.ThrowsAny<Exception>(() => factory.CreateClient());
     }
 
     private void UsarToken(string token)

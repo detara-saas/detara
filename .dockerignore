@@ -8,3 +8,15 @@
 !.env.example
 TestResults
 docs
+**/node_modules
+**/data
+**/sessions
+secrets
+*.pfx
+*.pem
+*.key
+*.bak
+*.age
+*.agekey
+production.env
+artifacts

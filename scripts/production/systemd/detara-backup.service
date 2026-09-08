@@ -1,0 +1,13 @@
+[Unit]
+Description=Detara backup SQL cifrado e validado fora da VPS
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+Environment=DETARA_RELEASE_FILE=/opt/detara/releases/current.env
+ExecStart=/bin/bash /opt/detara/current/scripts/production/backup-sql.sh
+TimeoutStartSec=3600
+Nice=10
