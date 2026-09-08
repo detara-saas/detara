@@ -1,0 +1,62 @@
+name: Production images
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-images
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Build e push de imagens por SHA (nenhum acesso a VPS)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          API_ORIGIN: ${{ vars.DETARA_API_ORIGIN || 'https://api.detara.com.br' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          registry="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          mkdir release
+          printf 'DETARA_RELEASE_SHA=%s\n' "$SHA" > release/release.env
+          for component in api web whatsapp-gateway migrations; do
+            case "$component" in
+              api) file=src/Detara.Api/Dockerfile; variable=DETARA_API_IMAGE ;;
+              web) file=src/Detara.Web/Dockerfile; variable=DETARA_WEB_IMAGE ;;
+              whatsapp-gateway) file=whatsapp-gateway/Dockerfile; variable=DETARA_WHATSAPP_GATEWAY_IMAGE ;;
+              migrations) file=deploy/Dockerfile.migrations; variable=DETARA_MIGRATIONS_IMAGE ;;
+            esac
+            tag="$registry/$component:$SHA"
+            docker build --platform linux/amd64 --build-arg "DETARA_API_ORIGIN=$API_ORIGIN" -f "$file" -t "$tag" .
+            docker push "$tag"
+            digest="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            printf '%s=%s@%s\n' "$variable" "$registry/$component" "$digest" >> release/release.env
+          done
+          printf '%s\n' "$API_ORIGIN" > release/public-api-origin.txt
+          container="$(docker create "$registry/migrations:$SHA")"
+          docker cp "$container:/migration/detara-migrate" release/detara-migrate
+          docker rm "$container"
+          (cd release && sha256sum detara-migrate release.env public-api-origin.txt > SHA256SUMS)
+          docker logout ghcr.io
+      - uses: actions/upload-artifact@v4
+        with:
+          name: production-release-${{ github.event.workflow_run.head_sha }}
+          path: release/
+          retention-days: 90

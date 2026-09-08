@@ -26,6 +26,13 @@ appsettings.Production.json
 secrets.json
 *.pfx
 *.pem
+*.key
+*.bak
+*.bak.gz
+*.age
+*.agekey
+production.env
+secrets/
 
 # Containers e logs
 docker-compose.override.yml

@@ -1,20 +1,39 @@
 {
-    admin off
-    email {$DETARA_ACME_EMAIL}
-    http_port 8080
-    https_port 8443
+	admin off
+	email {$DETARA_ACME_EMAIL}
+	http_port 8080
+	https_port 8443
+	servers {
+		trusted_proxies static {$DETARA_TRUSTED_CIDRS:127.0.0.254/32}
+		trusted_proxies_strict
+		client_ip_headers CF-Connecting-IP
+	}
 }
 
-{$DETARA_PUBLIC_HOST} {
-    encode zstd gzip
+(common) {
+	encode zstd gzip
 
-    request_body {
-        max_size 12MB
-    }
+	request_body {
+		max_size 12MB
+	}
 
-    @backend path /api/* /health/*
-    reverse_proxy @backend api:8080
-    reverse_proxy web:8080
+	header {
+		-Server
+		Strict-Transport-Security "max-age={$DETARA_HSTS_MAX_AGE:0}"
+	}
+}
 
-    header -Server
+{$DETARA_APP_HOST} {
+	import common
+	reverse_proxy web:8080
+}
+
+{$DETARA_API_HOST} {
+	import common
+	reverse_proxy api:8080 {
+		# Um único salto normalizado. Nunca repassar a cadeia enviada pelo cliente.
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Forwarded-Proto {scheme}
+		header_up -CF-Connecting-IP
+	}
 }

@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:4beef5b8919dcaa2dc924233bd069257e883cc7a061e09088a97d152d6a48510 AS build
+WORKDIR /source
+COPY . .
+RUN dotnet tool restore
+RUN dotnet restore src/Detara.Api/Detara.Api.csproj
+# Apenas model metadata: nenhuma conexão é aberta ao gerar o bundle.
+RUN ConnectionStrings__DefaultConnection='Server=localhost;Database=Detara;Integrated Security=True' \
+    bash scripts/production/build-migration-bundle.sh /bundle
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10@sha256:f1126d438ccc359f51cc6d4701a8deae513856cf10f5fe645d29ea6403dcac6b
+WORKDIR /migration
+ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp/dotnet-bundle
+COPY --from=build /bundle/detara-migrate /migration/detara-migrate
+USER $APP_UID
+ENTRYPOINT ["/migration/detara-migrate"]

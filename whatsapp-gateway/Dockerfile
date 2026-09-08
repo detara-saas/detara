@@ -1,10 +1,10 @@
-FROM node:24-bookworm-slim AS dependencies
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS dependencies
 WORKDIR /app
 COPY whatsapp-gateway/package.json whatsapp-gateway/package-lock.json ./
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 RUN npm ci --omit=dev
 
-FROM node:24-bookworm-slim AS runtime
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS runtime
 ENV NODE_ENV=production \
     HOME=/tmp \
     PORT=3000 \

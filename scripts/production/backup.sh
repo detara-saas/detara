@@ -9,6 +9,7 @@ if [[ ! "$database" =~ ^[A-Za-z0-9_]+$ ]]; then
   echo "DETARA_DATABASE_NAME contém caracteres inválidos." >&2
   exit 2
 fi
+[[ "$backup_dir" == /var/opt/mssql/backups ]] || { echo 'Diretório de backup fora do padrão.' >&2; exit 2; }
 
 if [[ -z "${SQLCMDPASSWORD:-}" ]]; then
   echo "SQLCMDPASSWORD deve ser fornecida pelo ambiente do processo." >&2
@@ -24,7 +25,7 @@ backup_file="$backup_dir/${database}_full_${timestamp}.bak"
   -U "${SQLCMDUSER:-sa}" \
   -C \
   -b \
-  -Q "BACKUP DATABASE [$database] TO DISK = N'$backup_file' WITH COPY_ONLY, COMPRESSION, CHECKSUM, INIT, STATS = 10"
+  -Q "BACKUP DATABASE [$database] TO DISK = N'$backup_file' WITH COPY_ONLY, NO_COMPRESSION, CHECKSUM, INIT"
 
 "$sqlcmd" \
   -S "${SQLCMDHOST:-localhost}" \
