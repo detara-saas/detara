@@ -1,0 +1,24 @@
+<div class="detail-stack">
+<MudGrid Spacing="3">
+@if (Dados.Atendimento is { } a) {
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Atendimentos concluídos" Valor="@(ApresentacaoRelatorio.Numero(a.Concluidos))" Descricao="Somente OS concluídas no período."  /></MudItem>
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Serviços / itens realizados" Valor="@(ApresentacaoRelatorio.Numero(a.QuantidadeServicos))" Descricao="Quantidade autorizada das linhas de OS concluídas; inclui pacotes e cortesias."  /></MudItem>
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Ticket médio" Valor="@(ApresentacaoRelatorio.Moeda(a.Ticket))" Descricao="Valor final médio das OS concluídas, incluindo descontos e adicionais."  /></MudItem>
+}
+@if (Dados.Orcamentos is { } o) {
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Conversão de orçamentos" Valor="@(ApresentacaoRelatorio.Percentual(o.Conversao))" Descricao="Aprovados entre decisões de aprovação ou recusa no período. Substituídos não entram."  /></MudItem>
+}
+</MudGrid>
+@if (Dados.Atendimento is { } atendimento) {
+<DetaraCard Titulo="Serviços mais realizados" Sobretitulo="TOP 10" Descricao="Snapshots autorizados das OS concluídas. Valores dos itens antes de descontos e acréscimos globais.">
+<Acoes><div class="page-actions" role="group" aria-label="Ordenação de serviços"><MudButton Variant="@(!_porValor ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="() => _porValor = false">Quantidade</MudButton><MudButton Variant="@(_porValor ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="() => _porValor = true">Valor</MudButton></div></Acoes>
+<ChildContent><RelatorioRanking Itens="@(_porValor ? atendimento.ServicosValor : atendimento.ServicosQuantidade)" PorValor="_porValor" Titulo="Serviços realizados" /></ChildContent>
+</DetaraCard>
+}
+@if (Dados.Orcamentos is { } orc) {
+<DetaraCard Titulo="Decisões comerciais" Descricao="Criados pela data de criação; aprovações e recusas pela data da decisão. São populações distintas, não um funil de coorte.">
+<div class="page-actions"><DetaraStatusBadge Texto="@($"{orc.Criados} criados")" /><DetaraStatusBadge Texto="@($"{orc.Aprovados} aprovados")" Tone="DetaraStatusTone.Positive" /><DetaraStatusBadge Texto="@($"{orc.Recusados} recusados")" Tone="DetaraStatusTone.Warning" /></div>
+</DetaraCard>
+}
+</div>
+@code { [Parameter, EditorRequired] public RelatorioResponse Dados { get; set; } = null!; private bool _porValor; }

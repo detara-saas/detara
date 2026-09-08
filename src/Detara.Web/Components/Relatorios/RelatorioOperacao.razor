@@ -1,0 +1,14 @@
+<div class="detail-stack">
+<MudGrid Spacing="3">
+@if (Dados.Agenda is { } g) {
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Agendamentos" Valor="@(ApresentacaoRelatorio.Numero(g.Agendamentos))" Descricao="Agendamentos com início previsto no período, em todos os status."  /></MudItem>
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Cancelamentos" Valor="@(ApresentacaoRelatorio.Numero(g.Cancelados))" Descricao="Agendamentos do período com status Cancelado."  /></MudItem>
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Não comparecimentos" Valor="@(ApresentacaoRelatorio.Numero(g.NaoCompareceu))" Descricao="Agendamentos com status explícito Não compareceu; não é inferido por ausência de OS."  /></MudItem>
+}
+@if (Dados.Atendimento is { } a) {
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Atendimentos concluídos" Valor="@(ApresentacaoRelatorio.Numero(a.Concluidos))" Descricao="OS concluídas pela data local de entrega."  /></MudItem>
+}
+</MudGrid>
+@if (Dados.Atendimento is { } atendimento) { <RelatorioSemanaChart Dias="atendimento.Dias" /> }
+</div>
+@code { [Parameter, EditorRequired] public RelatorioResponse Dados { get; set; } = null!; }

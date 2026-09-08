@@ -68,6 +68,7 @@ builder.Services.AddScoped<NotificacoesServico>();
 builder.Services.AddScoped<PlataformaServico>();
 builder.Services.AddScoped<OnboardingServico>();
 builder.Services.AddScoped<DashboardServico>();
+builder.Services.AddScoped<RelatoriosServico>();
 builder.Services.AddScoped<AdministracaoTenantServico>();
 
 var host = builder.Build();

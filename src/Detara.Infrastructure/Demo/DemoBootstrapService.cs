@@ -86,7 +86,7 @@ public sealed record DemoBootstrapStatus(
 
 public sealed record DemoBootstrapResult(bool JaExistia, DemoBootstrapStatus Status);
 
-public sealed class DemoBootstrapService(
+public sealed partial class DemoBootstrapService(
     DbContextOptions<DetaraDbContext> options,
     IPasswordHasher<Usuario> passwordHasher,
     TimeProvider? timeProvider = null)
@@ -166,10 +166,14 @@ public sealed class DemoBootstrapService(
         return new DemoBootstrapResult(false, await ObterStatusAsync(cancellationToken));
     }
 
-    public Task<DemoBootstrapResult> PrepararApresentacaoAsync(
+    public async Task<DemoBootstrapResult> PrepararApresentacaoAsync(
         string senhaAdministrador,
-        CancellationToken cancellationToken = default) =>
-        ResetarAsync(senhaAdministrador, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var resultado = await ResetarAsync(senhaAdministrador, cancellationToken);
+        await ComplementarHistoricoRelatoriosAsync(resultado.Status.EmpresaId!.Value, cancellationToken);
+        return new(false, await ObterStatusAsync(cancellationToken));
+    }
 
     public async Task<DemoBootstrapStatus> ObterStatusAsync(
         CancellationToken cancellationToken = default)

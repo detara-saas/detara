@@ -1,0 +1,17 @@
+@if (Dados.Financeiro is { } f) {
+<div class="detail-stack">
+<MudGrid Spacing="3">
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Receita recebida" Valor="@(ApresentacaoRelatorio.Moeda(f.Receita))" Descricao="Valores efetivamente recebidos no período, antes das taxas." Icone="@Icons.Material.Outlined.Payments" Tendencia="@ApresentacaoRelatorio.Variacao(Dados.VariacaoReceita)" /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Despesas pagas" Valor="@(ApresentacaoRelatorio.Moeda(f.Despesas))" Descricao="Valores efetivamente pagos no período." Icone="@Icons.Material.Outlined.ReceiptLong" /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Resultado operacional" Valor="@(ApresentacaoRelatorio.Moeda(f.Resultado))" Descricao="Receita recebida menos despesas pagas. Não representa lucro líquido." Tone="@(f.Resultado < 0 ? DetaraMetricTone.Warning : DetaraMetricTone.Positive)" /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="A receber" Valor="@(ApresentacaoRelatorio.Moeda(f.AReceber))" Descricao="Saldo atual das contas com vencimento no período, descontados recebimentos."  /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="A pagar" Valor="@(ApresentacaoRelatorio.Moeda(f.APagar))" Descricao="Contas pendentes com vencimento no período, incluindo vencidas."  /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Vencido a pagar" Valor="@(ApresentacaoRelatorio.Moeda(f.Vencido))" Descricao="Parcela do valor a pagar vencida antes de hoje no fuso da empresa." Tone="DetaraMetricTone.Warning" /></MudItem>
+</MudGrid>
+<RelatorioCaixaChart Dados="Dados" />
+<DetaraCard Titulo="Despesas por categoria" Sobretitulo="DESTINO DOS PAGAMENTOS" Descricao="Valor efetivamente pago, incluindo categorias inativas no histórico. Top 10 e demais categorias agrupadas.">
+<RelatorioRanking Itens="f.Categorias" PorValor="true" Total="f.Despesas" Titulo="Categorias de despesas pagas" />
+</DetaraCard>
+</div>
+}
+@code { [Parameter, EditorRequired] public RelatorioResponse Dados { get; set; } = null!; }

@@ -379,7 +379,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(163, rotas.Length); // Inclui as 15 rotas protegidas de despesas (Task 47).
+        Assert.Equal(164, rotas.Length); // Inclui a leitura protegida por perspectiva de relatórios (Task 48).
     }
 
     [Fact]

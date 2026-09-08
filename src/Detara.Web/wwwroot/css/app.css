@@ -1,3 +1,50 @@
+.report-page .mud-grid-item, .report-page .mud-tooltip-root { min-width: 0; }
+.report-page .mud-tooltip-root { display: block; height: 100%; }
+.report-page .detara-metric-card { height: 100%; }
+.report-page .detara-metric-card strong { overflow-wrap: anywhere; }
+.report-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 8px; border-bottom: 1px solid var(--detara-border-soft); }
+.report-tabs .mud-button-root { min-height: 44px; }
+.report-period-caption { margin: 0; color: var(--detara-text-secondary); font-size: .78rem; line-height: 1.6; }
+.report-ranking { display: grid; gap: var(--detara-section-gap); padding: 0; margin: 0; list-style: none; }
+.report-ranking li { min-width: 0; }
+.report-ranking-label { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font-size: .875rem; margin-bottom: 8px; }
+.report-ranking-label span, .report-ranking-label a { min-width: 0; overflow-wrap: anywhere; color: var(--detara-text); }
+.report-ranking-label a { text-decoration: underline; text-underline-offset: 4px; }
+.report-ranking-label strong { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.report-ranking small { color: var(--detara-text-secondary); }
+.report-bar-track { height: 8px; background: var(--detara-surface-alt); border-radius: var(--detara-radius-xs); overflow: hidden; }
+.report-bar-track span { display: block; height: 100%; background: var(--detara-primary-dark); border-radius: inherit; }
+.report-chart-legend, .report-chart-labels { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-size: .75rem; color: var(--detara-text-secondary); }
+.report-chart-legend { justify-content: flex-start; margin-bottom: var(--detara-section-gap); }
+.report-income-key::before, .report-expense-key::before { content: ''; display: inline-block; width: 16px; height: 3px; background: var(--detara-primary-dark); margin-right: 8px; vertical-align: middle; }
+.report-expense-key::before { background: var(--detara-secondary); }
+.report-line-chart { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; }
+.report-line-chart svg { display: block; width: 100%; height: 240px; }
+.report-chart-scale { display: flex; flex-direction: column; justify-content: space-between; padding-block: 20px; color: var(--detara-text-secondary); font-size: .7rem; font-variant-numeric: tabular-nums; }
+.report-income-line, .report-expense-line { fill: none; stroke-width: 3; vector-effect: non-scaling-stroke; stroke: var(--detara-primary-dark); }
+.report-expense-line { stroke: var(--detara-secondary); stroke-dasharray: 6 4; }
+.report-income-dot { fill: var(--detara-primary-dark); }
+.report-expense-dot { fill: var(--detara-secondary); }
+.report-income-dot:focus { outline: 3px solid var(--detara-text); }
+.report-insights { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--detara-section-gap); }
+.report-insights li { display: flex; align-items: flex-start; gap: 16px; line-height: 1.6; }
+.report-insights .mud-icon-root { color: var(--detara-primary-dark); flex-shrink: 0; }
+.report-week-chart { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 8px; text-align: center; }
+.report-week-column { min-width: 0; display: grid; gap: 8px; }
+.report-week-column > div { display: flex; align-items: flex-end; justify-content: center; height: 200px; border-bottom: 1px solid var(--detara-border-soft); }
+.report-week-column span { width: 60%; background: var(--detara-primary-dark); border-radius: var(--detara-radius-xs) var(--detara-radius-xs) 0 0; }
+.report-week-column small { color: var(--detara-text-secondary); }
+@media (max-width: 767px) {
+    .report-page .detara-card__header { flex-direction: column; align-items: stretch; }
+    .report-page .detara-card__actions { width: 100%; }
+    .report-page .detara-card__actions .page-actions { justify-content: flex-start; }
+    .report-tabs .mud-button-root { flex: 1 1 auto; }
+    .report-ranking-label { flex-wrap: wrap; gap: 4px; }
+    .report-ranking-label span, .report-ranking-label a { flex-basis: 100%; }
+    .report-chart-scale { font-size: .6rem; }
+    .report-week-column > div { height: 160px; }
+}
+
 :root {
     --detara-primary: #00c996;
     --detara-primary-dark: #00a67e;

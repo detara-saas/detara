@@ -1,0 +1,12 @@
+<MudTooltip Text="@Descricao">
+    <DetaraMetricCard Titulo="@Titulo" Valor="@Valor" Icone="@Icone" Descricao="@Descricao" Tendencia="@Tendencia" Tone="Tone" />
+</MudTooltip>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter, EditorRequired] public string Valor { get; set; } = "";
+    [Parameter, EditorRequired] public string Descricao { get; set; } = "";
+    [Parameter] public string Icone { get; set; } = Icons.Material.Outlined.Analytics;
+    [Parameter] public string? Tendencia { get; set; }
+    [Parameter] public DetaraMetricTone Tone { get; set; }
+}

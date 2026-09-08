@@ -1,0 +1,38 @@
+<DetaraCard Titulo="Receitas e despesas no período" Sobretitulo="REGIME DE CAIXA" Descricao="Recebimentos confirmados (brutos) e despesas efetivamente pagas. Sem projeções.">
+    @if (_serie.Count == 0)
+    {
+        <DetaraEmptyState Titulo="Sem movimentação de caixa" Descricao="O gráfico aparecerá após pagamentos ou recebimentos válidos no período." Compacto="true" />
+    }
+    else
+    {
+        <div class="report-chart-legend"><span class="report-income-key">Receita recebida</span><span class="report-expense-key">Despesas pagas</span></div>
+        <div class="report-line-chart">
+            <div class="report-chart-scale"><span>@ApresentacaoRelatorio.Moeda(_max)</span><span>@ApresentacaoRelatorio.Moeda(_max / 2)</span><span>R$ 0</span></div>
+            <svg viewBox="0 0 720 220" preserveAspectRatio="none" role="img" aria-label="Receitas recebidas e despesas pagas no período; os pontos possuem os valores por data.">
+                <line x1="10" y1="20" x2="710" y2="20" class="chart-grid-line" />
+                <line x1="10" y1="110" x2="710" y2="110" class="chart-grid-line" />
+                <line x1="10" y1="200" x2="710" y2="200" class="chart-grid-line" />
+                <polyline points="@Pontos(false)" class="report-income-line" />
+                <polyline points="@Pontos(true)" class="report-expense-line" />
+                @for (var i = 0; i < _serie.Count; i++)
+                {
+                    var ponto = _serie[i];
+                    var label = $"{ponto.Data:dd/MM/yyyy}: receita {ApresentacaoRelatorio.Moeda(ponto.Receita)}, despesas {ApresentacaoRelatorio.Moeda(ponto.Despesa)}";
+                    <circle cx="@X(i)" cy="@Y(ponto.Receita)" r="4" class="report-income-dot" tabindex="0" role="img" aria-label="@label"><title>@label</title></circle>
+                    <circle cx="@X(i)" cy="@Y(ponto.Despesa)" r="4" class="report-expense-dot"><title>@label</title></circle>
+                }
+            </svg>
+        </div>
+        <div class="report-chart-labels"><span>@_serie.First().Data.ToString("dd/MM/yyyy")</span><span>@(Dados.Fim.DayNumber - Dados.Inicio.DayNumber > 62 ? "Mensal" : "Diário")</span><span>@_serie.Last().Data.ToString("dd/MM/yyyy")</span></div>
+    }
+</DetaraCard>
+
+@code {
+    [Parameter, EditorRequired] public RelatorioResponse Dados { get; set; } = null!;
+    private IReadOnlyList<DiaRelatorioResponse> _serie = [];
+    private decimal _max;
+    protected override void OnParametersSet() { _serie = ApresentacaoRelatorio.Serie(Dados); _max = Math.Max(1, _serie.Select(x => Math.Max(x.Receita, x.Despesa)).DefaultIfEmpty(1).Max()); }
+    private string X(int i) => ApresentacaoRelatorio.Coordenada(_serie.Count == 1 ? 360 : 10 + i * 700m / (_serie.Count - 1));
+    private string Y(decimal v) => ApresentacaoRelatorio.Coordenada(200 - v * 180 / _max);
+    private string Pontos(bool despesas) => string.Join(' ', _serie.Select((x, i) => $"{X(i)},{Y(despesas ? x.Despesa : x.Receita)}"));
+}

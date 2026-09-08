@@ -238,7 +238,7 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
     public async Task Presentation_ReconstroiCenarioERecalculaDatasRelativasAoNovoMomento()
     {
         var servico = CriarServico();
-        var resultado = await servico.CriarAsync(_senhaTeste);
+        var resultado = await servico.PrepararApresentacaoAsync(_senhaTeste);
         var primeiraData = await ObterPrimeiraDataAgendaAsync(resultado.Status.EmpresaId!.Value);
 
         _relogio.Avancar(TimeSpan.FromDays(2));
@@ -246,6 +246,10 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
         var segundaData = await ObterPrimeiraDataAgendaAsync(resultado.Status.EmpresaId.Value);
 
         Assert.Equal(primeiraData.AddDays(2), segundaData);
+        await using var db = CriarContexto(new ContextoTeste(resultado.Status.EmpresaId.Value));
+        Assert.Equal(6, await db.OrdensServico.CountAsync(x => x.Status == StatusOrdemServico.Concluida));
+        Assert.True(await db.OrdensServico.GroupBy(x => x.ClienteId).AnyAsync(g => g.Count() > 1));
+        Assert.False(await db.OrdensServico.AnyAsync(os => db.Clientes.Any(c => c.Id == os.ClienteId && c.CriadoEmUtc > os.ConcluidaEmUtc)));
     }
 
     private async Task<DateOnly> ObterPrimeiraDataAgendaAsync(Guid empresaId)
