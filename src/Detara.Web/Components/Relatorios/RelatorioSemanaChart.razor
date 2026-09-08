@@ -1,0 +1,25 @@
+<DetaraCard Titulo="Atendimentos por dia da semana" Sobretitulo="RITMO DA OPERAÇÃO" Descricao="OS concluídas, pela data local da entrega ao cliente.">
+    @if (Dias.Sum(x => x.Atendimentos) == 0)
+    {
+        <DetaraEmptyState Titulo="Nenhuma OS concluída" Descricao="As entregas do período formarão esta distribuição." Compacto="true" />
+    }
+    else
+    {
+        <div class="report-week-chart" role="img" aria-label="Distribuição semanal de OS concluídas">
+            @for (var i = 0; i < 7; i++)
+            {
+                var indice = i;
+                <div class="report-week-column" title="@($"{Nomes[indice]}: {_valores[indice]} atendimentos")">
+                    <strong>@_valores[indice]</strong><div><span style="@($"height:{ApresentacaoRelatorio.Coordenada(_valores[indice] * 100m / Math.Max(1, _valores.Max()))}%")"></span></div><small>@Nomes[indice]</small>
+                </div>
+            }
+        </div>
+    }
+</DetaraCard>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<DiaRelatorioResponse> Dias { get; set; } = [];
+    private static readonly string[] Nomes = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+    private int[] _valores = new int[7];
+    protected override void OnParametersSet() => _valores = Enumerable.Range(0, 7).Select(i => Dias.Where(x => ((int)x.Data.DayOfWeek + 6) % 7 == i).Sum(x => x.Atendimentos)).ToArray();
+}

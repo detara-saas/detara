@@ -1,0 +1,18 @@
+<div class="detail-stack">
+<MudGrid Spacing="3">
+@if (Dados.Financeiro is { } f) { <MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Receita recebida" Valor="@(ApresentacaoRelatorio.Moeda(f.Receita))" Descricao="Valores efetivamente recebidos no período, antes das taxas." Icone="@Icons.Material.Outlined.Payments" Tendencia="@ApresentacaoRelatorio.Variacao(Dados.VariacaoReceita)" /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Despesas pagas" Valor="@(ApresentacaoRelatorio.Moeda(f.Despesas))" Descricao="Valores efetivamente pagos no período." Icone="@Icons.Material.Outlined.ReceiptLong" /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Resultado operacional" Valor="@(ApresentacaoRelatorio.Moeda(f.Resultado))" Descricao="Receita recebida menos despesas pagas. Não representa lucro líquido." Tone="@(f.Resultado < 0 ? DetaraMetricTone.Warning : DetaraMetricTone.Positive)" /></MudItem> }
+@if (Dados.Atendimento is { } a) {
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Ticket médio" Valor="@(ApresentacaoRelatorio.Moeda(a.Ticket))" Descricao="Valor médio final das OS concluídas no período." Tendencia="@ApresentacaoRelatorio.Variacao(Dados.VariacaoTicket)" /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Clientes atendidos" Valor="@(ApresentacaoRelatorio.Numero(a.Clientes))" Descricao="Clientes distintos com OS concluída no período."  /></MudItem>
+<MudItem xs="12" sm="6" lg="4"><RelatorioIndicador Titulo="Atendimentos concluídos" Valor="@(ApresentacaoRelatorio.Numero(a.Concluidos))" Descricao="OS efetivamente entregues/concluídas no período."  /></MudItem>
+}
+</MudGrid>
+@if (Dados.Financeiro is not null) { <RelatorioCaixaChart Dados="Dados" /> }
+<DetaraCard Titulo="O que os dados mostram" Sobretitulo="INSIGHTS DO PERÍODO" Descricao="Observações calculadas a partir dos registros reais, com critérios mínimos de amostra.">
+@if (Dados.Insights.Count == 0) { <DetaraEmptyState Titulo="Ainda não há dados suficientes para insights" Descricao="Amplie o período ou registre novas movimentações. Nenhuma conclusão é presumida." Compacto="true" /> }
+else { <ul class="report-insights">@foreach (var insight in Dados.Insights) { <li><MudIcon Icon="@Icons.Material.Outlined.Insights" /><span>@ApresentacaoRelatorio.Insight(insight)</span></li> }</ul> }
+</DetaraCard>
+</div>
+@code { [Parameter, EditorRequired] public RelatorioResponse Dados { get; set; } = null!; }

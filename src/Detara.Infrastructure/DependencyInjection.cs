@@ -21,6 +21,7 @@ using Detara.Application.Plataforma;
 using Detara.Application.Onboarding;
 using Detara.Application.AdministracaoTenant;
 using Detara.Application.Dashboard;
+using Detara.Application.Relatorios;
 using Detara.Infrastructure.AdministracaoTenant;
 using Detara.Infrastructure.Notificacoes;
 using Detara.Domain.Plataforma;
@@ -71,6 +72,9 @@ public static class DependencyInjection
         services.AddScoped<IClientesOnboardingConsulta, ClientesOnboardingConsulta>();
         services.AddScoped<IAgendaOnboardingConsulta, AgendaOnboardingConsulta>();
         services.AddScoped<IPlataformaDashboardConsulta, PlataformaDashboardConsulta>();
+        services.AddScoped<IFinanceiroRelatoriosConsulta, FinanceiroRelatoriosConsulta>();
+        services.AddScoped<IAtendimentoRelatoriosConsulta, AtendimentoRelatoriosConsulta>();
+        services.AddScoped<IAgendaRelatoriosConsulta, AgendaRelatoriosConsulta>();
         services.AddScoped<IAgendaDashboardConsulta, AgendaDashboardConsulta>();
         services.AddScoped<IAtendimentoDashboardConsulta, AtendimentoDashboardConsulta>();
         services.AddScoped<IFinanceiroDashboardConsulta, FinanceiroDashboardConsulta>();

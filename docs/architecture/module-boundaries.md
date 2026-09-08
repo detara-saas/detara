@@ -347,6 +347,10 @@ As policies canônicas são avaliadas no boundary HTTP e determinam quais contra
 
 ## Add-ons e exemplos de evolução
 
+### Central de relatórios e insights
+
+Relatórios é uma composição transversal **somente leitura**, sem domínio persistente. `Application/Relatorios` compõe contratos estreitos implementados em `Infrastructure/Financeiro`, `Infrastructure/Atendimento` e `Infrastructure/Agenda`; Plataforma fornece fuso pelo contrato já existente. Nenhuma consulta cruza o ownership dos módulos por navegações EF. Policies são avaliadas no controller por perspectiva e controlam inclusive quais consultas serão executadas. Métricas, diferenças em relação ao Dashboard e SQL estão em [Relatórios e insights](../relatorios-insights.md).
+
 ### Autoatendimento / Portal do Cliente
 
 Autoatendimento é candidato a add-on comercial futuro. Ele deverá consumir capacidades de Agenda e Catálogo, sem criar agendas ou catálogos paralelos (`PortalAgendamento`, `PortalServico` ou `PortalPacote`). O módulo opcional será dono da própria configuração de publicação; por isso o Catálogo Core não recebe `DisponivelNoPortal` antecipadamente.

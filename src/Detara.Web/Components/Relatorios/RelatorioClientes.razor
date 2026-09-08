@@ -1,0 +1,15 @@
+@if (Dados.Atendimento is { } a) {
+<div class="detail-stack">
+<MudGrid Spacing="3">
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Clientes atendidos" Valor="@(ApresentacaoRelatorio.Numero(a.Clientes))" Descricao="Clientes distintos com OS concluída no período."  /></MudItem>
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Clientes novos" Valor="@(ApresentacaoRelatorio.Numero(a.Novos))" Descricao="Primeira OS concluída de toda a história dentro do período; não é data de cadastro."  /></MudItem>
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Clientes recorrentes" Valor="@(ApresentacaoRelatorio.Numero(a.Recorrentes))" Descricao="Atendidos no período e também em período anterior."  /></MudItem>
+<MudItem xs="12" sm="6" lg="3"><RelatorioIndicador Titulo="Ticket médio" Valor="@(ApresentacaoRelatorio.Moeda(a.Ticket))" Descricao="Valor final médio por OS concluída, não recebimento em caixa."  /></MudItem>
+</MudGrid>
+<MudGrid Spacing="3">
+<MudItem xs="12" lg="6"><DetaraCard Titulo="Clientes por consumo" Sobretitulo="TOP 10" Descricao="Valor comercial final das OS concluídas. Nomes históricos, sem dados de contato."><RelatorioRanking Itens="a.ClientesConsumo" PorValor="true" VincularClientes="true" Titulo="Clientes por consumo" /></DetaraCard></MudItem>
+<MudItem xs="12" lg="6"><DetaraCard Titulo="Clientes mais frequentes" Sobretitulo="RELACIONAMENTO" Descricao="Quantidade de OS concluídas; desempate por consumo e identidade."><RelatorioRanking Itens="a.ClientesFrequencia" VincularClientes="true" Titulo="Clientes por frequência" /></DetaraCard></MudItem>
+</MudGrid>
+</div>
+}
+@code { [Parameter, EditorRequired] public RelatorioResponse Dados { get; set; } = null!; }

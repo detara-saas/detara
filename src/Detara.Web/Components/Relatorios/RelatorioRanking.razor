@@ -1,0 +1,37 @@
+@if (Itens.Count == 0)
+{
+    <DetaraEmptyState Titulo="Nenhum registro neste período" Descricao="O ranking aparecerá quando houver movimentação válida." Compacto="true" />
+}
+else
+{
+    <ol class="report-ranking" aria-label="@Titulo">
+        @foreach (var item in Itens)
+        {
+            <li>
+                <div class="report-ranking-label">
+                    @if (VincularClientes && item.Id.HasValue)
+                    {
+                        <a href="@($"/clientes/{item.Id}")" title="@item.Nome">@item.Nome</a>
+                    }
+                    else { <span title="@item.Nome">@item.Nome</span> }
+                    <strong>@(PorValor ? ApresentacaoRelatorio.Moeda(item.Valor) : ApresentacaoRelatorio.Numero(item.Quantidade))</strong>
+                </div>
+                <div class="report-bar-track" aria-hidden="true"><span style="@($"width:{Largura(item)}%")"></span></div>
+                @if (Total.HasValue) { <small>@ApresentacaoRelatorio.Percentual(Total > 0 ? item.Valor * 100 / Total : 0) do total pago</small> }
+            </li>
+        }
+    </ol>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<RankingRelatorioResponse> Itens { get; set; } = [];
+    [Parameter] public string Titulo { get; set; } = "Ranking";
+    [Parameter] public bool PorValor { get; set; }
+    [Parameter] public bool VincularClientes { get; set; }
+    [Parameter] public decimal? Total { get; set; }
+    private string Largura(RankingRelatorioResponse item)
+    {
+        var max = Math.Max(1, Itens.Max(x => PorValor ? x.Valor : x.Quantidade));
+        return ApresentacaoRelatorio.Coordenada((PorValor ? item.Valor : item.Quantidade) * 100 / max);
+    }
+}

@@ -1,0 +1,117 @@
+@page "/relatorios"
+@attribute [Authorize]
+@implements IDisposable
+@inject RelatoriosServico Api
+@inject AuthenticationStateProvider Autenticacao
+
+<PageTitle>Relatórios e insights | Detara</PageTitle>
+<div class="page-container page-container-fluid report-page">
+    <CabecalhoPagina Sobretitulo="ANÁLISE DO NEGÓCIO" Titulo="Relatórios e insights" Descricao="Entenda o desempenho da empresa a partir da operação e dos movimentos reais de caixa." />
+    <div class="detail-stack">
+        @if (_opcoes.Count > 0)
+        {
+            <section class="module-panel section-card" aria-label="Filtros dos relatórios">
+                <MudGrid Spacing="3" Class="align-center">
+                    <MudItem xs="12" md="4"><MudSelect T="PeriodoRelatorioContrato" Label="Período" Value="_periodo" ValueChanged="AlterarPeriodoAsync" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        @foreach (var p in Periodos) { <MudSelectItem Value="p.Key">@p.Value</MudSelectItem> }
+                    </MudSelect></MudItem>
+                    @if (_periodo == PeriodoRelatorioContrato.Personalizado)
+                    {
+                        <MudItem xs="12" sm="6" md="3"><MudDatePicker Label="Data inicial" @bind-Date="_inicio" DateFormat="dd/MM/yyyy" Editable="true" ImmediateText="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                        <MudItem xs="12" sm="6" md="3"><MudDatePicker Label="Data final" @bind-Date="_fim" DateFormat="dd/MM/yyyy" Editable="true" ImmediateText="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                        <MudItem xs="12" md="2"><MudButton OnClick="CarregarAsync" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Aplicar</MudButton></MudItem>
+                    }
+                </MudGrid>
+            </section>
+            <nav class="report-tabs" aria-label="Perspectivas dos relatórios">
+                @foreach (var p in _opcoes)
+                {
+                    <MudButton Variant="@(_perspectiva == p ? Variant.Filled : Variant.Text)" Color="Color.Primary" aria-current="@(_perspectiva == p ? "page" : null)" OnClick="() => AlterarPerspectivaAsync(p)">@Nome(p)</MudButton>
+                }
+            </nav>
+            @if (_carregando)
+            {
+                <DetaraSkeleton Variant="DetaraSkeletonVariant.Cards" Quantidade="6" Rotulo="Carregando relatório" />
+            }
+            else if (_dados is null)
+            {
+                <MudAlert Severity="Severity.Warning" Class="page-alert"><div class="page-actions"><span>@_erro</span><MudButton Color="Color.Primary" OnClick="CarregarAsync">Tentar novamente</MudButton></div></MudAlert>
+            }
+            else
+            {
+                <p class="report-period-caption">@_dados.Inicio.ToString("dd/MM/yyyy") a @_dados.Fim.ToString("dd/MM/yyyy") · @_dados.Fuso<br />Comparação: @_dados.InicioAnterior.ToString("dd/MM/yyyy") a @_dados.FimAnterior.ToString("dd/MM/yyyy"). Os saldos a receber e a pagar refletem a situação atual dos vencimentos selecionados.</p>
+                <section aria-label="@Nome(_perspectiva)">
+                    @switch (_perspectiva)
+                    {
+                        case PerspectivaRelatorioContrato.Geral: <RelatorioGeral Dados="_dados" /> break;
+                        case PerspectivaRelatorioContrato.Servicos: <RelatorioServicos Dados="_dados" /> break;
+                        case PerspectivaRelatorioContrato.Clientes: <RelatorioClientes Dados="_dados" /> break;
+                        case PerspectivaRelatorioContrato.Financeiro: <RelatorioFinanceiro Dados="_dados" /> break;
+                        case PerspectivaRelatorioContrato.Operacao: <RelatorioOperacao Dados="_dados" /> break;
+                    }
+                </section>
+            }
+        }
+        else if (!_carregando)
+        {
+            <DetaraEmptyState Titulo="Nenhuma perspectiva disponível" Descricao="Seu perfil não possui permissão para os módulos que alimentam os relatórios." Icone="@Icons.Material.Outlined.Lock" />
+        }
+    </div>
+</div>
+
+@code {
+    private readonly List<PerspectivaRelatorioContrato> _opcoes = [];
+    private PerspectivaRelatorioContrato _perspectiva = PerspectivaRelatorioContrato.Geral;
+    private PeriodoRelatorioContrato _periodo = PeriodoRelatorioContrato.EsteMes;
+    private DateTime? _inicio, _fim;
+    private RelatorioResponse? _dados;
+    private bool _carregando = true;
+    private string _erro = "Não foi possível carregar os relatórios.";
+    private CancellationTokenSource? _consulta;
+    private static readonly Dictionary<PeriodoRelatorioContrato, string> Periodos = new()
+    {
+        [PeriodoRelatorioContrato.Hoje] = "Hoje", [PeriodoRelatorioContrato.Ultimos7Dias] = "Últimos 7 dias",
+        [PeriodoRelatorioContrato.Ultimos30Dias] = "Últimos 30 dias", [PeriodoRelatorioContrato.EsteMes] = "Este mês",
+        [PeriodoRelatorioContrato.MesAnterior] = "Mês anterior", [PeriodoRelatorioContrato.EsteAno] = "Este ano",
+        [PeriodoRelatorioContrato.Personalizado] = "Personalizado"
+    };
+    private static string Nome(PerspectivaRelatorioContrato p) => p switch
+    { PerspectivaRelatorioContrato.Geral => "Visão Geral", PerspectivaRelatorioContrato.Servicos => "Vendas e Serviços", PerspectivaRelatorioContrato.Clientes => "Clientes", PerspectivaRelatorioContrato.Financeiro => "Financeiro", _ => "Operação" };
+    protected override async Task OnInitializedAsync()
+    {
+        var usuario = (await Autenticacao.GetAuthenticationStateAsync()).User;
+        bool Pode(string p) => usuario.HasClaim("permissao", p);
+        var os = Pode(Permissoes.OrdemServicoVisualizar);
+        var fin = Pode(Permissoes.FinanceiroVisualizar);
+        if (os || fin) _opcoes.Add(PerspectivaRelatorioContrato.Geral);
+        if (os || Pode(Permissoes.OrcamentosVisualizar)) _opcoes.Add(PerspectivaRelatorioContrato.Servicos);
+        if (os && Pode(Permissoes.ClientesVisualizar)) _opcoes.Add(PerspectivaRelatorioContrato.Clientes);
+        if (fin) _opcoes.Add(PerspectivaRelatorioContrato.Financeiro);
+        if (os || Pode(Permissoes.AgendaVisualizar)) _opcoes.Add(PerspectivaRelatorioContrato.Operacao);
+        if (_opcoes.Count == 0) { _carregando = false; return; }
+        _perspectiva = _opcoes[0];
+        await CarregarAsync();
+    }
+    private async Task AlterarPeriodoAsync(PeriodoRelatorioContrato p) { _periodo = p; await CarregarAsync(); }
+    private async Task AlterarPerspectivaAsync(PerspectivaRelatorioContrato p) { _perspectiva = p; await CarregarAsync(); }
+    private async Task CarregarAsync()
+    {
+        _consulta?.Cancel();
+        _consulta?.Dispose();
+        var consulta = _consulta = new();
+        _dados = null;
+        if (_periodo == PeriodoRelatorioContrato.Personalizado && (!_inicio.HasValue || !_fim.HasValue || _inicio > _fim))
+        { _carregando = false; _erro = "Informe as duas datas, com fim igual ou posterior ao início, e clique em Aplicar."; return; }
+        _carregando = true;
+        try
+        {
+            var r = await Api.ObterAsync(_perspectiva, _periodo, _inicio, _fim, consulta.Token);
+            if (_consulta != consulta || consulta.IsCancellationRequested) return;
+            _dados = r.Resultado; _erro = r.Mensagem;
+            if (_dados is not null) { _inicio ??= _dados.Inicio.ToDateTime(TimeOnly.MinValue); _fim ??= _dados.Fim.ToDateTime(TimeOnly.MinValue); }
+        }
+        catch (OperationCanceledException) when (consulta.IsCancellationRequested) { }
+        finally { if (_consulta == consulta) _carregando = false; }
+    }
+    public void Dispose() { _consulta?.Cancel(); _consulta?.Dispose(); _consulta = null; }
+}

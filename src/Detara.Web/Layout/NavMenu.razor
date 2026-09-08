@@ -20,6 +20,12 @@
         <span class="nav-label">Dashboard</span>
     </MudNavLink>
     <AuthorizeView Policy="@Permissoes.AgendaVisualizar"><Authorized><MudNavLink Href="/agenda" Icon="@Icons.Material.Outlined.CalendarMonth"><span class="nav-label">Agenda</span></MudNavLink></Authorized></AuthorizeView>
+    <AuthorizeView><Authorized Context="relatoriosAuth">
+        @if (new[] { Permissoes.FinanceiroVisualizar, Permissoes.OrdemServicoVisualizar, Permissoes.OrcamentosVisualizar, Permissoes.AgendaVisualizar }.Any(p => relatoriosAuth.User.HasClaim("permissao", p)))
+        {
+            <MudNavLink Href="/relatorios" Icon="@Icons.Material.Outlined.Analytics"><span class="nav-label">Relatórios</span></MudNavLink>
+        }
+    </Authorized></AuthorizeView>
 
     <MudText Typo="Typo.overline" Class="nav-section">ATENDIMENTO</MudText>
     <AuthorizeView Policy="@Permissoes.OrcamentosVisualizar"><Authorized><MudNavLink Href="/orcamentos" Icon="@Icons.Material.Outlined.RequestQuote"><span class="nav-label">Orçamentos</span></MudNavLink></Authorized></AuthorizeView>
