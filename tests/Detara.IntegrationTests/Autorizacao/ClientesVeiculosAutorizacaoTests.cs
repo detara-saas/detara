@@ -778,6 +778,10 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             builder.ConfigureLogging(logging => logging.ClearProviders());
             builder.ConfigureTestServices(services =>
             {
+                // O worker tem testes próprios; esta fixture usa uma única conexão SQLite não concorrente.
+                var despesasWorker = services.Single(x => x.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService)
+                    && x.ImplementationType == typeof(Detara.Infrastructure.Financeiro.DespesasWorker));
+                services.Remove(despesasWorker);
                 services.RemoveAll<DbContextOptions<DetaraDbContext>>();
                 services.RemoveAll<IDbContextOptionsConfiguration<DetaraDbContext>>();
                 services.RemoveAll<DetaraDbContext>();

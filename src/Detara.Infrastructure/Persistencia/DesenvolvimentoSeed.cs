@@ -50,6 +50,7 @@ public static class DesenvolvimentoSeed
         }
 
         await using var contextTenant = new DetaraDbContext(options, new UsuarioContextoFixo(empresa.Id));
+        await Financeiro.CategoriasDespesaIniciais.PrepararAsync(contextTenant, empresa.Id, cancellationToken);
         var perfil = await contextTenant.Perfis
             .Include(x => x.Permissoes)
             .SingleOrDefaultAsync(x => x.Nome == "Administrador", cancellationToken);

@@ -6,7 +6,7 @@
 <PageTitle>Financeiro | Detara</PageTitle>
 <div class="page-container page-container-fluid financial-dashboard-page">
     <CabecalhoPagina Titulo="Visão financeira" Descricao="Recebimentos, taxas e saldos da operação em uma leitura confiável." Sobretitulo="FINANCEIRO">
-        <Acoes><MudButton Href="/financeiro/contas-receber" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.ReceiptLong">Contas a receber</MudButton></Acoes>
+        <Acoes><MudButton Href="/financeiro/despesas" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ReceiptLong">Despesas</MudButton><MudButton Href="/financeiro/contas-receber" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.RequestQuote">Contas a receber</MudButton></Acoes>
     </CabecalhoPagina>
 
     <section class="module-toolbar financial-period-toolbar">
@@ -43,7 +43,7 @@
             </article>
             <article class="module-panel financial-definition-card">
                 <span class="metric-summary-icon"><MudIcon Icon="@Icons.Material.Outlined.Info" /></span>
-                <div><span class="section-eyebrow">LEITURA DOS NÚMEROS</span><h2>Receita líquida recebida não é lucro</h2><p>O indicador considera apenas o valor recebido menos as taxas registradas. Custos operacionais, despesas e impostos não fazem parte deste módulo.</p><MudButton Href="/financeiro/contas-receber" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Explorar contas</MudButton></div>
+                <div><span class="section-eyebrow">LEITURA DOS NÚMEROS</span><h2>Receita líquida recebida não é lucro</h2><p>O indicador considera apenas o valor recebido menos as taxas registradas. As despesas e contas a pagar são acompanhadas separadamente em Despesas e não são descontadas deste indicador.</p><MudButton Href="/financeiro/contas-receber" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Explorar contas</MudButton></div>
             </article>
         </section>
     }

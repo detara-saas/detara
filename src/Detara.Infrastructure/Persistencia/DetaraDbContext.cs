@@ -45,6 +45,26 @@ public sealed class DetaraDbContext(
     public DbSet<VeiculoFoto> VeiculosFotos => Set<VeiculoFoto>();
     public DbSet<ContaReceber> ContasReceber => Set<ContaReceber>();
     public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
+    public DbSet<ContaPagar> ContasPagar => Set<ContaPagar>();
+    public DbSet<DespesaRecorrente> DespesasRecorrentes => Set<DespesaRecorrente>();
+    public DbSet<CategoriaDespesa> CategoriasDespesa => Set<CategoriaDespesa>();
+    public DbSet<PagamentoContaPagar> PagamentosContasPagar => Set<PagamentoContaPagar>();
+
+    private Guid? _empresaProcessamentoFinanceiro;
+
+    // Boundary interno: sem identidade de usuário e com escrita restrita ao Financeiro de um tenant.
+    internal static DetaraDbContext ParaProcessamentoFinanceiro(DbContextOptions<DetaraDbContext> options, Guid empresaId)
+    {
+        if (empresaId == Guid.Empty) throw new ArgumentException("Empresa obrigatória.", nameof(empresaId));
+        return new(options, new ContextoFinanceiroSistema()) { _empresaProcessamentoFinanceiro = empresaId };
+    }
+
+    private sealed class ContextoFinanceiroSistema : IUsuarioContexto
+    {
+        public Guid UsuarioId => Guid.Empty;
+        public Guid EmpresaId => Guid.Empty;
+        public bool EstaAutenticado => false;
+    }
     public DbSet<ConfiguracaoNotificacaoEmpresa> ConfiguracoesNotificacaoEmpresa => Set<ConfiguracaoNotificacaoEmpresa>();
     public DbSet<TemplateComunicacaoEmpresa> TemplatesComunicacaoEmpresa => Set<TemplateComunicacaoEmpresa>();
     public DbSet<NotificacaoEmail> NotificacoesEmail => Set<NotificacaoEmail>();
@@ -81,6 +101,10 @@ public sealed class DetaraDbContext(
 
     private void ValidarIsolamentoDeEscrita()
     {
+        if (_empresaProcessamentoFinanceiro.HasValue && ChangeTracker.Entries().Any(e =>
+            e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted &&
+            e.Entity is not (ContaPagar or DespesaRecorrente or CategoriaDespesa)))
+            throw new ViolacaoIsolamentoTenantException();
         if (ChangeTracker.Entries<AuditoriaPlataforma>()
             .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
         {
@@ -92,6 +116,15 @@ public sealed class DetaraDbContext(
 
         foreach (var entry in alteracoesTenant)
         {
+            if (_empresaProcessamentoFinanceiro.HasValue)
+            {
+                if (entry.Entity is not (ContaPagar or DespesaRecorrente or CategoriaDespesa) ||
+                    entry.Entity.EmpresaId != _empresaProcessamentoFinanceiro ||
+                    (entry.State != EntityState.Added && entry.Property<Guid>(nameof(EntidadeEmpresaBase.EmpresaId)).OriginalValue != _empresaProcessamentoFinanceiro) ||
+                    entry.State == EntityState.Deleted)
+                    throw new ViolacaoIsolamentoTenantException();
+                continue;
+            }
             if (!usuarioContexto.EstaAutenticado)
             {
                 throw new ViolacaoIsolamentoTenantException();
@@ -138,7 +171,7 @@ public sealed class DetaraDbContext(
     }
 
     private Guid EmpresaIdAtual =>
-        usuarioContexto.EstaAutenticado ? usuarioContexto.EmpresaId : Guid.Empty;
+        _empresaProcessamentoFinanceiro ?? (usuarioContexto.EstaAutenticado ? usuarioContexto.EmpresaId : Guid.Empty);
 
     private void AtualizarAuditoria()
     {

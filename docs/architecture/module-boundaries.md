@@ -84,6 +84,10 @@ As setas mostram fluxo de informação ou reação conceitual. Não representam 
 
 ## Ownership e manipulação
 
+### Financeiro: despesas e contas a pagar
+
+`ContaPagar` (com histórico `PagamentoContaPagar`), `DespesaRecorrente` e `CategoriaDespesa` pertencem exclusivamente ao Financeiro. Regras geram snapshots próprios por competência; não alteram Atendimento nem recebimentos. A fundação de categorias integra somente provisionamento/seed; o processamento interno projeta ID/fuso de empresas ativas e opera com um contexto restrito ao tenant, sem impersonation. Estratégia de concorrência, permissões e implantação: [Despesas e contas a pagar](../despesas-contas-pagar.md).
+
 Cada módulo é dono de seu domínio, invariantes e dados. Somente o módulo proprietário pode alterar seus agregados.
 
 Um consumidor de outro módulo deve preferir:

@@ -63,6 +63,7 @@ builder.Services.AddScoped<OrcamentosServico>();
 builder.Services.AddScoped<OrdensServicoServico>();
 builder.Services.AddScoped<ConfiguracoesServico>();
 builder.Services.AddScoped<FinanceiroServico>();
+builder.Services.AddScoped<DespesasServico>();
 builder.Services.AddScoped<NotificacoesServico>();
 builder.Services.AddScoped<PlataformaServico>();
 builder.Services.AddScoped<OnboardingServico>();

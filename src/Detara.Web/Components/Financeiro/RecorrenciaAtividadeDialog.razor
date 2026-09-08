@@ -1,0 +1,10 @@
+@inject DespesasServico Api
+<DetaraDialog Titulo="@(Regra.Ativa ? "Inativar recorrência" : "Reativar recorrência")" Descricao="@Regra.Descricao" TextoPrimario="Confirmar" Erro="@_erro" Carregando="_salvando" OnPrimary="SalvarAsync">
+    <MudText>@(Regra.Ativa ? "Nenhuma nova competência será gerada enquanto a regra estiver inativa. As contas existentes permanecem no financeiro." : "A regra volta a gerar contas a partir do mês atual ou do início previsto. Meses inativos serão ignorados.")</MudText>
+</DetaraDialog>
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public RecorrenciaDespesaResponse Regra { get; set; } = null!;
+    private bool _salvando; private string? _erro;
+    private async Task SalvarAsync() { if (_salvando) return; _salvando = true; var r = await Api.SalvarAsync($"/recorrencias/{Regra.Id}/atividade", new AtividadeRecorrenciaRequest(!Regra.Ativa, Regra.Versao)); _salvando = false; if (r.Sucesso) MudDialog.Close(DialogResult.Ok(true)); else _erro = r.Mensagem; }
+}

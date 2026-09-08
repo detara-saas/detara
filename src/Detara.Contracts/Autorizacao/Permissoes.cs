@@ -62,7 +62,7 @@ public static class Permissoes
         new(OrdemServicoEditar, "Editar check-in, evidências e adicionais da ordem de serviço"),
         new(OrdemServicoFinalizar, "Finalizar ordens de serviço"),
         new(FinanceiroVisualizar, "Visualizar financeiro"),
-        new(FinanceiroEditar, "Editar vencimentos financeiros"),
+        new(FinanceiroEditar, "Editar vencimentos, despesas e recorrências financeiras"),
         new(FinanceiroRegistrarPagamento, "Registrar pagamentos"),
         new(FinanceiroEstornarPagamento, "Estornar pagamentos"),
         new(NotificacoesReenviar, "Enviar e reenviar comunicações com clientes"),
