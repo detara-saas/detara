@@ -59,33 +59,33 @@ Não houve QR real, envio, acesso a produção/VPS, alteração de sessão exist
 
 ## Checklist pós-release — 30 passos
 
-1. Obter autorização explícita para a janela, tenant e número de teste consentido.
-2. Registrar commit, tag e digest da imagem anterior para rollback.
-3. Registrar `RestartCount`, saúde e consumo do gateway antes da mudança.
-4. Confirmar que o volume de sessões está montado no caminho esperado.
-5. Confirmar owner/permissões do volume sem exibir seu conteúdo.
-6. Preservar backup operacional conforme o runbook; não copiar sessão entre tenants.
-7. Construir ou obter a imagem exclusivamente do commit aprovado.
-8. Conferir Node, `whatsapp-web.js`, Puppeteer e Chromium dentro da imagem.
-9. Validar assinatura/digest da imagem que será implantada.
-10. Implantar somente o serviço `whatsapp-gateway`, sem recriar volumes.
-11. Confirmar `/healthz` pela rede interna autenticada.
-12. Confirmar processo `running` e `RestartCount=0` após estabilização.
-13. Observar logs sanitizados; não coletar QR, telefone, mensagem ou bearer.
-14. Abrir a configuração do tenant autorizado.
-15. Solicitar conexão uma única vez e confirmar estado `Connecting`/`Reconnecting`.
-16. Confirmar que polling de status não repete o log de inicialização.
-17. Se necessário, ler um único QR com o aparelho autorizado.
-18. Confirmar um único log de autenticação para o ciclo.
-19. Aguardar obrigatoriamente o evento/estado `Connected`.
-20. Confirmar que não ocorreu `Execution context was destroyed`.
-21. Confirmar que não ocorreu binding duplicado `onQRChangedEvent`.
-22. Enviar uma mensagem transacional apenas ao número consentido.
-23. Confirmar o recebimento e a idempotência registrada pela aplicação.
-24. Registrar novamente saúde, memória, CPU e `RestartCount`.
-25. Reiniciar somente o gateway uma vez, sem remover/recriar o volume.
-26. Observar `Reconnecting` → `Connected` sem novo QR.
-27. Confirmar que a mesma empresa possui apenas um ciclo de inicialização ativo.
-28. Repetir um envio controlado com nova solicitação consentida após a restauração.
-29. Monitorar por 15 minutos; rollback se houver crash loop, sessão perdida ou falha de envio.
-30. Registrar evidência final e encerrar a janela sem apagar `LocalAuth`.
+1. Obter autorização explícita e validar o artefato aprovado para a janela.
+2. Confirmar SHA, tag e digest; registrar a imagem anterior para rollback.
+3. Instalar/selecionar no host exatamente o checkout correspondente ao SHA aprovado.
+4. Gerar e revisar o `candidate.env` sem imprimir seus secrets.
+5. Executar o dry-run do deploy e resolver qualquer bloqueio antes da mudança.
+6. Executar o deploy sem recriar volumes e sem ampliar o escopo de serviços.
+7. Confirmar live/ready da aplicação e `/healthz` interno autenticado do gateway.
+8. Registrar estado e `RestartCount` do gateway imediatamente após estabilização.
+9. Abrir a configuração WhatsApp somente no tenant e usuário autorizados.
+10. Decidir, a partir do estado exibido, se a sessão existente pode ser reutilizada.
+11. Gerar QR somente se a sessão persistida realmente não restaurar.
+12. Ler o QR uma única vez com o aparelho autorizado.
+13. Observar a transição do QR sem registrar seu conteúdo em logs/capturas.
+14. Confirmar um único marco `authenticated` por ciclo.
+15. Aguardar obrigatoriamente o evento `ready` e o estado backend `Connected`.
+16. Confirmar que a UI apresenta **Conectado** somente depois de `ready`.
+17. Confirmar que o container não reiniciou durante QR/autenticação/ready.
+18. Confirmar apenas uma árvore Chromium para cada sessão/tenant esperado.
+19. Enviar uma mensagem manual somente ao número de teste consentido.
+20. Confirmar entrega e idempotência no histórico da aplicação.
+21. Testar uma comunicação automática WhatsApp consentida e controlada.
+22. Confirmar que o fluxo automático não enviou e-mail simultaneamente.
+23. Reiniciar/recriar somente o gateway de forma controlada, preservando o volume.
+24. Confirmar `Reconnecting` → `Connected` via `LocalAuth`, sem novo QR.
+25. Enviar novamente ao destino consentido após a restauração.
+26. Revisar logs sanitizados, sem QR, bearer, telefone ou mensagem.
+27. Revisar RAM, CPU, PIDs e árvores Chromium após a restauração.
+28. Confirmar nenhuma ocorrência de `Execution context was destroyed` que provoque crash.
+29. Confirmar nenhuma ocorrência de `onQRChangedEvent already exists`.
+30. Confirmar que `RestartCount` não aumentou; caso contrário, executar rollback e preservar evidências.
