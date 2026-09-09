@@ -7,7 +7,6 @@ bash "$repo_root/scripts/production/validate-env.sh"
 lock_deploy
 install -d -o 10001 -g 0 -m 700 /var/backups/detara/sql
 install -d -o 1000 -g 1000 -m 700 /var/lib/detara/whatsapp
-dc create --no-deps reverse-proxy
 dc run --rm --no-deps --user 0 --cap-add CHOWN --entrypoint sh reverse-proxy -c 'chown 1000:1000 /data /config'
 dc up -d --wait --wait-timeout 180 sqlserver
 # Credenciais só entram por stdin. Nunca fazer ALTER LOGIN silencioso em rerun.
