@@ -17,7 +17,22 @@ chmod 600 "$candidate"
 export DETARA_RELEASE_FILE="$candidate"
 load_config
 echo 'Etapa: validar Caddy.'
-dc run --rm --no-deps reverse-proxy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+reverse_proxy_container="$(dc ps --quiet reverse-proxy)"
+[[ -n "$reverse_proxy_container" ]] || fail 'Reverse proxy ativo não encontrado para validar a configuração candidata.'
+reverse_proxy_image="$(docker inspect --format '{{.Image}}' "$reverse_proxy_container")"
+[[ "$reverse_proxy_image" =~ ^sha256:[a-f0-9]{64}$ ]] || fail 'Não foi possível identificar a imagem do reverse proxy ativo.'
+candidate_caddyfile="$(readlink -f -- "$repo_root/deploy/Caddyfile")"
+[[ -f "$candidate_caddyfile" && -r "$candidate_caddyfile" ]] || fail 'Caddyfile candidato não encontrado.'
+# O serviço usa IP estático; valide o arquivo candidato fora da rede sem recriar o reverse-proxy.
+docker run --rm --network none --read-only --user 1000:1000 \
+  --cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges:true \
+  --memory 256m --cpus 0.50 --pids-limit 100 \
+  --tmpfs /tmp:size=32m,mode=1777 --tmpfs /data:size=16m,mode=0700 --tmpfs /config:size=16m,mode=0700 \
+  -e DETARA_APP_HOST -e DETARA_API_HOST -e DETARA_ACME_EMAIL \
+  -e "DETARA_TRUSTED_CIDRS=${DETARA_TRUSTED_CIDRS:-127.0.0.254/32}" \
+  -e "DETARA_HSTS_MAX_AGE=${DETARA_HSTS_MAX_AGE:-0}" \
+  --mount "type=bind,source=$candidate_caddyfile,target=/etc/caddy/Caddyfile,readonly" \
+  "$reverse_proxy_image" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 echo 'Etapa: backup obrigatório antes da migration.'
 if [[ -f /opt/detara/releases/current.env ]]; then
   DETARA_RELEASE_FILE=/opt/detara/releases/current.env bash "$repo_root/scripts/production/backup-sql.sh"

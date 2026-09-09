@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # Não chama Docker real. Usado SOMENTE no teste sem socket/rede.
 set -euo pipefail
-printf '%s\n' "${1:-} ${2:-}" >> /tmp/docker-calls
+printf '%s\n' "$*" >> /tmp/docker-calls
 if [[ "$*" == *'ConnectionStrings__DefaultConnection'* ]]; then printf 'MIGRATION\n' >> /tmp/docker-calls; fi
 if [[ "$1" == volume ]]; then exit 0; fi
+if [[ "$1" == compose && "$*" == *' ps --quiet reverse-proxy'* ]]; then printf 'detara-production-reverse-proxy-1\n'; exit 0; fi
+if [[ "$1" == inspect && "$*" == *'detara-production-reverse-proxy-1'* ]]; then printf 'sha256:%064d\n' 1; exit 0; fi
+if [[ "$1" == run && "$*" == *'caddy validate'* ]]; then
+  printf 'CADDY_VALIDATE\n' >> /tmp/docker-calls
+  [[ "${QA_CADDY_INVALID:-false}" == true ]] && exit 42
+  exit 0
+fi
 if [[ "$1" == run ]]; then printf 'synthetic key ring'; exit 0; fi
 if [[ "$*" == *'exec -T sqlserver'* ]]; then
   query="$(cat)"
