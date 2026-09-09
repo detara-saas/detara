@@ -10,7 +10,10 @@ import { DeliveryStore } from '../src/delivery-store.js';
 import { WhatsAppGatewayService } from '../src/gateway-service.js';
 import { SessionRegistry } from '../src/session-registry.js';
 import { createLogger } from '../src/logger.js';
-import { removeStaleChromiumLocks } from '../src/whatsapp-client-factory.js';
+import {
+  injectionFailureEvent,
+  removeStaleChromiumLocks,
+} from '../src/whatsapp-client-factory.js';
 
 const apiKey = 'gateway-test-key-with-at-least-32-characters';
 const empresaA = '11111111-1111-4111-8111-111111111111';
@@ -299,10 +302,229 @@ test('preparação do perfil remove somente locks temporários do Chromium', asy
   await access(path.join(sessionDirectory, 'Default'));
 });
 
+test('conexões simultâneas reutilizam uma única inicialização por empresa', async () => {
+  const harness = await createHarness({
+    initialize: (client) => queueMicrotask(() => client.emit('qr', 'qr-unico')),
+  });
+
+  const responses = await Promise.all(
+    Array.from({ length: 6 }, () =>
+      harness.request(`/sessions/${empresaA}/connect`, {
+        method: 'POST',
+        tenantId: empresaA,
+      })),
+  );
+
+  assert.deepEqual(
+    await Promise.all(responses.map((response) => response.json().then((x) => x.status))),
+    Array(6).fill('WaitingQRCode'),
+  );
+  assert.equal(harness.factory.historyForTenant(empresaA).length, 1);
+  assert.equal(harness.factory.forTenant(empresaA).initializeCount, 1);
+
+  await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  assert.equal(harness.factory.forTenant(empresaA).initializeCount, 1);
+});
+
+test('polling de status não cria cliente nem dispara inicialização', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'detara-whatsapp-poll-'));
+  cleanups.push(() => rm(root, { recursive: true, force: true }));
+  const factory = new FakeClientFactory();
+  const service = createService(root, factory);
+  await service.registry.load();
+  await service.deliveryStore.load();
+  const timestamp = new Date().toISOString();
+  await service.registry.upsert({
+    id: 'status-read-only',
+    empresaId: empresaA,
+    sessionKey: `tenant-${empresaA.replaceAll('-', '')}`,
+    status: 'Reconnecting',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    lastConnectedAt: null,
+    phoneNumber: null,
+  });
+
+  for (let index = 0; index < 10; index += 1) {
+    assert.equal((await service.getStatus(empresaA)).status, 'Reconnecting');
+  }
+
+  assert.equal(factory.created.length, 0);
+  await service.shutdown();
+});
+
+test('authenticated duplicado não antecipa ready nem repete log', async () => {
+  const entries = [];
+  const logger = {
+    info: (message) => entries.push(message),
+    warn() {},
+    error() {},
+  };
+  const harness = await createHarness({
+    logger,
+    connectWaitMs: 20,
+    initialize: (client) => queueMicrotask(() => {
+      client.emit('authenticated');
+      client.emit('authenticated');
+    }),
+  });
+
+  const response = await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+
+  assert.equal((await response.json()).status, 'Connecting');
+  assert.equal(
+    entries.filter((message) => message === 'Sessão WhatsApp autenticada.').length,
+    1,
+  );
+  assert.equal(harness.factory.forTenant(empresaA).initializeCount, 1);
+
+  await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  assert.equal(harness.factory.forTenant(empresaA).initializeCount, 1);
+});
+
+test('falha síncrona de initialize é controlada e próxima conexão usa cliente novo', async () => {
+  let attempts = 0;
+  const harness = await createHarness({
+    initialize: (client) => {
+      attempts += 1;
+      if (attempts === 1) {
+        throw new Error(
+          'Execution context was destroyed, most likely because of a navigation.',
+        );
+      }
+      queueMicrotask(() => client.emit('ready'));
+    },
+  });
+
+  const first = await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  assert.equal((await first.json()).status, 'Error');
+  const firstClient = harness.factory.historyForTenant(empresaA)[0];
+  assert.equal(firstClient.destroyCount, 1);
+
+  const second = await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  assert.equal((await second.json()).status, 'Connected');
+  assert.equal(harness.factory.historyForTenant(empresaA).length, 2);
+  assert.equal(harness.factory.forTenant(empresaA).initializeCount, 1);
+});
+
+test('falha síncrona da factory não se torna rejeição fora do ciclo de vida', async () => {
+  const harness = await createHarness({
+    create: () => {
+      throw new Error('Chromium indisponível');
+    },
+  });
+
+  const response = await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).status, 'Error');
+  assert.equal(harness.factory.created.length, 0);
+});
+
+test('evento tardio do cliente descartado não altera a sessão substituta', async () => {
+  let attempts = 0;
+  const harness = await createHarness({
+    connectWaitMs: 100,
+    initialize: () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('falha inicial');
+    },
+  });
+
+  await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  const discarded = harness.factory.historyForTenant(empresaA)[0];
+  const reconnect = harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  await waitForClientCount(harness.factory, empresaA, 2);
+  discarded.emit('ready');
+  assert.equal((await harness.service.getStatus(empresaA)).status, 'Connecting');
+
+  harness.factory.forTenant(empresaA).emit('ready');
+  assert.equal((await (await reconnect).json()).status, 'Connected');
+});
+
+test('disconnected aposenta cliente e reconexão não reutiliza instância antiga', async () => {
+  const harness = await createHarness({
+    initialize: (client) => queueMicrotask(() => client.emit('ready')),
+  });
+  await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  const firstClient = harness.factory.forTenant(empresaA);
+  firstClient.emit('disconnected', 'NAVIGATION');
+  assert.equal(
+    (await waitForStatus(harness.service, empresaA, 'Disconnected')).status,
+    'Disconnected',
+  );
+  assert.equal(firstClient.destroyCount, 1);
+
+  const reconnected = await harness.request(`/sessions/${empresaA}/connect`, {
+    method: 'POST',
+    tenantId: empresaA,
+  });
+  assert.equal((await reconnected.json()).status, 'Connected');
+  assert.equal(harness.factory.historyForTenant(empresaA).length, 2);
+});
+
+test('falha de reinjeção é isolada ao tenant e não derruba outra empresa', async () => {
+  const harness = await createHarness({
+    initialize: (client) => queueMicrotask(() => {
+      if (client.sessionKey.includes(empresaA.replaceAll('-', ''))) {
+        client.emit(
+          injectionFailureEvent,
+          new Error('Failed to add page binding with name onQRChangedEvent'),
+        );
+      } else {
+        client.emit('ready');
+      }
+    }),
+  });
+
+  const [responseA, responseB] = await Promise.all([
+    harness.request(`/sessions/${empresaA}/connect`, {
+      method: 'POST',
+      tenantId: empresaA,
+    }),
+    harness.request(`/sessions/${empresaB}/connect`, {
+      method: 'POST',
+      tenantId: empresaB,
+    }),
+  ]);
+
+  assert.equal((await responseA.json()).status, 'Error');
+  assert.equal((await responseB.json()).status, 'Connected');
+  assert.equal(harness.factory.forTenant(empresaA).destroyCount, 1);
+  assert.equal(harness.factory.forTenant(empresaB).destroyCount, 0);
+});
+
 async function createHarness(options = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'detara-whatsapp-test-'));
-  const factory = new FakeClientFactory(options.initialize);
-  const service = createService(root, factory);
+  const factory = new FakeClientFactory(options.initialize, options.create);
+  const service = createService(root, factory, options);
   await service.start();
   const app = createApp({ service, apiKey, logger: silentLogger });
   const server = http.createServer(app);
@@ -331,16 +553,25 @@ async function createHarness(options = {}) {
   };
 }
 
-function createService(root, factory) {
+function createService(root, factory, options = {}) {
   return new WhatsAppGatewayService({
     clientFactory: factory,
     qrEncoder: async (value) =>
       `data:image/png;base64,${Buffer.from(value).toString('base64')}`,
     registry: new SessionRegistry(root),
     deliveryStore: new DeliveryStore(root),
-    logger: silentLogger,
-    connectWaitMs: 200,
+    logger: options.logger ?? silentLogger,
+    connectWaitMs: options.connectWaitMs ?? 200,
   });
+}
+
+async function waitForClientCount(factory, empresaId, expectedCount) {
+  const deadline = Date.now() + 1_000;
+  while (Date.now() < deadline) {
+    if (factory.historyForTenant(empresaId).length === expectedCount) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.equal(factory.historyForTenant(empresaId).length, expectedCount);
 }
 
 async function waitForStatus(service, empresaId, expectedStatus) {
@@ -356,19 +587,28 @@ async function waitForStatus(service, empresaId, expectedStatus) {
 }
 
 class FakeClientFactory {
-  constructor(initialize) {
+  constructor(initialize, create) {
     this.initialize = initialize;
+    this.createBehavior = create;
     this.clients = new Map();
+    this.created = [];
   }
 
   create(sessionKey) {
+    this.createBehavior?.(sessionKey);
     const client = new FakeClient(sessionKey, this.initialize);
     this.clients.set(sessionKey, client);
+    this.created.push(client);
     return client;
   }
 
   forTenant(empresaId) {
     return this.clients.get(`tenant-${empresaId.replaceAll('-', '')}`);
+  }
+
+  historyForTenant(empresaId) {
+    const sessionKey = `tenant-${empresaId.replaceAll('-', '')}`;
+    return this.created.filter((client) => client.sessionKey === sessionKey);
   }
 }
 
@@ -380,11 +620,14 @@ class FakeClient extends EventEmitter {
     this.sent = [];
     this.numberLookups = [];
     this.logoutCount = 0;
+    this.initializeCount = 0;
+    this.destroyCount = 0;
     this.info = { wid: { user: '5541999990000' } };
   }
 
   async initialize() {
-    this.initializeBehavior?.(this);
+    this.initializeCount += 1;
+    return this.initializeBehavior?.(this);
   }
 
   async getNumberId(phone) {
@@ -397,7 +640,9 @@ class FakeClient extends EventEmitter {
     return { id: { _serialized: `message-${this.sent.length}` } };
   }
 
-  async destroy() {}
+  async destroy() {
+    this.destroyCount += 1;
+  }
 
   async logout() {
     this.logoutCount += 1;

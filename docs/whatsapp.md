@@ -18,6 +18,10 @@ O SQL Server mantém `SessaoWhatsAppEmpresa`, com `EmpresaId`, `SessionKey`, sta
 
 Após reinício, o gateway carrega todas as sessões conhecidas e inicializa um cliente separado para cada empresa. Durante a restauração o estado é `Reconnecting`; somente o evento `ready` libera envios novamente. Assim, metadados antigos não produzem um falso estado conectado.
 
+O ciclo de vida é single-flight por `EmpresaId`: existe no máximo um `Client` e uma chamada de `initialize()` ativos por empresa. `authenticated` é apenas um marco intermediário e não libera envio; chamadas repetidas de conexão reutilizam a inicialização até `ready`, erro ou desconexão. Polling de `GET /status` é somente leitura e nunca cria cliente. Eventos de uma geração descartada são ignorados, impedindo que um browser antigo altere o estado de uma sessão substituta.
+
+Falhas durante a injeção do WhatsApp Web são tratadas no adapter do cliente, e não por handlers globais do processo. Navegação destruindo o execution context aguarda um novo contexto com `waitForFunction`; binding Puppeteer duplicado é removido pela API oficial `removeExposedFunction`; ambas as recuperações são single-flight e limitadas a três tentativas. Esgotado o limite, a empresa vai para `Error`, a instância é destruída e uma próxima conexão cria outro cliente. O diretório `LocalAuth` é preservado em erros transitórios e só há logout na desconexão explícita.
+
 Faça backup criptografado do volume de sessões junto com o plano de recuperação. Perder esse volume exige nova leitura do QR Code. Não copie uma pasta de sessão entre empresas.
 
 ## Configuração
@@ -100,6 +104,19 @@ São registrados somente eventos e IDs técnicos de empresa: criação, QR gerad
 
 O gateway executa como usuário não root. A imagem usa Chromium do Debian, filesystem somente leitura em produção, capabilities removidas, `/tmp` temporário e volume gravável apenas para sessões. O override de Puppeteer deve acompanhar os testes de compatibilidade do `whatsapp-web.js`; execute `npm audit --omit=dev`, os testes Node e um vínculo real controlado a cada atualização.
 
+Matriz verificada no hotfix de 2026-09-09:
+
+| Componente | Versão/valor | Decisão |
+|---|---|---|
+| Node.js | `24.20.0` | Mantido pelo digest da imagem Node |
+| `whatsapp-web.js` | `1.34.7` | Última stable disponível; pin exato mantido |
+| Puppeteer / Core | `25.8.0` | Override explícito mantido |
+| Chrome esperado pelo Puppeteer | `152.0.7977.42` | Compatível com a mesma linha major do browser |
+| Chromium da imagem inspecionada | `152.0.7977.82` Debian 12 | Pacote de SO; registrar novamente a cada rebuild |
+| User-Agent do cliente | `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36` | Default do `whatsapp-web.js`; não alterado pelo hotfix |
+
+O pacote upstream `1.34.7` declara Puppeteer `24.38.0`, mas o override `25.8.0` existe desde a introdução do gateway e corresponde ao Chromium 152 usado pela imagem inspecionada. A stable ainda não contém as correções de reinjeção já mescladas no branch principal upstream. O hotfix mantém os pins atuais e aplica a contenção mínima no adapter Detara, sem editar `node_modules`, instalar beta ou incorporar mudanças upstream não relacionadas. Reavaliar a remoção do adapter quando uma release stable incluir a correção e passar pelo smoke real controlado.
+
 Na versão atual, `whatsapp-web.js` ainda traz `fluent-ffmpeg` e `glob` como dependências transitivas marcadas como deprecated. O audit não aponta vulnerabilidades conhecidas, mas esses avisos devem ser acompanhados e não podem ser silenciados por fork local sem teste de compatibilidade upstream.
 
 `whatsapp-web.js` depende do protocolo do WhatsApp Web e não é uma API oficial da Meta. Mudanças externas podem exigir atualização emergencial ou nova leitura de QR. Para SLA formal, templates aprovados, webhooks de entrega ou escala maior, reavalie a migração para a WhatsApp Business Platform oficial.
@@ -120,3 +137,5 @@ dotnet format --verify-no-changes
 ```
 
 O smoke test real exige um número de teste: conectar por QR, enviar a uma pessoa que consentiu em receber o aviso, reiniciar apenas o gateway, aguardar `Connected` e confirmar que um segundo envio controlado não exige novo QR.
+
+Para acompanhar a recuperação sem dados sensíveis, correlacione somente `EmpresaId`, mensagem operacional e `errorType`. O fluxo esperado é `Inicialização ... iniciada` → `QR Code ... gerado` → `Sessão ... autenticada` (uma vez) → `Sessão ... conectada`. `authenticated` repetido sem `ready`, `Error` após três reinjeções ou novo `RestartCount` exige interromper o smoke e preservar os logs; não apague a sessão como primeira resposta.
