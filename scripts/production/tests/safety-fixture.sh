@@ -46,7 +46,21 @@ for key in DETARA_API_IMAGE DETARA_WEB_IMAGE DETARA_WHATSAPP_GATEWAY_IMAGE DETAR
   printf '%s=ghcr.io/detara-saas/synthetic@sha256:%064d\n' "$key" 1 >> /opt/detara/releases/candidate.env
 done
 find /var/backups/detara/sql -maxdepth 1 -type f -name '*.age' -delete
+: > /tmp/docker-calls
+dry_run_output="$(bash "$repo_root/scripts/production/deploy.sh" --confirm-deploy /opt/detara/releases/candidate.env --dry-run)"
+[[ "$dry_run_output" == *'nada foi iniciado.'* ]] || fail 'Dry-run não confirmou execução sem mudanças.'
+if grep -Eq 'CADDY_VALIDATE|exec -T sqlserver|(^| )(pull|stop|up|run)( |$)|MIGRATION' /tmp/docker-calls; then fail 'Dry-run executou etapa mutável.'; fi
+: > /tmp/docker-calls
+if QA_CADDY_INVALID=true bash "$repo_root/scripts/production/deploy.sh" --confirm-deploy /opt/detara/releases/candidate.env >/dev/null 2>&1; then fail 'Deploy aceitou Caddyfile inválido.'; fi
+grep -q '^CADDY_VALIDATE$' /tmp/docker-calls || fail 'Deploy não validou o Caddyfile candidato.'
+if grep -Eq 'compose .* run .*reverse-proxy.*caddy validate' /tmp/docker-calls; then fail 'Validação recriou reverse-proxy com Docker Compose.'; fi
+grep -q -- '--network none' /tmp/docker-calls || fail 'Validação Caddy não isolou a rede.'
+candidate_caddyfile="$(readlink -f -- "$repo_root/deploy/Caddyfile")"
+grep -Fq -- "source=$candidate_caddyfile,target=/etc/caddy/Caddyfile,readonly" /tmp/docker-calls || fail 'Validação não montou o Caddyfile candidato.'
+if grep -Eq 'exec -T sqlserver|(^| )(pull|stop|up)( |$)|MIGRATION' /tmp/docker-calls; then fail 'Deploy continuou após Caddy inválido.'; fi
+: > /tmp/docker-calls
 if QA_UPLOAD_FAIL=true bash "$repo_root/scripts/production/deploy.sh" --confirm-deploy /opt/detara/releases/candidate.env >/dev/null 2>&1; then fail 'Deploy aceitou backup com falha.'; fi
+grep -q '^CADDY_VALIDATE$' /tmp/docker-calls || fail 'Deploy não validou Caddy antes do backup.'
 if grep -q MIGRATION /tmp/docker-calls; then fail 'Migration executada sem backup.'; fi
 [[ ! -e /opt/detara/releases/current.env ]]
-printf 'Safety fixtures: parser, permissões, manifesto, age, upload, checksum e deploy bloqueado sem backup aprovados (R2/SQL simulados).\n'
+printf 'Safety fixtures: parser, permissões, manifesto, age, upload, checksum, Caddy isolado e deploy fail-fast aprovados (R2/SQL simulados).\n'
