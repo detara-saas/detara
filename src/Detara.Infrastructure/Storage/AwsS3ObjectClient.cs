@@ -25,7 +25,10 @@ internal sealed class AwsS3ObjectClient(IAmazonS3 client) : IS3ObjectClient
             BucketName = bucket,
             Key = chave,
             InputStream = conteudo,
-            AutoCloseStream = false
+            AutoCloseStream = false,
+            // Compatibilidade oficial do R2: evita o Streaming SigV4 não suportado pelo provider.
+            DisablePayloadSigning = true,
+            DisableDefaultChecksumValidation = true
         }, cancellationToken);
     }
 
