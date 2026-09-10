@@ -61,7 +61,6 @@ chmod 755 /usr/bin/docker
 run_id=9001-1
 stage="/var/lib/detara-deploy/incoming/$sha-$run_id"
 sudo -u detaradeploy /usr/local/bin/detara-stage-release "$sha" "$run_id" >/dev/null
-printf '#!/usr/bin/env sh\nexit 0\n' > "$stage/detara-migrate"
 printf '%s\n' 'https://api.detara.com.br' > "$stage/public-api-origin.txt"
 printf '%s\n' \
   "DETARA_RELEASE_SHA=$sha" \
@@ -69,11 +68,9 @@ printf '%s\n' \
   "DETARA_WEB_IMAGE=ghcr.io/detara-saas/detara/web@sha256:$digest" \
   "DETARA_WHATSAPP_GATEWAY_IMAGE=ghcr.io/detara-saas/detara/whatsapp-gateway@sha256:$digest" \
   "DETARA_MIGRATIONS_IMAGE=ghcr.io/detara-saas/detara/migrations@sha256:$digest" > "$stage/release.env"
-(cd "$stage" && sha256sum detara-migrate release.env public-api-origin.txt > SHA256SUMS)
 chown -R detaradeploy:detaradeploy "$stage"
 chmod 700 "$stage"
 chmod 600 "$stage/"*
-chmod 700 "$stage/detara-migrate"
 
 /usr/local/sbin/detara-deploy-release "$sha" "$run_id" >/dev/null
 target="/opt/detara/releases/$sha"
@@ -82,5 +79,7 @@ target="/opt/detara/releases/$sha"
 [[ "$(readlink -f /opt/detara/current)" == "$target" ]]
 [[ "$(<"$target/.detara-release-sha")" == "$sha" ]]
 [[ ! -e "$stage" ]]
-[[ -f "$target/release-assets/SHA256SUMS" ]]
+mapfile -t release_assets < <(find "$target/release-assets" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
+[[ "${release_assets[*]}" == 'public-api-origin.txt release.env' ]]
+[[ ! -e "$target/release-assets/detara-migrate" ]]
 printf 'Wrapper completo: main root-owned, digests, deploy.sh e promoção aprovados.\n'

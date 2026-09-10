@@ -3,6 +3,7 @@ set -Eeuo pipefail
 umask 077
 export PATH='/usr/sbin:/usr/bin:/sbin:/bin'
 export DETARA_ENV_FILE='/etc/detara/production.env'
+export GIT_TERMINAL_PROMPT=0
 unset DETARA_RELEASE_FILE DETARA_RELEASE_SHA DETARA_API_IMAGE DETARA_WEB_IMAGE \
   DETARA_WHATSAPP_GATEWAY_IMAGE DETARA_MIGRATIONS_IMAGE
 
@@ -52,14 +53,14 @@ done
   echo 'Staging não pode ser gravável por grupo/outros.' >&2
   exit 1
 }
-for file in detara-migrate public-api-origin.txt release.env SHA256SUMS; do
+for file in public-api-origin.txt release.env; do
   [[ -f "$stage/$file" && ! -L "$stage/$file" && "$(stat -c '%U' "$stage/$file")" == detaradeploy ]] || {
     echo "Arquivo de staging inválido: $file" >&2
     exit 1
   }
 done
 mapfile -t staged_names < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
-[[ "${staged_names[*]}" == 'SHA256SUMS detara-migrate public-api-origin.txt release.env' ]] || {
+[[ "${staged_names[*]}" == 'public-api-origin.txt release.env' ]] || {
   echo 'Staging contém arquivo inesperado.' >&2
   exit 1
 }
@@ -109,15 +110,14 @@ cleanup() {
 trap cleanup EXIT
 
 # O parent sticky e root-owned impede troca do diretório depois deste chown.
-# Uma cópia root-only seguida de checksum elimina escrita por file descriptor antigo.
+# A cópia root-only elimina mutação do payload após a tomada de ownership.
 chown root:root "$stage"
 chown -R root:root "$stage"
 chmod -R go-w "$stage"
 stage_seized=true
 artifact_copy="$(mktemp -d "$releases_root/.artifact.${sha}.XXXXXX")"
-install -o root -g root -m 0700 "$stage/detara-migrate" "$artifact_copy/detara-migrate"
-install -o root -g root -m 0600 "$stage/release.env" "$stage/public-api-origin.txt" "$stage/SHA256SUMS" "$artifact_copy/"
-validate_release_artifact "$artifact_copy" "$sha"
+install -o root -g root -m 0600 "$stage/release.env" "$stage/public-api-origin.txt" "$artifact_copy/"
+validate_production_deployment_metadata "$artifact_copy" "$sha"
 
 if [[ -e "$target" ]]; then
   [[ -d "$target" && ! -L "$target" && "$(stat -c '%u:%g' "$target")" == 0:0 ]] || {
@@ -140,7 +140,7 @@ else
 fi
 
 echo 'Etapa Actions: validar release e imagens imutáveis no host.'
-bash "$release_source/scripts/production/automation/verify-release-images.sh" "$artifact_copy" "$sha"
+bash "$release_source/scripts/production/automation/verify-release-images.sh" production-metadata "$artifact_copy" "$sha"
 expected_origin="https://$(bash -c 'source "$1"; load_config; printf "%s" "$DETARA_API_HOST"' _ "$release_source/scripts/production/common.sh")"
 [[ "$(<"$artifact_copy/public-api-origin.txt")" == "$expected_origin" ]] || {
   echo 'Origem pública da imagem Web diverge do host de produção.' >&2
@@ -149,8 +149,7 @@ expected_origin="https://$(bash -c 'source "$1"; load_config; printf "%s" "$DETA
 
 if [[ "$release_source" == "$temporary" ]]; then
   mkdir -- "$temporary/release-assets"
-  install -o root -g root -m 0700 "$artifact_copy/detara-migrate" "$temporary/release-assets/detara-migrate"
-  install -o root -g root -m 0600 "$artifact_copy/release.env" "$artifact_copy/public-api-origin.txt" "$artifact_copy/SHA256SUMS" "$temporary/release-assets/"
+  install -o root -g root -m 0600 "$artifact_copy/release.env" "$artifact_copy/public-api-origin.txt" "$temporary/release-assets/"
   install -o root -g root -m 0600 "$artifact_copy/release.env" "$temporary/candidate.env"
   chown -R root:root "$temporary"
   chmod -R go-w "$temporary"
@@ -160,6 +159,10 @@ if [[ "$release_source" == "$temporary" ]]; then
 else
   cmp -s "$artifact_copy/release.env" "$target/release-assets/release.env" || {
     echo 'Release existente diverge do manifesto publicado.' >&2
+    exit 1
+  }
+  cmp -s "$artifact_copy/public-api-origin.txt" "$target/release-assets/public-api-origin.txt" || {
+    echo 'Release existente diverge da origem pública publicada.' >&2
     exit 1
   }
   install -o root -g root -m 0600 "$artifact_copy/release.env" "$target/candidate.env"

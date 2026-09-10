@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
+export GIT_TERMINAL_PROMPT=0
 
 [[ $EUID -eq 0 ]] || { echo 'Execute este bootstrap como root.' >&2; exit 1; }
 [[ $# -eq 1 ]] || { echo 'Uso: bootstrap-deploy-user.sh <arquivo-chave-publica-ed25519>' >&2; exit 2; }

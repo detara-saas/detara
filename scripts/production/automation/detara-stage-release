@@ -24,7 +24,7 @@ if [[ -e "$stage" ]]; then
   }
   mapfile -t existing < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\n')
   for file in "${existing[@]}"; do
-    case "$file" in detara-migrate|public-api-origin.txt|release.env|SHA256SUMS) rm -f -- "$stage/$file" ;; *)
+    case "$file" in public-api-origin.txt|release.env) rm -f -- "$stage/$file" ;; *)
       echo 'Staging contém arquivo inesperado; revisão manual necessária.' >&2; exit 1 ;;
     esac
   done

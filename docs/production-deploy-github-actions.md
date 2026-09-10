@@ -4,13 +4,19 @@
 
 O workflow manual **Deploy Production** valida e implanta uma release já construída. Um merge ou push em `main` **não faz deploy automático**. A publicação existente `Production images` continua responsável por construir `api`, `web`, `whatsapp-gateway` e `migrations` em linux/amd64, publicar tags pelo SHA e gerar `release.env`, `detara-migrate`, `public-api-origin.txt` e `SHA256SUMS`.
 
-O workflow recebe um SHA Git completo, prova que ele pertence à história de `origin/main`, encontra a execução bem-sucedida de `Production images` para o mesmo SHA, valida checksums e confere os quatro manifests GHCR por digest. Nenhuma imagem é construída no deploy. Só depois configura SSH com host key pinada, transfere os quatro arquivos de metadata/bundle para um staging sem secrets e chama o entrypoint privilegiado no host.
+O workflow recebe um SHA Git completo, prova que ele pertence à história de `origin/main`, encontra a execução bem-sucedida de `Production images` para o mesmo SHA, valida o artefato publicado completo (`detara-migrate`, `release.env`, `public-api-origin.txt`, `SHA256SUMS`), seus checksums e os quatro manifests GHCR por digest. Nenhuma imagem é construída no deploy. Só depois configura SSH com host key pinada e transfere exclusivamente `release.env` e `public-api-origin.txt` para um staging sem secrets. O bundle continua no artefato para QA/recuperação manual, mas não atravessa a fronteira privilegiada da automação.
 
-No servidor, `/usr/local/sbin/detara-deploy-release` é root-owned e é o único comando permitido por sudo ao usuário `detaradeploy`. O wrapper valida SHA, ID da execução, ownership, paths, conteúdo e digests novamente. O código da release não é aceito do usuário SSH: um mirror Git público root-owned busca `main`, confirma ancestry e produz `/opt/detara/releases/<SHA>/` via `git archive`. Só então o wrapper chama o `scripts/production/deploy.sh` daquela release. Assim, o script executado como root corresponde ao commit aprovado, e não a um payload gravável pelo usuário de automação.
+No servidor, `/usr/local/sbin/detara-deploy-release` é root-owned e é o único comando permitido por sudo ao usuário `detaradeploy`. O wrapper valida SHA, ID da execução, ownership, paths, as duas metadata e os quatro digests novamente. O código da release não é aceito do usuário SSH: um mirror Git root-owned busca `main` com prompt interativo desabilitado, confirma ancestry e produz `/opt/detara/releases/<SHA>/` via `git archive`. Só então o wrapper chama o `scripts/production/deploy.sh` daquela release. Assim, o script executado como root corresponde ao commit aprovado, e não a um payload gravável pelo usuário de automação.
 
 `deploy.sh` permanece a fonte de verdade: lock → Caddy candidato em container isolado/sem rede → backup externo obrigatório → pull por digest → parada controlada da API → migration → gateway independente → API/Web → proxy → HTTPS smoke → promoção de `current.env`/`previous.env`. Após sucesso, o wrapper promove atomicamente `/opt/detara/current` e `/opt/detara/previous`. Em falha, não há rollback automático, restore, `compose down`, remoção de volume, prune ou mudança dos pointers de checkout.
 
-Secrets de aplicação, PFX e autenticação GHCR permanecem exclusivamente na VPS. O GitHub guarda apenas a chave SSH dedicada. O artefato transferido não contém segredo. O acesso GHCR root já configurado no host continua sendo usado; não copie `GITHUB_TOKEN` para a VPS.
+Secrets de aplicação, PFX e autenticação GHCR permanecem exclusivamente na VPS. O GitHub guarda apenas a chave SSH dedicada. O payload transferido não contém segredo nem executável. O acesso GHCR root já configurado no host continua sendo usado; `GITHUB_TOKEN` existe somente no passo de download/validação do runner e nunca fica disponível aos passos SSH, SCP, deploy ou summary.
+
+## Acesso do mirror ao repositório
+
+O repositório `detara-saas/detara` está **público no momento desta implementação**. Por isso, o clone/fetch HTTPS do mirror root-owned não precisa de credencial adicional. Tanto o bootstrap quanto o wrapper exportam `GIT_TERMINAL_PROMPT=0`: uma mudança de visibilidade ou falha de autenticação termina imediatamente, sem prompt oculto.
+
+Se o repositório se tornar privado, um operador deverá provisionar para o mirror uma credencial dedicada com acesso somente leitura ao repositório, ou uma deploy key somente leitura, antes de executar/reexecutar o bootstrap. Essa identidade deve ser root-owned, não pode ser embutida na URL/origin, em scripts ou logs, e deve ser diferente da chave `GitHub Actions → VPS`. No caso de deploy key SSH, também é obrigatório pinar a host key do GitHub no contexto root e configurar o transporte Git root-owned preservando o origin canônico validado pelo wrapper. Esta task não cria nem instala tal credencial.
 
 ## Bootstrap único no servidor
 
@@ -30,7 +36,7 @@ Faça estes passos em uma estação administrativa segura e na VPS por seu acess
    sudo bash /caminho/do/checkout/scripts/production/automation/bootstrap-deploy-user.sh /caminho/detara-actions-deploy.pub
    ```
 
-   O script exige root, valida uma única chave Ed25519, cria/reutiliza `detaradeploy`, recusa associação ao grupo `docker`, mantém home e `authorized_keys` root-owned, instala staging root-owned com grupo dedicado/sticky bit, chave com opção OpenSSH `restrict`, mirror Git root-owned, helpers root-owned e sudoers mínimo. Valida o sudoers com `visudo -cf`. Não altera `sshd_config`, usuário administrativo, firewall, Docker, secrets ou login GHCR. Reexecução atualiza explicitamente a chave autorizada e os binários versionados.
+   O script exige root, valida uma única chave Ed25519, cria/reutiliza `detaradeploy`, recusa associação ao grupo `docker`, mantém home e `authorized_keys` root-owned, instala staging root-owned com grupo dedicado/sticky bit, chave com opção OpenSSH `restrict`, mirror Git root-owned, helpers root-owned e sudoers mínimo. Valida o sudoers com `visudo -cf`. Não altera `sshd_config`, usuário administrativo, firewall, Docker, secrets ou login GHCR. Reexecução atualiza explicitamente a chave autorizada e os binários versionados. O clone do mirror é não interativo; para o repositório público atual não há credencial Git adicional.
 
 3. Confirme localmente na VPS:
 
@@ -72,7 +78,7 @@ Em Settings → Environments → `production`, configure required reviewers, lim
 | Environment variable | `PROD_SSH_KNOWN_HOSTS` | Linha pinada obtida por canal confiável; é material público. |
 | Environment secret | `PROD_SSH_PRIVATE_KEY` | Conteúdo completo da chave privada dedicada. |
 
-Não adicione `production.env`, PFX, JWT, SQL, R2/S3, Resend, gateway ou credencial GHCR ao GitHub. O workflow usa apenas o `GITHUB_TOKEN` efêmero, com `actions:read`, `contents:read` e `packages:read`, para baixar/verificar artefatos no próprio repositório.
+Não adicione `production.env`, PFX, JWT, SQL, R2/S3, Resend, gateway ou credencial GHCR ao GitHub. O workflow usa o `GITHUB_TOKEN` efêmero, com `actions:read`, `contents:read` e `packages:read`, somente no passo que baixa e verifica o artefato e as imagens do próprio repositório. Os demais passos não herdam esse token.
 
 ## Primeiro deploy automatizado
 

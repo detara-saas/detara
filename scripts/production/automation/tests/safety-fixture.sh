@@ -25,6 +25,16 @@ validate_release_sha "$sha"
 validate_release_artifact "$artifact" "$sha"
 [[ "$(release_staging_path /var/lib/detara-deploy/incoming "$sha" 123-1)" == "/var/lib/detara-deploy/incoming/$sha-123-1" ]]
 
+metadata="$temporary/metadata"
+mkdir "$metadata"
+cp "$artifact/release.env" "$artifact/public-api-origin.txt" "$metadata/"
+validate_production_deployment_metadata "$metadata" "$sha"
+touch "$metadata/detara-migrate"
+if validate_production_deployment_metadata "$metadata" "$sha" 2>/dev/null; then
+  echo 'Metadata de produção aceitou o bundle executável.' >&2; exit 1
+fi
+rm "$metadata/detara-migrate"
+
 if validate_release_sha '../etc/passwd' 2>/dev/null; then echo 'SHA malformado aceito.' >&2; exit 1; fi
 if validate_release_sha 'ABCDEF1111111111111111111111111111111111' 2>/dev/null; then echo 'SHA uppercase aceito.' >&2; exit 1; fi
 if validate_deployment_id '../1' 2>/dev/null; then echo 'Traversal no deployment ID aceito.' >&2; exit 1; fi
@@ -65,4 +75,15 @@ if grep -Eq 'NOPASSWD:[[:space:]]*ALL|StrictHostKeyChecking[=[:space:]]+no|docke
   "${product_scripts[@]}"; then
   echo 'Padrão de automação inseguro encontrado.' >&2; exit 1
 fi
-printf 'Automation fixtures: SHA, traversal, artefato, wrapper, bootstrap e sudo mínimo aprovados.\n'
+workflow="$repo_root/.github/workflows/deploy-production.yml"
+[[ "$(grep -c 'GH_TOKEN:' "$workflow")" -eq 1 ]]
+grep -Fq 'runs-on: ubuntu-24.04' "$workflow"
+grep -Fq 'uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8' "$workflow"
+grep -Fq 'verify-release-images.sh full-artifact' "$workflow"
+grep -Fq 'verify-release-images.sh" production-metadata' "$repo_root/scripts/production/automation/detara-deploy-release"
+grep -Fq 'export GIT_TERMINAL_PROMPT=0' "$repo_root/scripts/production/automation/bootstrap-deploy-user.sh"
+grep -Fq 'export GIT_TERMINAL_PROMPT=0' "$repo_root/scripts/production/automation/detara-deploy-release"
+if grep -Fq 'release-artifact/detara-migrate' "$workflow"; then
+  echo 'Workflow ainda transfere o bundle de migration para produção.' >&2; exit 1
+fi
+printf 'Automation fixtures: SHA, traversal, artefato completo, metadata mínima, workflow, wrapper, bootstrap e sudo mínimo aprovados.\n'

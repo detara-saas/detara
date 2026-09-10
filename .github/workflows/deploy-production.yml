@@ -20,17 +20,17 @@ concurrency:
 jobs:
   deploy:
     name: Deploy immutable release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment:
       name: production
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
       DEPLOYMENT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout approved main history
-        uses: actions/checkout@v5
+        # actions/checkout v5.0.0
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -57,6 +57,8 @@ jobs:
 
       - name: Download and validate published production artifacts
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -Eeuo pipefail
           printf '%s\n' 'Artifact validation' > .deploy-stage
@@ -76,7 +78,7 @@ jobs:
           }
           trap cleanup_registry EXIT
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          bash scripts/production/automation/verify-release-images.sh release-artifact "$RELEASE_SHA"
+          bash scripts/production/automation/verify-release-images.sh full-artifact release-artifact "$RELEASE_SHA"
 
       - name: Configure pinned SSH identity
         shell: bash
@@ -125,10 +127,8 @@ jobs:
           ssh detara-production /usr/local/bin/detara-stage-release "$RELEASE_SHA" "$DEPLOYMENT_ID"
           remote_stage="/var/lib/detara-deploy/incoming/$RELEASE_SHA-$DEPLOYMENT_ID"
           scp -- \
-            release-artifact/detara-migrate \
             release-artifact/public-api-origin.txt \
             release-artifact/release.env \
-            release-artifact/SHA256SUMS \
             "detara-production:$remote_stage/"
 
       - name: Execute authoritative production deployment

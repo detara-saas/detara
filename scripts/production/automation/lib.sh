@@ -24,10 +24,9 @@ release_staging_path() {
 }
 
 validate_release_artifact() {
-  local directory="$1" expected_sha="$2" file line key value
+  local directory="$1" expected_sha="$2" file line
   local -a expected=(detara-migrate public-api-origin.txt release.env SHA256SUMS)
-  local -a actual=() wanted=() checksums=() origins=()
-  local -A values=()
+  local -a actual=() wanted=() checksums=()
 
   validate_release_sha "$expected_sha" || return $?
   [[ -d "$directory" && ! -L "$directory" ]] || {
@@ -75,6 +74,47 @@ validate_release_artifact() {
   done
   (cd "$directory" && sha256sum --check --strict --quiet SHA256SUMS) || {
     echo 'Checksum do artefato de release divergente.' >&2
+    return 2
+  }
+
+  _validate_production_deployment_metadata_contents "$directory" "$expected_sha"
+}
+
+validate_production_deployment_metadata() {
+  local directory="$1" expected_sha="$2"
+  local -a expected=(public-api-origin.txt release.env)
+  local -a actual=() wanted=()
+
+  validate_release_sha "$expected_sha" || return $?
+  [[ -d "$directory" && ! -L "$directory" ]] || {
+    echo 'Diretório de metadata ausente ou inválido.' >&2
+    return 2
+  }
+
+  mapfile -t actual < <(find "$directory" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
+  mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | LC_ALL=C sort)
+  [[ "${actual[*]}" == "${wanted[*]}" ]] || {
+    echo 'Metadata de produção deve conter somente os dois arquivos esperados.' >&2
+    return 2
+  }
+  _validate_production_deployment_metadata_contents "$directory" "$expected_sha"
+}
+
+_validate_production_deployment_metadata_contents() {
+  local directory="$1" expected_sha="$2" file line key value
+  local -a origins=()
+  local -A values=()
+
+  validate_release_sha "$expected_sha" || return $?
+  for file in release.env public-api-origin.txt; do
+    [[ -f "$directory/$file" && ! -L "$directory/$file" ]] || {
+      echo "Metadata obrigatória inválida: $file" >&2
+      return 2
+    }
+  done
+  [[ "$(stat -c '%s' "$directory/release.env")" -le 4096 \
+    && "$(stat -c '%s' "$directory/public-api-origin.txt")" -le 1024 ]] || {
+    echo 'Metadata de produção excede o tamanho máximo permitido.' >&2
     return 2
   }
 

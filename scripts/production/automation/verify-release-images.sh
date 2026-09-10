@@ -5,10 +5,18 @@ automation_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$automation_dir/lib.sh"
 
-[[ $# -eq 2 ]] || { echo 'Uso: verify-release-images.sh <diretório-do-artefato> <release-sha>' >&2; exit 2; }
-artifact_dir="$1"
-release_sha="$2"
-validate_release_artifact "$artifact_dir" "$release_sha"
+[[ $# -eq 3 ]] || {
+  echo 'Uso: verify-release-images.sh <full-artifact|production-metadata> <diretório> <release-sha>' >&2
+  exit 2
+}
+validation_scope="$1"
+artifact_dir="$2"
+release_sha="$3"
+case "$validation_scope" in
+  full-artifact) validate_release_artifact "$artifact_dir" "$release_sha" ;;
+  production-metadata) validate_production_deployment_metadata "$artifact_dir" "$release_sha" ;;
+  *) echo 'Escopo de validação inválido.' >&2; exit 2 ;;
+esac
 command -v docker >/dev/null || { echo 'Docker não encontrado para validar imagens.' >&2; exit 1; }
 docker buildx version >/dev/null || { echo 'Docker Buildx não encontrado para validar manifests.' >&2; exit 1; }
 
