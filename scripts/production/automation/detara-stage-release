@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+readonly validation_library='/usr/local/lib/detara-deploy-validation.sh'
+readonly staging_root='/var/lib/detara-deploy/incoming'
+[[ -r "$validation_library" ]] || { echo 'Biblioteca de validação não instalada.' >&2; exit 1; }
+# shellcheck disable=SC1090,SC1091
+source "$validation_library"
+[[ $# -eq 2 ]] || { echo 'Uso: detara-stage-release <release-sha> <run-id-attempt>' >&2; exit 2; }
+sha="$1"
+deployment_id="$2"
+stage="$(release_staging_path "$staging_root" "$sha" "$deployment_id")"
+[[ "$(id -un)" == detaradeploy ]] || { echo 'Staging exige o usuário detaradeploy.' >&2; exit 1; }
+[[ -d "$staging_root" && ! -L "$staging_root" \
+  && "$(stat -c '%U:%G %a' "$staging_root")" == 'root:detaradeploy 1730' ]] || {
+  echo 'Raiz de staging inválida.' >&2; exit 1;
+}
+
+if [[ -e "$stage" ]]; then
+  [[ -d "$stage" && ! -L "$stage" && "$(stat -c '%U' "$stage")" == detaradeploy ]] || {
+    echo 'Staging existente não pode ser reutilizado.' >&2
+    exit 1
+  }
+  mapfile -t existing < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\n')
+  for file in "${existing[@]}"; do
+    case "$file" in detara-migrate|public-api-origin.txt|release.env|SHA256SUMS) rm -f -- "$stage/$file" ;; *)
+      echo 'Staging contém arquivo inesperado; revisão manual necessária.' >&2; exit 1 ;;
+    esac
+  done
+else
+  mkdir -- "$stage"
+fi
+chmod 700 "$stage"
+printf 'Staging preparado para %s.\n' "$sha"

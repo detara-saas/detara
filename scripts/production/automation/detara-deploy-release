@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+export PATH='/usr/sbin:/usr/bin:/sbin:/bin'
+export DETARA_ENV_FILE='/etc/detara/production.env'
+unset DETARA_RELEASE_FILE DETARA_RELEASE_SHA DETARA_API_IMAGE DETARA_WEB_IMAGE \
+  DETARA_WHATSAPP_GATEWAY_IMAGE DETARA_MIGRATIONS_IMAGE
+
+readonly validation_library='/usr/local/lib/detara-deploy-validation.sh'
+readonly staging_root='/var/lib/detara-deploy/incoming'
+readonly trust_repository='/var/lib/detara-deploy-trust/repository.git'
+readonly releases_root='/opt/detara/releases'
+readonly repository_url='https://github.com/detara-saas/detara.git'
+[[ $EUID -eq 0 ]] || { echo 'O wrapper privilegiado exige root via sudo.' >&2; exit 1; }
+[[ -r "$validation_library" ]] || { echo 'Biblioteca de validação não instalada.' >&2; exit 1; }
+# shellcheck disable=SC1090,SC1091
+source "$validation_library"
+[[ $# -eq 2 ]] || { echo 'Uso: detara-deploy-release <release-sha> <run-id-attempt>' >&2; exit 2; }
+sha="$1"
+deployment_id="$2"
+validate_release_sha "$sha"
+validate_deployment_id "$deployment_id"
+stage="$(release_staging_path "$staging_root" "$sha" "$deployment_id")"
+target="$releases_root/$sha"
+
+validate_pointer() {
+  local pointer="$1" resolved
+  if [[ -e "$pointer" || -L "$pointer" ]]; then
+    [[ -L "$pointer" ]] || { echo "Pointer não é link simbólico: $pointer" >&2; return 1; }
+    resolved="$(readlink -f -- "$pointer")"
+    [[ "$resolved" =~ ^/opt/detara/releases/[0-9a-f]{40}$ && -d "$resolved" ]] || {
+      echo "Pointer fora da raiz de releases: $pointer" >&2
+      return 1
+    }
+    printf '%s\n' "$resolved"
+  fi
+}
+
+for command in git tar docker flock sha256sum find stat readlink; do
+  command -v "$command" >/dev/null || { echo "Comando obrigatório ausente: $command" >&2; exit 1; }
+done
+[[ -d "$staging_root" && ! -L "$staging_root" \
+  && "$(stat -c '%U:%G %a' "$staging_root")" == 'root:detaradeploy 1730' ]] || {
+  echo 'Raiz de staging inválida.' >&2; exit 1;
+}
+[[ -d "$stage" && ! -L "$stage" ]] || { echo 'Payload de staging não encontrado.' >&2; exit 1; }
+[[ "$(readlink -f -- "$stage")" == "$stage" && "$(stat -c '%U' "$stage")" == detaradeploy ]] || {
+  echo 'Ownership ou caminho de staging inválido.' >&2
+  exit 1
+}
+[[ -z "$(find "$stage" -maxdepth 1 -perm /022 -print -quit)" ]] || {
+  echo 'Staging não pode ser gravável por grupo/outros.' >&2
+  exit 1
+}
+for file in detara-migrate public-api-origin.txt release.env SHA256SUMS; do
+  [[ -f "$stage/$file" && ! -L "$stage/$file" && "$(stat -c '%U' "$stage/$file")" == detaradeploy ]] || {
+    echo "Arquivo de staging inválido: $file" >&2
+    exit 1
+  }
+done
+mapfile -t staged_names < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
+[[ "${staged_names[*]}" == 'SHA256SUMS detara-migrate public-api-origin.txt release.env' ]] || {
+  echo 'Staging contém arquivo inesperado.' >&2
+  exit 1
+}
+
+[[ -d "$trust_repository" && ! -L "$trust_repository" && "$(stat -c '%u:%g' "$trust_repository")" == 0:0 ]] || {
+  echo 'Mirror Git root-owned não está instalado.' >&2
+  exit 1
+}
+[[ "$(git --git-dir="$trust_repository" config --get remote.origin.url)" == "$repository_url" ]] || {
+  echo 'Origin do mirror de confiança é inválido.' >&2
+  exit 1
+}
+
+mkdir -p -- "$releases_root"
+[[ -d /opt/detara && ! -L /opt/detara && "$(stat -c '%u:%g' /opt/detara)" == 0:0 \
+  && -d "$releases_root" && ! -L "$releases_root" && "$(stat -c '%u:%g' "$releases_root")" == 0:0 ]] || {
+  echo 'Raiz de releases deve ser diretório root-owned.' >&2; exit 1;
+}
+exec 8>"$releases_root/automation.lock"
+flock -n 8 || { echo 'Outro deploy automatizado está em execução.' >&2; exit 1; }
+
+echo 'Etapa Actions: validar SHA contra main no host.'
+git -c gc.auto=0 --git-dir="$trust_repository" fetch --quiet --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+git --git-dir="$trust_repository" cat-file -e "$sha^{commit}"
+git --git-dir="$trust_repository" merge-base --is-ancestor "$sha" refs/remotes/origin/main || {
+  echo 'Release não pertence ao histórico aprovado de main.' >&2
+  exit 1
+}
+tree="$(git --git-dir="$trust_repository" rev-parse "$sha^{tree}")"
+old_current="$(validate_pointer /opt/detara/current)"
+validate_pointer /opt/detara/previous >/dev/null
+
+temporary=''
+artifact_copy=''
+stage_seized=false
+cleanup() {
+  if [[ -n "$temporary" && -d "$temporary" ]]; then
+    rm -rf --one-file-system -- "$temporary"
+  fi
+  if [[ -n "$artifact_copy" && -d "$artifact_copy" ]]; then
+    rm -rf --one-file-system -- "$artifact_copy"
+  fi
+  if [[ "$stage_seized" == true && -d "$stage" && ! -L "$stage" ]]; then
+    rm -rf --one-file-system -- "$stage"
+  fi
+}
+trap cleanup EXIT
+
+# O parent sticky e root-owned impede troca do diretório depois deste chown.
+# Uma cópia root-only seguida de checksum elimina escrita por file descriptor antigo.
+chown root:root "$stage"
+chown -R root:root "$stage"
+chmod -R go-w "$stage"
+stage_seized=true
+artifact_copy="$(mktemp -d "$releases_root/.artifact.${sha}.XXXXXX")"
+install -o root -g root -m 0700 "$stage/detara-migrate" "$artifact_copy/detara-migrate"
+install -o root -g root -m 0600 "$stage/release.env" "$stage/public-api-origin.txt" "$stage/SHA256SUMS" "$artifact_copy/"
+validate_release_artifact "$artifact_copy" "$sha"
+
+if [[ -e "$target" ]]; then
+  [[ -d "$target" && ! -L "$target" && "$(stat -c '%u:%g' "$target")" == 0:0 ]] || {
+    echo 'Release existente não é um diretório root-owned reutilizável.' >&2
+    exit 1
+  }
+  [[ -f "$target/.detara-release-sha" && -f "$target/.detara-source-tree" \
+    && "$(<"$target/.detara-release-sha")" == "$sha" \
+    && "$(<"$target/.detara-source-tree")" == "$tree" ]] || {
+    echo 'Release existente não possui identidade imutável válida.' >&2
+    exit 1
+  }
+  release_source="$target"
+else
+  temporary="$(mktemp -d "$releases_root/.${sha}.XXXXXX")"
+  git --git-dir="$trust_repository" archive --format=tar "$sha" | tar -x -C "$temporary"
+  printf '%s\n' "$sha" > "$temporary/.detara-release-sha"
+  printf '%s\n' "$tree" > "$temporary/.detara-source-tree"
+  release_source="$temporary"
+fi
+
+echo 'Etapa Actions: validar release e imagens imutáveis no host.'
+bash "$release_source/scripts/production/automation/verify-release-images.sh" "$artifact_copy" "$sha"
+expected_origin="https://$(bash -c 'source "$1"; load_config; printf "%s" "$DETARA_API_HOST"' _ "$release_source/scripts/production/common.sh")"
+[[ "$(<"$artifact_copy/public-api-origin.txt")" == "$expected_origin" ]] || {
+  echo 'Origem pública da imagem Web diverge do host de produção.' >&2
+  exit 1
+}
+
+if [[ "$release_source" == "$temporary" ]]; then
+  mkdir -- "$temporary/release-assets"
+  install -o root -g root -m 0700 "$artifact_copy/detara-migrate" "$temporary/release-assets/detara-migrate"
+  install -o root -g root -m 0600 "$artifact_copy/release.env" "$artifact_copy/public-api-origin.txt" "$artifact_copy/SHA256SUMS" "$temporary/release-assets/"
+  install -o root -g root -m 0600 "$artifact_copy/release.env" "$temporary/candidate.env"
+  chown -R root:root "$temporary"
+  chmod -R go-w "$temporary"
+  chmod 0755 "$temporary"
+  mv -- "$temporary" "$target"
+  temporary=''
+else
+  cmp -s "$artifact_copy/release.env" "$target/release-assets/release.env" || {
+    echo 'Release existente diverge do manifesto publicado.' >&2
+    exit 1
+  }
+  install -o root -g root -m 0600 "$artifact_copy/release.env" "$target/candidate.env"
+fi
+
+echo 'Etapa Actions: executar deploy.sh versionado.'
+bash "$target/scripts/production/deploy.sh" --confirm-deploy "$target/candidate.env"
+
+# Reassuma o lock do deploy antes dos pointers. Se um operador iniciou outra
+# release no pequeno intervalo, não promova pointers incompatíveis.
+exec 9>"$releases_root/deploy.lock"
+flock -n 9 || {
+  echo 'Deploy concluiu, mas outro deploy iniciou antes da promoção dos pointers; revisão manual obrigatória.' >&2
+  exit 1
+}
+cmp -s "$target/candidate.env" "$releases_root/current.env" || {
+  echo 'Manifesto current mudou antes da promoção dos pointers; revisão manual obrigatória.' >&2
+  exit 1
+}
+[[ "$(validate_pointer /opt/detara/current)" == "$old_current" ]] || {
+  echo 'Pointer current mudou concorrentemente; revisão manual obrigatória.' >&2
+  exit 1
+}
+if [[ -n "$old_current" && "$old_current" != "$target" ]]; then
+  previous_new="/opt/detara/.previous.$$.new"
+  ln -s -- "$old_current" "$previous_new"
+  mv -Tf -- "$previous_new" /opt/detara/previous
+fi
+current_new="/opt/detara/.current.$$.new"
+ln -s -- "$target" "$current_new"
+mv -Tf -- "$current_new" /opt/detara/current
+
+echo "Deploy automatizado aprovado para $sha."

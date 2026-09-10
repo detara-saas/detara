@@ -1,4 +1,4 @@
 # Ferramentas descartáveis para QA local; não integra nenhuma imagem de produção.
 FROM docker:cli@sha256:eccaacfeed644c7de222ff047483568cb988dde95476fbaaf10ea2d04921bb66
-RUN apk add --no-cache bash age openssl rclone gzip nodejs shellcheck
+RUN apk add --no-cache bash age openssl rclone gzip nodejs shellcheck coreutils findutils git sudo openssh-keygen util-linux tar shadow
 WORKDIR /repo
