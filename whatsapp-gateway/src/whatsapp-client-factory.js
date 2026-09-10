@@ -1,8 +1,31 @@
-import { rmSync } from 'node:fs';
+import { lstat, realpath } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import whatsappWeb from 'whatsapp-web.js';
 
+const require = createRequire(import.meta.url);
+// Use the exact Puppeteer resolved by whatsapp-web.js, including its pinned override.
+const puppeteer = createRequire(require.resolve('whatsapp-web.js'))('puppeteer');
+
 const { Client, LocalAuth } = whatsappWeb;
+
+// Upstream frame-navigation callbacks call logout/beforeBrowserInitialized outside
+// initialize(). They must not remove or recreate a profile after its client retires.
+class DetaraLocalAuth extends LocalAuth {
+  async beforeBrowserInitialized() {
+    if (this.client.stopping) return;
+    await super.beforeBrowserInitialized();
+  }
+
+  async logout() {
+    // A remote event or upstream Client.logout is not our physical-cleanup barrier.
+    // Persistent removal belongs only to explicit DELETE after browser exit.
+  }
+
+  async removeProfile() {
+    await super.logout();
+  }
+}
 
 export const injectionFailureEvent = 'detara_injection_failure';
 
@@ -64,9 +87,58 @@ class DetaraWhatsAppClient extends Client {
   constructor(options) {
     super(options);
     this.injectionCoordinator = new InjectionCoordinator();
+    this.stopping = false;
+  }
+
+  initialize() {
+    this.initializationTask ??= this.initializeOwnedBrowser();
+    return this.initializationTask;
+  }
+
+  async initializeOwnedBrowser() {
+    await validatedProfile(this.authStrategy.dataPath, this.authStrategy.clientId);
+    await this.authStrategy.beforeBrowserInitialized();
+    if (this.stopping) return;
+    const options = this.options.puppeteer;
+    this.launchPromise = puppeteer.launch({
+      ...options,
+      args: [...options.args, `--user-agent=${this.options.userAgent}`,
+        '--disable-blink-features=AutomationControlled'],
+    }).then((browser) => {
+      this.ownedBrowser = browser;
+      return browser;
+    });
+    const browser = await this.launchPromise;
+    if (this.stopping) return;
+    // Upstream connects to our browser instead of launching an untracked one.
+    // This creates a CDP connection/page, not another Chromium process/profile.
+    this.options.puppeteer = { ...options, browserWSEndpoint: browser.wsEndpoint() };
+    await super.initialize();
+  }
+
+  stopInitialization() {
+    this.stopping = true;
+  }
+
+  async removeLocalAuth() {
+    const strategy = this.authStrategy;
+    const directory = await validatedProfile(strategy.dataPath, strategy.clientId);
+    if (strategy.userDataDir && path.resolve(strategy.userDataDir) !== directory) {
+      throw new Error('Profile de sessão inválido.');
+    }
+    strategy.userDataDir = directory;
+    await strategy.removeProfile();
+    try {
+      await lstat(directory);
+    } catch (error) {
+      if (error.code === 'ENOENT') return;
+      throw error;
+    }
+    throw new Error('Profile de sessão não foi removido.');
   }
 
   inject() {
+    if (this.stopping) return Promise.resolve();
     return this.injectionCoordinator.run(this, () => super.inject());
   }
 }
@@ -78,9 +150,9 @@ export class WhatsAppClientFactory {
   }
 
   create(sessionKey) {
-    removeStaleChromiumLocks(this.sessionsPath, sessionKey);
+    validateSessionKey(sessionKey);
     return new DetaraWhatsAppClient({
-      authStrategy: new LocalAuth({
+      authStrategy: new DetaraLocalAuth({
         clientId: sessionKey,
         dataPath: this.sessionsPath,
       }),
@@ -128,17 +200,25 @@ async function recoverInjection(client, recovery) {
   });
 }
 
-export function removeStaleChromiumLocks(sessionsPath, sessionKey) {
+function validateSessionKey(sessionKey) {
   if (!/^tenant-[0-9a-f]{32}$/.test(sessionKey)) {
     throw new Error('Chave de sessão WhatsApp inválida.');
   }
-  const sessionDirectory = path.join(sessionsPath, `session-${sessionKey}`);
-  for (const fileName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
-    rmSync(path.join(sessionDirectory, fileName), {
-      force: true,
-      maxRetries: 2,
-      recursive: false,
-      retryDelay: 50,
-    });
+}
+
+async function validatedProfile(sessionsPath, sessionKey) {
+  validateSessionKey(sessionKey);
+  const root = path.resolve(sessionsPath);
+  const directory = path.join(root, `session-${sessionKey}`);
+  try {
+    const stat = await lstat(directory);
+    if (stat.isSymbolicLink()) throw new Error('Profile de sessão inválido.');
+    const resolvedRoot = await realpath(root);
+    if (path.dirname(await realpath(directory)) !== resolvedRoot) {
+      throw new Error('Profile fora da raiz de sessões.');
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
   }
+  return directory;
 }

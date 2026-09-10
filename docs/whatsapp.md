@@ -104,6 +104,12 @@ São registrados somente eventos e IDs técnicos de empresa: criação, QR gerad
 
 O gateway executa como usuário não root. A imagem usa Chromium do Debian, filesystem somente leitura em produção, capabilities removidas, `/tmp` temporário e volume gravável apenas para sessões. O override de Puppeteer deve acompanhar os testes de compatibilidade do `whatsapp-web.js`; execute `npm audit --omit=dev`, os testes Node e um vínculo real controlado a cada atualização.
 
+Os Composes habilitam `init: true` somente para coletar processos filhos do gateway. O teardown usa o handle do browser capturado antes do setup de páginas: tenta `Client.destroy()`, confirma a saída real, recorre a `Browser.close()` e, se necessário, a SIGTERM/SIGKILL exclusivamente do processo/grupo que ele próprio lançou. Não há busca global de PIDs nem remoção de locks na criação de uma sessão.
+
+A próxima geração aguarda o cleanup físico da anterior. Erros transitórios e shutdown preservam LocalAuth. DELETE explícito só conclui depois de encerrar o browser, remover o profile validado do tenant por `LocalAuth.logout()` e remover o registro/contexto. Uma falha final retorna HTTP 503 seguro, mantém o contexto para nova tentativa de DELETE e bloqueia reconexão. Timeout não cancela uma operação: logout/remoção pendentes continuam associados ao cliente antigo, sem liberar um profile para outra geração.
+
+Foi reproduzida uma incompatibilidade específica: Puppeteer 25.8 expõe `browser.connected`, mas não `browser.isConnected()`. O `destroy()` upstream 1.34.7 pode ignorar o fechamento, e `logout()` lança `TypeError` antes de chegar ao LocalAuth. O adapter verifica ambos os formatos e realiza cleanup independente, mantendo os pins. Isso não equivale a afirmar compatibilidade integral do upstream com o override; consulte a [evidência e os limites do hotfix](qa-whatsapp-browser-cleanup.md).
+
 Matriz verificada no hotfix de 2026-09-09:
 
 | Componente | Versão/valor | Decisão |
