@@ -43,6 +43,7 @@ services:
     restart: unless-stopped
 
   whatsapp-gateway:
+    init: true
     build:
       context: .
       dockerfile: whatsapp-gateway/Dockerfile

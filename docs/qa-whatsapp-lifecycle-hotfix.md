@@ -2,6 +2,8 @@
 
 Data da validação local: 2026-09-09.
 
+> Registro histórico do PR #54. A investigação posterior confirmou uma falha adicional de teardown na combinação instalada de Puppeteer/Client e em inicializações parciais. A afirmação de encerramento físico abaixo foi fortalecida por testes com Chromium real no [hotfix de cleanup](qa-whatsapp-browser-cleanup.md); os testes com doubles deste PR não comprovavam a saída do processo.
+
 ## Escopo e causa raiz
 
 O hotfix trata exclusivamente o gateway Node e sua documentação. Não altera API/contratos .NET, domínio, frontend, banco, migrations, permissões ou o formato persistido da sessão.

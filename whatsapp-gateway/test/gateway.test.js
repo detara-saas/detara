@@ -12,7 +12,7 @@ import { SessionRegistry } from '../src/session-registry.js';
 import { createLogger } from '../src/logger.js';
 import {
   injectionFailureEvent,
-  removeStaleChromiumLocks,
+  WhatsAppClientFactory,
 } from '../src/whatsapp-client-factory.js';
 
 const apiKey = 'gateway-test-key-with-at-least-32-characters';
@@ -36,6 +36,28 @@ test('gateway rejeita EmpresaId inválido', async () => {
     tenantId: 'invalida',
   });
   assert.equal(response.status, 400);
+});
+
+test('DELETE com cleanup falhado retorna HTTP 503 seguro e preserva outro tenant', async () => {
+  const harness = await createHarness({
+    initialize: (client) => queueMicrotask(() => client.emit('ready')),
+  });
+  await harness.service.connect(empresaA);
+  await harness.service.connect(empresaB);
+  harness.factory.forTenant(empresaA).removeLocalAuth = async () => {
+    throw new Error('/private/session-sensitive');
+  };
+  const mismatch = await harness.request(`/sessions/${empresaB}`, { method: 'DELETE' });
+  assert.equal(mismatch.status, 403);
+  const response = await harness.request(`/sessions/${empresaA}`, { method: 'DELETE' });
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.equal(body.success, false);
+  assert.equal(body.code, 'whatsapp_cleanup_pendente');
+  assert.ok(body.traceId);
+  assert.doesNotMatch(JSON.stringify(body), /private|sensitive|stack/i);
+  assert.ok(harness.service.registry.get(empresaA));
+  assert.equal((await harness.service.getStatus(empresaB)).status, 'Connected');
 });
 
 test('sessões A e B usam clientes e QR Codes isolados', async () => {
@@ -281,7 +303,7 @@ test('logger remove QR, telefone, mensagem e token dos metadados', () => {
   assert.equal(entry.token, undefined);
 });
 
-test('preparação do perfil remove somente locks temporários do Chromium', async () => {
+test('factory preserva locks do Chromium e dados do profile existente', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'detara-whatsapp-locks-'));
   cleanups.push(() => rm(root, { recursive: true, force: true }));
   const sessionKey = `tenant-${empresaA.replaceAll('-', '')}`;
@@ -294,11 +316,11 @@ test('preparação do perfil remove somente locks temporários do Chromium', asy
     writeFile(path.join(sessionDirectory, 'Default'), 'preservar'),
   ]);
 
-  removeStaleChromiumLocks(root, sessionKey);
+  new WhatsAppClientFactory({ sessionsPath: root }).create(sessionKey);
 
-  await assert.rejects(access(path.join(sessionDirectory, 'SingletonLock')));
-  await assert.rejects(access(path.join(sessionDirectory, 'SingletonSocket')));
-  await assert.rejects(access(path.join(sessionDirectory, 'SingletonCookie')));
+  await access(path.join(sessionDirectory, 'SingletonLock'));
+  await access(path.join(sessionDirectory, 'SingletonSocket'));
+  await access(path.join(sessionDirectory, 'SingletonCookie'));
   await access(path.join(sessionDirectory, 'Default'));
 });
 

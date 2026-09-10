@@ -23,6 +23,7 @@ for (const [name, s] of Object.entries(c.services)) {
 assert.deepEqual(c.services['reverse-proxy'].ports.map(p => p.published).sort(), ['443', '80']);
 assert.equal(c.services.sqlserver.environment.MSSQL_PID, 'Express');
 assert.equal(c.services.api.depends_on['whatsapp-gateway'], undefined);
+assert.equal(c.services['whatsapp-gateway'].init, true);
 assert.equal(c.networks.data.internal, true);
 assert.equal(c.services.api.environment.ASPNETCORE_ENVIRONMENT, 'Production');
 assert.equal(c.services.api.secrets[0].target, 'detara-data-protection.pfx');

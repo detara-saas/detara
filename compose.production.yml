@@ -138,6 +138,7 @@ services:
 
   whatsapp-gateway:
     image: ${DETARA_WHATSAPP_GATEWAY_IMAGE:?Informe a imagem imutável do gateway WhatsApp}
+    init: true
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

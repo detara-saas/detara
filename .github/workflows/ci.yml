@@ -94,3 +94,10 @@ jobs:
         run: |
           docker build --file whatsapp-gateway/Dockerfile --tag detara-whatsapp-gateway:ci .
           docker build --file deploy/Dockerfile.migrations --tag detara-migrations:ci .
+      - name: Cleanup real Chromium sem rede externa
+        run: >-
+          docker run --rm --init --network none --read-only
+          --tmpfs /tmp:rw,nosuid,size=512m
+          -v "$PWD/whatsapp-gateway/qa:/app/qa:ro"
+          detara-whatsapp-gateway:ci
+          node --unhandled-rejections=strict --test qa/chromium-cleanup.mjs

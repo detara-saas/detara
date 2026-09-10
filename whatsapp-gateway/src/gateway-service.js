@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ConflictError } from './errors.js';
 import { createSessionKey } from './session-registry.js';
 import { injectionFailureEvent } from './whatsapp-client-factory.js';
+import { cleanupClient, cleanupError } from './client-cleanup.js';
 
 const disconnectedStatus = Object.freeze({
   status: 'Disconnected',
@@ -20,6 +21,7 @@ export class WhatsAppGatewayService {
     deliveryStore,
     logger,
     connectWaitMs,
+    cleanupTimeoutMs = 5_000,
     now = () => new Date().toISOString(),
   }) {
     this.clientFactory = clientFactory;
@@ -28,10 +30,12 @@ export class WhatsAppGatewayService {
     this.deliveryStore = deliveryStore;
     this.logger = logger;
     this.connectWaitMs = connectWaitMs;
+    this.cleanupTimeoutMs = cleanupTimeoutMs;
     this.now = now;
     this.contexts = new Map();
     this.pendingEvents = new Set();
-    this.destroyedClients = new WeakSet();
+    this.clientCleanups = new WeakMap();
+    this.tenantOperations = new Map();
   }
 
   async start() {
@@ -49,6 +53,15 @@ export class WhatsAppGatewayService {
   }
 
   async connect(empresaId) {
+    const context = await this.withTenant(empresaId, () => this.beginConnect(empresaId));
+    if (!['Connecting', 'Reconnecting'].includes(context.metadata.status)) {
+      return this.toPublicStatus(context);
+    }
+    await this.waitForStatus(context);
+    return this.toPublicStatus(context);
+  }
+
+  async beginConnect(empresaId) {
     let metadata = this.registry.get(empresaId);
     if (!metadata) {
       const timestamp = this.now();
@@ -66,12 +79,13 @@ export class WhatsAppGatewayService {
     }
 
     const context = this.ensureContext(empresaId, metadata);
+    if (context.closing) throw cleanupError();
     if (context.metadata.status === 'Connected') {
-      return this.toPublicStatus(context);
+      return context;
     }
 
     if (context.metadata.status === 'WaitingQRCode') {
-      return this.toPublicStatus(context);
+      return context;
     }
 
     const client = context.client;
@@ -86,29 +100,44 @@ export class WhatsAppGatewayService {
         generation,
       );
     }
-    const statusChanged = this.waitForStatus(context);
     void this.initialize(context);
-    await statusChanged;
-    return this.toPublicStatus(context);
+    return context;
   }
 
-  async disconnect(empresaId) {
-    const context = this.contexts.get(empresaId);
+  disconnect(empresaId) {
+    return this.withTenant(empresaId, () => this.disconnectSession(empresaId));
+  }
+
+  async disconnectSession(empresaId) {
+    let context = this.contexts.get(empresaId);
+    const metadata = this.registry.get(empresaId);
+    if (!context && metadata) context = this.ensureContext(empresaId, metadata);
     if (context) {
       context.closing = true;
-      this.contexts.delete(empresaId);
       this.settleInitialization(context);
       this.resolveWaiters(context);
-      const client = context.client;
-      context.client = null;
       context.generation += 1;
       this.unbindEvents(context);
-      await context.cleanupPromise;
-      if (client) {
+      try {
+        await context.statusPromise;
+        // A failed teardown retains its handle and can be retried by explicit DELETE.
+        await context.cleanupPromise.catch(() => {});
+        const client = context.retiringClient ?? context.client
+          ?? this.clientFactory.create(context.metadata.sessionKey);
+        context.retiringClient = client;
         await this.destroyClient(client, empresaId, true);
+      } catch (error) {
+        context.metadata = await this.registry.upsert({
+          ...context.metadata, status: 'Error', updatedAt: this.now(),
+        });
+        this.logger.error('Falha definitiva no cleanup WhatsApp.', {
+          empresaId, errorType: error?.name ?? 'Error',
+        });
+        throw cleanupError();
       }
     }
     await this.registry.remove(empresaId);
+    this.contexts.delete(empresaId);
     this.logger.info('Sessão WhatsApp desconectada por solicitação.', { empresaId });
     return disconnectedStatus;
   }
@@ -191,6 +220,7 @@ export class WhatsAppGatewayService {
   }
 
   async shutdown() {
+    await Promise.allSettled([...this.tenantOperations.values()]);
     const contexts = [...this.contexts.values()];
     for (const context of contexts) {
       context.closing = true;
@@ -200,9 +230,10 @@ export class WhatsAppGatewayService {
       this.unbindEvents(context);
     }
     await Promise.allSettled(contexts.map(async (context) => {
-      await context.cleanupPromise;
-      if (context.client) {
-        await this.destroyClient(context.client, context.empresaId, false);
+      await context.cleanupPromise.catch(() => {});
+      const client = context.retiringClient ?? context.client;
+      if (client) {
+        await this.destroyClient(client, context.empresaId, false);
       }
     }));
     await Promise.allSettled([...this.pendingEvents]);
@@ -224,6 +255,7 @@ export class WhatsAppGatewayService {
       initializationPromise: null,
       settleInitialization: null,
       cleanupPromise: Promise.resolve(),
+      retiringClient: null,
       statusPromise: Promise.resolve(),
       listeners: [],
       waiters: new Set(),
@@ -378,6 +410,9 @@ export class WhatsAppGatewayService {
   }
 
   initialize(context) {
+    if (context.closing || context.metadata.status === 'Connected') {
+      return Promise.resolve();
+    }
     if (context.initializationPromise) {
       return context.initializationPromise;
     }
@@ -497,36 +532,42 @@ export class WhatsAppGatewayService {
   async retireClient(context, client, generation) {
     if (!this.isCurrent(context, client, generation)) return;
     context.client = null;
+    context.retiringClient = client;
     context.generation += 1;
     context.authenticated = false;
     this.settleInitialization(context);
     this.unbindEvents(context, client);
-    context.cleanupPromise = context.cleanupPromise.then(() =>
-      this.destroyClient(client, context.empresaId, false));
+    context.cleanupPromise = context.cleanupPromise.then(async () => {
+      await this.destroyClient(client, context.empresaId, false);
+      context.retiringClient = null;
+    });
     await context.cleanupPromise;
   }
 
   async destroyClient(client, empresaId, logout) {
-    if (this.destroyedClients.has(client)) return;
-    this.destroyedClients.add(client);
-    if (logout) {
-      try {
-        await client.logout();
-      } catch (error) {
-        this.logger.warn('Falha ao encerrar sessão no cliente WhatsApp.', {
-          empresaId,
-          errorType: error?.name ?? 'Error',
-        });
-      }
-    }
+    const previous = this.clientCleanups.get(client);
+    if (previous) await previous.catch(() => {});
+    const pending = cleanupClient(client, {
+      empresaId, logout, logger: this.logger, timeoutMs: this.cleanupTimeoutMs,
+    });
+    this.clientCleanups.set(client, pending);
     try {
-      await client.destroy();
-    } catch (error) {
-      this.logger.warn('Falha ao destruir cliente WhatsApp.', {
-        empresaId,
-        errorType: error?.name ?? 'Error',
-      });
+      await pending;
+    } finally {
+      if (this.clientCleanups.get(client) === pending) this.clientCleanups.delete(client);
     }
+  }
+
+  withTenant(empresaId, action) {
+    const previous = this.tenantOperations.get(empresaId) ?? Promise.resolve();
+    const operation = previous.catch(() => {}).then(action);
+    this.tenantOperations.set(empresaId, operation);
+    void operation.finally(() => {
+      if (this.tenantOperations.get(empresaId) === operation) {
+        this.tenantOperations.delete(empresaId);
+      }
+    }).catch(() => {});
+    return operation;
   }
 
   unbindEvents(context, targetClient = undefined) {
