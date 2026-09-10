@@ -2,6 +2,7 @@ import { lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import whatsappWeb from 'whatsapp-web.js';
+import { PostAuthCoordinator } from './post-auth.js';
 
 const require = createRequire(import.meta.url);
 // Use the exact Puppeteer resolved by whatsapp-web.js, including its pinned override.
@@ -88,6 +89,8 @@ class DetaraWhatsAppClient extends Client {
     super(options);
     this.injectionCoordinator = new InjectionCoordinator();
     this.stopping = false;
+    this.postAuth = new PostAuthCoordinator(this, (error) => this.emit(injectionFailureEvent, error));
+    this.postAuthPage = null;
   }
 
   initialize() {
@@ -118,6 +121,13 @@ class DetaraWhatsAppClient extends Client {
 
   stopInitialization() {
     this.stopping = true;
+    this.postAuth.stop();
+  }
+
+  async initWebVersionCache() {
+    // With caching disabled there is no reason to retain first-party HTML or
+    // install upstream's unawaited async response.text() listener.
+    if (this.options.webVersionCache.type !== 'none') await super.initWebVersionCache();
   }
 
   async removeLocalAuth() {
@@ -139,7 +149,16 @@ class DetaraWhatsAppClient extends Client {
 
   inject() {
     if (this.stopping) return Promise.resolve();
-    return this.injectionCoordinator.run(this, () => super.inject());
+    return this.injectionCoordinator.run(this, async () => {
+      // Collision recovery may have removed this binding on the same Page.
+      // Reinstall our boundary before upstream can register its unguarded one.
+      if (this.postAuthPage !== this.pupPage || !await this.pupPage.evaluate(
+        () => typeof window.onAppStateHasSyncedEvent === 'function')) {
+        await this.pupPage.exposeFunction('onAppStateHasSyncedEvent', () => this.postAuth.run());
+        this.postAuthPage = this.pupPage;
+      }
+      await super.inject();
+    });
   }
 }
 
@@ -152,6 +171,8 @@ export class WhatsAppClientFactory {
   create(sessionKey) {
     validateSessionKey(sessionKey);
     return new DetaraWhatsAppClient({
+      // First-party HTML only; the upstream local cache writes to read-only /app.
+      webVersionCache: { type: 'none' },
       authStrategy: new DetaraLocalAuth({
         clientId: sessionKey,
         dataPath: this.sessionsPath,

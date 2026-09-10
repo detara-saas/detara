@@ -3,6 +3,7 @@ import { ConflictError } from './errors.js';
 import { createSessionKey } from './session-registry.js';
 import { injectionFailureEvent } from './whatsapp-client-factory.js';
 import { cleanupClient, cleanupError } from './client-cleanup.js';
+import { postAuthStageEvent } from './post-auth.js';
 
 const disconnectedStatus = Object.freeze({
   status: 'Disconnected',
@@ -286,6 +287,13 @@ export class WhatsAppGatewayService {
       context.listeners.push({ client, event, listener });
     };
 
+    on(postAuthStageEvent, (stage) => {
+      if (!this.isCurrent(context, client, generation)) return;
+      this.logger.info('Preparação pós-autenticação WhatsApp.', {
+        empresaId: context.empresaId, stage,
+      });
+    });
+
     on('qr', (qr) => this.trackClientEvent(context, client, generation, async () => {
       try {
         const qrCode = await this.qrEncoder(qr, {
@@ -400,9 +408,12 @@ export class WhatsAppGatewayService {
           generation,
         );
         if (!updated) return;
-        this.logger.error('Falha durante a reinjeção WhatsApp; cliente será descartado.', {
+        this.logger.error(error?.postAuthStage
+          ? 'Falha na preparação pós-autenticação WhatsApp; cliente será descartado.'
+          : 'Falha durante a reinjeção WhatsApp; cliente será descartado.', {
           empresaId: context.empresaId,
           errorType: error?.name ?? 'Error',
+          stage: error?.postAuthStage,
         });
         await this.retireClient(context, client, generation);
       },
