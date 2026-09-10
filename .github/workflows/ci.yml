@@ -80,7 +80,13 @@ jobs:
         run: |
           docker run --rm --network none -v "$PWD:/repo:ro" detara-production-tools:ci bash scripts/production/tests/safety-fixture.sh
           docker run --rm --network none -v "$PWD:/repo:ro" detara-production-tools:ci bash scripts/production/automation/tests/safety-fixture.sh
-          docker run --rm --network none -v "$PWD:/repo:ro" detara-production-tools:ci bash scripts/production/automation/tests/wrapper-fixture.sh
+          docker run --rm --network none \
+            -e GIT_CONFIG_COUNT=1 \
+            -e GIT_CONFIG_KEY_0=safe.directory \
+            -e GIT_CONFIG_VALUE_0=/repo \
+            -v "$PWD:/repo:ro" \
+            detara-production-tools:ci \
+            bash scripts/production/automation/tests/wrapper-fixture.sh
       - name: Validar Caddyfile
         run: >-
           docker run --rm
