@@ -129,6 +129,18 @@ Na versão atual, `whatsapp-web.js` ainda traz `fluent-ffmpeg` e `glob` como dep
 
 ## Validação
 
+### Preparação pós-autenticação (Task 55.1)
+
+O gateway desabilita somente o **cache HTML** via `webVersionCache.type=none`: carrega HTML first-party e não escreve `.wwebjs_cache` em `/app` read-only. Isso não desabilita LocalAuth nem sua persistência no volume de sessões. Foi reproduzida uma falha em `LocalWebCache.persist`, anterior a LoadUtils, que deixava authenticated sem WWebJS/ready; a rejeição do callback exposto não chegava ao initialize já resolvido.
+
+O adapter envolve apenas esse callback pós-auth, reutilizando LoadUtils, ClientInfo e listeners upstream. Há single-flight por cliente, deduplicação por documento, verificação de contexto entre awaits e deadline terminal de 30s. Uma única recuperação antes de listeners pode usar o novo contexto no mesmo browser; falha de listeners/contexto posterior aposenta a geração com cleanup existente e preserva LocalAuth. Stop/timeout bloqueiam ready tardio. Navegação após ready exige preparar os listeners do novo documento novamente.
+
+O caminho observável é `POST_AUTH_STARTED` → `POST_AUTH_CACHE_SKIPPED` → `POST_AUTH_LOAD_UTILS_STARTED/DONE` → `POST_AUTH_WWEBJS_READY` → `POST_AUTH_CLIENT_INFO_DONE` → `POST_AUTH_LISTENERS_STARTED/DONE` → `READY_EMITTED` → Connected. Erros incluem somente `stage`, `errorType` limitado e ID técnico de empresa. Socket CONNECTED, hasSynced ou progresso 100 não substituem WWebJS e listeners operacionais. Nenhum QR, telefone, WID ou conteúdo de página é registrado.
+
+Não houve alteração de versões, UA, browser, recursos ou regras de envio. Os testes isolados com Chromium real não substituem vínculo e envio reais autorizados. Consulte [investigação, matriz A/B/C, resultados e checklist pós-release](qa-whatsapp-post-auth-ready.md). Ao atualizar WWebJS, revisar o adapter vinculado ao fluxo de 1.34.7; não carregar HTML antigo de terceiros como workaround.
+
+### Comandos locais
+
 ```powershell
 Set-Location whatsapp-gateway
 npm ci

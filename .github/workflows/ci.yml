@@ -100,4 +100,5 @@ jobs:
           --tmpfs /tmp:rw,nosuid,size=512m
           -v "$PWD/whatsapp-gateway/qa:/app/qa:ro"
           detara-whatsapp-gateway:ci
-          node --unhandled-rejections=strict --test qa/chromium-cleanup.mjs
+          node --unhandled-rejections=strict --test --test-concurrency=1
+          qa/chromium-cleanup.mjs qa/post-auth-mechanics.mjs qa/post-auth-adapter.mjs

@@ -1,0 +1,10 @@
+# Isolated investigation only. Does not change the product dependency graph/image.
+FROM detara-whatsapp-gateway:cleanup
+USER root
+ENV PUPPETEER_CACHE_DIR=/opt/cft PUPPETEER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
+RUN npm install --prefix /matrix --ignore-scripts --no-audit --no-fund puppeteer@24.38.0 whatsapp-web.js@1.34.7 \
+    && cd /matrix && node node_modules/puppeteer/install.mjs \
+    && chmod -R a+rX /matrix /opt/cft
+USER node
+ENV QA_PACKAGE_ROOT=/matrix/package.json \
+    QA_BROWSER=/opt/cft/chrome/linux-146.0.7680.31/chrome-linux64/chrome
