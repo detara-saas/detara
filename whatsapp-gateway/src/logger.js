@@ -2,6 +2,8 @@ const allowedMetadata = new Set([
   'empresaId',
   'stage',
   'errorType',
+  'errorMessage',
+  'file',
   'requestId',
   'method',
   'path',

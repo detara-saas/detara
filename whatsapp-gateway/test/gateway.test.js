@@ -415,6 +415,7 @@ test('authenticated duplicado não antecipa ready nem repete log', async () => {
 
 test('falha síncrona de initialize é controlada e próxima conexão usa cliente novo', async () => {
   let attempts = 0;
+  const errors = [];
   const harness = await createHarness({
     initialize: (client) => {
       attempts += 1;
@@ -425,6 +426,11 @@ test('falha síncrona de initialize é controlada e próxima conexão usa client
       }
       queueMicrotask(() => client.emit('ready'));
     },
+    logger: {
+      info() {},
+      warn() {},
+      error: (message, metadata) => errors.push({ message, metadata }),
+    },
   });
 
   const first = await harness.request(`/sessions/${empresaA}/connect`, {
@@ -434,6 +440,12 @@ test('falha síncrona de initialize é controlada e próxima conexão usa client
   assert.equal((await first.json()).status, 'Error');
   const firstClient = harness.factory.historyForTenant(empresaA)[0];
   assert.equal(firstClient.destroyCount, 1);
+  assert.ok(errors.some((entry) =>
+    entry.message === 'Falha ao inicializar sessão WhatsApp.'
+    && entry.metadata.stage === 'CLIENT_INITIALIZE'
+    && entry.metadata.errorType === 'Error'
+    && entry.metadata.errorMessage === 'WhatsApp client initialization failed.'));
+  assert.doesNotMatch(JSON.stringify(errors), /Execution context was destroyed/);
 
   const second = await harness.request(`/sessions/${empresaA}/connect`, {
     method: 'POST',
