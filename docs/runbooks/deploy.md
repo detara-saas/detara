@@ -10,6 +10,10 @@ Configurar variável pública GitHub `DETARA_API_ORIGIN` antes do primeiro build
 
 GitHub usa GITHUB_TOKEN packages:write apenas no job de publicação. Host usa credencial read:packages dedicada via docker login --password-stdin (sem token na linha). Runtime secrets ficam no host/cofre, não no GitHub.
 
+## Deploy manual e automação opcional
+
+O caminho manual abaixo permanece autoritativo. A OPS-01 acrescenta somente um workflow `workflow_dispatch` que prepara a release exata e chama o mesmo `deploy.sh` por um wrapper root-owned. Merge/push em `main` **não implanta produção**. Bootstrap, Environment, segurança SSH e primeiro uso estão em [Deploy de produção pelo GitHub Actions](../production-deploy-github-actions.md).
+
 ## Usuário e diretórios
 
 Estrutura recomendada:
@@ -20,7 +24,7 @@ Estrutura recomendada:
 - /etc/detara/data-protection.pfx : root:1654 0640;
 - staging/sessões conforme production.md.
 
-Criar futuramente detaradeploy somente por operador. **Grupo docker equivale a root**; não chamá-lo de usuário limitado. Nesta V1 não há SSH automático: operador autorizado executa scripts via sudo, revisando o checkout antes. Se automatizar SSH depois, usar chave dedicada, host key pinada, environment approval e wrapper root-owned que valide releases; não conceder sudo irrestrito nem acesso de escrita ao script executado como root. Não reutilizar chave pessoal.
+`detaradeploy` é criado somente pelo bootstrap manual da OPS-01. **Grupo docker equivale a root** e permanece proibido. O usuário usa chave dedicada/restrita, host key pinada, aprovação do Environment e sudo apenas para o wrapper validador; não possui escrita em `/opt/detara` nem no script executado como root. Não reutilizar chave pessoal.
 
 ## Primeiro provisionamento (somente depois do checklist)
 

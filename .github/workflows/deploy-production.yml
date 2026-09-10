@@ -1,0 +1,162 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full 40-character commit SHA from the approved main history
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  packages: read
+
+concurrency:
+  group: detara-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy immutable release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: production
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      DEPLOYMENT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout approved main history
+        # actions/checkout v5.0.0
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release eligibility
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Release validation' > .deploy-stage
+          [[ "$GITHUB_REF" == refs/heads/main ]] || {
+            echo 'Production deploy workflow must be dispatched from main.' >&2
+            exit 1
+          }
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be 40 lowercase hexadecimal characters.' >&2; exit 2; }
+          git fetch --quiet --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          git cat-file -e "$RELEASE_SHA^{commit}"
+          git merge-base --is-ancestor "$RELEASE_SHA" refs/remotes/origin/main || {
+            echo 'Requested release is not in the approved main history.' >&2
+            exit 1
+          }
+          git checkout --quiet --detach "$RELEASE_SHA"
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]]
+          printf 'Release eligible: %s\n' "$RELEASE_SHA"
+
+      - name: Download and validate published production artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Artifact validation' > .deploy-stage
+          run_id="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/$GITHUB_REPOSITORY/actions/workflows/release.yml/runs?head_sha=$RELEASE_SHA&status=success&per_page=100" \
+            --jq '[.workflow_runs[] | select(.event == "workflow_run" and .conclusion == "success")] | sort_by(.run_number) | last | .id // empty')"
+          [[ "$run_id" =~ ^[0-9]+$ ]] || {
+            echo 'No successful Production images run exists for this SHA.' >&2
+            exit 1
+          }
+          mkdir release-artifact
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+            --name "production-release-$RELEASE_SHA" --dir release-artifact
+          cleanup_registry() {
+            docker logout ghcr.io >/dev/null 2>&1 || : # Best-effort runner credential cleanup only.
+          }
+          trap cleanup_registry EXIT
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          bash scripts/production/automation/verify-release-images.sh full-artifact release-artifact "$RELEASE_SHA"
+
+      - name: Configure pinned SSH identity
+        shell: bash
+        env:
+          PROD_SSH_HOST: ${{ vars.PROD_SSH_HOST }}
+          PROD_SSH_PORT: ${{ vars.PROD_SSH_PORT }}
+          PROD_SSH_USER: ${{ vars.PROD_SSH_USER }}
+          PROD_SSH_KNOWN_HOSTS: ${{ vars.PROD_SSH_KNOWN_HOSTS }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+        run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'SSH preparation' > .deploy-stage
+          [[ "$PROD_SSH_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]+$ ]] || { echo 'PROD_SSH_HOST is invalid.' >&2; exit 2; }
+          if [[ ! "$PROD_SSH_PORT" =~ ^[1-9][0-9]{0,4}$ ]] || (( 10#$PROD_SSH_PORT > 65535 )); then
+            echo 'PROD_SSH_PORT is invalid.' >&2; exit 2;
+          fi
+          [[ "$PROD_SSH_USER" == detaradeploy ]] || { echo 'PROD_SSH_USER must be detaradeploy.' >&2; exit 2; }
+          [[ -n "$PROD_SSH_KNOWN_HOSTS" && -n "$PROD_SSH_PRIVATE_KEY" ]] || { echo 'Pinned SSH configuration is incomplete.' >&2; exit 2; }
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/deploy_key" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/deploy_key" >/dev/null
+          ssh-keygen -l -f "$HOME/.ssh/known_hosts" >/dev/null
+          {
+            printf 'Host detara-production\n'
+            printf '  HostName %s\n' "$PROD_SSH_HOST"
+            printf '  Port %s\n' "$PROD_SSH_PORT"
+            printf '  User %s\n' "$PROD_SSH_USER"
+            printf '  IdentityFile %s/.ssh/deploy_key\n' "$HOME"
+            printf '  UserKnownHostsFile %s/.ssh/known_hosts\n' "$HOME"
+            printf '  StrictHostKeyChecking yes\n'
+            printf '  IdentitiesOnly yes\n'
+            printf '  BatchMode yes\n'
+            printf '  ConnectTimeout 15\n'
+          } > "$HOME/.ssh/config"
+          chmod 0600 "$HOME/.ssh/config"
+
+      - name: Transfer immutable release metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Remote release preparation' > .deploy-stage
+          # Inputs are strictly validated above; expansion on the runner is intentional.
+          # shellcheck disable=SC2029
+          ssh detara-production /usr/local/bin/detara-stage-release "$RELEASE_SHA" "$DEPLOYMENT_ID"
+          remote_stage="/var/lib/detara-deploy/incoming/$RELEASE_SHA-$DEPLOYMENT_ID"
+          scp -- \
+            release-artifact/public-api-origin.txt \
+            release-artifact/release.env \
+            "detara-production:$remote_stage/"
+
+      - name: Execute authoritative production deployment
+        id: production_deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Production deploy.sh' > .deploy-stage
+          ssh detara-production sudo -n /usr/local/sbin/detara-deploy-release "$RELEASE_SHA" "$DEPLOYMENT_ID"
+
+      - name: Write deployment summary
+        if: always()
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -Eeuo pipefail
+          if [[ -f .deploy-stage ]]; then stage="$(cat .deploy-stage)"; else stage='Workflow initialization'; fi
+          status=FAILED
+          if [[ "$JOB_STATUS" == success ]]; then status=SUCCESS; fi
+          {
+            printf '# Detara Production Deploy\n\n'
+            printf -- '- Status: **%s**\n' "$status"
+            printf -- "- Release SHA: \`%s\`\n" "$RELEASE_SHA"
+            printf -- "- Short SHA: \`%s\`\n" "${RELEASE_SHA:0:12}"
+            printf -- "- Target: \`production\`\n"
+            printf -- "- Last stage: \`%s\`\n" "$stage"
+            printf -- '- Workflow run: [open run](%s)\n' "$RUN_URL"
+            printf -- "- Completed (UTC): \`%s\`\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_STEP_SUMMARY"
