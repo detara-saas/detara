@@ -2,6 +2,7 @@ import { lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import whatsappWeb from 'whatsapp-web.js';
+import { cleanupStaleChromiumSingletons } from './chromium-profile.js';
 import { PostAuthCoordinator } from './post-auth.js';
 
 const require = createRequire(import.meta.url);
@@ -85,8 +86,9 @@ export class InjectionCoordinator {
 // v1.34.7 may call inject concurrently from its async frame navigation listener.
 // Keep the upstream package intact and contain that race at the client boundary.
 class DetaraWhatsAppClient extends Client {
-  constructor(options) {
+  constructor(options, profileLifecycle = {}) {
     super(options);
+    this.profileLifecycle = profileLifecycle;
     this.injectionCoordinator = new InjectionCoordinator();
     this.stopping = false;
     this.postAuth = new PostAuthCoordinator(this, (error) => this.emit(injectionFailureEvent, error));
@@ -99,8 +101,20 @@ class DetaraWhatsAppClient extends Client {
   }
 
   async initializeOwnedBrowser() {
-    await validatedProfile(this.authStrategy.dataPath, this.authStrategy.clientId);
+    const profileDirectory = await validatedProfile(
+      this.authStrategy.dataPath,
+      this.authStrategy.clientId,
+    );
     await this.authStrategy.beforeBrowserInitialized();
+    if (path.resolve(this.authStrategy.userDataDir) !== profileDirectory) {
+      throw new Error('Profile de sessão inválido.');
+    }
+    await cleanupStaleChromiumSingletons({
+      profileDirectory,
+      empresaId: this.profileLifecycle.empresaId,
+      logger: this.profileLifecycle.logger,
+      processRoot: this.profileLifecycle.processRoot,
+    });
     if (this.stopping) return;
     const options = this.options.puppeteer;
     this.launchPromise = puppeteer.launch({
@@ -163,12 +177,13 @@ class DetaraWhatsAppClient extends Client {
 }
 
 export class WhatsAppClientFactory {
-  constructor({ sessionsPath, chromiumExecutablePath }) {
+  constructor({ sessionsPath, chromiumExecutablePath, chromiumProcessRoot = '/proc' }) {
     this.sessionsPath = sessionsPath;
     this.chromiumExecutablePath = chromiumExecutablePath;
+    this.chromiumProcessRoot = chromiumProcessRoot;
   }
 
-  create(sessionKey) {
+  create(sessionKey, { empresaId, logger } = {}) {
     validateSessionKey(sessionKey);
     return new DetaraWhatsAppClient({
       // First-party HTML only; the upstream local cache writes to read-only /app.
@@ -187,6 +202,10 @@ export class WhatsAppClientFactory {
           '--disable-gpu',
         ],
       },
+    }, {
+      empresaId,
+      logger,
+      processRoot: this.chromiumProcessRoot,
     });
   }
 }

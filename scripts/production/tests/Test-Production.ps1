@@ -144,9 +144,29 @@ volumes:
     Compose @('up','-d','--wait','--wait-timeout','180','sqlserver') | Out-Null
     Assert ((Http 'api.detara.test' '/health/ready') -match '"status"\s*:\s*"healthy"') 'API recupera readiness após retorno do SQL.'
     Compose @('start','whatsapp-gateway') | Out-Null
-    Docker @('exec',"${project}-whatsapp-gateway-1",'node','-e',"require('node:fs').writeFileSync('/app/sessions/task49-sentinel','synthetic')") | Out-Null
+    $restoreEmpresa = '33333333-3333-4333-8333-333333333333'
+    $restoreSession = 'tenant-' + $restoreEmpresa.Replace('-','')
+    $restoreProfile = "/app/sessions/session-$restoreSession"
+    $restoreSetup = "const fs=require('node:fs');" +
+      "fs.mkdirSync('$restoreProfile/Default',{recursive:true});" +
+      "for(const file of ['SingletonLock','SingletonCookie','SingletonSocket']) fs.writeFileSync('$restoreProfile/'+file,'old-container-20');" +
+      "fs.writeFileSync('$restoreProfile/detara-restore-sentinel','local-auth-preservado');" +
+      "fs.writeFileSync('/app/sessions/deliveries.json',JSON.stringify({version:1,deliveries:[]}));" +
+      "fs.writeFileSync('/app/sessions/registry.json',JSON.stringify({version:1,sessions:[{id:'qa-restore',empresaId:'$restoreEmpresa',sessionKey:'$restoreSession',status:'Connected',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',lastConnectedAt:null,phoneNumber:null}]}));"
+    Docker @('exec',"${project}-whatsapp-gateway-1",'node','-e',$restoreSetup) | Out-Null
     Compose @('up','-d','--no-deps','--force-recreate','--wait','--wait-timeout','120','whatsapp-gateway','api','reverse-proxy') | Out-Null
-    Assert ((Docker @('exec',"${project}-whatsapp-gateway-1",'node','-e',"process.stdout.write(require('node:fs').readFileSync('/app/sessions/task49-sentinel','utf8'))")) -eq 'synthetic') 'Sessões preservadas no replacement; nenhum QR real utilizado.'
+    $gatewayLogs = ''
+    $restoreDeadline = [DateTime]::UtcNow.AddSeconds(15)
+    do {
+        $gatewayLogs = Docker @('logs',"${project}-whatsapp-gateway-1")
+        $singletonCleanupCount = [regex]::Matches($gatewayLogs, [regex]::Escape('Stale Chromium singleton removed.')).Count
+        if ($singletonCleanupCount -ge 3) { break }
+        Start-Sleep -Milliseconds 200
+    } while ([DateTime]::UtcNow -lt $restoreDeadline)
+    Assert ($singletonCleanupCount -eq 3) 'Container B remove somente os três singletons obsoletos do profile persistido.'
+    Assert ($gatewayLogs.Contains('Inicialização da sessão WhatsApp iniciada.')) 'Restore do LocalAuth prossegue para initialize após o cleanup.'
+    Assert ((Docker @('exec',"${project}-whatsapp-gateway-1",'node','-e',"process.stdout.write(require('node:fs').readFileSync('$restoreProfile/detara-restore-sentinel','utf8'))")) -eq 'local-auth-preservado') 'LocalAuth e arquivos não relacionados persistem após replacement.'
+    Assert ((Docker @('exec',"${project}-whatsapp-gateway-1",'node','-e',"for(const file of ['registry.json','deliveries.json']) require('node:fs').accessSync('/app/sessions/'+file);process.stdout.write('preserved')")) -eq 'preserved') 'Registry e deliveries permanecem preservados no volume.'
     Assert ((Http 'api.detara.test' '/health/ready') -match '"status"\s*:\s*"healthy"') 'API/Caddy recuperados após replacement.'
     Docker @('cp',"${project}-web-1:/usr/share/nginx/html",(Join-Path $temporary 'published')) | Out-Null
     & node "$repo/scripts/production/tests/published-assets.cjs" (Join-Path $temporary 'published')
@@ -154,7 +174,7 @@ volumes:
     Write-Host 'QA Production concluído. Nenhum envio real, DNS ou VPS utilizados.'
 }
 catch {
-    foreach ($service in @('api','web','reverse-proxy')) {
+    foreach ($service in @('api','web','reverse-proxy','whatsapp-gateway')) {
         $diagnostic = (& docker.exe logs --tail 30 "${project}-$service-1" 2>&1 | Out-String)
         foreach ($value in $values.Values) { if ($value.Length -ge 16) { $diagnostic = $diagnostic.Replace($value, '[REDACTED]') } }
         Write-Host "Diagnóstico sintético ${service}: $diagnostic"

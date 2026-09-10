@@ -273,7 +273,10 @@ export class WhatsAppGatewayService {
       return { client: null, generation: context.generation };
     }
     if (!context.client) {
-      context.client = this.clientFactory.create(context.metadata.sessionKey);
+      context.client = this.clientFactory.create(context.metadata.sessionKey, {
+        empresaId: context.empresaId,
+        logger: this.logger,
+      });
       context.generation += 1;
       context.authenticated = false;
       this.bindEvents(context, context.client, context.generation);
@@ -445,6 +448,7 @@ export class WhatsAppGatewayService {
   async runInitialization(context) {
     let client = null;
     let generation = context.generation;
+    let stage = 'CLIENT_CREATE';
     try {
       ({ client, generation } = await this.prepareClient(context));
       if (!client) {
@@ -454,6 +458,7 @@ export class WhatsAppGatewayService {
       this.logger.info('Inicialização da sessão WhatsApp iniciada.', {
         empresaId: context.empresaId,
       });
+      stage = 'CLIENT_INITIALIZE';
       await Promise.resolve().then(() => client.initialize());
     } catch (error) {
       if (!this.canUpdateStatus(context, client, generation)) return;
@@ -469,6 +474,8 @@ export class WhatsAppGatewayService {
       this.logger.error('Falha ao inicializar sessão WhatsApp.', {
         empresaId: context.empresaId,
         errorType: error?.name ?? 'Error',
+        errorMessage: describeInitializationFailure(error),
+        stage,
       });
       if (client) {
         await this.retireClient(context, client, generation);
@@ -665,4 +672,24 @@ function toPublicMetadata(metadata) {
     lastConnectedAt: metadata.lastConnectedAt,
     phoneNumber: metadata.phoneNumber ?? null,
   };
+}
+
+function describeInitializationFailure(error) {
+  const message = String(error?.message ?? '');
+  if (/singleton entry.*unexpected type/i.test(message)) {
+    return 'Chromium profile singleton entry has an unexpected type.';
+  }
+  if (/Singleton|profile.*(?:lock|use)|user-data-dir/i.test(message)) {
+    return 'Chromium profile is locked or already in use.';
+  }
+  if (/launch|browser process|chromium/i.test(message)) {
+    return 'Chromium browser launch failed.';
+  }
+  if (/EACCES|EPERM|permission/i.test(message)) {
+    return 'Chromium session resource access was denied.';
+  }
+  if (/ENOENT|not found/i.test(message)) {
+    return 'Required Chromium or session resource was not found.';
+  }
+  return 'WhatsApp client initialization failed.';
 }

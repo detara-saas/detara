@@ -1,6 +1,8 @@
 // Run inside the gateway image with --network none; no WhatsApp traffic or QR.
 import assert from 'node:assert/strict';
-import { access, mkdtemp, rm, readdir, readFile } from 'node:fs/promises';
+import {
+  access, lstat, mkdir, mkdtemp, rm, readdir, readFile, writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -9,6 +11,7 @@ import { cleanupClient } from '../src/client-cleanup.js';
 import { WhatsAppGatewayService } from '../src/gateway-service.js';
 import { SessionRegistry } from '../src/session-registry.js';
 import { DeliveryStore } from '../src/delivery-store.js';
+import { cleanupStaleChromiumSingletons } from '../src/chromium-profile.js';
 
 const empresaId = '11111111-1111-4111-8111-111111111111';
 const key = `tenant-${empresaId.replaceAll('-', '')}`;
@@ -22,8 +25,8 @@ async function fixture(t) {
   });
   const clients = [];
   const create = factory.create.bind(factory);
-  factory.create = (sessionKey) => {
-    const client = create(sessionKey);
+  factory.create = (sessionKey, context) => {
+    const client = create(sessionKey, context);
     clients.push(client);
     return client;
   };
@@ -42,8 +45,16 @@ function partial(factory) {
   return client;
 }
 
-test('Chromium real: falha antes de pupBrowser, cleanup preserva LocalAuth e logout remove', async (t) => {
+test('Chromium real: restore remove singletons obsoletos, preserva LocalAuth e respeita profile ativo', async (t) => {
   const { root, factory } = await fixture(t);
+  const profile = path.join(root, `session-${key}`);
+  await mkdir(profile, { recursive: true });
+  await Promise.all([
+    writeFile(path.join(profile, 'SingletonLock'), 'old-container-20'),
+    writeFile(path.join(profile, 'SingletonCookie'), 'stale-cookie'),
+    writeFile(path.join(profile, 'SingletonSocket'), 'stale-socket'),
+    writeFile(path.join(profile, 'detara-preserve.txt'), 'local-auth-preservado'),
+  ]);
   const client = partial(factory);
   t.after(() => cleanupClient(client, options));
   await assert.rejects(client.initialize());
@@ -51,7 +62,17 @@ test('Chromium real: falha antes de pupBrowser, cleanup preserva LocalAuth e log
   assert.ok(client.ownedBrowser);
   const child = client.ownedBrowser.process();
   assert.equal(child.exitCode, null);
-  const profile = path.join(root, `session-${key}`);
+  assert.equal(
+    await readFile(path.join(profile, 'detara-preserve.txt'), 'utf8'),
+    'local-auth-preservado',
+  );
+  const activeCleanup = await cleanupStaleChromiumSingletons({
+    profileDirectory: profile, empresaId, logger, processRoot: '/proc',
+  });
+  assert.equal(activeCleanup.skipped, 'active');
+  for (const file of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    await lstat(path.join(profile, file));
+  }
   const tree = await descendants(child.pid);
   assert.ok(tree.length > 1);
   await cleanupClient(client, options);
@@ -149,7 +170,8 @@ test('Chromium real: retry espera teardown físico; DELETE remove profile e regi
   assert.equal((await service.disconnect(empresaId)).status, 'Disconnected');
 });
 
-// Process inspection is test-only evidence, never the product cleanup mechanism.
+// The fixture independently verifies that the product's /proc inspection sees
+// the browser process and that teardown removes its complete process tree.
 async function descendants(parent) {
   const rows = [];
   for (const entry of await readdir('/proc')) {
