@@ -66,10 +66,74 @@ public sealed class HotfixUxApresentacaoTests
     }
 
     [Fact]
+    public void VisibilidadeAtual_OcultaOpcionalDesabilitado_MasNaoBloqueioObrigatorio()
+    {
+        var opcional = Ordem(
+            checklist: NivelExigenciaOperacionalContrato.Opcional,
+            entrada: NivelExigenciaOperacionalContrato.Opcional) with
+        {
+            ConfiguracaoOperacionalAtual = new(
+                NivelExigenciaOperacionalContrato.Desabilitado,
+                NivelExigenciaOperacionalContrato.Desabilitado,
+                NivelExigenciaOperacionalContrato.Desabilitado,
+                NivelExigenciaOperacionalContrato.Desabilitado)
+        };
+        var obrigatoria = opcional with
+        {
+            ChecklistEntradaSnapshot = NivelExigenciaOperacionalContrato.Obrigatorio,
+            FotosEntradaSnapshot = NivelExigenciaOperacionalContrato.Obrigatorio
+        };
+
+        Assert.False(OrdemServicoApresentacao.ChecklistHabilitado(opcional, null));
+        Assert.Empty(OrdemServicoApresentacao.CategoriasFotoHabilitadas(opcional, null));
+        Assert.True(OrdemServicoApresentacao.ChecklistHabilitado(obrigatoria, null));
+        Assert.Equal([CategoriaFotoOrdemServicoContrato.Entrada],
+            OrdemServicoApresentacao.CategoriasFotoHabilitadas(obrigatoria, null));
+    }
+
+    [Fact]
     public void Adicionais_EstaoDisponiveisComOrdemAberta()
     {
         Assert.True(OrdemServicoApresentacao.ExibirAdicionais(StatusOrdemServicoContrato.Aberta, 0));
         Assert.True(OrdemServicoApresentacao.PodeCriarAdicional(StatusOrdemServicoContrato.Aberta));
+    }
+
+    [Fact]
+    public void ProximaAcao_ExigeCheckInAntesDeIniciarExecucao()
+    {
+        var ordem = Ordem();
+
+        Assert.Equal(AcaoPrincipalOrdemServico.RealizarCheckIn,
+            OrdemServicoApresentacao.ProximaAcao(ordem));
+        Assert.Equal(AcaoPrincipalOrdemServico.IniciarExecucao,
+            OrdemServicoApresentacao.ProximaAcao(ordem with { CheckInEmUtc = DateTime.UtcNow }));
+    }
+
+    [Theory]
+    [InlineData(StatusOrdemServicoContrato.EmExecucao, AcaoPrincipalOrdemServico.FinalizarExecucao)]
+    [InlineData(StatusOrdemServicoContrato.AguardandoRetirada, AcaoPrincipalOrdemServico.ConfirmarEntrega)]
+    [InlineData(StatusOrdemServicoContrato.Concluida, AcaoPrincipalOrdemServico.Nenhuma)]
+    [InlineData(StatusOrdemServicoContrato.Cancelada, AcaoPrincipalOrdemServico.Nenhuma)]
+    public void ProximaAcao_RespeitaEstadoOperacional(
+        StatusOrdemServicoContrato status, AcaoPrincipalOrdemServico esperado) =>
+        Assert.Equal(esperado, OrdemServicoApresentacao.ProximaAcao(Ordem() with { Status = status }));
+
+    [Fact]
+    public void FotosDuranteESaida_AparecemSomenteNaExecucaoOuDepois()
+    {
+        var aberta = Ordem(durante: NivelExigenciaOperacionalContrato.Opcional,
+            saida: NivelExigenciaOperacionalContrato.Obrigatorio);
+
+        Assert.Empty(OrdemServicoApresentacao.CategoriasFotoParaEtapa(aberta, null));
+
+        var emExecucao = aberta with
+        {
+            Status = StatusOrdemServicoContrato.EmExecucao,
+            CheckInEmUtc = DateTime.UtcNow
+        };
+        Assert.Equal(
+            [CategoriaFotoOrdemServicoContrato.Durante, CategoriaFotoOrdemServicoContrato.Saida],
+            OrdemServicoApresentacao.CategoriasFotoParaEtapa(emExecucao, null));
     }
 
     [Fact]
@@ -87,6 +151,11 @@ public sealed class HotfixUxApresentacaoTests
         Assert.True(proximaAcao >= 0);
         Assert.True(comunicacao > proximaAcao);
         Assert.True(financeiro > comunicacao);
+
+        var componente = File.ReadAllText(Path.Combine(raiz, "src", "Detara.Web", "Components",
+            "Notificacoes", "OrdemServicoComunicacao.razor"));
+        Assert.DoesNotContain("Cliente ainda não comunicado. Você pode escolher um canal manualmente.",
+            componente);
     }
 
     [Fact]

@@ -35,16 +35,20 @@ public sealed class OrdemServicoTests
     }
 
     [Fact]
-    public void ChecklistObrigatorio_IncompletoBloqueiaInicio()
+    public void ChecklistObrigatorio_IncompletoBloqueiaCheckIn()
     {
         var ordem = Criar();
-        ordem.RealizarCheckIn(new(NivelExigenciaOperacional.Obrigatorio,
+        var configuracao = new ConfiguracaoCheckInSnapshot(NivelExigenciaOperacional.Obrigatorio,
             NivelExigenciaOperacional.Desabilitado, NivelExigenciaOperacional.Desabilitado,
-            "Entrada", ["Pintura", "Vidros"]), null, null, _usuarioId);
-        var primeiro = ordem.Checklist!.Itens.First();
-        ordem.AtualizarChecklist([new(primeiro.Id, RespostaChecklistOrdemServico.Conforme, null)]);
+            "Entrada", ["Pintura", "Vidros"]);
 
-        Assert.Throws<InvalidOperationException>(() => ordem.IniciarExecucao(_usuarioId, null));
+        var excecao = Assert.Throws<InvalidOperationException>(() => ordem.RealizarCheckIn(configuracao,
+            null, null, _usuarioId,
+            [new(1, RespostaChecklistOrdemServico.Conforme, null)]));
+
+        Assert.Equal("Responda todos os itens obrigatórios do checklist antes de realizar o check-in.",
+            excecao.Message);
+        Assert.Null(ordem.CheckInEmUtc);
     }
 
     [Fact]
@@ -53,9 +57,8 @@ public sealed class OrdemServicoTests
         var ordem = Criar();
         ordem.RealizarCheckIn(new(NivelExigenciaOperacional.Obrigatorio,
             NivelExigenciaOperacional.Desabilitado, NivelExigenciaOperacional.Desabilitado,
-            "Entrada", ["Pintura"]), null, null, _usuarioId);
-        var item = Assert.Single(ordem.Checklist!.Itens);
-        ordem.AtualizarChecklist([new(item.Id, RespostaChecklistOrdemServico.NaoConforme, "Risco lateral")]);
+            "Entrada", ["Pintura"]), null, null, _usuarioId,
+            [new(1, RespostaChecklistOrdemServico.NaoConforme, "Risco lateral")]);
 
         ordem.IniciarExecucao(_usuarioId, null);
 
@@ -63,15 +66,19 @@ public sealed class OrdemServicoTests
     }
 
     [Fact]
-    public void FotoEntradaObrigatoria_BloqueiaInicioAteAnexoValido()
+    public void FotoEntradaObrigatoria_BloqueiaCheckInAteAnexoValido()
     {
         var ordem = Criar();
-        ordem.RealizarCheckIn(new(NivelExigenciaOperacional.Desabilitado,
+        var configuracao = new ConfiguracaoCheckInSnapshot(NivelExigenciaOperacional.Desabilitado,
             NivelExigenciaOperacional.Obrigatorio, NivelExigenciaOperacional.Desabilitado,
-            null, []), null, null, _usuarioId);
-        Assert.Throws<InvalidOperationException>(() => ordem.IniciarExecucao(_usuarioId, null));
+            null, []);
 
+        Assert.Throws<InvalidOperationException>(() =>
+            ordem.RealizarCheckIn(configuracao, null, null, _usuarioId));
+
+        ordem.ValidarInclusaoFoto(CategoriaFotoOrdemServico.Entrada);
         ordem.AdicionarFoto(Foto(ordem, CategoriaFotoOrdemServico.Entrada));
+        ordem.RealizarCheckIn(configuracao, null, null, _usuarioId);
         ordem.IniciarExecucao(_usuarioId, null);
 
         Assert.Equal(StatusOrdemServico.EmExecucao, ordem.Status);
@@ -91,12 +98,12 @@ public sealed class OrdemServicoTests
     }
 
     [Fact]
-    public void CheckInObrigatorio_SemCheckIn_BloqueiaInicio()
+    public void SemCheckIn_SempreBloqueiaInicio()
     {
         var ordem = Criar();
 
         var excecao = Assert.Throws<InvalidOperationException>(() =>
-            ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: true));
+            ordem.IniciarExecucao(_usuarioId, null));
 
         Assert.Equal("Realize o check-in antes de iniciar a execução.", excecao.Message);
     }
@@ -112,19 +119,21 @@ public sealed class OrdemServicoTests
             null,
             []), null, null, _usuarioId);
 
-        ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: true);
+        ordem.IniciarExecucao(_usuarioId, null);
 
         Assert.Equal(StatusOrdemServico.EmExecucao, ordem.Status);
     }
 
     [Fact]
-    public void CheckInOpcional_SemCheckIn_PermiteInicio()
+    public void ConfiguracoesOpcionais_SemCheckIn_TambemBloqueiamInicio()
     {
         var ordem = Criar();
 
-        ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: false);
+        var excecao = Assert.Throws<InvalidOperationException>(() =>
+            ordem.IniciarExecucao(_usuarioId, null));
 
-        Assert.Equal(StatusOrdemServico.EmExecucao, ordem.Status);
+        Assert.Equal("Realize o check-in antes de iniciar a execução.", excecao.Message);
+        Assert.Equal(StatusOrdemServico.Aberta, ordem.Status);
         Assert.Null(ordem.CheckInEmUtc);
     }
 
@@ -139,7 +148,7 @@ public sealed class OrdemServicoTests
             "Entrada",
             ["Pintura"]), null, null, _usuarioId);
 
-        ordem.IniciarExecucao(_usuarioId, null, checkInObrigatorio: false);
+        ordem.IniciarExecucao(_usuarioId, null);
 
         Assert.Equal(StatusOrdemServico.EmExecucao, ordem.Status);
         Assert.NotNull(ordem.CheckInEmUtc);

@@ -19,12 +19,6 @@
                 <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span><small>ÚLTIMA COMUNICAÇÃO</small><strong>@DataComunicacao(ultimaComunicacao)</strong></span></span>
                 <span><MudIcon Icon="@Icons.Material.Outlined.PhoneAndroid" /><span><small>WHATSAPP DA EMPRESA</small><strong>@NomeStatusWhatsApp(SessaoWhatsApp?.Status)</strong></span></span>
             </div>
-            @if (ultimaComunicacao is null)
-            {
-                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="service-order-communication-alert">
-                    Cliente ainda não comunicado. Você pode escolher um canal manualmente.
-                </MudAlert>
-            }
             @if (string.IsNullOrWhiteSpace(Notificacao?.EmailDestinoAtual) &&
                 string.IsNullOrWhiteSpace(Notificacao?.WhatsAppDestinoAtual))
             {

@@ -39,7 +39,7 @@ public sealed class OrdensServicoCheckInPersistenciaTests : IAsyncLifetime
     public async Task DisposeAsync() => await _connection.DisposeAsync();
 
     [Fact]
-    public async Task ConfiguracaoOpcional_SemCheckIn_PermiteIniciarExecucao()
+    public async Task ConfiguracaoOpcional_SemCheckIn_RejeitaIniciarExecucao()
     {
         await using var context = Contexto();
         context.ConfiguracoesOperacionaisAtendimento.Add(new(
@@ -52,13 +52,12 @@ public sealed class OrdensServicoCheckInPersistenciaTests : IAsyncLifetime
         await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
 
-        var resultado = await CriarHandler(context).Handle(
-            new TransicaoOrdemServicoCommand(ordem.Id, null),
-            CancellationToken.None);
+        var excecao = await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() =>
+            CriarHandler(context).Handle(new TransicaoOrdemServicoCommand(ordem.Id, null),
+                CancellationToken.None));
 
-        Assert.Equal(StatusOrdemServico.EmExecucao, resultado.OrdemServico.Status);
-        Assert.Null(resultado.OrdemServico.CheckInEmUtc);
-        Assert.Equal(StatusAgendamento.Compareceu,
+        Assert.Equal("Realize o check-in antes de iniciar a execução.", excecao.Message);
+        Assert.Equal(StatusAgendamento.Agendado,
             (await context.Agendamentos.SingleAsync(item => item.Id == ordem.AgendamentoOrigemId)).Status);
     }
 
@@ -136,6 +135,14 @@ public sealed class OrdensServicoCheckInPersistenciaTests : IAsyncLifetime
         await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
 
+        var persistidaParaCheckIn = await context.OrdensServico.Include(item => item.Itens)
+            .Include(item => item.Historico).SingleAsync(item => item.Id == ordem.Id);
+        persistidaParaCheckIn.RealizarCheckIn(new(NivelExigenciaOperacional.Desabilitado,
+            NivelExigenciaOperacional.Opcional, NivelExigenciaOperacional.Opcional,
+            null, []), null, null, _usuarioId);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
         await CriarHandler(context).Handle(new(ordem.Id, null), default);
         Assert.Equal(StatusAgendamento.Compareceu,
             (await context.Agendamentos.SingleAsync(item => item.Id == ordem.AgendamentoOrigemId)).Status);
@@ -179,7 +186,6 @@ public sealed class OrdensServicoCheckInPersistenciaTests : IAsyncLifetime
         new UsuarioContextoTeste(_empresaId, _usuarioId),
         new OrdensServicoRepositorio(context),
         new PlataformaTeste(_empresaId),
-        new ConfiguracoesOperacionaisRepositorio(context),
         new AgendaAtendimentoIntegracao(context));
 
     private OrdemServico CriarOrdem(DetaraDbContext context)

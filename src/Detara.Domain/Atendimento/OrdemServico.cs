@@ -130,7 +130,8 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     }
 
     public void RealizarCheckIn(ConfiguracaoCheckInSnapshot configuracao, int? quilometragemEntrada,
-        string? observacaoEntrada, Guid usuarioId)
+        string? observacaoEntrada, Guid usuarioId,
+        IReadOnlyCollection<RespostaChecklistEntradaSnapshot>? respostasChecklist = null)
     {
         ExigirStatus(StatusOrdemServico.Aberta);
         if (CheckInEmUtc.HasValue) throw new InvalidOperationException("O check-in desta ordem de serviço já foi realizado.");
@@ -139,12 +140,32 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         FotosEntradaSnapshot ??= ValidarNivel(configuracao.FotosEntrada);
         FotosDuranteSnapshot ??= ValidarNivel(configuracao.FotosDurante);
         FotosSaidaSnapshot ??= ValidarNivel(configuracao.FotosSaida);
+        OrdemServicoChecklist? checklist = null;
         if (ChecklistEntradaSnapshot != NivelExigenciaOperacional.Desabilitado)
         {
             if (configuracao.ChecklistItens.Count == 0) throw new InvalidOperationException("O checklist habilitado não possui itens para o snapshot.");
-            Checklist = new OrdemServicoChecklist(EmpresaId, Id,
+            checklist = new OrdemServicoChecklist(EmpresaId, Id,
                 configuracao.ChecklistNome ?? ChecklistModelo.NomePadrao, configuracao.ChecklistItens);
+            var respostas = respostasChecklist ?? [];
+            if (respostas.GroupBy(item => item.Ordem).Any(grupo => grupo.Count() > 1) ||
+                respostas.Any(item => item.Ordem <= 0 || checklist.Itens.All(modelo => modelo.Ordem != item.Ordem)))
+                throw new InvalidOperationException("As respostas do checklist não correspondem aos itens de entrada.");
+            checklist.Atualizar(respostas
+                .Where(item => item.Resposta.HasValue)
+                .Select(item => new RespostaChecklistSnapshot(
+                    checklist.Itens.Single(modelo => modelo.Ordem == item.Ordem).Id,
+                    item.Resposta!.Value,
+                    item.Observacao))
+                .ToArray());
+            if (ChecklistEntradaSnapshot == NivelExigenciaOperacional.Obrigatorio && !checklist.EstaCompleto)
+                throw new InvalidOperationException("Responda todos os itens obrigatórios do checklist antes de realizar o check-in.");
         }
+        else if (respostasChecklist?.Count > 0)
+            throw new InvalidOperationException("Esta ordem de serviço não possui checklist de entrada habilitado.");
+        if (FotosEntradaSnapshot == NivelExigenciaOperacional.Obrigatorio &&
+            !_fotos.Any(foto => foto.Categoria == CategoriaFotoOrdemServico.Entrada))
+            throw new InvalidOperationException("Anexe ao menos uma foto de entrada antes de realizar o check-in.");
+        Checklist = checklist;
         QuilometragemEntrada = quilometragemEntrada;
         ObservacaoEntrada = NormalizarOpcional(observacaoEntrada, 2000);
         CheckInEmUtc = DateTime.UtcNow;
@@ -165,7 +186,6 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         ExigirMutavel();
         if (!Enum.IsDefined(categoria))
             throw new ArgumentException("A categoria da foto é inválida.", nameof(categoria));
-        if (!CheckInEmUtc.HasValue) throw new InvalidOperationException("Realize o check-in antes de anexar fotos à ordem de serviço.");
         if (categoria == CategoriaFotoOrdemServico.Entrada && Status != StatusOrdemServico.Aberta)
             throw new InvalidOperationException("Fotos de entrada só podem ser anexadas antes do início da execução.");
         if (categoria is CategoriaFotoOrdemServico.Durante or CategoriaFotoOrdemServico.Saida && Status != StatusOrdemServico.EmExecucao)
@@ -196,13 +216,10 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         return foto;
     }
 
-    public void IniciarExecucao(
-        Guid usuarioId,
-        string? observacao,
-        bool checkInObrigatorio = true)
+    public void IniciarExecucao(Guid usuarioId, string? observacao)
     {
         ExigirStatus(StatusOrdemServico.Aberta);
-        if (!CheckInEmUtc.HasValue && checkInObrigatorio)
+        if (!CheckInEmUtc.HasValue)
             throw new InvalidOperationException("Realize o check-in antes de iniciar a execução.");
         if (ChecklistEntradaSnapshot == NivelExigenciaOperacional.Obrigatorio && Checklist is { EstaCompleto: false })
             throw new InvalidOperationException("Responda todos os itens obrigatórios do checklist antes de iniciar.");
