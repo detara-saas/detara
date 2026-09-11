@@ -28,12 +28,14 @@ public sealed class ConfiguracoesController(ISender sender) : ControllerBase
         AtualizarConfiguracaoOperacionalRequest request,
         CancellationToken cancellationToken)
     {
-        var resultado = await sender.Send(
-            new AtualizarConfiguracaoOperacionalCommand(
+        var command = new AtualizarConfiguracaoOperacionalCommand(
                 (NivelExigenciaOperacional)request.ChecklistEntrada,
                 (NivelExigenciaOperacional)request.FotosEntrada,
-                (NivelExigenciaOperacional)request.FotosSaida),
-            cancellationToken);
+                (NivelExigenciaOperacional)request.FotosSaida)
+        {
+            FotosDurante = (NivelExigenciaOperacional)request.FotosDurante
+        };
+        var resultado = await sender.Send(command, cancellationToken);
         return Ok(RespostaApi<ConfiguracaoOperacionalResponse>.Ok(
             Mapear(resultado),
             "Configurações operacionais atualizadas."));
@@ -58,7 +60,7 @@ public sealed class ConfiguracoesController(ISender sender) : ControllerBase
 
     private static ConfiguracaoOperacionalResponse Mapear(
         ConfiguracaoOperacionalVisualizacao resultado) =>
-        new(
+        new ConfiguracaoOperacionalResponse(
             resultado.Id,
             (NivelExigenciaOperacionalContrato)resultado.ChecklistEntrada,
             (NivelExigenciaOperacionalContrato)resultado.FotosEntrada,
@@ -77,5 +79,8 @@ public sealed class ConfiguracoesController(ISender sender) : ControllerBase
                         item.Ordem))
                     .ToArray(),
                 resultado.Checklist.CriadoEmUtc,
-                resultado.Checklist.AtualizadoEmUtc));
+                resultado.Checklist.AtualizadoEmUtc))
+        {
+            FotosDurante = (NivelExigenciaOperacionalContrato)resultado.FotosDurante
+        };
 }

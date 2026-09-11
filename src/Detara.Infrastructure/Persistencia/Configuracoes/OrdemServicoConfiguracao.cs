@@ -24,6 +24,7 @@ internal sealed class OrdemServicoConfiguracao : IEntityTypeConfiguration<OrdemS
         builder.Property(item => item.ObservacaoAutorizacaoDireta).HasMaxLength(1000);
         builder.Property(item => item.ChecklistEntradaSnapshot).HasConversion<string>().HasMaxLength(16);
         builder.Property(item => item.FotosEntradaSnapshot).HasConversion<string>().HasMaxLength(16);
+        builder.Property(item => item.FotosDuranteSnapshot).HasConversion<string>().HasMaxLength(16);
         builder.Property(item => item.FotosSaidaSnapshot).HasConversion<string>().HasMaxLength(16);
         builder.Property(item => item.ObservacaoEntrada).HasMaxLength(2000);
         builder.Property(item => item.MotivoCancelamento).HasMaxLength(1000);

@@ -84,7 +84,8 @@ internal sealed class ListarOrdensServicoValidator : AbstractValidator<ListarOrd
 
 internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
     IOrcamentosRepositorio orcamentos, IClientesAtendimentoConsulta clientes, ICatalogoAtendimentoConsulta catalogo,
-    IAgendaAtendimentoIntegracao agenda, IPlataformaAtendimentoConsulta plataforma)
+    IAgendaAtendimentoIntegracao agenda, IPlataformaAtendimentoConsulta plataforma,
+    IConfiguracoesOperacionaisRepositorio configuracoes)
     : IRequestHandler<CriarOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
     public async Task<OrdemServicoDetalheVisualizacao> Handle(CriarOrdemServicoCommand request, CancellationToken ct)
@@ -148,6 +149,12 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
                 request.Desconto, request.Acrescimo, itens, usuario.UsuarioId, agora,
                 request.ObservacaoAutorizacaoDireta);
         }
+        var configuracao = await configuracoes.ObterConfiguracaoAsync(false, ct);
+        entidade.DefinirConfiguracaoOperacional(
+            configuracao?.ChecklistEntrada ?? NivelExigenciaOperacional.Desabilitado,
+            configuracao?.FotosEntrada ?? NivelExigenciaOperacional.Desabilitado,
+            configuracao?.FotosDurante ?? NivelExigenciaOperacional.Desabilitado,
+            configuracao?.FotosSaida ?? NivelExigenciaOperacional.Desabilitado);
         ordens.Adicionar(entidade);
         await ordens.SalvarAsync(ct);
         return await OrdemServicoFluxo.ObterDetalheAsync(entidade.Id, usuario.EmpresaId, ordens, plataforma, ct);
@@ -188,7 +195,10 @@ internal sealed class RealizarCheckInHandler(IUsuarioContexto usuario, IOrdensSe
             configuracao?.FotosEntrada ?? NivelExigenciaOperacional.Desabilitado,
             configuracao?.FotosSaida ?? NivelExigenciaOperacional.Desabilitado,
             checklist?.Nome,
-            checklist?.Itens.OrderBy(item => item.Ordem).Select(item => item.Descricao).ToArray() ?? []);
+            checklist?.Itens.OrderBy(item => item.Ordem).Select(item => item.Descricao).ToArray() ?? [])
+        {
+            FotosDurante = configuracao?.FotosDurante ?? NivelExigenciaOperacional.Desabilitado
+        };
         OrdemServicoFluxo.ExecutarRegra(() => ordem.RealizarCheckIn(snapshot, request.QuilometragemEntrada,
             request.ObservacaoEntrada, usuario.UsuarioId));
         if (ordem.Checklist is not null) ordens.AdicionarChecklist(ordem.Checklist);
@@ -241,6 +251,7 @@ internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensSe
         var checkInObrigatorio = configuracao is null ||
             configuracao.ChecklistEntrada == NivelExigenciaOperacional.Obrigatorio ||
             configuracao.FotosEntrada == NivelExigenciaOperacional.Obrigatorio ||
+            configuracao.FotosDurante == NivelExigenciaOperacional.Obrigatorio ||
             configuracao.FotosSaida == NivelExigenciaOperacional.Obrigatorio;
         return await Executar(
             request.Id,
@@ -369,8 +380,9 @@ internal sealed class CriarOrcamentoAdicionalHandler(IUsuarioContexto usuario, I
     public async Task<OrcamentoDetalheVisualizacao> Handle(CriarOrcamentoAdicionalCommand request, CancellationToken ct)
     {
         var ordem = await OrdemServicoFluxo.ExigirAsync(ordens, request.Id, false, ct);
-        if (ordem.Status != StatusOrdemServico.EmExecucao)
-            throw new ConflitoRegraNegocioException("Orçamentos adicionais só podem ser criados durante a execução.");
+        if (ordem.Status is not (StatusOrdemServico.Aberta or StatusOrdemServico.EmExecucao))
+            throw new ConflitoRegraNegocioException(
+                "Orçamentos adicionais só podem ser criados antes ou durante a execução.");
         var itens = await OrcamentoFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId, request.Itens, null, [], ct);
         var partes = new PartesOrcamentoSnapshot(ordem.ClienteId, ordem.ClienteNomeSnapshot,
             ordem.ClienteDocumentoSnapshot, ordem.ClienteTelefoneSnapshot, ordem.VeiculoId,

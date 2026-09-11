@@ -25,7 +25,10 @@ public sealed record ConfiguracaoOperacionalVisualizacao(
     NivelExigenciaOperacional FotosSaida,
     DateTime? CriadoEmUtc,
     DateTime? AtualizadoEmUtc,
-    ChecklistModeloVisualizacao Checklist);
+    ChecklistModeloVisualizacao Checklist)
+{
+    public NivelExigenciaOperacional FotosDurante { get; init; }
+}
 
 public sealed record ObterConfiguracaoOperacionalQuery
     : IRequest<ConfiguracaoOperacionalVisualizacao>;
@@ -34,7 +37,10 @@ public sealed record AtualizarConfiguracaoOperacionalCommand(
     NivelExigenciaOperacional ChecklistEntrada,
     NivelExigenciaOperacional FotosEntrada,
     NivelExigenciaOperacional FotosSaida)
-    : IRequest<ConfiguracaoOperacionalVisualizacao>;
+    : IRequest<ConfiguracaoOperacionalVisualizacao>
+{
+    public NivelExigenciaOperacional FotosDurante { get; init; }
+}
 
 public sealed record AtualizarChecklistModeloCommand(
     string Nome,
@@ -49,6 +55,7 @@ internal sealed class AtualizarConfiguracaoOperacionalValidator
     {
         RuleFor(item => item.ChecklistEntrada).IsInEnum();
         RuleFor(item => item.FotosEntrada).IsInEnum();
+        RuleFor(item => item.FotosDurante).IsInEnum();
         RuleFor(item => item.FotosSaida).IsInEnum();
     }
 }
@@ -102,7 +109,8 @@ internal sealed class AtualizarConfiguracaoOperacionalHandler(
                 usuarioContexto.EmpresaId,
                 request.ChecklistEntrada,
                 request.FotosEntrada,
-                request.FotosSaida);
+                request.FotosSaida,
+                request.FotosDurante);
             repositorio.Adicionar(configuracao);
         }
         else
@@ -110,7 +118,8 @@ internal sealed class AtualizarConfiguracaoOperacionalHandler(
             configuracao.Atualizar(
                 request.ChecklistEntrada,
                 request.FotosEntrada,
-                request.FotosSaida);
+                request.FotosSaida,
+                request.FotosDurante);
         }
 
         await repositorio.SalvarAsync(cancellationToken);
@@ -192,6 +201,9 @@ internal static class ConfiguracaoOperacionalFluxo
                             item.Ordem))
                         .ToArray(),
                     checklist.CriadoEmUtc,
-                    checklist.AtualizadoEmUtc));
+                    checklist.AtualizadoEmUtc))
+        {
+            FotosDurante = configuracao?.FotosDurante ?? NivelExigenciaOperacional.Desabilitado
+        };
     }
 }

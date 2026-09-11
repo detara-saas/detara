@@ -16,7 +16,10 @@ public sealed record ConfiguracaoCheckInSnapshot(
     NivelExigenciaOperacional FotosEntrada,
     NivelExigenciaOperacional FotosSaida,
     string? ChecklistNome,
-    IReadOnlyCollection<string> ChecklistItens);
+    IReadOnlyCollection<string> ChecklistItens)
+{
+    public NivelExigenciaOperacional FotosDurante { get; init; }
+}
 
 public sealed class OrdemServico : EntidadeEmpresaBase
 {
@@ -93,6 +96,7 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     public string? ObservacaoEntrada { get; private set; }
     public NivelExigenciaOperacional? ChecklistEntradaSnapshot { get; private set; }
     public NivelExigenciaOperacional? FotosEntradaSnapshot { get; private set; }
+    public NivelExigenciaOperacional? FotosDuranteSnapshot { get; private set; }
     public NivelExigenciaOperacional? FotosSaidaSnapshot { get; private set; }
     public OrdemServicoChecklist? Checklist { get; private set; }
     public DateTime? IniciadaEmUtc { get; private set; }
@@ -110,15 +114,31 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     public decimal SubtotalAutorizado => _itens.Sum(item => item.Subtotal);
     public decimal TotalAutorizado => SubtotalAutorizado - DescontoAutorizado + AcrescimoAutorizado;
 
+    public void DefinirConfiguracaoOperacional(
+        NivelExigenciaOperacional checklistEntrada,
+        NivelExigenciaOperacional fotosEntrada,
+        NivelExigenciaOperacional fotosDurante,
+        NivelExigenciaOperacional fotosSaida)
+    {
+        if (CheckInEmUtc.HasValue)
+            throw new InvalidOperationException("A configuração operacional desta ordem já foi consolidada.");
+        ChecklistEntradaSnapshot = ValidarNivel(checklistEntrada);
+        FotosEntradaSnapshot = ValidarNivel(fotosEntrada);
+        FotosDuranteSnapshot = ValidarNivel(fotosDurante);
+        FotosSaidaSnapshot = ValidarNivel(fotosSaida);
+        MarcarComoAtualizada();
+    }
+
     public void RealizarCheckIn(ConfiguracaoCheckInSnapshot configuracao, int? quilometragemEntrada,
         string? observacaoEntrada, Guid usuarioId)
     {
         ExigirStatus(StatusOrdemServico.Aberta);
         if (CheckInEmUtc.HasValue) throw new InvalidOperationException("O check-in desta ordem de serviço já foi realizado.");
         if (quilometragemEntrada < 0) throw new ArgumentException("A quilometragem de entrada não pode ser negativa.", nameof(quilometragemEntrada));
-        ChecklistEntradaSnapshot = ValidarNivel(configuracao.ChecklistEntrada);
-        FotosEntradaSnapshot = ValidarNivel(configuracao.FotosEntrada);
-        FotosSaidaSnapshot = ValidarNivel(configuracao.FotosSaida);
+        ChecklistEntradaSnapshot ??= ValidarNivel(configuracao.ChecklistEntrada);
+        FotosEntradaSnapshot ??= ValidarNivel(configuracao.FotosEntrada);
+        FotosDuranteSnapshot ??= ValidarNivel(configuracao.FotosDurante);
+        FotosSaidaSnapshot ??= ValidarNivel(configuracao.FotosSaida);
         if (ChecklistEntradaSnapshot != NivelExigenciaOperacional.Desabilitado)
         {
             if (configuracao.ChecklistItens.Count == 0) throw new InvalidOperationException("O checklist habilitado não possui itens para o snapshot.");
@@ -151,6 +171,7 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         if (categoria is CategoriaFotoOrdemServico.Durante or CategoriaFotoOrdemServico.Saida && Status != StatusOrdemServico.EmExecucao)
             throw new InvalidOperationException("Fotos durante a execução ou de saída exigem uma ordem em execução.");
         if (categoria == CategoriaFotoOrdemServico.Entrada && FotosEntradaSnapshot == NivelExigenciaOperacional.Desabilitado ||
+            categoria == CategoriaFotoOrdemServico.Durante && FotosDuranteSnapshot == NivelExigenciaOperacional.Desabilitado ||
             categoria == CategoriaFotoOrdemServico.Saida && FotosSaidaSnapshot == NivelExigenciaOperacional.Desabilitado)
             throw new InvalidOperationException("Esta categoria de foto está desabilitada no snapshot do check-in.");
     }
@@ -195,6 +216,8 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     public void FinalizarExecucao(Guid usuarioId, string? observacao)
     {
         ExigirStatus(StatusOrdemServico.EmExecucao);
+        if (FotosDuranteSnapshot == NivelExigenciaOperacional.Obrigatorio && !_fotos.Any(foto => foto.Categoria == CategoriaFotoOrdemServico.Durante))
+            throw new InvalidOperationException("Anexe ao menos uma foto durante a execução antes de finalizar.");
         if (FotosSaidaSnapshot == NivelExigenciaOperacional.Obrigatorio && !_fotos.Any(foto => foto.Categoria == CategoriaFotoOrdemServico.Saida))
             throw new InvalidOperationException("Anexe ao menos uma foto de saída antes de finalizar a execução.");
         ExecucaoFinalizadaEmUtc = DateTime.UtcNow;

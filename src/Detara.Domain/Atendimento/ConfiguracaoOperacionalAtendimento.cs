@@ -12,24 +12,28 @@ public sealed class ConfiguracaoOperacionalAtendimento : EntidadeEmpresaBase
         Guid empresaId,
         NivelExigenciaOperacional checklistEntrada,
         NivelExigenciaOperacional fotosEntrada,
-        NivelExigenciaOperacional fotosSaida)
+        NivelExigenciaOperacional fotosSaida,
+        NivelExigenciaOperacional fotosDurante = NivelExigenciaOperacional.Desabilitado)
         : base(Guid.NewGuid(), empresaId)
     {
-        Atualizar(checklistEntrada, fotosEntrada, fotosSaida);
+        Atualizar(checklistEntrada, fotosEntrada, fotosSaida, fotosDurante);
     }
 
     public NivelExigenciaOperacional ChecklistEntrada { get; private set; }
     public NivelExigenciaOperacional FotosEntrada { get; private set; }
     public NivelExigenciaOperacional FotosSaida { get; private set; }
+    public NivelExigenciaOperacional FotosDurante { get; private set; }
 
     public void Atualizar(
         NivelExigenciaOperacional checklistEntrada,
         NivelExigenciaOperacional fotosEntrada,
-        NivelExigenciaOperacional fotosSaida)
+        NivelExigenciaOperacional fotosSaida,
+        NivelExigenciaOperacional fotosDurante = NivelExigenciaOperacional.Desabilitado)
     {
         ChecklistEntrada = Validar(checklistEntrada, nameof(checklistEntrada));
         FotosEntrada = Validar(fotosEntrada, nameof(fotosEntrada));
         FotosSaida = Validar(fotosSaida, nameof(fotosSaida));
+        FotosDurante = Validar(fotosDurante, nameof(fotosDurante));
         MarcarComoAtualizada();
     }
 

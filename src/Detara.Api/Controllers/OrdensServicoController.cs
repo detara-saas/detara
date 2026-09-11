@@ -147,7 +147,7 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
     {
         var ordem = resultado.OrdemServico;
         string Nome(Guid id) => resultado.Usuarios.TryGetValue(id, out var nome) ? nome : "Usuário Detara";
-        return new(ordem.Id, ordem.Codigo, (OrigemOrdemServicoContrato)(int)ordem.Origem,
+        return new OrdemServicoDetalheResponse(ordem.Id, ordem.Codigo, (OrigemOrdemServicoContrato)(int)ordem.Origem,
             ordem.OrcamentoOrigemId, ordem.AgendamentoOrigemId, ordem.ClienteId, ordem.ClienteNomeSnapshot,
             ordem.ClienteDocumentoSnapshot, ordem.ClienteTelefoneSnapshot, ordem.VeiculoId,
             ordem.VeiculoDescricaoSnapshot, ordem.VeiculoPlacaSnapshot, ordem.DuracaoPlanejadaMinutos,
@@ -177,6 +177,11 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
                 item.Itens.OrderBy(i => i.Ordem).Select(i => i.NomeSnapshot).ToArray())).ToArray(),
             ordem.Historico.OrderBy(item => item.DataUtc).Select(item => new HistoricoStatusOrdemServicoResponse(
                 item.Id, (StatusOrdemServicoContrato)(int)item.Status, item.DataUtc, item.UsuarioId,
-                Nome(item.UsuarioId), item.Observacao)).ToArray());
+                Nome(item.UsuarioId), item.Observacao)).ToArray())
+        {
+            FotosDuranteSnapshot = ordem.FotosDuranteSnapshot.HasValue
+                ? (NivelExigenciaOperacionalContrato)(int)ordem.FotosDuranteSnapshot.Value
+                : null
+        };
     }
 }

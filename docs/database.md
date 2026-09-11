@@ -89,7 +89,7 @@ O código é criado uma única vez na emissão no formato `ORC-AAAA-XXXXXXXXXXXX
 
 A migration `AddOperationalSettingsAndChecklist` adiciona:
 
-- `ConfiguracoesOperacionaisAtendimento`, única por `EmpresaId`, com os níveis desabilitado, opcional ou obrigatório para checklist de entrada, fotos de entrada e fotos de saída;
+- `ConfiguracoesOperacionaisAtendimento`, única por `EmpresaId`, com os níveis desabilitado, opcional ou obrigatório para checklist de entrada, fotos de entrada, fotos durante a execução e fotos de saída;
 - `ChecklistModelos`, único por `EmpresaId` nesta versão inicial;
 - `ChecklistModeloItens`, com FK composta `(EmpresaId, ChecklistModeloId)`, cascade somente dentro do agregado e ordem única por modelo;
 - validação de domínio case-insensitive após trim para bloquear duplicidades de itens.
