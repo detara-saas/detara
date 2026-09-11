@@ -234,6 +234,21 @@
 .service-order-next-action > div { min-width: 0; display: grid; gap: 4px; }
 .service-order-next-action strong { color: var(--detara-text); font-size: .82rem; line-height: 1.4; }
 .service-order-next-action span { color: var(--detara-text-secondary); font-size: .7rem; line-height: 1.5; }
+.service-order-next-action-checkin { margin-bottom: 14px; }
+.service-order-checkin-compact-form { display: grid; gap: 10px; }
+.service-order-checkin-resource { display: grid; gap: 10px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--detara-border-soft); }
+.service-order-checkin-resource-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.service-order-checkin-resource-heading > div { min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--detara-text); }
+.service-order-checkin-resource-heading .mud-icon-root { flex: 0 0 auto; color: var(--detara-primary-dark); font-size: 1.1rem; }
+.service-order-checkin-resource-heading strong { font-size: .76rem; overflow-wrap: anywhere; }
+.service-order-checkin-resource-heading > span { flex: 0 0 auto; color: var(--detara-text-secondary); font-size: .65rem; font-weight: 700; }
+.service-order-checklist-compact { grid-template-columns: 1fr; }
+.service-order-checklist-compact article { padding: 11px; }
+.service-order-checklist-compact article > div { grid-template-columns: 1fr; }
+.service-order-checklist-compact article > div > strong { color: var(--detara-text); font-size: .72rem; line-height: 1.4; }
+.service-order-checkin-photo-list { display: grid; gap: 6px; }
+.service-order-checkin-photo-list span { min-width: 0; display: flex; align-items: center; gap: 7px; color: var(--detara-text-secondary); font-size: .68rem; overflow-wrap: anywhere; }
+.service-order-checkin-photo-list .mud-icon-root { flex: 0 0 auto; color: var(--detara-success); font-size: 1rem; }
 .service-order-primary-actions { display: grid; gap: 8px; margin-top: 12px; }
 .service-order-primary-actions .mud-button-root { width: 100%; min-height: 44px; }
 .service-order-cancel-action { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--detara-border-soft); }

@@ -19,7 +19,10 @@ public sealed record ObterOrdemServicoQuery(Guid Id) : IRequest<OrdemServicoDeta
 public sealed record ObterOrdemServicoPorAgendamentoQuery(Guid AgendamentoId)
     : IRequest<OrdemServicoAgendamentoResultado?>;
 public sealed record RealizarCheckInCommand(Guid Id, int? QuilometragemEntrada, string? ObservacaoEntrada)
-    : IRequest<OrdemServicoDetalheVisualizacao>;
+    : IRequest<OrdemServicoDetalheVisualizacao>
+{
+    public IReadOnlyCollection<RespostaChecklistEntradaSnapshot> RespostasChecklist { get; init; } = [];
+}
 public sealed record AtualizarChecklistOrdemServicoCommand(Guid Id, IReadOnlyCollection<RespostaChecklistSnapshot> Respostas)
     : IRequest<OrdemServicoDetalheVisualizacao>;
 public sealed record TransicaoOrdemServicoCommand(Guid Id, string? Observacao) : IRequest<OrdemServicoDetalheVisualizacao>;
@@ -35,8 +38,20 @@ public sealed record AdicionarCortesiaOrdemServicoCommand(Guid Id, ItemOrdemServ
     : IRequest<OrdemServicoDetalheVisualizacao>;
 
 public sealed record ConteudoFotoOrdemServico(Stream Conteudo, string ContentType, string NomeOriginal);
+public sealed record ChecklistEntradaPreparacaoItemVisualizacao(string Descricao, int Ordem);
+public sealed record ChecklistEntradaPreparacaoVisualizacao(string Nome,
+    IReadOnlyCollection<ChecklistEntradaPreparacaoItemVisualizacao> Itens);
+public sealed record ConfiguracaoOperacionalOrdemServicoVisualizacao(
+    NivelExigenciaOperacional ChecklistEntrada,
+    NivelExigenciaOperacional FotosEntrada,
+    NivelExigenciaOperacional FotosDurante,
+    NivelExigenciaOperacional FotosSaida);
 public sealed record OrdemServicoDetalheVisualizacao(OrdemServico OrdemServico,
-    IReadOnlyCollection<Orcamento> OrcamentosAdicionais, IReadOnlyDictionary<Guid, string> Usuarios);
+    IReadOnlyCollection<Orcamento> OrcamentosAdicionais, IReadOnlyDictionary<Guid, string> Usuarios)
+{
+    public ChecklistEntradaPreparacaoVisualizacao? ChecklistEntradaPreparacao { get; init; }
+    public ConfiguracaoOperacionalOrdemServicoVisualizacao? ConfiguracaoOperacionalAtual { get; init; }
+}
 
 internal sealed class CriarOrdemServicoValidator : AbstractValidator<CriarOrdemServicoCommand>
 {
@@ -79,6 +94,28 @@ internal sealed class ListarOrdensServicoValidator : AbstractValidator<ListarOrd
         RuleFor(item => item).Must(item => !item.DataInicial.HasValue || !item.DataFinal.HasValue ||
                 item.DataFinal.Value.DayNumber - item.DataInicial.Value.DayNumber <= 3660)
             .WithMessage("O período informado não pode exceder dez anos.");
+    }
+}
+
+internal sealed class RealizarCheckInValidator : AbstractValidator<RealizarCheckInCommand>
+{
+    public RealizarCheckInValidator()
+    {
+        RuleFor(item => item.Id).NotEmpty();
+        RuleFor(item => item.QuilometragemEntrada).GreaterThanOrEqualTo(0)
+            .When(item => item.QuilometragemEntrada.HasValue);
+        RuleFor(item => item.ObservacaoEntrada).MaximumLength(2000);
+        RuleFor(item => item.RespostasChecklist)
+            .Must(respostas => respostas.Select(item => item.Ordem).Distinct().Count() == respostas.Count)
+            .WithMessage("O checklist não pode possuir respostas duplicadas.");
+        RuleForEach(item => item.RespostasChecklist).ChildRules(resposta =>
+        {
+            resposta.RuleFor(item => item.Ordem).GreaterThan(0);
+            resposta.RuleFor(item => item.Resposta)
+                .Must(valor => !valor.HasValue || Enum.IsDefined(valor.Value))
+                .WithMessage("A resposta do checklist é inválida.");
+            resposta.RuleFor(item => item.Observacao).MaximumLength(1000);
+        });
     }
 }
 
@@ -169,10 +206,38 @@ internal sealed class ListarOrdensServicoHandler(IOrdensServicoRepositorio repos
             request.DataFinal, request.Pesquisa), ct);
 }
 internal sealed class ObterOrdemServicoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio repositorio,
-    IPlataformaAtendimentoConsulta plataforma) : IRequestHandler<ObterOrdemServicoQuery, OrdemServicoDetalheVisualizacao>
+    IPlataformaAtendimentoConsulta plataforma, IConfiguracoesOperacionaisRepositorio configuracoes)
+    : IRequestHandler<ObterOrdemServicoQuery, OrdemServicoDetalheVisualizacao>
 {
-    public Task<OrdemServicoDetalheVisualizacao> Handle(ObterOrdemServicoQuery request, CancellationToken ct) =>
-        OrdemServicoFluxo.ObterDetalheAsync(request.Id, usuario.EmpresaId, repositorio, plataforma, ct);
+    public async Task<OrdemServicoDetalheVisualizacao> Handle(ObterOrdemServicoQuery request, CancellationToken ct)
+    {
+        var resultado = await OrdemServicoFluxo.ObterDetalheAsync(
+            request.Id, usuario.EmpresaId, repositorio, plataforma, ct);
+        var configuracao = await configuracoes.ObterConfiguracaoAsync(false, ct);
+        if (configuracao is not null)
+            resultado = resultado with
+            {
+                ConfiguracaoOperacionalAtual = new(configuracao.ChecklistEntrada,
+                    configuracao.FotosEntrada, configuracao.FotosDurante, configuracao.FotosSaida)
+            };
+        if (resultado.OrdemServico.CheckInEmUtc.HasValue) return resultado;
+
+        var nivelChecklist = resultado.OrdemServico.ChecklistEntradaSnapshot ==
+            NivelExigenciaOperacional.Obrigatorio
+                ? NivelExigenciaOperacional.Obrigatorio
+                : configuracao?.ChecklistEntrada ?? resultado.OrdemServico.ChecklistEntradaSnapshot ??
+                    NivelExigenciaOperacional.Desabilitado;
+        if (nivelChecklist == NivelExigenciaOperacional.Desabilitado) return resultado;
+
+        var checklist = await configuracoes.ObterChecklistAsync(false, ct);
+        return checklist is null ? resultado : resultado with
+        {
+            ChecklistEntradaPreparacao = new(checklist.Nome,
+                checklist.Itens.OrderBy(item => item.Ordem)
+                    .Select(item => new ChecklistEntradaPreparacaoItemVisualizacao(item.Descricao, item.Ordem))
+                    .ToArray())
+        };
+    }
 }
 internal sealed class ObterOrdemServicoPorAgendamentoHandler(IOrdensServicoRepositorio repositorio)
     : IRequestHandler<ObterOrdemServicoPorAgendamentoQuery, OrdemServicoAgendamentoResultado?>
@@ -200,7 +265,7 @@ internal sealed class RealizarCheckInHandler(IUsuarioContexto usuario, IOrdensSe
             FotosDurante = configuracao?.FotosDurante ?? NivelExigenciaOperacional.Desabilitado
         };
         OrdemServicoFluxo.ExecutarRegra(() => ordem.RealizarCheckIn(snapshot, request.QuilometragemEntrada,
-            request.ObservacaoEntrada, usuario.UsuarioId));
+            request.ObservacaoEntrada, usuario.UsuarioId, request.RespostasChecklist));
         if (ordem.Checklist is not null) ordens.AdicionarChecklist(ordem.Checklist);
         await ordens.SalvarAsync(ct);
         return await OrdemServicoFluxo.ObterDetalheAsync(ordem.Id, usuario.EmpresaId, ordens, plataforma, ct);
@@ -238,8 +303,7 @@ internal abstract class TransicaoOrdemServicoHandlerBase(IUsuarioContexto usuari
     }
 }
 internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
-    IPlataformaAtendimentoConsulta plataforma, IConfiguracoesOperacionaisRepositorio configuracoes,
-    IAgendaAtendimentoIntegracao agenda)
+    IPlataformaAtendimentoConsulta plataforma, IAgendaAtendimentoIntegracao agenda)
     : TransicaoOrdemServicoHandlerBase(usuario, ordens, plataforma),
     IRequestHandler<TransicaoOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
@@ -247,19 +311,10 @@ internal sealed class IniciarExecucaoHandler(IUsuarioContexto usuario, IOrdensSe
         TransicaoOrdemServicoCommand request,
         CancellationToken ct)
     {
-        var configuracao = await configuracoes.ObterConfiguracaoAsync(false, ct);
-        var checkInObrigatorio = configuracao is null ||
-            configuracao.ChecklistEntrada == NivelExigenciaOperacional.Obrigatorio ||
-            configuracao.FotosEntrada == NivelExigenciaOperacional.Obrigatorio ||
-            configuracao.FotosDurante == NivelExigenciaOperacional.Obrigatorio ||
-            configuracao.FotosSaida == NivelExigenciaOperacional.Obrigatorio;
         return await Executar(
             request.Id,
             request.Observacao,
-            (ordem, usuarioId, observacao) => ordem.IniciarExecucao(
-                usuarioId,
-                observacao,
-                checkInObrigatorio),
+            (ordem, usuarioId, observacao) => ordem.IniciarExecucao(usuarioId, observacao),
             ct,
             async (ordem, token) =>
             {

@@ -118,7 +118,11 @@ public sealed class ConfiguracoesOperacionaisPersistenciaTests : IAsyncLifetime
                 ["Riscos aparentes", "Rodas danificadas"]),
             null,
             null,
-            usuarioId);
+            usuarioId,
+            [
+                new(1, RespostaChecklistOrdemServico.Conforme, null),
+                new(2, RespostaChecklistOrdemServico.Conforme, null)
+            ]);
         context.OrdensServico.Add(ordemHistorica);
         await context.SaveChangesAsync();
         context.ChangeTracker.Clear();

@@ -57,7 +57,13 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
     [HttpPost("{id:guid}/check-in"), Authorize(Policy = Permissoes.OrdemServicoEditar)]
     public Task<ActionResult<RespostaApi<OrdemServicoDetalheResponse>>> CheckIn(Guid id, RealizarCheckInRequest request,
         CancellationToken ct) => Responder(sender.Send(new RealizarCheckInCommand(id, request.QuilometragemEntrada,
-            request.ObservacaoEntrada), ct), "Check-in realizado com sucesso.");
+            request.ObservacaoEntrada)
+        {
+            RespostasChecklist = request.RespostasChecklist.Select(item => new RespostaChecklistEntradaSnapshot(
+                item.Ordem,
+                item.Resposta.HasValue ? (RespostaChecklistOrdemServico?)(int)item.Resposta.Value : null,
+                item.Observacao)).ToArray()
+        }, ct), "Check-in realizado com sucesso.");
 
     [HttpPut("{id:guid}/checklist"), Authorize(Policy = Permissoes.OrdemServicoEditar)]
     public Task<ActionResult<RespostaApi<OrdemServicoDetalheResponse>>> Checklist(Guid id,
@@ -181,7 +187,20 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
         {
             FotosDuranteSnapshot = ordem.FotosDuranteSnapshot.HasValue
                 ? (NivelExigenciaOperacionalContrato)(int)ordem.FotosDuranteSnapshot.Value
-                : null
+                : null,
+            ChecklistEntradaPreparacao = resultado.ChecklistEntradaPreparacao is null
+                ? null
+                : new ChecklistEntradaPreparacaoResponse(resultado.ChecklistEntradaPreparacao.Nome,
+                    resultado.ChecklistEntradaPreparacao.Itens
+                        .Select(item => new ChecklistEntradaPreparacaoItemResponse(item.Descricao, item.Ordem))
+                        .ToArray()),
+            ConfiguracaoOperacionalAtual = resultado.ConfiguracaoOperacionalAtual is null
+                ? null
+                : new ConfiguracaoOperacionalOrdemServicoResponse(
+                    (NivelExigenciaOperacionalContrato)(int)resultado.ConfiguracaoOperacionalAtual.ChecklistEntrada,
+                    (NivelExigenciaOperacionalContrato)(int)resultado.ConfiguracaoOperacionalAtual.FotosEntrada,
+                    (NivelExigenciaOperacionalContrato)(int)resultado.ConfiguracaoOperacionalAtual.FotosDurante,
+                    (NivelExigenciaOperacionalContrato)(int)resultado.ConfiguracaoOperacionalAtual.FotosSaida)
         };
     }
 }

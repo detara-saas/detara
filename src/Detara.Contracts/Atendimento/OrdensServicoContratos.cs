@@ -13,7 +13,12 @@ public sealed record ItemOrdemServicoRequest(TipoItemOrcamentoContrato TipoItem,
 public sealed record CriarOrdemServicoRequest(Guid? OrcamentoOrigemId, Guid? AgendamentoOrigemId,
     Guid? ClienteId, Guid? VeiculoId, int? DuracaoPlanejadaMinutos, decimal Desconto, decimal Acrescimo,
     string? ObservacaoAutorizacaoDireta, IReadOnlyCollection<ItemOrdemServicoRequest> Itens);
-public sealed record RealizarCheckInRequest(int? QuilometragemEntrada, string? ObservacaoEntrada);
+public sealed record RespostaChecklistEntradaRequest(int Ordem,
+    RespostaChecklistOrdemServicoContrato? Resposta, string? Observacao);
+public sealed record RealizarCheckInRequest(int? QuilometragemEntrada, string? ObservacaoEntrada)
+{
+    public IReadOnlyCollection<RespostaChecklistEntradaRequest> RespostasChecklist { get; init; } = [];
+}
 public sealed record RespostaChecklistOrdemServicoRequest(Guid ItemId, RespostaChecklistOrdemServicoContrato Resposta,
     string? Observacao);
 public sealed record AtualizarChecklistOrdemServicoRequest(IReadOnlyCollection<RespostaChecklistOrdemServicoRequest> Respostas);
@@ -38,6 +43,14 @@ public sealed record OrdemServicoChecklistItemResponse(Guid Id, string Descricao
     RespostaChecklistOrdemServicoContrato? Resposta, string? Observacao);
 public sealed record OrdemServicoChecklistResponse(Guid Id, string Nome, bool Completo,
     IReadOnlyCollection<OrdemServicoChecklistItemResponse> Itens);
+public sealed record ChecklistEntradaPreparacaoItemResponse(string Descricao, int Ordem);
+public sealed record ChecklistEntradaPreparacaoResponse(string Nome,
+    IReadOnlyCollection<ChecklistEntradaPreparacaoItemResponse> Itens);
+public sealed record ConfiguracaoOperacionalOrdemServicoResponse(
+    NivelExigenciaOperacionalContrato ChecklistEntrada,
+    NivelExigenciaOperacionalContrato FotosEntrada,
+    NivelExigenciaOperacionalContrato FotosDurante,
+    NivelExigenciaOperacionalContrato FotosSaida);
 public sealed record OrdemServicoFotoResponse(Guid Id, CategoriaFotoOrdemServicoContrato Categoria,
     string NomeOriginal, string ContentType, long TamanhoBytes, Guid EnviadaPorUsuarioId, DateTime CriadoEmUtc);
 public sealed record HistoricoStatusOrdemServicoResponse(Guid Id, StatusOrdemServicoContrato Status,
@@ -62,4 +75,6 @@ public sealed record OrdemServicoDetalheResponse(Guid Id, string Codigo, OrigemO
     IReadOnlyCollection<HistoricoStatusOrdemServicoResponse> Historico)
 {
     public NivelExigenciaOperacionalContrato? FotosDuranteSnapshot { get; init; }
+    public ChecklistEntradaPreparacaoResponse? ChecklistEntradaPreparacao { get; init; }
+    public ConfiguracaoOperacionalOrdemServicoResponse? ConfiguracaoOperacionalAtual { get; init; }
 }

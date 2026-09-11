@@ -44,6 +44,9 @@ public sealed class OrdemServicoChecklist : EntidadeEmpresaBase
 
 public sealed record RespostaChecklistSnapshot(Guid ItemId, RespostaChecklistOrdemServico Resposta, string? Observacao);
 
+public sealed record RespostaChecklistEntradaSnapshot(int Ordem,
+    RespostaChecklistOrdemServico? Resposta, string? Observacao);
+
 public sealed class OrdemServicoChecklistItem : EntidadeEmpresaBase
 {
     private OrdemServicoChecklistItem() { }

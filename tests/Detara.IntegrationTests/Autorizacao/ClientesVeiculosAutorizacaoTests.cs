@@ -926,7 +926,10 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
                 usuarioId,
                 concluidaEmUtc,
                 "Autorizado no teste.");
-            ordem.IniciarExecucao(usuarioId, null, false);
+            ordem.RealizarCheckIn(new(NivelExigenciaOperacional.Desabilitado,
+                NivelExigenciaOperacional.Desabilitado, NivelExigenciaOperacional.Desabilitado,
+                null, []), null, null, usuarioId);
+            ordem.IniciarExecucao(usuarioId, null);
             ordem.FinalizarExecucao(usuarioId, null);
             ordem.Concluir(usuarioId, null);
             typeof(OrdemServico).GetProperty(nameof(OrdemServico.ConcluidaEmUtc))!
