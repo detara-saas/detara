@@ -7,6 +7,7 @@ using Detara.Application.Abstracoes;
 using Detara.Contracts.Atendimento;
 using Detara.Contracts.Autenticacao;
 using Detara.Contracts.Autorizacao;
+using Detara.Contracts.Catalogo;
 using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Onboarding;
@@ -533,6 +534,96 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PacoteValidoComDoisServicos_PassaPeloPipelineEPersiste()
+    {
+        UsarPermissoes(Permissoes.PacotesCriar, Permissoes.PacotesVisualizar);
+        var request = new SalvarPacoteRequest(
+            "Combo proteção completa",
+            "Lavagem técnica e proteção de pintura.",
+            TipoPrecificacaoCatalogo.Fixo,
+            250m,
+            [_factory.ServicoId, _factory.SegundoServicoId]);
+
+        var response = await _client.PostAsJsonAsync("/api/pacotes", request);
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<PacoteDetalheResponse>>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(corpo?.Sucesso);
+        Assert.Equal("Combo proteção completa", corpo?.Resultado?.Nome);
+        Assert.Equal(2, corpo?.Resultado?.Servicos.Count);
+
+        var persistido = await _client.GetFromJsonAsync<RespostaApi<PacoteDetalheResponse>>(
+            $"/api/pacotes/{corpo!.Resultado!.Id}");
+        Assert.Equal([_factory.ServicoId, _factory.SegundoServicoId],
+            persistido!.Resultado!.Servicos.OrderBy(item => item.Ordem).Select(item => item.ServicoId));
+    }
+
+    [Fact]
+    public async Task PacoteInvalido_RetornaDetalhesNoFormatoPadraoDaApi()
+    {
+        UsarPermissoes(Permissoes.PacotesCriar);
+        var request = new SalvarPacoteRequest(
+            string.Empty,
+            null,
+            TipoPrecificacaoCatalogo.Fixo,
+            null,
+            []);
+
+        var response = await _client.PostAsJsonAsync("/api/pacotes", request);
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(corpo?.Sucesso);
+        Assert.Equal("validacao", corpo?.Erro?.Codigo);
+        Assert.Contains("Nome", corpo!.Erro!.Detalhes!.Keys);
+        Assert.Contains("Preco", corpo.Erro.Detalhes.Keys);
+        Assert.Contains("ServicoIds", corpo.Erro.Detalhes.Keys);
+    }
+
+    [Fact]
+    public async Task PacoteComServicoDuplicado_RetornaErroDeValidacao()
+    {
+        UsarPermissoes(Permissoes.PacotesCriar);
+        var request = new SalvarPacoteRequest(
+            "Combo repetido",
+            null,
+            TipoPrecificacaoCatalogo.Fixo,
+            100m,
+            [_factory.ServicoId, _factory.ServicoId]);
+
+        var response = await _client.PostAsJsonAsync("/api/pacotes", request);
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("validacao", corpo?.Erro?.Codigo);
+        Assert.Contains("Os serviços não podem se repetir.",
+            corpo!.Erro!.Detalhes!["ServicoIds"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PacoteComServicoInacessivel_Retorna404SemPersistir(bool outroTenant)
+    {
+        UsarPermissoes(Permissoes.PacotesCriar);
+        var nome = outroTenant ? "Combo outro tenant" : "Combo serviço inexistente";
+        var servicoId = outroTenant ? _factory.ServicoOutroTenantId : Guid.NewGuid();
+        var request = new SalvarPacoteRequest(
+            nome,
+            null,
+            TipoPrecificacaoCatalogo.Fixo,
+            100m,
+            [_factory.ServicoId, servicoId]);
+
+        var response = await _client.PostAsJsonAsync("/api/pacotes", request);
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("nao_encontrado", corpo?.Erro?.Codigo);
+        Assert.False(await _factory.PacoteExisteAsync(nome));
+    }
+
+    [Fact]
     public async Task UsuarioSemAgendaVisualizar_Recebe403()
     {
         var response = await _client.GetAsync("/api/agenda/contexto");
@@ -760,6 +851,8 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         public Guid ClienteOutroTenantId { get; private set; }
         public Guid VeiculoId { get; private set; }
         public Guid ServicoId { get; private set; }
+        public Guid SegundoServicoId { get; private set; }
+        public Guid ServicoOutroTenantId { get; private set; }
         public Guid OrcamentoId { get; private set; }
 
         public DetaraApiFactory()
@@ -829,8 +922,26 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
                     null,
                     null);
                 outroTenant.Clientes.Add(clienteOutroTenant);
+                var categoriaOutroTenant = new CategoriaServico(
+                    EmpresaOutroTenantId,
+                    "Lavagem outro tenant",
+                    null,
+                    1);
+                outroTenant.CategoriasServico.Add(categoriaOutroTenant);
                 await outroTenant.SaveChangesAsync();
                 ClienteOutroTenantId = clienteOutroTenant.Id;
+                var servicoOutroTenant = new Servico(
+                    EmpresaOutroTenantId,
+                    categoriaOutroTenant.Id,
+                    "Serviço outro tenant",
+                    null,
+                    TipoPrecificacao.Fixo,
+                    90m,
+                    45,
+                    1);
+                outroTenant.Servicos.Add(servicoOutroTenant);
+                await outroTenant.SaveChangesAsync();
+                ServicoOutroTenantId = servicoOutroTenant.Id;
             }
 
             await using var tenantContext = new DetaraDbContext(options, new TestUserContext(EmpresaId));
@@ -867,10 +978,13 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             await tenantContext.SaveChangesAsync();
             var servico = new Servico(EmpresaId, categoria.Id, "Lavagem técnica", null,
                 TipoPrecificacao.APartirDe, 100m, 90, 1);
-            tenantContext.Servicos.Add(servico);
+            var segundoServico = new Servico(EmpresaId, categoria.Id, "Proteção de pintura", null,
+                TipoPrecificacao.Fixo, 180m, 120, 2);
+            tenantContext.Servicos.AddRange(servico, segundoServico);
             await tenantContext.SaveChangesAsync();
             VeiculoId = veiculo.Id;
             ServicoId = servico.Id;
+            SegundoServicoId = segundoServico.Id;
             var usuarioId = Guid.NewGuid();
             var orcamento = new Orcamento(EmpresaId,
                 new(cliente.Id, cliente.Nome, cliente.CpfCnpj, cliente.Telefone, veiculo.Id, "Honda Civic", "ABC1D23"),
@@ -880,6 +994,14 @@ public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             tenantContext.Orcamentos.Add(orcamento);
             await tenantContext.SaveChangesAsync();
             OrcamentoId = orcamento.Id;
+        }
+
+        public async Task<bool> PacoteExisteAsync(string nome)
+        {
+            using var scope = Services.CreateScope();
+            var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+            await using var context = new DetaraDbContext(options, new TestUserContext(EmpresaId));
+            return await context.Pacotes.AnyAsync(item => item.Nome == nome);
         }
 
         public async Task AdicionarOrdensConcluidasAsync(Guid segundoVeiculoId)
