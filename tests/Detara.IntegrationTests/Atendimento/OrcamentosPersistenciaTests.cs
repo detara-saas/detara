@@ -318,6 +318,13 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     public async Task CriacaoDireta_ExigeValorAutorizadoEPreservaCatalogo()
     {
         await using var c = Contexto(_empresaA, _usuarioA);
+        c.ConfiguracoesOperacionaisAtendimento.Add(new ConfiguracaoOperacionalAtendimento(
+            _empresaA,
+            NivelExigenciaOperacional.Opcional,
+            NivelExigenciaOperacional.Obrigatorio,
+            NivelExigenciaOperacional.Opcional,
+            NivelExigenciaOperacional.Desabilitado));
+        await c.SaveChangesAsync();
         var ordem = await CriarOrdemServicoHandler(c).Handle(new(null, _agendamentoA, _clienteA, _veiculoA,
             null, 0, 0, "Cliente autorizou presencialmente.",
             [new(TipoItemOrcamento.Servico, _servicoA, null, null, 175m, 1, null)]), default);
@@ -325,6 +332,10 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
         Assert.Equal(175m, ordem.OrdemServico.TotalAutorizado);
         Assert.Equal(OrigemOrdemServico.Agendamento, ordem.OrdemServico.Origem);
         Assert.NotNull(ordem.OrdemServico.AutorizacaoDiretaEmUtc);
+        Assert.Equal(NivelExigenciaOperacional.Opcional, ordem.OrdemServico.ChecklistEntradaSnapshot);
+        Assert.Equal(NivelExigenciaOperacional.Obrigatorio, ordem.OrdemServico.FotosEntradaSnapshot);
+        Assert.Equal(NivelExigenciaOperacional.Desabilitado, ordem.OrdemServico.FotosDuranteSnapshot);
+        Assert.Equal(NivelExigenciaOperacional.Opcional, ordem.OrdemServico.FotosSaidaSnapshot);
         Assert.Equal(100m, (await c.Servicos.SingleAsync(item => item.Id == _servicoA)).PrecoBase);
     }
 
@@ -422,15 +433,6 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
         var ordem = await CriarOrdemServicoHandler(c).Handle(new(baseCriada.Orcamento.Id, _agendamentoA, null, null,
             null, 0, 0, null, []), default);
         c.ChangeTracker.Clear();
-        var persistida = await new OrdensServicoRepositorio(c).ObterAsync(ordem.OrdemServico.Id, true, default);
-        persistida!.RealizarCheckIn(new(NivelExigenciaOperacional.Desabilitado,
-            NivelExigenciaOperacional.Desabilitado, NivelExigenciaOperacional.Desabilitado, null, []), null, null, _usuarioA);
-        await c.SaveChangesAsync(); c.ChangeTracker.Clear();
-        var repositorioOrdens = new OrdensServicoRepositorio(c);
-        persistida = await repositorioOrdens.ObterAsync(ordem.OrdemServico.Id, true, default);
-        persistida!.IniciarExecucao(_usuarioA, null);
-        repositorioOrdens.AdicionarUltimoHistorico(persistida);
-        await c.SaveChangesAsync(); c.ChangeTracker.Clear();
 
         var adicional = await new CriarOrcamentoAdicionalHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
             new OrdensServicoRepositorio(c), new OrcamentosRepositorio(c), new CatalogoAtendimentoConsulta(c),
@@ -524,7 +526,8 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
     private CriarOrdemServicoHandler CriarOrdemServicoHandler(DetaraDbContext c, Guid? empresa = null, Guid? usuario = null) =>
         new(new UsuarioContextoTeste(empresa ?? _empresaA, usuario ?? _usuarioA), new OrdensServicoRepositorio(c),
             new OrcamentosRepositorio(c), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c),
-            new AgendaAtendimentoIntegracao(c), new PlataformaAtendimentoConsulta(c));
+            new AgendaAtendimentoIntegracao(c), new PlataformaAtendimentoConsulta(c),
+            new ConfiguracoesOperacionaisRepositorio(c));
     private CriarOrcamentoCommand Comando(Guid cliente, Guid veiculo, Guid servico, decimal valor, Guid? agenda = null) => new(cliente, veiculo, agenda,
         DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30), "Cliente", "Interna confidencial", "À vista", 0, 0,
         [new(TipoItemOrcamento.Servico, servico, null, null, valor, 1, null)]);

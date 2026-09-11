@@ -7,6 +7,7 @@
 @inject AdministracaoTenantServico AdministracaoTenant
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IWebAssemblyHostEnvironment HostEnvironment
 
 <MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
 <MudPopoverProvider />
@@ -74,10 +75,13 @@
             }
         </div>
         <NavMenu Recolhida="@Preferencias.Atual.SidebarRecolhida" />
-        <div class="sidebar-footer">
-            <span class="status-dot"></span>
-            <span class="sidebar-label">Ambiente de desenvolvimento</span>
-        </div>
+        @if (AmbienteApresentacao.ExibirIndicadorDesenvolvimento(HostEnvironment.Environment))
+        {
+            <div class="sidebar-footer">
+                <span class="status-dot"></span>
+                <span class="sidebar-label">Ambiente de desenvolvimento</span>
+            </div>
+        }
     </MudDrawer>
 
     <MudMainContent Class="detara-content">

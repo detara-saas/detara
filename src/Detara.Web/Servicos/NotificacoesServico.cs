@@ -70,6 +70,30 @@ public sealed class NotificacoesServico(HttpClient http)
         EnviarAsync<ComunicacaoClienteResponse>(() => http.PostAsJsonAsync(
             $"api/notificacoes/ordens-servico/{id}/comunicar", request, ct), ct);
 
+    public async Task<ResultadoServico<NotificacaoOrdemServicoResponse>> AguardarComunicacaoFinalAsync(
+        Guid ordemServicoId,
+        Guid comunicacaoId,
+        int maximoConsultas = 24,
+        TimeSpan? intervalo = null,
+        CancellationToken ct = default)
+    {
+        var consultas = Math.Clamp(maximoConsultas, 1, 30);
+        var espera = intervalo ?? TimeSpan.FromMilliseconds(750);
+        ResultadoServico<NotificacaoOrdemServicoResponse>? ultimo = null;
+        for (var tentativa = 0; tentativa < consultas; tentativa++)
+        {
+            if (tentativa > 0) await Task.Delay(espera, ct);
+            ultimo = await ObterPorOrdemServicoAsync(ordemServicoId, ct);
+            if (!ultimo.Sucesso || ultimo.Resultado is null) return ultimo;
+            var comunicacao = ultimo.Resultado.Comunicacoes.SingleOrDefault(item => item.Id == comunicacaoId);
+            if (comunicacao is null || comunicacao.Status != StatusComunicacaoClienteContrato.Pendente)
+                return ultimo;
+        }
+
+        return ultimo ?? ResultadoServico<NotificacaoOrdemServicoResponse>.Falha(
+            "Não foi possível atualizar o status da comunicação.");
+    }
+
     private async Task<ResultadoServico<T>> ObterAsync<T>(string url, CancellationToken ct)
     { try { return await ConverterAsync<T>(await http.GetAsync(url, ct), ct); } catch (HttpRequestException) { return ResultadoServico<T>.Falha("Não foi possível acessar a API."); } }
     private async Task<ResultadoServico<T>> EnviarAsync<T>(Func<Task<HttpResponseMessage>> enviar, CancellationToken ct)

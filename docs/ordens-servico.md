@@ -24,7 +24,7 @@ destinatário e mensagem é bloqueada por cinco minutos. O histórico da OS pres
 mensagem, usuário, data, canal, status e resultado; Email e WhatsApp permanecem opções
 mutuamente exclusivas em cada solicitação.
 
-O check-in captura os níveis atuais de checklist, fotos de entrada e fotos de saída.
+A criação da OS captura os níveis atuais de checklist, fotos de entrada, fotos durante a execução e fotos de saída. O check-in materializa o checklist configurado sem alterar esses níveis, preservando a regra aplicável à OS mesmo que a empresa mude suas configurações depois.
 Checklist obrigatório exige todas as respostas, inclusive `NaoConforme` ou
 `NaoAplicavel`; fotos obrigatórias exigem uma evidência na etapa correspondente. Fotos de
 entrada, durante e saída são privadas, usam `IArquivoStorage` e tornam-se imutáveis após

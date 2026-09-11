@@ -61,7 +61,6 @@ else
         {
             <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="agenda-overlap-warning"><strong>@_quantidadeSobreposicoes agendamento(s) se sobrepõem a este horário.</strong> A sobreposição é permitida; confirme para continuar.</MudAlert>
         }
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="commercial-reference-note">Os valores exibidos são referências do catálogo. O valor final poderá depender da avaliação do veículo e pertencerá ao futuro orçamento.</MudAlert>
         <div class="form-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvando" OnClick="SalvarAsync">@(_salvando ? "Salvando..." : _quantidadeSobreposicoes > 0 && _sobreposicaoConfirmada ? "Salvar mesmo assim" : "Salvar agendamento")</MudButton></div>
     </section>
 </MudForm>

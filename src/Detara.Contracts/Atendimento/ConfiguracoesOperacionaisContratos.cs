@@ -10,7 +10,10 @@ public enum NivelExigenciaOperacionalContrato
 public sealed record AtualizarConfiguracaoOperacionalRequest(
     NivelExigenciaOperacionalContrato ChecklistEntrada,
     NivelExigenciaOperacionalContrato FotosEntrada,
-    NivelExigenciaOperacionalContrato FotosSaida);
+    NivelExigenciaOperacionalContrato FotosSaida)
+{
+    public NivelExigenciaOperacionalContrato FotosDurante { get; init; }
+}
 
 public sealed record ChecklistModeloItemRequest(string Descricao);
 
@@ -39,4 +42,7 @@ public sealed record ConfiguracaoOperacionalResponse(
     NivelExigenciaOperacionalContrato FotosSaida,
     DateTime? CriadoEmUtc,
     DateTime? AtualizadoEmUtc,
-    ChecklistModeloResponse Checklist);
+    ChecklistModeloResponse Checklist)
+{
+    public NivelExigenciaOperacionalContrato FotosDurante { get; init; }
+}

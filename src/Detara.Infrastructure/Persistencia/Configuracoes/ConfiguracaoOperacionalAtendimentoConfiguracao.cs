@@ -13,6 +13,7 @@ internal sealed class ConfiguracaoOperacionalAtendimentoConfiguracao
         builder.HasKey(item => item.Id);
         builder.Property(item => item.ChecklistEntrada).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(item => item.FotosEntrada).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(item => item.FotosDurante).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(item => item.FotosSaida).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.HasIndex(item => item.EmpresaId).IsUnique();
     }

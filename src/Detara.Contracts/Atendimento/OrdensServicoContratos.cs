@@ -59,4 +59,7 @@ public sealed record OrdemServicoDetalheResponse(Guid Id, string Codigo, OrigemO
     IReadOnlyCollection<OrdemServicoItemResponse> Itens, OrdemServicoChecklistResponse? Checklist,
     IReadOnlyCollection<OrdemServicoFotoResponse> Fotos,
     IReadOnlyCollection<OrcamentoAdicionalOrdemServicoResponse> OrcamentosAdicionais,
-    IReadOnlyCollection<HistoricoStatusOrdemServicoResponse> Historico);
+    IReadOnlyCollection<HistoricoStatusOrdemServicoResponse> Historico)
+{
+    public NivelExigenciaOperacionalContrato? FotosDuranteSnapshot { get; init; }
+}

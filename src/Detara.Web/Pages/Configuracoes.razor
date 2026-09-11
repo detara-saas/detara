@@ -37,6 +37,7 @@ else
             <div class="operational-settings-grid">
                 <NivelExigenciaOperacionalCard Titulo="Checklist de entrada" Descricao="Avaliação visual configurada pela sua empresa." Valor="_checklistEntrada" ValorChanged="@(valor => _checklistEntrada = valor)" PodeEditar="_podeEditar" Identificador="checklist-entrada" />
                 <NivelExigenciaOperacionalCard Titulo="Fotos de entrada" Descricao="Evidências registradas antes do início do serviço." Valor="_fotosEntrada" ValorChanged="@(valor => _fotosEntrada = valor)" PodeEditar="_podeEditar" Identificador="fotos-entrada" />
+                <NivelExigenciaOperacionalCard Titulo="Fotos durante a execução" Descricao="Evidências registradas durante a realização dos serviços." Valor="_fotosDurante" ValorChanged="@(valor => _fotosDurante = valor)" PodeEditar="_podeEditar" Identificador="fotos-durante" />
                 <NivelExigenciaOperacionalCard Titulo="Fotos de saída" Descricao="Evidências registradas antes da entrega do veículo." Valor="_fotosSaida" ValorChanged="@(valor => _fotosSaida = valor)" PodeEditar="_podeEditar" Identificador="fotos-saida" />
             </div>
 
@@ -280,6 +281,7 @@ else
     private ConfiguracaoOperacionalResponse? _configuracao;
     private NivelExigenciaOperacionalContrato _checklistEntrada;
     private NivelExigenciaOperacionalContrato _fotosEntrada;
+    private NivelExigenciaOperacionalContrato _fotosDurante;
     private NivelExigenciaOperacionalContrato _fotosSaida;
     private string _nomeChecklist = "Checklist de entrada";
     private string? _descricaoChecklist;
@@ -358,6 +360,7 @@ else
         _configuracao = configuracao;
         _checklistEntrada = configuracao.ChecklistEntrada;
         _fotosEntrada = configuracao.FotosEntrada;
+        _fotosDurante = configuracao.FotosDurante;
         _fotosSaida = configuracao.FotosSaida;
         _nomeChecklist = configuracao.Checklist.Nome;
         _descricaoChecklist = configuracao.Checklist.Descricao;
@@ -370,11 +373,14 @@ else
     private async Task SalvarOperacaoAsync()
     {
         _salvandoOperacao = true;
-        var resultado = await ConfiguracoesApi.AtualizarOperacaoAsync(
-            new AtualizarConfiguracaoOperacionalRequest(
+        var request = new AtualizarConfiguracaoOperacionalRequest(
                 _checklistEntrada,
                 _fotosEntrada,
-                _fotosSaida));
+                _fotosSaida)
+        {
+            FotosDurante = _fotosDurante
+        };
+        var resultado = await ConfiguracoesApi.AtualizarOperacaoAsync(request);
         if (resultado.Sucesso && resultado.Resultado is not null)
         {
             Aplicar(resultado.Resultado);
@@ -422,13 +428,16 @@ else
         }
 
         _alterandoStatusChecklist = true;
-        var resultado = await ConfiguracoesApi.AtualizarOperacaoAsync(
-            new AtualizarConfiguracaoOperacionalRequest(
+        var request = new AtualizarConfiguracaoOperacionalRequest(
                 ativar
                     ? NivelExigenciaOperacionalContrato.Opcional
                     : NivelExigenciaOperacionalContrato.Desabilitado,
                 _fotosEntrada,
-                _fotosSaida));
+                _fotosSaida)
+        {
+            FotosDurante = _fotosDurante
+        };
+        var resultado = await ConfiguracoesApi.AtualizarOperacaoAsync(request);
         if (resultado.Sucesso && resultado.Resultado is not null)
         {
             Aplicar(resultado.Resultado);

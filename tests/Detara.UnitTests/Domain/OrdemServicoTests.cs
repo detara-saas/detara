@@ -170,6 +170,29 @@ public sealed class OrdemServicoTests
     }
 
     [Fact]
+    public void FotoDuranteObrigatoria_BloqueiaFinalizacaoAteAnexoValido()
+    {
+        var ordem = Criar();
+        var configuracao = new ConfiguracaoCheckInSnapshot(
+            NivelExigenciaOperacional.Desabilitado,
+            NivelExigenciaOperacional.Desabilitado,
+            NivelExigenciaOperacional.Desabilitado,
+            null,
+            [])
+        {
+            FotosDurante = NivelExigenciaOperacional.Obrigatorio
+        };
+        ordem.RealizarCheckIn(configuracao, null, null, _usuarioId);
+        ordem.IniciarExecucao(_usuarioId, null);
+        Assert.Throws<InvalidOperationException>(() => ordem.FinalizarExecucao(_usuarioId, null));
+
+        ordem.AdicionarFoto(Foto(ordem, CategoriaFotoOrdemServico.Durante));
+        ordem.FinalizarExecucao(_usuarioId, null);
+
+        Assert.Equal(StatusOrdemServico.AguardandoRetirada, ordem.Status);
+    }
+
+    [Fact]
     public void FluxoCompleto_RegistraHistoricoENaoPermiteReabertura()
     {
         var ordem = CriarEmExecucao();

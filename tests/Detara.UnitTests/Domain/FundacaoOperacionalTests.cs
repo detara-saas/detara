@@ -16,6 +16,7 @@ public sealed class FundacaoOperacionalTests
 
         Assert.Equal(NivelExigenciaOperacional.Obrigatorio, configuracao.ChecklistEntrada);
         Assert.Equal(NivelExigenciaOperacional.Opcional, configuracao.FotosEntrada);
+        Assert.Equal(NivelExigenciaOperacional.Desabilitado, configuracao.FotosDurante);
         Assert.Equal(NivelExigenciaOperacional.Desabilitado, configuracao.FotosSaida);
     }
 

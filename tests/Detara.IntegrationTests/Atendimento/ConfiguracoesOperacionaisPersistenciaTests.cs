@@ -43,6 +43,7 @@ public sealed class ConfiguracoesOperacionaisPersistenciaTests : IAsyncLifetime
         Assert.Null(resultado.Id);
         Assert.Equal(NivelExigenciaOperacional.Desabilitado, resultado.ChecklistEntrada);
         Assert.Equal(NivelExigenciaOperacional.Desabilitado, resultado.FotosEntrada);
+        Assert.Equal(NivelExigenciaOperacional.Desabilitado, resultado.FotosDurante);
         Assert.Equal(NivelExigenciaOperacional.Desabilitado, resultado.FotosSaida);
         Assert.Null(resultado.Checklist.Id);
         Assert.Empty(resultado.Checklist.Itens);
@@ -54,17 +55,20 @@ public sealed class ConfiguracoesOperacionaisPersistenciaTests : IAsyncLifetime
     public async Task PrimeiroSave_CriaConfiguracaoNoTenantAtual()
     {
         await using var context = Contexto(_empresaA);
-        var resultado = await AtualizarConfiguracao(context).Handle(
-            new AtualizarConfiguracaoOperacionalCommand(
+        var command = new AtualizarConfiguracaoOperacionalCommand(
                 NivelExigenciaOperacional.Desabilitado,
                 NivelExigenciaOperacional.Opcional,
-                NivelExigenciaOperacional.Obrigatorio),
-            default);
+                NivelExigenciaOperacional.Obrigatorio)
+        {
+            FotosDurante = NivelExigenciaOperacional.Opcional
+        };
+        var resultado = await AtualizarConfiguracao(context).Handle(command, default);
 
         Assert.NotNull(resultado.Id);
         var persistida = await context.ConfiguracoesOperacionaisAtendimento.SingleAsync();
         Assert.Equal(_empresaA, persistida.EmpresaId);
         Assert.Equal(NivelExigenciaOperacional.Opcional, persistida.FotosEntrada);
+        Assert.Equal(NivelExigenciaOperacional.Opcional, persistida.FotosDurante);
         Assert.Equal(NivelExigenciaOperacional.Obrigatorio, persistida.FotosSaida);
     }
 

@@ -189,7 +189,7 @@ else
                             Descricao="Condições de entrada e conferências que orientam o trabalho da equipe."
                             Class="service-order-execution-card">
                     <Acoes>
-                        @if (_ordem.CheckInEmUtc.HasValue)
+                        @if (_ordem.CheckInEmUtc.HasValue && ChecklistHabilitado)
                         {
                             <DetaraStatusBadge Texto="@IndicadorChecklist" Tone="@TomChecklist" />
                         }
@@ -199,7 +199,7 @@ else
                         {
                             <div class="service-order-checkin-pending">
                                 <DetaraEmptyState Titulo="Entrada ainda não registrada"
-                                                  Descricao="O check-in libera as condições de entrada, o checklist e as evidências do veículo."
+                                                  Descricao="Registre as condições de entrada antes de iniciar o atendimento."
                                                   Icone="@Icons.Material.Outlined.Login"
                                                   Compacto="true" />
                                 <AuthorizeView Policy="@Permissoes.OrdemServicoEditar">
@@ -234,18 +234,18 @@ else
                                 <span><MudIcon Icon="@Icons.Material.Outlined.Notes" /> @(_ordem.ObservacaoEntrada ?? "Sem observação de entrada")</span>
                             </div>
 
-                            @if (_ordem.Checklist is null || _respostas.Count == 0)
+                            @if (ChecklistHabilitado && (_ordem.Checklist is null || _respostas.Count == 0))
                             {
                                 <DetaraEmptyState Titulo="Checklist não configurado"
                                                   Descricao="Nenhuma conferência operacional foi vinculada a esta ordem."
                                                   Icone="@Icons.Material.Outlined.Checklist"
                                                   Compacto="true" />
                             }
-                            else
+                            else if (ChecklistHabilitado)
                             {
                                 <div class="service-order-checklist-heading">
                                     <div>
-                                        <strong>@_ordem.Checklist.Nome</strong>
+                                        <strong>@_ordem.Checklist!.Nome</strong>
                                         <span>@_respostas.Count resposta(s) previstas</span>
                                     </div>
                                     <span>@_respostas.Count(item => item.Resposta.HasValue)/@_respostas.Count concluídas</span>
@@ -297,16 +297,16 @@ else
                     </ChildContent>
                 </DetaraCard>
 
-                @if (_ordem.CheckInEmUtc.HasValue)
+                @if (CategoriasFotoHabilitadas.Count > 0)
                 {
                     <DetaraCard Titulo="Fotos do veículo"
                                 Sobretitulo="EVIDÊNCIAS"
                                 Descricao="Registros privados organizados por etapa do atendimento."
                                 Class="service-order-photos-card">
-                        <Acoes><span class="selected-count">@_ordem.Fotos.Count foto(s)</span></Acoes>
+                        <Acoes><span class="selected-count">@QuantidadeFotosVisiveis foto(s)</span></Acoes>
                         <ChildContent>
                             <div class="service-order-photo-stages">
-                                @foreach (var categoria in Enum.GetValues<CategoriaFotoOrdemServicoContrato>())
+                                @foreach (var categoria in CategoriasFotoHabilitadas)
                                 {
                                     var fotos = _ordem.Fotos.Where(foto => foto.Categoria == categoria).ToArray();
                                     <section class="service-order-photo-stage">
@@ -384,22 +384,25 @@ else
                     </DetaraCard>
                 }
 
-                @if (_ordem.Status == StatusOrdemServicoContrato.EmExecucao)
+                @if (OrdemServicoApresentacao.ExibirAdicionais(_ordem.Status, _ordem.OrcamentosAdicionais.Count))
                 {
-                    <DetaraCard Titulo="Escopo identificado na execução"
+                    <DetaraCard Titulo="Ajustes no escopo autorizado"
                                 Sobretitulo="ADICIONAIS"
                                 Descricao="Itens cobrados só entram na OS após aprovação do orçamento complementar.">
                         <Acoes>
-                            <AuthorizeView Policy="@Permissoes.OrcamentosCriar">
-                                <Authorized>
-                                    <MudButton Href="@($"/orcamentos/novo?ordemServicoId={Id}")"
-                                               Variant="Variant.Filled"
-                                               Color="Color.Primary"
-                                               StartIcon="@Icons.Material.Outlined.AddShoppingCart">
-                                        Identificar adicional
-                                    </MudButton>
-                                </Authorized>
-                            </AuthorizeView>
+                            @if (OrdemServicoApresentacao.PodeCriarAdicional(_ordem.Status))
+                            {
+                                <AuthorizeView Policy="@Permissoes.OrcamentosCriar">
+                                    <Authorized>
+                                        <MudButton Href="@($"/orcamentos/novo?ordemServicoId={Id}")"
+                                                   Variant="Variant.Filled"
+                                                   Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Outlined.AddShoppingCart">
+                                            Identificar adicional
+                                        </MudButton>
+                                    </Authorized>
+                                </AuthorizeView>
+                            }
                         </Acoes>
                         <ChildContent>
                             @if (_ordem.OrcamentosAdicionais.Count == 0)
@@ -421,96 +424,6 @@ else
                                                 <span>@string.Join(", ", adicional.Itens) · @adicional.Total.ToString("C2")</span>
                                             </div>
                                             <span class="status-badge @ClasseAdicional(adicional.Status)">@NomeStatusOrcamento(adicional.Status)</span>
-                                        </article>
-                                    }
-                                </div>
-                            }
-                        </ChildContent>
-                    </DetaraCard>
-                }
-
-                @if (_ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida)
-                {
-                    var ultimaComunicacao = UltimaComunicacao;
-                    var comunicacaoPendente = _notificacao?.Comunicacoes.Any(item => item.Status == StatusComunicacaoClienteContrato.Pendente) == true;
-                    <DetaraCard Titulo="Comunicação com o cliente"
-                                Sobretitulo="VEÍCULO PRONTO"
-                                Descricao="Canal, resultado e histórico real dos avisos enviados."
-                                Class="service-order-communication"
-                                ContentClass="service-order-communication-content">
-                        <Acoes>
-                            <DetaraStatusBadge Texto="@NomeComunicacao(ultimaComunicacao?.Status)"
-                                               Tone="@TomComunicacao(ultimaComunicacao?.Status)" />
-                        </Acoes>
-                        <ChildContent>
-                            <div class="communication-summary">
-                                <span><MudIcon Icon="@Icons.Material.Outlined.Autorenew" /><span><small>CANAL AUTOMÁTICO</small><strong>@NomeCanalAutomatico(_notificacao?.CanalAutomaticoVeiculoPronto)</strong></span></span>
-                                <span><MudIcon Icon="@(ultimaComunicacao?.Canal == CanalComunicacaoClienteContrato.WhatsApp ? Icons.Material.Outlined.Chat : Icons.Material.Outlined.AlternateEmail)" /><span><small>ÚLTIMO CANAL</small><strong>@NomeCanal(ultimaComunicacao?.Canal)</strong></span></span>
-                                <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span><small>ÚLTIMA COMUNICAÇÃO</small><strong>@DataComunicacao(ultimaComunicacao)</strong></span></span>
-                                <span><MudIcon Icon="@Icons.Material.Outlined.PhoneAndroid" /><span><small>WHATSAPP DA EMPRESA</small><strong>@NomeStatusWhatsApp(_sessaoWhatsApp?.Status)</strong></span></span>
-                            </div>
-                            @if (ultimaComunicacao is null)
-                            {
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="service-order-communication-alert">
-                                    Cliente ainda não comunicado. Você pode escolher um canal manualmente.
-                                </MudAlert>
-                            }
-                            @if (string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual) && string.IsNullOrWhiteSpace(_notificacao?.WhatsAppDestinoAtual))
-                            {
-                                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">
-                                    Cliente sem e-mail ou WhatsApp válido cadastrado. Atualize o cadastro para enviar o aviso.
-                                </MudAlert>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(ultimaComunicacao?.UltimoErroSeguro))
-                            {
-                                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">@ultimaComunicacao.UltimoErroSeguro</MudAlert>
-                            }
-                            @if (_ordem.Status == StatusOrdemServicoContrato.AguardandoRetirada)
-                            {
-                                <AuthorizeView Policy="@Permissoes.NotificacoesReenviar">
-                                    <Authorized>
-                                        <div class="form-actions communication-actions">
-                                            <MudButton Variant="Variant.Filled"
-                                                       Color="Color.Primary"
-                                                       StartIcon="@Icons.Material.Outlined.Send"
-                                                       Disabled="@(_executandoNotificacao || comunicacaoPendente || string.IsNullOrWhiteSpace(_notificacao?.EmailDestinoAtual) && string.IsNullOrWhiteSpace(_notificacao?.WhatsAppDestinoAtual))"
-                                                       OnClick="ComunicarClienteAsync">
-                                                @(_executandoNotificacao ? "Agendando..." : comunicacaoPendente ? "Envio em andamento" : "Enviar atualização")
-                                            </MudButton>
-                                        </div>
-                                    </Authorized>
-                                </AuthorizeView>
-                            }
-                            @if (_notificacao?.Comunicacoes.Count > 0)
-                            {
-                                <div class="communication-history" aria-label="Histórico de comunicação com o cliente">
-                                    <div class="communication-history-heading">
-                                        <strong>Histórico de comunicação</strong>
-                                        <span>@_notificacao.Comunicacoes.Count registro(s)</span>
-                                    </div>
-                                    @foreach (var comunicacao in _notificacao.Comunicacoes.OrderByDescending(item => item.CriadoEmUtc))
-                                    {
-                                        <article>
-                                            <span class="communication-history-icon">
-                                                <MudIcon Icon="@(comunicacao.Canal == CanalComunicacaoClienteContrato.WhatsApp ? Icons.Material.Outlined.Chat : Icons.Material.Outlined.AlternateEmail)" />
-                                            </span>
-                                            <div class="communication-history-copy">
-                                                <strong>@NomeCanal(comunicacao.Canal)</strong>
-                                                <span>@((comunicacao.DataEnvioUtc ?? comunicacao.CriadoEmUtc).ToLocalTime().ToString("dd/MM/yyyy HH:mm")) · @(comunicacao.Origem == OrigemComunicacaoClienteContrato.Automatica ? "Automático" : "Manual")</span>
-                                                <small>@(comunicacao.Destinatario ?? "Sem destinatário")</small>
-                                                <details>
-                                                    <summary>Ver detalhes</summary>
-                                                    <div class="communication-history-detail">
-                                                        <span><b>Usuário</b>@(comunicacao.SolicitadoPorUsuarioNome ?? (comunicacao.Origem == OrigemComunicacaoClienteContrato.Automatica ? "Automático Detara" : "Não identificado"))</span>
-                                                        <span><b>Data</b>@comunicacao.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
-                                                        <span><b>Resultado</b>@NomeComunicacao(comunicacao.Status)</span>
-                                                        <span><b>Template</b>@(comunicacao.TemplateNome ?? "Template legado")</span>
-                                                        <p>@comunicacao.Mensagem</p>
-                                                    </div>
-                                                </details>
-                                            </div>
-                                            <DetaraStatusBadge Texto="@NomeComunicacao(comunicacao.Status)"
-                                                               Tone="@TomComunicacao(comunicacao.Status)" />
                                         </article>
                                     }
                                 </div>
@@ -622,6 +535,12 @@ else
                         </Authorized>
                     </AuthorizeView>
 
+                    <OrdemServicoComunicacao OrdemStatus="_ordem.Status"
+                                               Notificacao="_notificacao"
+                                               SessaoWhatsApp="_sessaoWhatsApp"
+                                               Executando="_executandoNotificacao"
+                                               OnComunicar="ComunicarClienteAsync" />
+
                     <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar">
                         <Authorized>
                             <DetaraCard Titulo="Resumo financeiro"
@@ -697,7 +616,12 @@ else
     private readonly Dictionary<Guid, string> _urlsFotos = [];
 
     private bool EhTerminal => _ordem?.Status is StatusOrdemServicoContrato.Concluida or StatusOrdemServicoContrato.Cancelada;
-    private ComunicacaoClienteResponse? UltimaComunicacao => _notificacao?.Comunicacoes.OrderByDescending(item => item.CriadoEmUtc).FirstOrDefault();
+    private bool ChecklistHabilitado => _ordem is not null &&
+        OrdemServicoApresentacao.ChecklistHabilitado(_ordem, null);
+    private IReadOnlyList<CategoriaFotoOrdemServicoContrato> CategoriasFotoHabilitadas =>
+        _ordem is null ? [] : OrdemServicoApresentacao.CategoriasFotoHabilitadas(_ordem, null);
+    private int QuantidadeFotosVisiveis => _ordem?.Fotos.Count(foto =>
+        CategoriasFotoHabilitadas.Contains(foto.Categoria)) ?? 0;
     private string IndicadorChecklist => _ordem?.Checklist is null ? "Sem checklist" : $"{_respostas.Count(item => item.Resposta.HasValue)}/{_respostas.Count} concluídas";
     private DetaraStatusTone TomChecklist => _ordem?.Checklist?.Completo == true ? DetaraStatusTone.Positive : DetaraStatusTone.Warning;
     private string StatusFinanceiro => _contaReceber switch
@@ -863,12 +787,21 @@ else
         _executandoNotificacao = true;
         var resposta = await NotificacoesApi.ComunicarClienteAsync(Id, new(canal, _solicitacaoComunicacaoId.Value));
         Mensagens.Mostrar(resposta.Mensagem, !resposta.Sucesso);
-        _executandoNotificacao = false;
         if (resposta.Sucesso)
         {
-            _solicitacaoComunicacaoId = null;
             await CarregarComunicacaoAsync();
+            await InvokeAsync(StateHasChanged);
+            if (resposta.Resultado is { } comunicacao)
+            {
+                var atualizacao = await NotificacoesApi.AguardarComunicacaoFinalAsync(Id, comunicacao.Id);
+                if (atualizacao.Sucesso && atualizacao.Resultado is not null)
+                    _notificacao = atualizacao.Resultado;
+                var statusFinal = _notificacao?.Comunicacoes.SingleOrDefault(item => item.Id == comunicacao.Id)?.Status;
+                if (statusFinal is StatusComunicacaoClienteContrato.Enviado or StatusComunicacaoClienteContrato.Falhou)
+                    _solicitacaoComunicacaoId = null;
+            }
         }
+        _executandoNotificacao = false;
     }
 
     private async Task CarregarComunicacaoAsync()
@@ -878,7 +811,12 @@ else
         else Mensagens.Mostrar(resposta.Mensagem, true);
     }
 
-    private bool PodeEnviar(CategoriaFotoOrdemServicoContrato categoria) => !EhTerminal && (categoria == CategoriaFotoOrdemServicoContrato.Entrada ? _ordem?.Status == StatusOrdemServicoContrato.Aberta && _ordem.FotosEntradaSnapshot != NivelExigenciaOperacionalContrato.Desabilitado : _ordem?.Status == StatusOrdemServicoContrato.EmExecucao && (categoria == CategoriaFotoOrdemServicoContrato.Durante || _ordem.FotosSaidaSnapshot != NivelExigenciaOperacionalContrato.Desabilitado));
+    private bool PodeEnviar(CategoriaFotoOrdemServicoContrato categoria) =>
+        !EhTerminal && _ordem?.CheckInEmUtc.HasValue == true &&
+        OrdemServicoApresentacao.NivelFoto(_ordem, null, categoria) != NivelExigenciaOperacionalContrato.Desabilitado &&
+        (categoria == CategoriaFotoOrdemServicoContrato.Entrada
+            ? _ordem.Status == StatusOrdemServicoContrato.Aberta
+            : _ordem.Status == StatusOrdemServicoContrato.EmExecucao);
     private bool PodeExcluir(OrdemServicoFotoResponse foto) => PodeEnviar(foto.Categoria);
     private static string NomeOrigem(OrdemServicoDetalheResponse ordem) => ordem.Origem switch { OrigemOrdemServicoContrato.Orcamento => "Orçamento aprovado", OrigemOrdemServicoContrato.Agendamento => "Agendamento", _ => "Atendimento direto" };
     private static string DescricaoOrigem(OrdemServicoDetalheResponse ordem) => ordem.OrcamentoOrigemId.HasValue ? "Snapshot comercial preservado" : ordem.AgendamentoOrigemId.HasValue ? "Valores confirmados na OS" : "Acordo direto auditado";
@@ -916,12 +854,6 @@ else
     private static string IconeResposta(RespostaChecklistOrdemServicoContrato? resposta) => resposta switch { RespostaChecklistOrdemServicoContrato.Conforme => Icons.Material.Outlined.CheckCircle, RespostaChecklistOrdemServicoContrato.NaoConforme => Icons.Material.Outlined.ReportProblem, RespostaChecklistOrdemServicoContrato.NaoAplicavel => Icons.Material.Outlined.RemoveCircleOutline, _ => Icons.Material.Outlined.RadioButtonUnchecked };
     private static string ClasseAdicional(StatusOrcamentoContrato status) => status == StatusOrcamentoContrato.Aprovado ? "status-running" : status is StatusOrcamentoContrato.Recusado or StatusOrcamentoContrato.Cancelado ? "status-cancelled" : "status-waiting";
     private static string NomeStatusOrcamento(StatusOrcamentoContrato status) => status == StatusOrcamentoContrato.Expirado ? "Expirado" : status.ToString();
-    private static string NomeCanalAutomatico(CanalComunicacaoVeiculoProntoContrato? canal) => canal switch { CanalComunicacaoVeiculoProntoContrato.Email => "Email", CanalComunicacaoVeiculoProntoContrato.WhatsApp => "WhatsApp", _ => "Nenhum" };
-    private static string NomeCanal(CanalComunicacaoClienteContrato? canal) => canal switch { CanalComunicacaoClienteContrato.Email => "Email", CanalComunicacaoClienteContrato.WhatsApp => "WhatsApp", _ => "Nenhum envio" };
-    private static string NomeComunicacao(StatusComunicacaoClienteContrato? status) => status switch { null => "Ainda não comunicado", StatusComunicacaoClienteContrato.Pendente => "Pendente", StatusComunicacaoClienteContrato.Enviado => "Enviado", _ => "Falhou" };
-    private static DetaraStatusTone TomComunicacao(StatusComunicacaoClienteContrato? status) => status switch { StatusComunicacaoClienteContrato.Enviado => DetaraStatusTone.Positive, StatusComunicacaoClienteContrato.Falhou => DetaraStatusTone.Critical, StatusComunicacaoClienteContrato.Pendente => DetaraStatusTone.Warning, _ => DetaraStatusTone.Neutral };
-    private static string DataComunicacao(ComunicacaoClienteResponse? comunicacao) => comunicacao is null ? "Nenhum envio" : (comunicacao.DataEnvioUtc ?? comunicacao.CriadoEmUtc).ToLocalTime().ToString("dd/MM/yyyy HH:mm");
-    private static string NomeStatusWhatsApp(StatusSessaoWhatsAppContrato? status) => status switch { StatusSessaoWhatsAppContrato.Conectada => "Conectado", StatusSessaoWhatsAppContrato.AguardandoQrCode => "Aguardando QR Code", StatusSessaoWhatsAppContrato.Erro => "Erro de conexão", _ => "Não conectado" };
 
     private sealed class RespostaEdicao(OrdemServicoChecklistItemResponse item)
     {

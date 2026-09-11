@@ -54,8 +54,6 @@ else
 
     <div class="detail-grid"><section class="module-panel detail-card detail-observation"><div class="section-heading"><div><span class="section-eyebrow">SOLICITANTE</span><h2>Observação recebida</h2></div></div><p>@(string.IsNullOrWhiteSpace(_agendamento.ObservacaoSolicitante) ? "Nenhuma observação registrada." : _agendamento.ObservacaoSolicitante)</p></section><section class="module-panel detail-card detail-observation"><div class="section-heading"><div><span class="section-eyebrow">OPERAÇÃO INTERNA</span><h2>Observação interna</h2></div></div><p>@(string.IsNullOrWhiteSpace(_agendamento.ObservacaoInterna) ? "Nenhuma observação interna." : _agendamento.ObservacaoInterna)</p></section></div>
     @if (_agendamento.Status == StatusAgendamentoContrato.Cancelado && !string.IsNullOrWhiteSpace(_agendamento.MotivoCancelamento)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined"><strong>Motivo do cancelamento:</strong> @_agendamento.MotivoCancelamento</MudAlert> }
-    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="commercial-reference-note">Os valores exibidos são referências do catálogo. O valor final pode depender da avaliação do veículo. A Agenda não registra preço acordado.</MudAlert>
-
     <AuthorizeView Policy="@Permissoes.AgendaEditar"><Authorized>
         @if (!EhFinal(_agendamento.Status))
         {
