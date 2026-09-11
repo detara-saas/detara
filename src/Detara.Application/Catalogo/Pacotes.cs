@@ -3,6 +3,7 @@ using Detara.Domain.Catalogo;
 using Detara.Domain.Entidades;
 using FluentValidation;
 using MediatR;
+using System.Linq.Expressions;
 
 namespace Detara.Application.Catalogo;
 
@@ -18,15 +19,22 @@ public sealed record AlterarStatusPacoteCommand(Guid Id, bool EhAtivo) : IReques
 
 internal abstract class PacoteValidatorBase<T> : AbstractValidator<T>
 {
-    protected void Regras(Func<T, string> nome, Func<T, string?> descricao, Func<T, TipoPrecificacao> tipo, Func<T, decimal?> preco, Func<T, IReadOnlyCollection<Guid>> servicos)
+    protected void Regras(
+        Expression<Func<T, string>> nome,
+        Expression<Func<T, string?>> descricao,
+        Expression<Func<T, TipoPrecificacao>> tipo,
+        Expression<Func<T, decimal?>> preco,
+        Expression<Func<T, IEnumerable<Guid>>> servicos)
     {
-        RuleFor(x => nome(x)).NotEmpty().MinimumLength(2).MaximumLength(160);
-        RuleFor(x => descricao(x)).MaximumLength(2000);
-        RuleFor(x => tipo(x)).IsInEnum();
-        RuleFor(x => preco(x)).NotNull().GreaterThanOrEqualTo(0).When(x => tipo(x) is TipoPrecificacao.Fixo or TipoPrecificacao.APartirDe);
-        RuleFor(x => preco(x)).Null().When(x => tipo(x) == TipoPrecificacao.SobConsulta);
-        RuleFor(x => servicos(x)).NotEmpty().Must(x => x.Distinct().Count() == x.Count).WithMessage("Os serviços não podem se repetir.");
-        RuleForEach(x => servicos(x)).NotEmpty();
+        var obterTipo = tipo.Compile();
+
+        RuleFor(nome).NotEmpty().MinimumLength(2).MaximumLength(160);
+        RuleFor(descricao).MaximumLength(2000);
+        RuleFor(tipo).IsInEnum();
+        RuleFor(preco).NotNull().GreaterThanOrEqualTo(0).When(x => obterTipo(x) is TipoPrecificacao.Fixo or TipoPrecificacao.APartirDe);
+        RuleFor(preco).Null().When(x => obterTipo(x) == TipoPrecificacao.SobConsulta);
+        RuleFor(servicos).NotEmpty().Must(x => x.Distinct().Count() == x.Count()).WithMessage("Os serviços não podem se repetir.");
+        RuleForEach(servicos).NotEmpty();
     }
 }
 internal sealed class CriarPacoteValidator : PacoteValidatorBase<CriarPacoteCommand> { public CriarPacoteValidator() => Regras(x => x.Nome, x => x.Descricao, x => x.TipoPrecificacao, x => x.Preco, x => x.ServicoIds); }

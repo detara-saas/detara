@@ -40,7 +40,19 @@ public sealed class CatalogoServico(HttpClient http)
     }
     private async Task<ResultadoServico<T>> ObterAsync<T>(string url, CancellationToken ct) { try { return await ConverterAsync<T>(await http.GetAsync(url, ct), ct); } catch (HttpRequestException) { return ResultadoServico<T>.Falha("Não foi possível acessar a API."); } }
     private async Task<ResultadoServico<T>> EnviarAsync<T>(Func<Task<HttpResponseMessage>> enviar, CancellationToken ct) { try { return await ConverterAsync<T>(await enviar(), ct); } catch (HttpRequestException) { return ResultadoServico<T>.Falha("Não foi possível acessar a API."); } }
-    private static async Task<ResultadoServico<T>> ConverterAsync<T>(HttpResponseMessage response, CancellationToken ct) { var e = await response.Content.ReadFromJsonAsync<RespostaApi<T>>(ct); return response.IsSuccessStatusCode && e is { Sucesso: true, Resultado: not null } ? ResultadoServico<T>.Ok(e.Resultado, e.Info) : ResultadoServico<T>.Falha(e?.Info ?? "Não foi possível concluir a operação."); }
+    private static async Task<ResultadoServico<T>> ConverterAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    {
+        var e = await response.Content.ReadFromJsonAsync<RespostaApi<T>>(ct);
+        if (response.IsSuccessStatusCode && e is { Sucesso: true, Resultado: not null })
+        {
+            return ResultadoServico<T>.Ok(e.Resultado, e.Info);
+        }
+
+        var detalhe = e?.Erro?.Detalhes?
+            .SelectMany(item => item.Value)
+            .FirstOrDefault(mensagem => !string.IsNullOrWhiteSpace(mensagem));
+        return ResultadoServico<T>.Falha(detalhe ?? e?.Info ?? "Não foi possível concluir a operação.");
+    }
     private static async Task<string> LerMensagemAsync(HttpResponseMessage response, CancellationToken ct) => (await response.Content.ReadFromJsonAsync<RespostaApi<object>>(ct))?.Info ?? "Não foi possível concluir a operação.";
     private static void Adicionar(ICollection<string> p, string n, string? v) { if (!string.IsNullOrWhiteSpace(v)) p.Add($"{n}={Uri.EscapeDataString(v)}"); }
 }
