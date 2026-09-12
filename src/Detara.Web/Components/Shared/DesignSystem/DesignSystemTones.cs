@@ -12,6 +12,7 @@ public enum DetaraStatusTone
 {
     Neutral,
     Positive,
+    Confirmed,
     Warning,
     Info,
     Critical

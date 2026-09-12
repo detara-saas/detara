@@ -19,6 +19,7 @@ public sealed class TokenAuthorizationHandlerTests
 
         Assert.Equal("token-ativo", await contexto.Storage.ObterAsync());
         Assert.False(contexto.Pwa.ServidorDisponivel);
+        Assert.Equal(EstadoConectividade.Falha, contexto.Pwa.Conectividade);
     }
 
     [Fact]
@@ -66,6 +67,25 @@ public sealed class TokenAuthorizationHandlerTests
         await http.GetAsync("api/clientes");
 
         Assert.True(pwa.ServidorDisponivel);
+        Assert.Equal(EstadoConectividade.Restabelecida, pwa.Conectividade);
+    }
+
+    [Fact]
+    public async Task NavegadorVoltaDaRede_VerificaAntesDeDeclararRestabelecimento()
+    {
+        var pwa = new PwaServico(new StorageJsRuntime());
+
+        await pwa.AtualizarEstadoPwaAsync(false, false, false, false);
+        Assert.Equal(EstadoConectividade.Offline, pwa.Conectividade);
+
+        await pwa.AtualizarEstadoPwaAsync(true, false, false, false);
+        Assert.Equal(EstadoConectividade.Reconectando, pwa.Conectividade);
+        Assert.False(pwa.ServidorDisponivel);
+
+        pwa.RegistrarRespostaApi();
+        Assert.Equal(EstadoConectividade.Restabelecida, pwa.Conectividade);
+
+        await pwa.DisposeAsync();
     }
 
     [Theory]

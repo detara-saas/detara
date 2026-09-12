@@ -23,7 +23,7 @@ else
     <CabecalhoPagina Titulo="@DescricaoVeiculo" Descricao="@FormatacaoVeiculo.NomeTipo(_veiculo.Tipo)" Sobretitulo="VEÍCULO">
         <Acoes>
             <span class="status-badge @(_veiculo.EhAtivo ? "status-running" : "status-neutral")">@(_veiculo.EhAtivo ? "Ativo" : "Inativo")</span>
-            <AuthorizeView Policy="@Permissoes.VeiculosEditar"><Authorized><MudButton Href="@($"/veiculos/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Variant="Variant.Text" Color="@(_veiculo.EhAtivo ? Color.Error : Color.Success)" OnClick="SolicitarStatus">@(_veiculo.EhAtivo ? "Inativar" : "Ativar")</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.VeiculosEditar"><Authorized><MudButton Href="@($"/veiculos/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton><MudButton Variant="Variant.Text" Color="@(_veiculo.EhAtivo ? Color.Error : Color.Primary)" OnClick="SolicitarStatus">@(_veiculo.EhAtivo ? "Inativar" : "Ativar")</MudButton></Authorized></AuthorizeView>
         </Acoes>
     </CabecalhoPagina>
 

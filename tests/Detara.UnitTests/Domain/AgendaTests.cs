@@ -7,6 +7,33 @@ namespace Detara.UnitTests.Domain;
 public sealed class AgendaTests
 {
     [Fact]
+    public void ConstrutorBase_PreservaAgendadoParaFuturaOrigemExterna()
+    {
+        var agendamento = CriarAgendamento();
+
+        Assert.Equal(StatusAgendamento.Agendado, agendamento.Status);
+    }
+
+    [Fact]
+    public void CriacaoInternaDeOrcamento_JaNasceConfirmada()
+    {
+        var agendamento = Agendamento.CriarDeOrcamento(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Cliente",
+            Guid.NewGuid(),
+            "Honda Civic",
+            "ABC1D23",
+            DateTime.UtcNow.AddDays(1),
+            90,
+            null,
+            null,
+            [ItemPadrao()]);
+
+        Assert.Equal(StatusAgendamento.Confirmado, agendamento.Status);
+    }
+
+    [Fact]
     public void Workflow_PermiteTransicoesOperacionaisEProtegeEstadoFinal()
     {
         var agendamento = CriarAgendamento();

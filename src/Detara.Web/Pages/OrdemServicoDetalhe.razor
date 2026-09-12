@@ -277,7 +277,7 @@ else
                                                                    class="visually-hidden-file"
                                                                    accept="image/jpeg,image/png,image/webp"
                                                                    OnChange="@(args => EnviarFotoAsync(categoria, args))" />
-                                                        <label class="vehicle-photo-upload" for="@($"os-photo-{categoria}")">
+                                                        <label class="vehicle-photo-upload detara-action-secondary" for="@($"os-photo-{categoria}")">
                                                             <MudIcon Icon="@Icons.Material.Outlined.AddAPhoto" />
                                                             <span>Adicionar</span>
                                                         </label>
@@ -506,7 +506,7 @@ else
                                                            class="visually-hidden-file"
                                                            accept="image/jpeg,image/png,image/webp"
                                                            OnChange="@(args => EnviarFotoAsync(CategoriaFotoOrdemServicoContrato.Entrada, args))" />
-                                                <label class="vehicle-photo-upload" for="os-photo-checkin">
+                                                <label class="vehicle-photo-upload detara-action-secondary" for="os-photo-checkin">
                                                     <MudIcon Icon="@Icons.Material.Outlined.AddAPhoto" />
                                                     <span>@(fotosEntrada.Length == 0 ? "Adicionar foto" : "Adicionar outra foto")</span>
                                                 </label>

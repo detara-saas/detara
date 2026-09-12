@@ -177,7 +177,7 @@ As variantes nativas do `MudButton` são a abstração canônica. Não crie wrap
 |---|---|---|
 | **Primary** | Única ação de continuidade ou confirmação principal da região | `Variant.Filled` + `Color.Primary` |
 | **Secondary** | Alternativa relevante que não deve competir com a continuidade principal | `Variant.Outlined`; `Color.Primary` somente quando o contexto exigir ênfase adicional |
-| **Tertiary / Ghost** | Voltar, cancelar dialog, editar contexto, expandir ou consultar detalhe | `Variant.Text` |
+| **Tertiary / Ghost** | Voltar, cancelar dialog, editar contexto, expandir ou consultar detalhe | `Variant.Text`, com superfície e borda sutis para preservar affordance de botão |
 | **Destructive** | Excluir, cancelar registro, inativar, remover ou estornar | `Color.Error`, com `Text`/`Outlined` para iniciar e `Filled` na confirmação explícita |
 | **Icon** | Ação compacta com ícone universal em tabela, toolbar ou mídia | `MudIconButton`, sempre com `aria-label`; tooltip quando o contexto não bastar |
 
@@ -188,7 +188,7 @@ O tamanho default tem altura mínima de 42 px; compactos usam 34 px somente em r
 Os componentes canônicos abaixo ficam em `src/Detara.Web/Components/Shared/DesignSystem/` e devem ser preferidos a marcação local equivalente:
 
 - `DetaraMetricCard`: título, valor, contexto, descrição ou tendência e tom semântico (`Neutral`, `Positive`, `Warning`, `Info`).
-- `DetaraStatusBadge`: texto e tom semântico (`Neutral`, `Positive`, `Warning`, `Info`, `Critical`), sem alterar enums ou regras de domínio.
+- `DetaraStatusBadge`: texto e tom semântico (`Neutral`, `Positive`, `Confirmed`, `Warning`, `Info`, `Critical`), sem alterar enums ou regras de domínio. `Confirmed` usa teal e permanece visualmente distinto de conclusão/execução positiva em verde.
 - `DetaraCard`: container de seção com título, sobretítulo, descrição, ações e conteúdo opcionais.
 - `DetaraEmptyState`: ausência de dados com ícone, orientação e ação contextual; use `Compacto` dentro de cards.
 - `DetaraSkeleton`: carregamento de cards, tabelas e detalhes sem texto ou spinner solto.
@@ -207,7 +207,7 @@ Seções previstas: Favoritos, Principal, Atendimento, Cadastros, Financeiro e A
 A versão instalada reutiliza o mesmo shell responsivo, temas e estratégias `Fluid`, `Wide` e `Focused`. Não existe layout alternativo para PWA.
 
 - **Instalação:** a ação `Instalar Detara` é discreta, usa ícone Material e só aparece quando o browser oferece `beforeinstallprompt`. No shell autenticado, pertence ao menu da conta; no login, aparece como ação secundária.
-- **Conectividade:** perda de rede ou indisponibilidade real da API usa banner global não bloqueante, com texto claro e sem prometer dados offline. Reconexão não recarrega a página nem apaga formulários.
+- **Conectividade:** perda de rede ou indisponibilidade real da API usa aviso flutuante não bloqueante com estados distintos (`offline`, `reconectando`, `restabelecida` e `falha`). A volta da rede provoca uma única verificação da API, sem polling. A reconexão não recarrega a página nem apaga formulários; o reload permanece sempre uma escolha explícita.
 - **Atualização:** nova versão usa banner persistente com a ação `Atualizar agora`. O reload só acontece depois da escolha do usuário e no máximo uma vez após o novo worker assumir.
 - **Standalone e safe areas:** topbar, drawer, conteúdo, login, mensagens globais e áreas inferiores respeitam `safe-area-inset-*`. Alvos de toque e composição responsiva permanecem idênticos aos do navegador.
 - **Temas:** o manifest define fallback de marca; a meta `theme-color` acompanha o tema efetivo Claro, Escuro ou Sistema.

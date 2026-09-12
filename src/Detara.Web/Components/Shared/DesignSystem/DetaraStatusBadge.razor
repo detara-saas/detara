@@ -15,6 +15,7 @@
     private string ToneClass => Tone switch
     {
         DetaraStatusTone.Positive => "status-running",
+        DetaraStatusTone.Confirmed => "status-confirmed",
         DetaraStatusTone.Warning => "status-waiting",
         DetaraStatusTone.Info => "status-scheduled",
         DetaraStatusTone.Critical => "status-cancelled",

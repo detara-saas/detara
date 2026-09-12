@@ -28,10 +28,18 @@
         <div class="loading-progress-text"></div>
     </div>
 
-    <div id="blazor-error-ui">
-        Não foi possível concluir a operação.
-        <a href="." class="reload">Recarregar</a>
-        <span class="dismiss">🗙</span>
+    <div id="blazor-error-ui" role="alert" aria-live="assertive">
+        <div class="blazor-error-card">
+            <span class="blazor-error-mark" aria-hidden="true">!</span>
+            <div class="blazor-error-copy">
+                <strong>Não foi possível continuar</strong>
+                <span>A aplicação encontrou uma falha inesperada. Recarregue somente quando puder repetir a última ação com segurança.</span>
+            </div>
+            <div class="blazor-error-actions">
+                <a href="." class="reload">Recarregar agora</a>
+                <button type="button" class="dismiss" aria-label="Fechar aviso">Agora não</button>
+            </div>
+        </div>
     </div>
     <script src="js/detara.js"></script>
     <script src="js/pwa.js"></script>

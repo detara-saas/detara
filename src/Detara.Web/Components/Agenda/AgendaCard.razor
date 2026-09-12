@@ -7,7 +7,7 @@
 @code {
     [Parameter, EditorRequired] public AgendamentoPeriodoResponse Item { get; set; } = null!;
     [Parameter] public bool Compacto { get; set; }
-    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.NaoCompareceu => "Não compareceu", StatusAgendamentoContrato.Compareceu => "Em atendimento", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
-    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => DetaraStatusTone.Info, StatusAgendamentoContrato.Confirmado or StatusAgendamentoContrato.Concluido => DetaraStatusTone.Positive, StatusAgendamentoContrato.Compareceu => DetaraStatusTone.Warning, StatusAgendamentoContrato.Cancelado => DetaraStatusTone.Critical, _ => DetaraStatusTone.Neutral };
+    private static string NomeStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.NomeStatus(status);
+    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.TomStatus(status);
     private static string FormatarDuracao(int minutos) => minutos >= 60 ? $"{minutos / 60}h{(minutos % 60 > 0 ? $" {minutos % 60}min" : string.Empty)}" : $"{minutos} min";
 }

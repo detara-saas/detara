@@ -95,20 +95,6 @@
     [Parameter, EditorRequired] public DashboardExecutivoResponse Dados { get; set; } = null!;
 
     private static string Valor(int? valor) => valor?.ToString(Cultura) ?? "—";
-    private static string NomeStatus(StatusAgendamentoContrato status) => status switch
-    {
-        StatusAgendamentoContrato.Agendado => "Agendado",
-        StatusAgendamentoContrato.Confirmado => "Confirmado",
-        StatusAgendamentoContrato.Compareceu => "Em atendimento",
-        StatusAgendamentoContrato.Concluido => "Concluído",
-        _ => status.ToString()
-    };
-    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => status switch
-    {
-        StatusAgendamentoContrato.Agendado => DetaraStatusTone.Info,
-        StatusAgendamentoContrato.Confirmado => DetaraStatusTone.Positive,
-        StatusAgendamentoContrato.Compareceu => DetaraStatusTone.Positive,
-        StatusAgendamentoContrato.Concluido => DetaraStatusTone.Positive,
-        _ => DetaraStatusTone.Neutral
-    };
+    private static string NomeStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.NomeStatus(status);
+    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.TomStatus(status);
 }

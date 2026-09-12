@@ -85,6 +85,20 @@ public sealed class AgendaPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OperadorCriaAgendamento_JaConfirmado()
+    {
+        await using var contexto = Contexto(_empresaA);
+
+        var criado = await CriarHandler(contexto).Handle(
+            Comando(_clienteA, _veiculoA, TipoItemAgendamento.Servico, _servicoA),
+            default);
+
+        Assert.Equal(StatusAgendamento.Confirmado, criado.Agendamento.Status);
+        Assert.Equal(StatusAgendamento.Confirmado,
+            (await contexto.Agendamentos.SingleAsync(item => item.Id == criado.Agendamento.Id)).Status);
+    }
+
+    [Fact]
     public async Task SnapshotsPersistidos_NaoMudamAposEdicaoDosCadastros()
     {
         await using var c = Contexto(_empresaA); var criado = await CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, TipoItemAgendamento.Servico, _servicoA), default);

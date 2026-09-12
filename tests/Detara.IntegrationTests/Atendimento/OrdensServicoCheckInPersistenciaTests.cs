@@ -57,7 +57,7 @@ public sealed class OrdensServicoCheckInPersistenciaTests : IAsyncLifetime
                 CancellationToken.None));
 
         Assert.Equal("Realize o check-in antes de iniciar a execução.", excecao.Message);
-        Assert.Equal(StatusAgendamento.Agendado,
+        Assert.Equal(StatusAgendamento.Confirmado,
             (await context.Agendamentos.SingleAsync(item => item.Id == ordem.AgendamentoOrigemId)).Status);
     }
 
@@ -178,7 +178,7 @@ public sealed class OrdensServicoCheckInPersistenciaTests : IAsyncLifetime
             new OrdensServicoRepositorio(context), new PlataformaTeste(_empresaId))
             .Handle(new(ordem.Id, "Atendimento cancelado no teste."), default);
 
-        Assert.Equal(StatusAgendamento.Agendado,
+        Assert.Equal(StatusAgendamento.Confirmado,
             (await context.Agendamentos.SingleAsync(item => item.Id == ordem.AgendamentoOrigemId)).Status);
     }
 

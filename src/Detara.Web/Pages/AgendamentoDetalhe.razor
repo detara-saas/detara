@@ -58,8 +58,8 @@ else
         @if (!EhFinal(_agendamento.Status))
         {
             <section class="appointment-actions module-panel"><div><span class="section-eyebrow">PRÓXIMA AÇÃO</span><h2>Atualizar etapa operacional</h2></div><div class="appointment-action-buttons">
-                @if (_agendamento.Status == StatusAgendamentoContrato.Agendado) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.Confirmado))">Confirmar</MudButton> }
-                @if (_agendamento.Status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado && _ordem is null) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.DirectionsCar" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.Compareceu))">Registrar chegada</MudButton><MudButton Variant="Variant.Text" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.NaoCompareceu))">Não compareceu</MudButton> }
+                @if (AgendamentoApresentacao.PodeConfirmar(_agendamento.Status)) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.Confirmado))">Confirmar</MudButton> }
+                @if (_agendamento.Status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado && _ordem is null) { <MudButton Variant="Variant.Text" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.NaoCompareceu))">Não compareceu</MudButton> }
                 @if (_ordem is null || _ordem.Status == StatusOrdemServicoContrato.Cancelada) { <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarStatusAsync(StatusAgendamentoContrato.Cancelado))">Cancelar agendamento</MudButton> }
             </div></section>
         }
@@ -118,11 +118,10 @@ else
     private static bool EhEditavel(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado;
     private static bool EhFinal(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Concluido or StatusAgendamentoContrato.Cancelado or StatusAgendamentoContrato.NaoCompareceu;
     private static bool PermiteCriarOrdem(StatusAgendamentoContrato status) => status is StatusAgendamentoContrato.Agendado or StatusAgendamentoContrato.Confirmado or StatusAgendamentoContrato.Compareceu;
-    private static string NomeStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.NaoCompareceu => "Não compareceu", StatusAgendamentoContrato.Compareceu => "Em atendimento", StatusAgendamentoContrato.Concluido => "Concluído", _ => status.ToString() };
+    private static string NomeStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.NomeStatus(status);
     private static string NomeStatusOrdem(StatusOrdemServicoContrato status) => status switch { StatusOrdemServicoContrato.EmExecucao => "Em execução", StatusOrdemServicoContrato.AguardandoRetirada => "Aguardando retirada", StatusOrdemServicoContrato.Concluida => "Concluída", StatusOrdemServicoContrato.Cancelada => "Cancelada", _ => "Aberta" };
     private static string NomeStatusOrcamento(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Aprovado => "Aprovado", StatusOrcamentoContrato.Emitido => "Emitido", StatusOrcamentoContrato.Substituido => "Substituído", _ => status.ToString() };
-    private static string ClasseStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => "status-scheduled", StatusAgendamentoContrato.Confirmado => "status-confirmed", StatusAgendamentoContrato.Compareceu => "status-waiting", StatusAgendamentoContrato.Concluido => "status-running", StatusAgendamentoContrato.Cancelado => "status-cancelled", _ => "status-neutral" };
-    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => status switch { StatusAgendamentoContrato.Agendado => DetaraStatusTone.Info, StatusAgendamentoContrato.Confirmado or StatusAgendamentoContrato.Concluido => DetaraStatusTone.Positive, StatusAgendamentoContrato.Compareceu => DetaraStatusTone.Warning, StatusAgendamentoContrato.Cancelado => DetaraStatusTone.Critical, _ => DetaraStatusTone.Neutral };
+    private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.TomStatus(status);
     private static string TextoConflitoHorario(int quantidade) => quantidade == 1
         ? "1 conflito de horário identificado"
         : $"{quantidade} conflitos de horário identificados";
