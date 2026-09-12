@@ -58,14 +58,10 @@
                 <main class="page-main-column">
                     <section class="module-panel section-card">
                         <CabecalhoSecao Sobretitulo="CLIENTE E VEÍCULO" Titulo="Dados do atendimento" Descricao="Identifique quem será atendido e o veículo recebido." Etapa="01" />
-                        <div class="form-grid">
+                        <div class="form-grid service-order-intake-grid">
                             <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
                             <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@FormatacaoVeiculo.Exibir(v.Descricao, v.Placa)</MudSelectItem> }</MudSelect>
-                        </div>
-                        <div class="form-divider"></div>
-                        <div class="form-grid service-order-operational-fields">
                             <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada em minutos (opcional)" Variant="Variant.Outlined" Min="1" />
-                            <MudTextField T="string" @bind-Value="_observacaoAutorizacao" Label="Registro da autorização direta (opcional)" HelperText="Ex.: cliente aprovou presencialmente o valor informado." Variant="Variant.Outlined" Lines="2" />
                         </div>
                     </section>
 
@@ -100,7 +96,7 @@
 </div>
 
 @code {
-    private bool _carregando = true, _salvando; private Guid? _orcamentoId, _agendamentoId, _clienteId, _veiculoId; private string? _clienteNome, _observacaoAutorizacao, _pesquisaCatalogo; private int? _duracao;
+    private bool _carregando = true, _salvando; private Guid? _orcamentoId, _agendamentoId, _clienteId, _veiculoId; private string? _clienteNome, _pesquisaCatalogo; private int? _duracao;
     private OrcamentoDetalheResponse? _orcamento; private IReadOnlyCollection<VeiculoOrcamentoResponse> _veiculos = []; private IReadOnlyCollection<ItemCatalogoOrcamentoResponse> _catalogo = []; private readonly List<ItemEdicao> _itens = [];
     private decimal Subtotal => _itens.Sum(item => item.Valor * item.Quantidade);
     private string NomeOrigem => _orcamento is not null ? $"Orçamento {_orcamento.Codigo}" : _agendamentoId.HasValue ? "Agendamento" : "Atendimento direto";
@@ -146,7 +142,7 @@
         if (_orcamento is null && (!_clienteId.HasValue || !_veiculoId.HasValue || _itens.Count == 0)) { Mensagens.Mostrar("Informe cliente, veículo e ao menos um item autorizado.", true); return; }
         _salvando = true;
         var request = new CriarOrdemServicoRequest(_orcamento?.Id, _agendamentoId, _clienteId, _veiculoId, _duracao, 0, 0,
-            _observacaoAutorizacao, _orcamento is not null ? [] : _itens.Select(item => new ItemOrdemServicoRequest(item.Tipo, item.Id,
+            null, _orcamento is not null ? [] : _itens.Select(item => new ItemOrdemServicoRequest(item.Tipo, item.Id,
                 item.Tipo == TipoItemOrcamentoContrato.Personalizado ? item.Nome : null, null, item.Valor, item.Quantidade, null)).ToArray());
         var r = await OrdensApi.CriarAsync(request); _salvando = false; Mensagens.Mostrar(r.Mensagem, !r.Sucesso); if (r.Resultado is not null) Navegacao.NavigateTo($"/ordens-servico/{r.Resultado.Id}");
     }

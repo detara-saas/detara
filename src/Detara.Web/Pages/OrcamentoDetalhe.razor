@@ -77,7 +77,7 @@ else
     <AuthorizeView Policy="@Permissoes.OrcamentosEditar"><Authorized>
         <section class="appointment-actions module-panel"><div><span class="section-eyebrow">AÇÕES COMERCIAIS</span><h2>Próxima ação</h2></div><div class="appointment-action-buttons">
             @if (_orcamento.Status == StatusOrcamentoContrato.Rascunho) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("emitir"))">Emitir orçamento</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcaoAsync("cancelar"))">Cancelar</MudButton> }
-            @if (_orcamento.Status == StatusOrcamentoContrato.Emitido) { <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => SolicitarAcaoAsync("aprovar"))">Registrar aprovação</MudButton><MudButton Variant="Variant.Outlined" OnClick="@(() => SolicitarAcaoAsync("recusar"))">Registrar recusa</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcaoAsync("cancelar"))">Cancelar</MudButton> }
+            @if (_orcamento.Status == StatusOrcamentoContrato.Emitido) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("aprovar"))">Registrar aprovação</MudButton><MudButton Variant="Variant.Outlined" OnClick="@(() => SolicitarAcaoAsync("recusar"))">Registrar recusa</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcaoAsync("cancelar"))">Cancelar</MudButton> }
         </div></section>
     </Authorized></AuthorizeView>
     </div>

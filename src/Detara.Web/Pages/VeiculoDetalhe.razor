@@ -38,7 +38,7 @@ else
 
     @if (_confirmandoStatus)
     {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip"><div><strong>Confirmar @(_veiculo.EhAtivo ? "inativação" : "ativação")?</strong><span>O histórico e as fotos do veículo serão preservados.</span></div><div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert>
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="confirmation-strip"><div><strong>Confirmar @(_veiculo.EhAtivo ? "inativação" : "ativação")?</strong><span>O histórico e as fotos do veículo serão preservados.</span></div><div><MudButton Variant="Variant.Text" OnClick="CancelarStatus">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="@(_veiculo.EhAtivo ? Color.Error : Color.Primary)" OnClick="ConfirmarStatusAsync">Confirmar</MudButton></div></MudAlert>
     }
 
     <div class="detail-grid vehicle-detail-grid">
