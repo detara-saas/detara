@@ -14,7 +14,7 @@ else
         <main class="page-main-column">
             @if (_agendamentoOrigemId.HasValue || _ordemServicoOrigemId.HasValue)
             {
-                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert quotation-origin-note">@(_ordemServicoOrigemId.HasValue ? "Este é um orçamento adicional vinculado à OS. Só itens aprovados serão incorporados ao escopo autorizado." : "Este rascunho usa os snapshots apresentados no agendamento. Confirme os valores negociados sem alterar a Agenda.")</MudAlert>
+                <div class="quotation-origin-note quotation-context-note"><MudIcon Icon="@Icons.Material.Outlined.AccountTree" /><span>@(_ordemServicoOrigemId.HasValue ? "Este é um orçamento adicional vinculado à OS. Só itens aprovados serão incorporados ao escopo autorizado." : "Este rascunho usa os snapshots apresentados no agendamento. Confirme os valores negociados sem alterar a Agenda.")</span></div>
             }
 
             <section class="module-panel section-card">
@@ -29,7 +29,7 @@ else
 
             <section class="module-panel section-card">
                 <CabecalhoSecao Sobretitulo="PROPOSTA" Titulo="Itens e valores negociados" Descricao="Use o catálogo como referência e registre o valor desta proposta." Etapa="02" />
-                <div class="catalog-tools">
+                <div class="catalog-tools quotation-catalog-tools">
                     <MudTextField T="string" @bind-Value="_pesquisaCatalogo" Label="Pesquisar serviços e pacotes" Placeholder="Serviço ou pacote" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
                     <div class="catalog-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Search" OnClick="BuscarCatalogoAsync">Buscar catálogo</MudButton><MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Add" OnClick="AdicionarPersonalizado">Item personalizado</MudButton></div>
                 </div>
@@ -72,7 +72,7 @@ else
                                     <MudNumericField T="decimal" @bind-Value="item.ValorUnitario" Label="Valor neste orçamento" Variant="Variant.Outlined" Min="0" Format="C2" />
                                     <div class="quotation-item-subtotal"><span>Subtotal</span><strong class="currency-value">@((item.Quantidade * item.ValorUnitario).ToString("C2"))</strong></div>
                                 </div>
-                                <MudTextField T="string" @bind-Value="item.Observacao" Label="Observação do item (opcional)" Variant="Variant.Outlined" />
+                                <MudTextField T="string" @bind-Value="item.Observacao" Label="Observação do item (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
                             </article>
                         }
                     </div>
@@ -81,11 +81,11 @@ else
 
             <section class="module-panel section-card">
                 <CabecalhoSecao Sobretitulo="CONDIÇÕES" Titulo="Validade e comunicação" Descricao="Defina o prazo e as informações apresentadas ao cliente." Etapa="03" />
-                <div class="form-grid">
-                    <MudDatePicker @bind-Date="_validoAte" Label="Válido até *" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" />
-                    <MudTextField T="string" @bind-Value="_modelo.Condicoes" Label="Condições comerciais" Variant="Variant.Outlined" Lines="3" Class="form-full" />
-                    <MudTextField T="string" @bind-Value="_modelo.ObservacaoCliente" Label="Observações para o cliente" Variant="Variant.Outlined" Lines="3" Class="form-full" />
-                    <MudTextField T="string" @bind-Value="_modelo.ObservacaoInterna" Label="Observação interna (não aparece no PDF)" Variant="Variant.Outlined" Lines="3" Class="form-full" />
+                <div class="quotation-conditions-grid">
+                    <MudDatePicker @bind-Date="_validoAte" Label="Válido até *" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
+                    <MudTextField T="string" @bind-Value="_modelo.Condicoes" Label="Condições comerciais" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+                    <MudTextField T="string" @bind-Value="_modelo.ObservacaoCliente" Label="Observações para o cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+                    <MudTextField T="string" @bind-Value="_modelo.ObservacaoInterna" Label="Observação interna (não aparece no PDF)" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
                 </div>
             </section>
         </main>

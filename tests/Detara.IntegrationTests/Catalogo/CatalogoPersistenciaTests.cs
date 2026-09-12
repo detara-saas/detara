@@ -1,8 +1,10 @@
 using Detara.Application.Abstracoes;
 using Detara.Application.Catalogo;
+using Detara.Domain.Atendimento;
 using Detara.Domain.Entidades;
 using Detara.Domain.Catalogo;
 using Detara.Infrastructure.Catalogo;
+using Detara.Infrastructure.Atendimento;
 using Detara.Infrastructure.Persistencia;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -150,6 +152,65 @@ public sealed class CatalogoPersistenciaTests : IAsyncLifetime
         Assert.Equal(_servicoA2Id, Assert.Single(porNome.Itens).Id);
         Assert.Equal(2, porCategoria.TotalItens);
         Assert.Equal(2, porCategoria.Itens.Count);
+    }
+
+    [Fact]
+    public async Task Historico_ListaTop10ExecucoesReaisOrdenadasEIsoladasPorTenant()
+    {
+        await using (var context = CriarContexto(_empresaAId))
+        {
+            for (var indice = 1; indice <= 12; indice++)
+                context.OrdensServico.Add(CriarOrdemExecutada(_empresaAId, _servicoAId,
+                    TipoItemOrcamento.Servico, "Cliente A",
+                    new DateTime(2026, 9, indice, 12, 0, 0, DateTimeKind.Utc)));
+            context.OrdensServico.Add(CriarOrdemExecutada(_empresaAId, _pacoteAId,
+                TipoItemOrcamento.Pacote, "Cliente A",
+                new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc)));
+            await context.SaveChangesAsync();
+        }
+        await using (var context = CriarContexto(_empresaBId))
+        {
+            context.OrdensServico.Add(CriarOrdemExecutada(_empresaBId, _servicoAId,
+                TipoItemOrcamento.Servico, "Cliente B",
+                new DateTime(2026, 9, 30, 12, 0, 0, DateTimeKind.Utc)));
+            await context.SaveChangesAsync();
+        }
+
+        await using var consultaContext = CriarContexto(_empresaAId);
+        var consulta = new HistoricoExecucoesCatalogoConsulta(consultaContext);
+        var servicos = await consulta.ListarAsync(_empresaAId, TipoItemOrcamento.Servico,
+            _servicoAId, 10, default);
+        var pacotes = await consulta.ListarAsync(_empresaAId, TipoItemOrcamento.Pacote,
+            _pacoteAId, 10, default);
+
+        Assert.Equal(10, servicos.Count);
+        Assert.Equal(Enumerable.Range(3, 10).Reverse(), servicos.Select(x => x.ExecutadaEmUtc.Day));
+        Assert.All(servicos, x => Assert.Equal("Cliente A", x.ClienteNome));
+        var pacote = Assert.Single(pacotes);
+        Assert.Equal("Cliente A", pacote.ClienteNome);
+        Assert.Equal(15, pacote.ExecutadaEmUtc.Day);
+    }
+
+    private static OrdemServico CriarOrdemExecutada(Guid empresaId, Guid itemCatalogoId,
+        TipoItemOrcamento tipoItem, string clienteNome, DateTime executadaEmUtc)
+    {
+        var usuarioId = Guid.NewGuid();
+        var ordem = new OrdemServico(empresaId, 2026,
+            new(Guid.NewGuid(), clienteNome, null, null,
+                Guid.NewGuid(), "Veículo de teste", "ABC1D23"),
+            OrigemOrdemServico.AtendimentoDireto, null, null, 60, 0, 0,
+            [new(tipoItem, itemCatalogoId, null, null,
+                tipoItem == TipoItemOrcamento.Pacote ? "Pacote" : "Serviço", null, 100, 1, 1,
+                OrigemComercialOrdemServico.AcordoDireto, executadaEmUtc.AddHours(-2), usuarioId, null)],
+            usuarioId, executadaEmUtc.AddHours(-2), "Teste");
+        ordem.RealizarCheckIn(new(NivelExigenciaOperacional.Desabilitado,
+            NivelExigenciaOperacional.Desabilitado, NivelExigenciaOperacional.Desabilitado,
+            null, []), null, null, usuarioId);
+        ordem.IniciarExecucao(usuarioId, null);
+        ordem.FinalizarExecucao(usuarioId, null);
+        typeof(OrdemServico).GetProperty(nameof(OrdemServico.ExecucaoFinalizadaEmUtc))!
+            .SetValue(ordem, executadaEmUtc);
+        return ordem;
     }
 
     private DetaraDbContext CriarContexto(Guid empresaId) => new(_options, new UsuarioContextoTeste(empresaId));

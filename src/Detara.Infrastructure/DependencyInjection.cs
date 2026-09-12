@@ -1,4 +1,5 @@
 using Detara.Application.Abstracoes;
+using Detara.Application.Catalogo;
 using Detara.Domain.Entidades;
 using Detara.Infrastructure.Autenticacao;
 using Detara.Infrastructure.Persistencia;
@@ -86,6 +87,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoriasServicoRepositorio, CategoriasServicoRepositorio>();
         services.AddScoped<IServicosRepositorio, ServicosRepositorio>();
         services.AddScoped<IPacotesRepositorio, PacotesRepositorio>();
+        services.AddScoped<IHistoricoExecucoesCatalogoConsulta, HistoricoExecucoesCatalogoConsulta>();
         services.AddScoped<IAgendaRepositorio, AgendaRepositorio>();
         services.AddScoped<IClientesAgendaConsulta, ClientesAgendaConsulta>();
         services.AddScoped<ICatalogoAgendaConsulta, CatalogoAgendaConsulta>();

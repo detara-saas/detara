@@ -32,15 +32,15 @@ else
 
     @if (_orcamento.EmitidoEmUtc.HasValue)
     {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert immutable-quotation-note">
-            <div><strong>Documento comercial imutável</strong><span>Este orçamento já foi emitido e não pode ser alterado. Para mudar valores ou serviços, crie uma nova proposta.</span></div>
+        <section class="module-panel quotation-document-note immutable-quotation-note">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" /><div><strong>Documento comercial imutável</strong><span>Este orçamento já foi emitido e não pode ser alterado. Para mudar valores ou serviços, crie uma nova proposta.</span></div>
             <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView>
-        </MudAlert>
+        </section>
     }
     @if (_orcamento.Status == StatusOrcamentoContrato.Expirado) { <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="page-alert">Este orçamento expirou em @_orcamento.ValidoAte.ToString("dd/MM/yyyy") e não pode receber nova aprovação. Crie uma nova proposta.</MudAlert> }
     @if (_orcamento.Status == StatusOrcamentoContrato.Cancelado && !_orcamento.EmitidoEmUtc.HasValue)
     {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert immutable-quotation-note"><div><strong>Rascunho cancelado</strong><span>Este documento não chegou a ser emitido e não possui PDF oficial.</span></div><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView></MudAlert>
+        <section class="module-panel quotation-document-note immutable-quotation-note"><MudIcon Icon="@Icons.Material.Outlined.Description" /><div><strong>Rascunho cancelado</strong><span>Este documento não chegou a ser emitido e não possui PDF oficial.</span></div><AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("nova"))">Criar nova proposta</MudButton></Authorized></AuthorizeView></section>
     }
 
     @if (_orcamento.CriadoAPartirDe is not null || _orcamento.SubstituidoPor is not null)
@@ -74,12 +74,15 @@ else
         @foreach (var h in _orcamento.Historico.OrderByDescending(x => x.DataUtc)) { <article><span class="history-dot @ClasseStatus(h.Status)"></span><div><strong>@NomeStatus(h.Status)</strong><span>@h.DataUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @h.UsuarioNome</span>@if (!string.IsNullOrWhiteSpace(h.Observacao)) { <p>@h.Observacao</p> }</div></article> }
     </section>
 
+    @if (TemAcoesComerciais)
+    {
     <AuthorizeView Policy="@Permissoes.OrcamentosEditar"><Authorized>
         <section class="appointment-actions module-panel"><div><span class="section-eyebrow">AÇÕES COMERCIAIS</span><h2>Próxima ação</h2></div><div class="appointment-action-buttons">
             @if (_orcamento.Status == StatusOrcamentoContrato.Rascunho) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("emitir"))">Emitir orçamento</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcaoAsync("cancelar"))">Cancelar</MudButton> }
             @if (_orcamento.Status == StatusOrcamentoContrato.Emitido) { <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SolicitarAcaoAsync("aprovar"))">Registrar aprovação</MudButton><MudButton Variant="Variant.Outlined" OnClick="@(() => SolicitarAcaoAsync("recusar"))">Registrar recusa</MudButton><MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => SolicitarAcaoAsync("cancelar"))">Cancelar</MudButton> }
         </div></section>
     </Authorized></AuthorizeView>
+    }
     </div>
     </div>
 }
@@ -87,6 +90,7 @@ else
 @code {
     [Parameter] public Guid Id { get; set; }
     private OrcamentoDetalheResponse? _orcamento; private bool _carregando = true;
+    private bool TemAcoesComerciais => _orcamento?.Status is StatusOrcamentoContrato.Rascunho or StatusOrcamentoContrato.Emitido;
     protected override Task OnParametersSetAsync() => CarregarAsync();
     private async Task CarregarAsync() { _carregando = true; var r = await OrcamentosApi.ObterAsync(Id); _orcamento = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
     private async Task SolicitarAcaoAsync(string acao)

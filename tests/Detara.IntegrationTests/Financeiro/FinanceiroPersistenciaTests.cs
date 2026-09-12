@@ -221,6 +221,14 @@ public sealed class FinanceiroPersistenciaTests : IAsyncLifetime
             new DateTime(2026, 8, 18, 13, 0, 0, DateTimeKind.Utc), _usuarioA);
         atual.EstornarPagamento(estornado.Id, _usuarioA, "Correção", DateTime.UtcNow);
         contexto.Pagamentos.AddRange(estornado, confirmado);
+        var categoria = new CategoriaDespesa(_empresaA, "Operação");
+        var despesaPaga = new ContaPagar(_empresaA, "Aluguel", categoria, 300,
+            new DateOnly(2026, 7, 1), new DateOnly(2026, 8, 10));
+        var pagamentoDespesa = despesaPaga.RegistrarPagamento(new DateOnly(2026, 8, 18), 300,
+            _usuarioA, new DateTime(2026, 8, 18, 14, 0, 0, DateTimeKind.Utc));
+        var despesaPrevista = new ContaPagar(_empresaA, "Produtos", categoria, 200,
+            new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10));
+        contexto.AddRange(categoria, despesaPaga, despesaPrevista, pagamentoDespesa);
         await contexto.SaveChangesAsync();
 
         var resumo = await new FinanceiroRepositorio(contexto).ObterResumoAsync(new(2026, 8, 1),
@@ -232,6 +240,15 @@ public sealed class FinanceiroPersistenciaTests : IAsyncLifetime
         Assert.Equal(0, resumo.Taxas);
         Assert.Equal(190, resumo.EmAbertoAtual);
         Assert.Equal(190, resumo.VencidoAtual);
+        Assert.Equal(200, resumo.DespesasPrevistasPeriodo);
+        Assert.Equal(300, resumo.DespesasPagasPeriodo);
+        Assert.Equal(200, resumo.DespesasEmAbertoAtual);
+        Assert.Equal(200, resumo.DespesasVencidasAtual);
+
+        var visualizacao = await new ObterResumoFinanceiroHandler(new UsuarioContextoTeste(_empresaA, _usuarioA),
+            new FinanceiroRepositorio(contexto), new PlataformaFinanceiroConsulta(contexto),
+            new ConversorFusoHorario()).Handle(new(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 31)), default);
+        Assert.Equal(-250, visualizacao.SaldoOperacionalPeriodo);
     }
 
     [Fact]
