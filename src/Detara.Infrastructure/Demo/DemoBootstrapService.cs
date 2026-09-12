@@ -716,6 +716,7 @@ public sealed partial class DemoBootstrapService(
         services.AddSingleton<ICategoriasServicoRepositorio, CategoriasServicoRepositorio>();
         services.AddSingleton<IServicosRepositorio, ServicosRepositorio>();
         services.AddSingleton<IPacotesRepositorio, PacotesRepositorio>();
+        services.AddSingleton<IHistoricoExecucoesCatalogoConsulta, HistoricoExecucoesCatalogoConsulta>();
         services.AddSingleton<IAgendaRepositorio, AgendaRepositorio>();
         services.AddSingleton<IClientesAgendaConsulta, ClientesAgendaConsulta>();
         services.AddSingleton<ICatalogoAgendaConsulta, CatalogoAgendaConsulta>();

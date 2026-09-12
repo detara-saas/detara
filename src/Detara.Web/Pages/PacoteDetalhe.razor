@@ -18,7 +18,17 @@ else
         <article><span class="package-order">@servico.Ordem</span><div><strong>@servico.Nome</strong><span>@servico.CategoriaNome · @FormatacaoCatalogo.Preco(servico.TipoPrecificacao, servico.PrecoBase) · @FormatarDuracao(servico.DuracaoEstimadaMinutos)</span></div><span class="status-badge @(servico.EhAtivo ? "status-running" : "status-neutral")">@(servico.EhAtivo ? "Ativo" : "Inativo")</span></article>
     }
     </div></section>
-    <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Aplicações do pacote</h2></div></div><div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhuma aplicação registrada</strong><span>O histórico aparecerá quando este pacote entrar em atendimentos.</span></div></div></section>
+    <section class="module-panel related-section"><div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Aplicações do pacote</h2><p>As 10 finalizações mais recentes em ordens de serviço.</p></div></div>
+        @if (_pacote.Execucoes.Count == 0)
+        { <div class="compact-empty"><MudIcon Icon="@Icons.Material.Outlined.History" /><div><strong>Nenhuma aplicação registrada</strong><span>O histórico aparecerá após a execução ser finalizada em uma ordem de serviço.</span></div></div> }
+        else
+        {
+            <div class="catalog-execution-history">
+            @foreach (var execucao in _pacote.Execucoes)
+            { <a href="@($"/ordens-servico/{execucao.OrdemServicoId}")"><span class="catalog-execution-icon"><MudIcon Icon="@Icons.Material.Outlined.Inventory2" /></span><div><strong>@execucao.ClienteNome · @FormatacaoVeiculo.Exibir(execucao.VeiculoDescricao, execucao.VeiculoPlaca)</strong><span>@execucao.OrdemServicoCodigo · @execucao.ExecutadaEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div><DetaraStatusBadge Texto="@NomeStatus(execucao.Status)" Tone="DetaraStatusTone.Positive" /><strong class="currency-value">@((execucao.ValorUnitario * execucao.Quantidade).ToString("C2"))</strong><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }
+            </div>
+        }
+    </section>
 }
 
 </div>
@@ -34,4 +44,5 @@ else
     private async Task ConfirmarStatusAsync() { if (_pacote is null) return; var resultado = await Catalogo.AlterarStatusPacoteAsync(Id, !_pacote.EhAtivo); Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); _confirmando = false; if (resultado.Sucesso) await OnParametersSetAsync(); }
     private static string FormatarValor(decimal? valor) => valor?.ToString("C2") ?? "Não calculado";
     private static string FormatarDuracao(int? minutos) => minutos.HasValue ? $"{minutos.Value} min" : "Duração variável";
+    private static string NomeStatus(StatusOrdemServicoContrato status) => status == StatusOrdemServicoContrato.Concluida ? "Concluída" : "Execução finalizada";
 }

@@ -45,7 +45,9 @@ public sealed record ContaReceberDetalheResponse(Guid Id, Guid OrdemServicoId, s
 public sealed record FormaPagamentoResumoResponse(FormaPagamentoContrato FormaPagamento, decimal Valor, int Quantidade);
 public sealed record ResumoFinanceiroResponse(DateOnly Inicio, DateOnly Fim, decimal Faturado,
     decimal RecebidoBruto, decimal Taxas, decimal ReceitaLiquidaRecebida, decimal EmAbertoAtual,
-    decimal VencidoAtual, decimal TicketMedio, IReadOnlyCollection<FormaPagamentoResumoResponse> FormasPagamento);
+    decimal VencidoAtual, decimal TicketMedio, decimal DespesasPrevistasPeriodo,
+    decimal DespesasPagasPeriodo, decimal DespesasEmAbertoAtual, decimal DespesasVencidasAtual,
+    decimal SaldoOperacionalPeriodo, IReadOnlyCollection<FormaPagamentoResumoResponse> FormasPagamento);
 
 public sealed record RegistrarPagamentoRequest(FormaPagamentoContrato FormaPagamento, decimal Valor,
     decimal Taxa, int? NumeroParcelas, string? Observacao, DateTime RecebidoEmLocal);

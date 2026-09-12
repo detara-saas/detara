@@ -22,6 +22,9 @@ public sealed class FinanceiroController(ISender sender) : ControllerBase
         return Ok(RespostaApi<ResumoFinanceiroResponse>.Ok(new(resultado.Inicio, resultado.Fim,
             resultado.Faturado, resultado.RecebidoBruto, resultado.Taxas, resultado.ReceitaLiquidaRecebida,
             resultado.EmAbertoAtual, resultado.VencidoAtual, resultado.TicketMedio,
+            resultado.DespesasPrevistasPeriodo, resultado.DespesasPagasPeriodo,
+            resultado.DespesasEmAbertoAtual, resultado.DespesasVencidasAtual,
+            resultado.SaldoOperacionalPeriodo,
             resultado.FormasPagamento.Select(item => new FormaPagamentoResumoResponse(
                 (FormaPagamentoContrato)(int)item.Forma, item.Valor, item.Quantidade)).ToArray())));
     }

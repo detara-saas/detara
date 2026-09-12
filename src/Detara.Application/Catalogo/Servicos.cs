@@ -1,4 +1,5 @@
 using Detara.Application.Abstracoes;
+using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
 using Detara.Domain.Entidades;
 using FluentValidation;
@@ -12,7 +13,7 @@ public sealed record ServicoDetalheResultado(Guid Id, Guid CategoriaServicoId, s
 public sealed record ServicoSelecaoResultado(Guid Id, string Nome, string CategoriaNome, TipoPrecificacao TipoPrecificacao, decimal? PrecoBase, int? DuracaoEstimadaMinutos, bool EhAtivo);
 public sealed record ListarServicosQuery(FiltroServicos Filtro) : IRequest<PaginacaoResultado<ServicoListaItemResultado>>;
 public sealed record ListarServicosSelecaoQuery(bool IncluirInativos = false) : IRequest<IReadOnlyCollection<ServicoSelecaoResultado>>;
-public sealed record ObterServicoQuery(Guid Id) : IRequest<ServicoDetalheResultado>;
+public sealed record ObterServicoQuery(Guid Id) : IRequest<ServicoDetalheVisualizacao>;
 public sealed record CriarServicoCommand(Guid CategoriaServicoId, string Nome, string? Descricao, TipoPrecificacao TipoPrecificacao, decimal? PrecoBase, int? DuracaoEstimadaMinutos, int Ordem) : IRequest<ServicoDetalheResultado>;
 public sealed record AtualizarServicoCommand(Guid Id, Guid CategoriaServicoId, string Nome, string? Descricao, TipoPrecificacao TipoPrecificacao, decimal? PrecoBase, int? DuracaoEstimadaMinutos, int Ordem) : IRequest<ServicoDetalheResultado>;
 public sealed record AlterarStatusServicoCommand(Guid Id, bool EhAtivo) : IRequest;
@@ -34,7 +35,19 @@ internal sealed class ListarServicosValidator : AbstractValidator<ListarServicos
 
 internal sealed class ListarServicosHandler(IServicosRepositorio repositorio) : IRequestHandler<ListarServicosQuery, PaginacaoResultado<ServicoListaItemResultado>> { public Task<PaginacaoResultado<ServicoListaItemResultado>> Handle(ListarServicosQuery request, CancellationToken cancellationToken) => repositorio.ListarAsync(request.Filtro, cancellationToken); }
 internal sealed class ListarServicosSelecaoHandler(IServicosRepositorio repositorio) : IRequestHandler<ListarServicosSelecaoQuery, IReadOnlyCollection<ServicoSelecaoResultado>> { public Task<IReadOnlyCollection<ServicoSelecaoResultado>> Handle(ListarServicosSelecaoQuery request, CancellationToken cancellationToken) => repositorio.ListarParaSelecaoAsync(request.IncluirInativos, cancellationToken); }
-internal sealed class ObterServicoHandler(IServicosRepositorio repositorio) : IRequestHandler<ObterServicoQuery, ServicoDetalheResultado> { public async Task<ServicoDetalheResultado> Handle(ObterServicoQuery request, CancellationToken cancellationToken) => await repositorio.ObterDetalheAsync(request.Id, cancellationToken) ?? throw new RecursoNaoEncontradoException("Serviço não encontrado."); }
+internal sealed class ObterServicoHandler(IUsuarioContexto usuario, IServicosRepositorio repositorio,
+    IHistoricoExecucoesCatalogoConsulta historico)
+    : IRequestHandler<ObterServicoQuery, ServicoDetalheVisualizacao>
+{
+    public async Task<ServicoDetalheVisualizacao> Handle(ObterServicoQuery request, CancellationToken cancellationToken)
+    {
+        var servico = await repositorio.ObterDetalheAsync(request.Id, cancellationToken)
+            ?? throw new RecursoNaoEncontradoException("Serviço não encontrado.");
+        var execucoes = await historico.ListarAsync(usuario.EmpresaId, TipoItemOrcamento.Servico,
+            request.Id, 10, cancellationToken);
+        return new(servico, execucoes);
+    }
+}
 
 internal sealed class CriarServicoHandler(IUsuarioContexto usuario, ICategoriasServicoRepositorio categorias, IServicosRepositorio servicos) : IRequestHandler<CriarServicoCommand, ServicoDetalheResultado>
 {

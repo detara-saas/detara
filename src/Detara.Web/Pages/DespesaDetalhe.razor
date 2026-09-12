@@ -17,10 +17,10 @@
             <DetaraMetricCard Titulo="Competência" Valor="@x.Competencia.ToString("MM/yyyy")" Icone="@Icons.Material.Outlined.CalendarMonth" />
             <DetaraMetricCard Titulo="Vencimento" Valor="@x.Vencimento.ToString("dd/MM/yyyy")" Icone="@Icons.Material.Outlined.Event" />
         </section>
-        <section class="module-panel section-card">
+        <section class="module-panel section-card expense-detail-card">
             <div class="section-heading"><div><span class="section-eyebrow">DETALHES</span><h2>Compromisso financeiro</h2></div></div>
-            <p>Fornecedor: @(x.Fornecedor ?? "Não informado")</p><p>Observação: @(x.Observacao ?? "Não informada")</p>
-            @if (x.RecorrenciaId.HasValue) { <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Esta conta é um retrato da regra no momento da geração. Editar a regra não altera esta ocorrência.</MudAlert><MudButton Href="/financeiro/despesas/recorrencias" Variant="Variant.Outlined" Class="mt-4">Ver recorrências</MudButton> }
+            <dl class="expense-detail-list"><div><dt>Fornecedor</dt><dd>@(x.Fornecedor ?? "Não informado")</dd></div><div><dt>Observação</dt><dd>@(x.Observacao ?? "Não informada")</dd></div></dl>
+            @if (x.RecorrenciaId.HasValue) { <div class="expense-recurrence-note"><div><span class="section-eyebrow">RECORRÊNCIA</span><p>Esta ocorrência preserva os valores da regra no momento em que foi gerada.</p></div><MudButton Href="/financeiro/despesas/recorrencias" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Ver recorrências</MudButton></div> }
             <div class="form-actions page-actions">
                 @if (x.Status == StatusDespesaContrato.Pendente)
                 {
@@ -30,11 +30,11 @@
                 @if (x.Status == StatusDespesaContrato.Pago) { <AuthorizeView Policy="@Permissoes.FinanceiroEstornarPagamento"><MudButton OnClick="@(() => AcaoAsync("estornar"))" Variant="Variant.Outlined" Color="Color.Error">Estornar pagamento</MudButton></AuthorizeView> }
             </div>
         </section>
-        <section class="module-panel section-card detail-stack">
+        <section class="module-panel section-card detail-stack expense-history-card">
             <div class="section-heading"><div><span class="section-eyebrow">HISTÓRICO</span><h2>Pagamentos e estornos</h2><p>Os registros anteriores permanecem disponíveis para conferência.</p></div></div>
             @if (_dados.Pagamentos.Count == 0) { <DetaraEmptyState Titulo="Nenhum pagamento registrado" Descricao="Ao quitar esta conta, o pagamento aparecerá aqui." Compacto="true" /> }
             @foreach (var p in _dados.Pagamentos.OrderByDescending(p => p.RegistradoEmUtc))
-            { <article class="module-panel section-card"><div class="section-heading"><strong>@Despesas.Moeda(p.Valor) · @p.DataPagamento.ToString("dd/MM/yyyy")</strong><DetaraStatusBadge Texto="@(p.Estornado ? "Estornado" : "Confirmado")" /></div>@if (p.Estornado) { <p>Motivo: @p.MotivoEstorno</p> }</article> }
+            { <article class="expense-history-item"><div><strong>@Despesas.Moeda(p.Valor)</strong><span>Pagamento em @p.DataPagamento.ToString("dd/MM/yyyy")</span>@if (p.Estornado) { <p>Motivo: @p.MotivoEstorno</p> }</div><DetaraStatusBadge Texto="@(p.Estornado ? "Estornado" : "Confirmado")" Tone="@(p.Estornado ? DetaraStatusTone.Neutral : DetaraStatusTone.Positive)" /></article> }
         </section>
     }
     else { <MudAlert Severity="Severity.Error">@_erro</MudAlert><MudButton Href="/financeiro/despesas" Variant="Variant.Outlined">Voltar para despesas</MudButton> }

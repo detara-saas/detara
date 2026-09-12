@@ -1,3 +1,5 @@
+using Detara.Contracts.Atendimento;
+
 namespace Detara.Contracts.Catalogo;
 
 public enum TipoPrecificacaoCatalogo
@@ -41,7 +43,12 @@ public sealed record ServicoDetalheResponse(
     int Ordem,
     DateTime CriadoEmUtc,
     DateTime? AtualizadoEmUtc,
-    bool EhAtivo);
+    bool EhAtivo,
+    IReadOnlyCollection<ExecucaoItemCatalogoResponse> Execucoes);
+
+public sealed record ExecucaoItemCatalogoResponse(Guid OrdemServicoId, string OrdemServicoCodigo,
+    DateTime ExecutadaEmUtc, string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca,
+    decimal ValorUnitario, int Quantidade, StatusOrdemServicoContrato Status);
 
 public sealed record ServicoSelecaoResponse(
     Guid Id,
@@ -87,4 +94,5 @@ public sealed record PacoteDetalheResponse(
     DateTime CriadoEmUtc,
     DateTime? AtualizadoEmUtc,
     bool EhAtivo,
-    IReadOnlyCollection<PacoteServicoResponse> Servicos);
+    IReadOnlyCollection<PacoteServicoResponse> Servicos,
+    IReadOnlyCollection<ExecucaoItemCatalogoResponse> Execucoes);

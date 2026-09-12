@@ -35,7 +35,7 @@ else
                 </div>
             </div>
         </div>
-        <div class="customer-360-hero-actions">
+        <div class="customer-360-hero-actions page-actions">
             <AuthorizeView Policy="@Permissoes.ClientesEditar"><Authorized>
                 <MudButton Href="@($"/clientes/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton>
                 <MudButton Variant="Variant.Text" Color="@(cliente.EhAtivo ? Color.Error : Color.Primary)" OnClick="AlterarStatusAsync">@(cliente.EhAtivo ? "Inativar" : "Ativar")</MudButton>

@@ -65,6 +65,11 @@ internal sealed class FinanceiroRepositorio(DetaraDbContext db) : IFinanceiroRep
             .Where(item => item.DataCompetencia >= inicio && item.DataCompetencia <= fim);
         var pagamentosPeriodo = db.Pagamentos.AsNoTracking().Where(item =>
             item.Status == StatusPagamento.Confirmado && item.RecebidoEmUtc >= inicioUtc && item.RecebidoEmUtc < fimExclusivoUtc);
+        var despesasPeriodo = db.ContasPagar.AsNoTracking().Where(item =>
+            item.Status != StatusContaPagar.Cancelado && item.Competencia >= inicio && item.Competencia <= fim);
+        var pagamentosDespesasPeriodo = db.PagamentosContasPagar.AsNoTracking().Where(item =>
+            item.Status == StatusPagamento.Confirmado && item.DataPagamento >= inicio && item.DataPagamento <= fim);
+        var despesasAbertas = db.ContasPagar.AsNoTracking().Where(item => item.Status == StatusContaPagar.Pendente);
 
         if (string.Equals(db.Database.ProviderName, "Microsoft.EntityFrameworkCore.Sqlite",
             StringComparison.Ordinal))
@@ -73,9 +78,14 @@ internal sealed class FinanceiroRepositorio(DetaraDbContext db) : IFinanceiroRep
             var pagamentos = await pagamentosPeriodo.Select(x => new { x.FormaPagamento, x.Valor, x.Taxa }).ToArrayAsync(ct);
             var abertas = await db.ContasReceber.AsNoTracking().Where(x => x.Status != StatusContaReceber.Pago)
                 .Select(x => new { x.ValorOriginal, x.ValorRecebido, x.DataVencimento }).ToArrayAsync(ct);
+            var despesas = await despesasPeriodo.Select(x => x.Valor).ToArrayAsync(ct);
+            var pagamentosDespesas = await pagamentosDespesasPeriodo.Select(x => x.Valor).ToArrayAsync(ct);
+            var despesasPendentes = await despesasAbertas.Select(x => new { x.Valor, x.DataVencimento }).ToArrayAsync(ct);
             return new(contas.Sum(), contas.Length, pagamentos.Sum(x => x.Valor), pagamentos.Sum(x => x.Taxa),
                 abertas.Sum(x => x.ValorOriginal - x.ValorRecebido),
                 abertas.Where(x => x.DataVencimento < hojeLocal).Sum(x => x.ValorOriginal - x.ValorRecebido),
+                despesas.Sum(), pagamentosDespesas.Sum(), despesasPendentes.Sum(x => x.Valor),
+                despesasPendentes.Where(x => x.DataVencimento < hojeLocal).Sum(x => x.Valor),
                 pagamentos.GroupBy(x => x.FormaPagamento).Select(x => new FormaPagamentoResumo(x.Key,
                     x.Sum(item => item.Valor), x.Count())).ToArray());
         }
@@ -88,10 +98,16 @@ internal sealed class FinanceiroRepositorio(DetaraDbContext db) : IFinanceiroRep
         var emAberto = await abertasQuery.SumAsync(item => (decimal?)(item.ValorOriginal - item.ValorRecebido), ct) ?? 0;
         var vencido = await abertasQuery.Where(item => item.DataVencimento < hojeLocal)
             .SumAsync(item => (decimal?)(item.ValorOriginal - item.ValorRecebido), ct) ?? 0;
+        var despesasPrevistas = await despesasPeriodo.SumAsync(item => (decimal?)item.Valor, ct) ?? 0;
+        var despesasPagas = await pagamentosDespesasPeriodo.SumAsync(item => (decimal?)item.Valor, ct) ?? 0;
+        var despesasEmAberto = await despesasAbertas.SumAsync(item => (decimal?)item.Valor, ct) ?? 0;
+        var despesasVencidas = await despesasAbertas.Where(item => item.DataVencimento < hojeLocal)
+            .SumAsync(item => (decimal?)item.Valor, ct) ?? 0;
         var formas = await pagamentosPeriodo.GroupBy(item => item.FormaPagamento)
             .Select(grupo => new FormaPagamentoResumo(grupo.Key, grupo.Sum(item => item.Valor), grupo.Count()))
             .ToArrayAsync(ct);
-        return new(faturado, quantidadeContas, recebido, taxas, emAberto, vencido, formas);
+        return new(faturado, quantidadeContas, recebido, taxas, emAberto, vencido,
+            despesasPrevistas, despesasPagas, despesasEmAberto, despesasVencidas, formas);
     }
 
     public void Adicionar(ContaReceber conta) => db.ContasReceber.Add(conta);

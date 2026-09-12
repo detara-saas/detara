@@ -24,7 +24,9 @@ public sealed record ContaReceberDetalheVisualizacao(ContaReceber Conta, DateOnl
     string FusoHorario, IReadOnlyDictionary<Guid, string> Usuarios);
 public sealed record ResumoFinanceiroVisualizacao(DateOnly Inicio, DateOnly Fim, decimal Faturado,
     decimal RecebidoBruto, decimal Taxas, decimal ReceitaLiquidaRecebida, decimal EmAbertoAtual,
-    decimal VencidoAtual, decimal TicketMedio, IReadOnlyCollection<FormaPagamentoResumo> FormasPagamento);
+    decimal VencidoAtual, decimal TicketMedio, decimal DespesasPrevistasPeriodo,
+    decimal DespesasPagasPeriodo, decimal DespesasEmAbertoAtual, decimal DespesasVencidasAtual,
+    decimal SaldoOperacionalPeriodo, IReadOnlyCollection<FormaPagamentoResumo> FormasPagamento);
 
 internal sealed class ListarContasReceberValidator : AbstractValidator<ListarContasReceberQuery>
 {
@@ -136,7 +138,10 @@ internal sealed class ObterResumoFinanceiroHandler(IUsuarioContexto usuario, IFi
         var ticket = resumo.QuantidadeContas == 0 ? 0 : resumo.Faturado / resumo.QuantidadeContas;
         return new(inicio, fim, resumo.Faturado, resumo.RecebidoBruto, resumo.Taxas,
             resumo.RecebidoBruto - resumo.Taxas, resumo.EmAbertoAtual, resumo.VencidoAtual,
-            ticket, resumo.FormasPagamento);
+            ticket, resumo.DespesasPrevistasPeriodo, resumo.DespesasPagasPeriodo,
+            resumo.DespesasEmAbertoAtual, resumo.DespesasVencidasAtual,
+            resumo.RecebidoBruto - resumo.Taxas - resumo.DespesasPagasPeriodo,
+            resumo.FormasPagamento);
     }
 }
 

@@ -18,14 +18,35 @@
     @if (_carregando) { <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div> }
     else if (_resumo is not null)
     {
-        <section class="financial-metrics" aria-label="Resumo financeiro">
-            <CardMetrica Icone="@Icons.Material.Outlined.RequestQuote" Rotulo="FATURADO NO PERÍODO" Valor="@Moeda(_resumo.Faturado)" Descricao="Por competência" Destaque="true" ValorSemQuebra="true" />
-            <CardMetrica Icone="@Icons.Material.Outlined.Payments" Rotulo="RECEBIDO BRUTO" Valor="@Moeda(_resumo.RecebidoBruto)" Descricao="Pagamentos confirmados" ValorSemQuebra="true" />
-            <CardMetrica Icone="@Icons.Material.Outlined.Percent" Rotulo="TAXAS" Valor="@Moeda(_resumo.Taxas)" Descricao="Custos informados" ValorSemQuebra="true" />
-            <CardMetrica Icone="@Icons.Material.Outlined.AccountBalanceWallet" Rotulo="RECEITA LÍQUIDA RECEBIDA" Valor="@Moeda(_resumo.ReceitaLiquidaRecebida)" Descricao="Recebido bruto menos taxas — não é lucro" ValorSemQuebra="true" />
-            <CardMetrica Icone="@Icons.Material.Outlined.PendingActions" Rotulo="EM ABERTO ATUAL" Valor="@Moeda(_resumo.EmAbertoAtual)" Descricao="Todas as contas não pagas" ValorSemQuebra="true" />
-            <CardMetrica Icone="@Icons.Material.Outlined.WarningAmber" Rotulo="VENCIDO ATUAL" Valor="@Moeda(_resumo.VencidoAtual)" Descricao="No fuso da empresa" ValorSemQuebra="true" Classe="financial-overdue-card" />
-            <CardMetrica Icone="@Icons.Material.Outlined.Analytics" Rotulo="TICKET MÉDIO" Valor="@Moeda(_resumo.TicketMedio)" Descricao="Por conta gerada no período" ValorSemQuebra="true" />
+        <section class="financial-overview-groups" aria-label="Resumo financeiro">
+            <article class="financial-overview-group">
+                <div class="financial-group-heading"><span class="section-eyebrow">ENTRADAS</span><p>Competência e caixa no período selecionado</p></div>
+                <div class="financial-group-metrics">
+                    <CardMetrica Icone="@Icons.Material.Outlined.RequestQuote" Rotulo="FATURADO" Valor="@Moeda(_resumo.Faturado)" Descricao="Por competência" ValorSemQuebra="true" />
+                    <CardMetrica Icone="@Icons.Material.Outlined.AccountBalanceWallet" Rotulo="RECEBIDO LÍQUIDO" Valor="@Moeda(_resumo.ReceitaLiquidaRecebida)" Descricao="Por caixa, após taxas" Destaque="true" ValorSemQuebra="true" />
+                </div>
+            </article>
+            <article class="financial-overview-group">
+                <div class="financial-group-heading"><span class="section-eyebrow">SAÍDAS</span><p>Compromissos e pagamentos de despesas</p></div>
+                <div class="financial-group-metrics">
+                    <CardMetrica Icone="@Icons.Material.Outlined.ReceiptLong" Rotulo="DESPESAS PREVISTAS" Valor="@Moeda(_resumo.DespesasPrevistasPeriodo)" Descricao="Por competência" ValorSemQuebra="true" />
+                    <CardMetrica Icone="@Icons.Material.Outlined.Payments" Rotulo="DESPESAS PAGAS" Valor="@Moeda(_resumo.DespesasPagasPeriodo)" Descricao="Por caixa no período" ValorSemQuebra="true" />
+                </div>
+            </article>
+            <article class="financial-overview-group financial-result-group">
+                <div class="financial-group-heading"><span class="section-eyebrow">RESULTADO OPERACIONAL</span><p>Movimentações confirmadas no período</p></div>
+                <CardMetrica Icone="@Icons.Material.Outlined.Balance" Rotulo="SALDO OPERACIONAL" Valor="@Moeda(_resumo.SaldoOperacionalPeriodo)" Descricao="Recebido líquido menos despesas pagas — não é lucro" Destaque="true" ValorSemQuebra="true" Classe="@($"financial-balance-card {(_resumo.SaldoOperacionalPeriodo < 0 ? "financial-negative-card" : null)}")" />
+            </article>
+        </section>
+
+        <section class="financial-position-strip" aria-label="Posição financeira atual e detalhes do período">
+            <div><span>Recebido bruto · período</span><strong>@Moeda(_resumo.RecebidoBruto)</strong></div>
+            <div><span>Taxas · período</span><strong>@Moeda(_resumo.Taxas)</strong></div>
+            <div><span>Recebíveis em aberto · atual</span><strong>@Moeda(_resumo.EmAbertoAtual)</strong></div>
+            <div class="financial-overdue-value"><span>Recebíveis vencidos · atual</span><strong>@Moeda(_resumo.VencidoAtual)</strong></div>
+            <div><span>Despesas em aberto · atual</span><strong>@Moeda(_resumo.DespesasEmAbertoAtual)</strong></div>
+            <div class="financial-overdue-value"><span>Despesas vencidas · atual</span><strong>@Moeda(_resumo.DespesasVencidasAtual)</strong></div>
+            <div><span>Ticket médio · competência</span><strong>@Moeda(_resumo.TicketMedio)</strong></div>
         </section>
 
         <section class="financial-dashboard-grid">
@@ -43,7 +64,7 @@
             </article>
             <article class="module-panel financial-definition-card">
                 <span class="metric-summary-icon"><MudIcon Icon="@Icons.Material.Outlined.Info" /></span>
-                <div><span class="section-eyebrow">LEITURA DOS NÚMEROS</span><h2>Receita líquida recebida não é lucro</h2><p>O indicador considera apenas o valor recebido menos as taxas registradas. As despesas e contas a pagar são acompanhadas separadamente em Despesas e não são descontadas deste indicador.</p><MudButton Href="/financeiro/contas-receber" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Explorar contas</MudButton></div>
+                <div><span class="section-eyebrow">LEITURA DOS NÚMEROS</span><h2>Caixa e competência permanecem separados</h2><p>O saldo operacional compara somente caixa confirmado: recebimentos menos taxas e pagamentos de despesas na data selecionada. Faturado e despesas previstas usam competência e não entram nessa fórmula. O indicador não representa lucro contábil.</p><MudButton Href="/financeiro/contas-receber" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.ArrowForward">Explorar contas</MudButton></div>
             </article>
         </section>
     }

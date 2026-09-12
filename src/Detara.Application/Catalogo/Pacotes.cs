@@ -1,4 +1,5 @@
 using Detara.Application.Abstracoes;
+using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
 using Detara.Domain.Entidades;
 using FluentValidation;
@@ -12,7 +13,7 @@ public sealed record PacoteListaItemResultado(Guid Id, string Nome, int Quantida
 public sealed record PacoteServicoResultado(Guid ServicoId, string Nome, string CategoriaNome, TipoPrecificacao TipoPrecificacao, decimal? PrecoBase, int? DuracaoEstimadaMinutos, int Ordem, bool EhAtivo);
 public sealed record PacoteDetalheResultado(Guid Id, string Nome, string? Descricao, TipoPrecificacao TipoPrecificacao, decimal? Preco, decimal? SomaServicos, decimal? Economia, int? DuracaoEstimadaMinutos, DateTime CriadoEmUtc, DateTime? AtualizadoEmUtc, bool EhAtivo, IReadOnlyCollection<PacoteServicoResultado> Servicos);
 public sealed record ListarPacotesQuery(FiltroPacotes Filtro) : IRequest<PaginacaoResultado<PacoteListaItemResultado>>;
-public sealed record ObterPacoteQuery(Guid Id) : IRequest<PacoteDetalheResultado>;
+public sealed record ObterPacoteQuery(Guid Id) : IRequest<PacoteDetalheVisualizacao>;
 public sealed record CriarPacoteCommand(string Nome, string? Descricao, TipoPrecificacao TipoPrecificacao, decimal? Preco, IReadOnlyCollection<Guid> ServicoIds) : IRequest<PacoteDetalheResultado>;
 public sealed record AtualizarPacoteCommand(Guid Id, string Nome, string? Descricao, TipoPrecificacao TipoPrecificacao, decimal? Preco, IReadOnlyCollection<Guid> ServicoIds) : IRequest<PacoteDetalheResultado>;
 public sealed record AlterarStatusPacoteCommand(Guid Id, bool EhAtivo) : IRequest;
@@ -42,7 +43,19 @@ internal sealed class AtualizarPacoteValidator : PacoteValidatorBase<AtualizarPa
 internal sealed class ListarPacotesValidator : AbstractValidator<ListarPacotesQuery> { public ListarPacotesValidator() { RuleFor(x => x.Filtro.Pagina).GreaterThanOrEqualTo(1); RuleFor(x => x.Filtro.TamanhoPagina).Must(x => x is 10 or 25 or 50); RuleFor(x => x.Filtro.Pesquisa).MaximumLength(160); } }
 
 internal sealed class ListarPacotesHandler(IPacotesRepositorio repositorio) : IRequestHandler<ListarPacotesQuery, PaginacaoResultado<PacoteListaItemResultado>> { public Task<PaginacaoResultado<PacoteListaItemResultado>> Handle(ListarPacotesQuery request, CancellationToken cancellationToken) => repositorio.ListarAsync(request.Filtro, cancellationToken); }
-internal sealed class ObterPacoteHandler(IPacotesRepositorio repositorio) : IRequestHandler<ObterPacoteQuery, PacoteDetalheResultado> { public async Task<PacoteDetalheResultado> Handle(ObterPacoteQuery request, CancellationToken cancellationToken) => await repositorio.ObterDetalheAsync(request.Id, cancellationToken) ?? throw new RecursoNaoEncontradoException("Pacote não encontrado."); }
+internal sealed class ObterPacoteHandler(IUsuarioContexto usuario, IPacotesRepositorio repositorio,
+    IHistoricoExecucoesCatalogoConsulta historico)
+    : IRequestHandler<ObterPacoteQuery, PacoteDetalheVisualizacao>
+{
+    public async Task<PacoteDetalheVisualizacao> Handle(ObterPacoteQuery request, CancellationToken cancellationToken)
+    {
+        var pacote = await repositorio.ObterDetalheAsync(request.Id, cancellationToken)
+            ?? throw new RecursoNaoEncontradoException("Pacote não encontrado.");
+        var execucoes = await historico.ListarAsync(usuario.EmpresaId, TipoItemOrcamento.Pacote,
+            request.Id, 10, cancellationToken);
+        return new(pacote, execucoes);
+    }
+}
 
 internal sealed class CriarPacoteHandler(IUsuarioContexto usuario, IServicosRepositorio servicos, IPacotesRepositorio pacotes) : IRequestHandler<CriarPacoteCommand, PacoteDetalheResultado>
 {

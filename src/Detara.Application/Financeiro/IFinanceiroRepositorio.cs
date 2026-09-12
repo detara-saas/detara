@@ -13,6 +13,8 @@ public sealed record ContaReceberListaResultado(Guid Id, Guid OrdemServicoId, st
 
 public sealed record ResumoFinanceiroResultado(decimal Faturado, int QuantidadeContas,
     decimal RecebidoBruto, decimal Taxas, decimal EmAbertoAtual, decimal VencidoAtual,
+    decimal DespesasPrevistasPeriodo, decimal DespesasPagasPeriodo,
+    decimal DespesasEmAbertoAtual, decimal DespesasVencidasAtual,
     IReadOnlyCollection<FormaPagamentoResumo> FormasPagamento);
 
 public sealed record FormaPagamentoResumo(FormaPagamento Forma, decimal Valor, int Quantidade);
