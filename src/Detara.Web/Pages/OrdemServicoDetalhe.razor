@@ -114,13 +114,6 @@ else
 
         <OrdemServicoProgresso Ordem="_ordem" />
 
-        @if (EhTerminal)
-        {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="page-alert service-order-history-alert">
-                Esta OS é histórica. Checklist e evidências permanecem consultáveis e não podem mais ser alterados.
-            </MudAlert>
-        }
-
         <div class="service-order-workspace">
             <main class="service-order-workspace-main">
                 <DetaraCard Titulo="Serviços contratados"
@@ -593,7 +586,6 @@ else
 
                     <OrdemServicoComunicacao OrdemStatus="_ordem.Status"
                                                Notificacao="_notificacao"
-                                               SessaoWhatsApp="_sessaoWhatsApp"
                                                Executando="_executandoNotificacao"
                                                OnComunicar="ComunicarClienteAsync" />
 

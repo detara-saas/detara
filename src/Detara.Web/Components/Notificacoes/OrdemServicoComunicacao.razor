@@ -8,44 +8,7 @@
                 Descricao="Canal, resultado e histórico real dos avisos enviados."
                 Class="service-order-communication"
                 ContentClass="service-order-communication-content">
-        <Acoes>
-            <DetaraStatusBadge Texto="@NomeComunicacao(ultimaComunicacao?.Status)"
-                               Tone="@TomComunicacao(ultimaComunicacao?.Status)" />
-        </Acoes>
         <ChildContent>
-            <div class="communication-summary">
-                <span><MudIcon Icon="@Icons.Material.Outlined.Autorenew" /><span><small>CANAL AUTOMÁTICO</small><strong>@NomeCanalAutomatico(Notificacao?.CanalAutomaticoVeiculoPronto)</strong></span></span>
-                <span><MudIcon Icon="@(ultimaComunicacao?.Canal == CanalComunicacaoClienteContrato.WhatsApp ? Icons.Material.Outlined.Chat : Icons.Material.Outlined.AlternateEmail)" /><span><small>ÚLTIMO CANAL</small><strong>@NomeCanal(ultimaComunicacao?.Canal)</strong></span></span>
-                <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span><small>ÚLTIMA COMUNICAÇÃO</small><strong>@DataComunicacao(ultimaComunicacao)</strong></span></span>
-                <span><MudIcon Icon="@Icons.Material.Outlined.PhoneAndroid" /><span><small>WHATSAPP DA EMPRESA</small><strong>@NomeStatusWhatsApp(SessaoWhatsApp?.Status)</strong></span></span>
-            </div>
-            @if (string.IsNullOrWhiteSpace(Notificacao?.EmailDestinoAtual) &&
-                string.IsNullOrWhiteSpace(Notificacao?.WhatsAppDestinoAtual))
-            {
-                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">
-                    Cliente sem e-mail ou WhatsApp válido cadastrado. Atualize o cadastro para enviar o aviso.
-                </MudAlert>
-            }
-            @if (!string.IsNullOrWhiteSpace(ultimaComunicacao?.UltimoErroSeguro))
-            {
-                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">@ultimaComunicacao.UltimoErroSeguro</MudAlert>
-            }
-            @if (OrdemStatus == StatusOrdemServicoContrato.AguardandoRetirada)
-            {
-                <AuthorizeView Policy="@Permissoes.NotificacoesReenviar">
-                    <Authorized>
-                        <div class="form-actions communication-actions">
-                            <MudButton Variant="Variant.Filled"
-                                       Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Outlined.Send"
-                                       Disabled="@(Executando || comunicacaoPendente || string.IsNullOrWhiteSpace(Notificacao?.EmailDestinoAtual) && string.IsNullOrWhiteSpace(Notificacao?.WhatsAppDestinoAtual))"
-                                       OnClick="OnComunicar">
-                                @(Executando ? "Atualizando status..." : comunicacaoPendente ? "Envio em andamento" : "Enviar atualização")
-                            </MudButton>
-                        </div>
-                    </Authorized>
-                </AuthorizeView>
-            }
             @if (Notificacao?.Comunicacoes.Count > 0)
             {
                 <div class="communication-history" aria-label="Histórico de comunicação com o cliente">
@@ -80,6 +43,40 @@
                     }
                 </div>
             }
+            else
+            {
+                <div class="communication-history-empty">
+                    <MudIcon Icon="@Icons.Material.Outlined.Forum" />
+                    <span>Nenhuma comunicação enviada.</span>
+                </div>
+            }
+            @if (string.IsNullOrWhiteSpace(Notificacao?.EmailDestinoAtual) &&
+                string.IsNullOrWhiteSpace(Notificacao?.WhatsAppDestinoAtual))
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">
+                    Cliente sem e-mail ou WhatsApp válido cadastrado. Atualize o cadastro para enviar o aviso.
+                </MudAlert>
+            }
+            @if (!string.IsNullOrWhiteSpace(ultimaComunicacao?.UltimoErroSeguro))
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="service-order-communication-alert">@ultimaComunicacao.UltimoErroSeguro</MudAlert>
+            }
+            @if (OrdemStatus == StatusOrdemServicoContrato.AguardandoRetirada)
+            {
+                <AuthorizeView Policy="@Permissoes.NotificacoesReenviar">
+                    <Authorized>
+                        <div class="form-actions communication-actions">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Outlined.Send"
+                                       Disabled="@(Executando || comunicacaoPendente || string.IsNullOrWhiteSpace(Notificacao?.EmailDestinoAtual) && string.IsNullOrWhiteSpace(Notificacao?.WhatsAppDestinoAtual))"
+                                       OnClick="OnComunicar">
+                                @(Executando ? "Atualizando status..." : comunicacaoPendente ? "Envio em andamento" : "Enviar atualização")
+                            </MudButton>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            }
         </ChildContent>
     </DetaraCard>
 }
@@ -87,18 +84,11 @@
 @code {
     [Parameter] public StatusOrdemServicoContrato OrdemStatus { get; set; }
     [Parameter] public NotificacaoOrdemServicoResponse? Notificacao { get; set; }
-    [Parameter] public SessaoWhatsAppResponse? SessaoWhatsApp { get; set; }
     [Parameter] public bool Executando { get; set; }
     [Parameter] public EventCallback OnComunicar { get; set; }
 
     private ComunicacaoClienteResponse? UltimaComunicacao => Notificacao?.Comunicacoes
         .OrderByDescending(item => item.CriadoEmUtc).FirstOrDefault();
-    private static string NomeCanalAutomatico(CanalComunicacaoVeiculoProntoContrato? canal) => canal switch
-    {
-        CanalComunicacaoVeiculoProntoContrato.Email => "Email",
-        CanalComunicacaoVeiculoProntoContrato.WhatsApp => "WhatsApp",
-        _ => "Nenhum"
-    };
     private static string NomeCanal(CanalComunicacaoClienteContrato? canal) => canal switch
     {
         CanalComunicacaoClienteContrato.Email => "Email",
@@ -118,15 +108,5 @@
         StatusComunicacaoClienteContrato.Falhou => DetaraStatusTone.Critical,
         StatusComunicacaoClienteContrato.Pendente => DetaraStatusTone.Warning,
         _ => DetaraStatusTone.Neutral
-    };
-    private static string DataComunicacao(ComunicacaoClienteResponse? comunicacao) => comunicacao is null
-        ? "Nenhum envio"
-        : (comunicacao.DataEnvioUtc ?? comunicacao.CriadoEmUtc).ToLocalTime().ToString("dd/MM/yyyy HH:mm");
-    private static string NomeStatusWhatsApp(StatusSessaoWhatsAppContrato? status) => status switch
-    {
-        StatusSessaoWhatsAppContrato.Conectada => "Conectado",
-        StatusSessaoWhatsAppContrato.AguardandoQrCode => "Aguardando QR Code",
-        StatusSessaoWhatsAppContrato.Erro => "Erro de conexão",
-        _ => "Não conectado"
     };
 }

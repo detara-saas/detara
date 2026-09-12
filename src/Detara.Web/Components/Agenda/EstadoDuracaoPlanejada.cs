@@ -24,10 +24,7 @@ internal sealed class EstadoDuracaoPlanejada
             return;
         }
 
-        if (sugestao.HasValue)
-        {
-            Valor = sugestao;
-        }
+        Valor = sugestao;
     }
 
     public void Personalizar(int? valor)

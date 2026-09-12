@@ -267,16 +267,10 @@
 .service-order-communication { display: grid; gap: 18px; }
 .service-order-communication-content { display: grid; gap: 18px; }
 .service-order-communication-alert { margin: 0; border-radius: var(--detara-radius-md) !important; }
-.communication-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 10px; }
-.communication-summary > span { min-width: 0; display: flex; align-items: center; gap: 11px; padding: 14px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
-.communication-summary > span > .mud-icon-root { color: var(--detara-primary-dark); }
-.communication-summary > span > span { min-width: 0; display: grid; gap: 3px; }
-.communication-summary small { color: var(--detara-text-secondary); font-size: .65rem; font-weight: 700; letter-spacing: .06em; }
-.communication-summary strong { overflow: hidden; color: var(--detara-text); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
-.communication-actions { margin-top: 0; padding-top: 18px; }
+.communication-actions { margin-top: 0; padding-top: 18px; border-top: 1px solid var(--detara-border-soft); }
 .communication-actions .mud-button-root { min-height: 44px; }
-.communication-history { display: grid; gap: 10px; padding-top: 4px; }
-.communication-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid var(--detara-border-soft); }
+.communication-history { display: grid; gap: 10px; }
+.communication-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .communication-history-heading strong { color: var(--detara-text); font-size: .86rem; }
 .communication-history-heading span { color: var(--detara-text-secondary); font-size: .72rem; }
 .communication-history article { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 13px 14px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
@@ -284,6 +278,8 @@
 .communication-history article strong { color: var(--detara-text); font-size: .8rem; }
 .communication-history article span, .communication-history article small { color: var(--detara-text-secondary); font-size: .7rem; overflow-wrap: anywhere; }
 .communication-history-icon { display: grid; width: 34px; height: 34px; place-items: center; color: var(--detara-primary-dark); background: color-mix(in srgb, var(--detara-primary) 10%, transparent); border-radius: var(--detara-radius-sm); }
+.communication-history-empty { min-height: 86px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 18px; color: var(--detara-text-secondary); background: var(--detara-surface-alt); border: 1px dashed var(--detara-border-soft); border-radius: var(--detara-radius-md); font-size: .78rem; text-align: center; }
+.communication-history-empty .mud-icon-root { color: var(--detara-primary-dark); }
 .service-order-timeline { display: grid; }
 .service-order-timeline article { position: relative; display: grid; grid-template-columns: 38px minmax(0,1fr) auto; gap: 12px; padding: 10px 0; }
 .service-order-timeline article:not(:last-child)::after { content: ""; position: absolute; top: 48px; bottom: -10px; left: 18px; width: 1px; background: var(--detara-border-soft); }
@@ -374,8 +370,6 @@
     .service-order-photo-stage .detara-empty-state { min-height: 118px; }
     .service-order-timeline article { grid-template-columns: 38px minmax(0,1fr); }
     .service-order-timeline time { grid-column: 2; }
-    .communication-summary { grid-template-columns: 1fr; }
-    .communication-summary strong { white-space: normal; overflow-wrap: anywhere; }
     .communication-actions, .communication-actions .mud-button-root { width: 100%; }
     .communication-history article { grid-template-columns: auto minmax(0,1fr); }
     .communication-history article > .status-badge { grid-column: 2; justify-self: start; }
@@ -647,7 +641,9 @@ h1:focus { outline: none; }
 .communication-dialog { min-width: 0; }
 .communication-dialog-intro { display: grid; gap: 5px; }
 .communication-dialog-intro p { margin: 0; color: var(--detara-text-secondary); line-height: 1.55; }
-.communication-dialog-options { width: 100%; display: grid; gap: 10px; }
+.communication-dialog-options { width: 100%; }
+.communication-dialog-options > .mud-input-control-input-container { display: block; }
+.communication-dialog-options .mud-radio-group { width: 100%; display: grid !important; gap: 12px; }
 .communication-dialog-option { display: grid; grid-template-columns: auto auto minmax(0,1fr); align-items: center; gap: 10px; min-height: 64px; padding: 10px 14px 10px 6px; color: var(--detara-text); background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); cursor: pointer; }
 .communication-dialog-option > .mud-icon-root { color: var(--detara-primary-dark); }
 .communication-dialog-option > span { min-width: 0; display: grid; gap: 2px; }
@@ -856,10 +852,7 @@ h1:focus { outline: none; }
 .appointment-mobile-record { grid-template-columns: minmax(0,1fr) auto 24px; }
 .agenda-form-panel { max-width: 1120px; margin-inline: auto; }
 .agenda-form-section { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--detara-border-soft); }
-.agenda-time-grid { grid-template-columns: 1fr 1fr 1fr minmax(200px, .8fr); }
-.duration-suggestion { min-height: 56px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; padding: 7px 12px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
-.duration-suggestion span { grid-column: 1 / -1; color: var(--detara-text-secondary); font-size: .7rem; }
-.duration-suggestion strong { color: var(--detara-text); }
+.agenda-time-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
 .selected-count { color: var(--detara-primary-dark); font-size: .78rem; font-weight: 700; }
 .catalog-search-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; }
 .agenda-catalog-picker { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; max-height: 410px; margin-top: 12px; overflow-y: auto; }
