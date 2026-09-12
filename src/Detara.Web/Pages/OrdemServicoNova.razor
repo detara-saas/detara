@@ -134,9 +134,9 @@
             var veiculoId = LerId("veiculoId");
             var clienteNome = LerTexto("clienteNome");
             var contextoCliente = clienteId.HasValue && !string.IsNullOrWhiteSpace(clienteNome)
-                ? $"&clienteId={clienteId}&clienteNome={Uri.EscapeDataString(clienteNome)}{(veiculoId.HasValue ? $"&veiculoId={veiculoId}" : string.Empty)}"
+                ? $"?clienteId={clienteId}&clienteNome={Uri.EscapeDataString(clienteNome)}{(veiculoId.HasValue ? $"&veiculoId={veiculoId}" : string.Empty)}"
                 : string.Empty;
-            Navegacao.NavigateTo($"/agenda/novo?agora=true{contextoCliente}");
+            Navegacao.NavigateTo($"/agenda/novo{contextoCliente}");
             return;
         }
         _carregando = false;

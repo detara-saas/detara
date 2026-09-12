@@ -932,6 +932,16 @@ h1:focus { outline: none; }
 .agenda-list-filters { grid-template-columns: minmax(280px, 1fr) 210px auto; }
 .appointment-mobile-record { grid-template-columns: minmax(0,1fr) auto 24px; }
 .agenda-form-panel { max-width: 1120px; margin-inline: auto; }
+.agenda-related-field { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: 8px; }
+.agenda-related-field > .mud-button-root { min-height: 42px; margin-top: 7px; white-space: nowrap; }
+.agenda-related-helper { grid-column: 1 / -1; margin-top: -6px; color: var(--detara-text-secondary); font-size: .72rem; line-height: 1.45; }
+.quick-create-form { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.quick-create-dialog .detara-dialog__heading,
+.quick-create-dialog .detara-dialog__content { display: grid; gap: 4px; }
+.quick-create-dialog .detara-dialog__content { gap: 18px; padding-top: 4px; }
+.quick-create-dialog .detara-dialog__heading .mud-typography-body2 { max-width: 560px; line-height: 1.5; }
+.quick-create-form .section-heading:first-child { margin-top: 0; }
+.quick-create-form .form-actions { margin-top: var(--detara-form-gap); padding-top: var(--detara-form-gap); }
 .agenda-form-section { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--detara-border-soft); }
 .agenda-time-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
 .selected-count { color: var(--detara-primary-dark); font-size: .78rem; font-weight: 700; }
@@ -1238,6 +1248,9 @@ h1:focus { outline: none; }
     .appointment-card > .status-badge { grid-column: 2; }
     .agenda-list-filters { grid-template-columns: 1fr; }
     .agenda-time-grid { grid-template-columns: 1fr; }
+    .agenda-related-field { grid-template-columns: 1fr; gap: 4px; }
+    .agenda-related-field > .mud-button-root { width: 100%; margin-top: 0; }
+    .agenda-related-helper { margin-top: 0; }
     .catalog-search-row { grid-template-columns: 1fr; }
     .catalog-search-row .mud-button-root { min-height: 44px; }
     .appointment-hero { grid-template-columns: 1fr; }
