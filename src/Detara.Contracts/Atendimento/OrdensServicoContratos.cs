@@ -34,6 +34,7 @@ public sealed record OrdemServicoListaResponse(Guid Id, string Codigo, string Cl
 public sealed record OrdemServicoAgendamentoResponse(Guid Id, string Codigo,
     StatusOrdemServicoContrato Status);
 public sealed record VinculoOrdemServicoAgendamentoResponse(OrdemServicoAgendamentoResponse? OrdemServico);
+public sealed record OrigemComercialOrdemServicoResponse(Guid? OrcamentoId);
 public sealed record OrdemServicoItemResponse(Guid Id, TipoItemOrcamentoContrato TipoItem, Guid? ItemCatalogoId,
     Guid? OrcamentoOrigemId, Guid? OrcamentoItemOrigemId, string Nome, string? Descricao,
     decimal ValorUnitarioAutorizado, int Quantidade, decimal Subtotal, int Ordem,

@@ -55,6 +55,15 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Flow02_OrigemComercialECriacao_ExigemAutenticacao()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync(
+            $"/api/ordens-servico/agendamentos/{Guid.NewGuid()}/origem-comercial")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.PostAsJsonAsync(
+            "/api/ordens-servico", new { })).StatusCode);
+    }
+
     [Theory]
     [InlineData("/api/empresa")]
     [InlineData("/api/usuarios")]
@@ -380,7 +389,8 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(164, rotas.Length); // Inclui a leitura protegida por perspectiva de relatórios (Task 48).
+        Assert.Contains("api/ordens-servico/agendamentos/{agendamentoId:guid}/origem-comercial", rotas);
+        Assert.Equal(165, rotas.Length); // FLOW-02: leitura da origem comercial protegida por OrdemServicoCriar.
     }
 
     [Fact]

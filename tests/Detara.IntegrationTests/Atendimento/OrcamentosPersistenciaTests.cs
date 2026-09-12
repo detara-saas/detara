@@ -17,7 +17,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Detara.IntegrationTests.Atendimento;
 
-public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
+public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
 {
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
     private DbContextOptions<DetaraDbContext> _options = null!;
@@ -449,6 +449,8 @@ public sealed class OrcamentosPersistenciaTests : IAsyncLifetime
         Assert.Equal(240m, atualizada.TotalAutorizado);
         Assert.Equal(2, atualizada.Itens.Count);
         Assert.Equal(StatusOrcamento.Aprovado, (await c.Orcamentos.SingleAsync(item => item.Id == baseCriada.Orcamento.Id)).Status);
+        Assert.Equal(baseCriada.Orcamento.Id, await OrigemFlow02(c, _agendamentoA));
+        Assert.Single(await new OrcamentosRepositorio(c).ListarPorAgendamentoAsync(_agendamentoA, default));
     }
 
     [Fact]

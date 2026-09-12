@@ -7,6 +7,8 @@
 - `AgendamentoOrigemId` pode ser nulo apenas em OS históricas criadas antes desta integração.
 - Um orçamento principal aprovado pode ser vinculado a uma Agenda. O vínculo não altera seus snapshots, valores, aprovação ou PDF.
 - A OS criada de orçamento usa a mesma Agenda, Cliente e Veículo e preserva integralmente os valores comerciais aprovados.
+- Ao criar pela Agenda, um único orçamento principal aprovado vinculado é a fonte comercial autoritativa, mesmo sem seu ID no request. Não se recalcula preço pelo catálogo.
+- Sem orçamento aprovado, permanece o acordo direto. Adicionais e propostas não aprovadas/substituídas não entram nessa seleção; múltiplos principais aprovados retornam conflito para revisão, sem desempate arbitrário.
 - Agenda não cria cobrança. Financeiro continua reagindo somente à finalização da execução da OS.
 
 ## Caminhos suportados
@@ -15,7 +17,7 @@
 
 1. Criar Agenda com Cliente, Veículo, horário, duração e itens planejados.
 2. Opcionalmente criar e aprovar orçamento a partir dela.
-3. Criar a OS pela Agenda. Se já existir, a interface oferece apenas **Ver OS**.
+3. Criar a OS pela Agenda. O resumo herda automaticamente a aprovação inequívoca, quando houver, preservando ambos os vínculos. Se a OS já existir, a interface oferece apenas **Ver OS**.
 4. Iniciar a OS para colocar a Agenda em **Em atendimento**.
 5. Finalizar serviços para `AguardandoRetirada`; a Agenda permanece em atendimento.
 6. Registrar a entrega/conclusão da OS para concluir a Agenda.

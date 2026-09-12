@@ -30,7 +30,7 @@ using Microsoft.Extensions.Options;
 
 namespace Detara.IntegrationTests.Autorizacao;
 
-public sealed class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
+public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
 {
     private readonly DetaraApiFactory _factory = new();
     private HttpClient _client = null!;

@@ -62,7 +62,7 @@ internal sealed class CriarOrdemServicoValidator : AbstractValidator<CriarOrdemS
         RuleFor(item => item.Desconto).GreaterThanOrEqualTo(0);
         RuleFor(item => item.Acrescimo).GreaterThanOrEqualTo(0);
         RuleFor(item => item.ObservacaoAutorizacaoDireta).MaximumLength(1000);
-        RuleFor(item => item.Itens).NotEmpty().When(item => !item.OrcamentoOrigemId.HasValue);
+        RuleFor(item => item.Itens).NotNull();
         RuleForEach(item => item.Itens).SetValidator(new ItemOrdemServicoEntradaValidator());
     }
 }
@@ -138,20 +138,12 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
         if (await ordens.ExistePorAgendamentoAsync(agendamentoId, ct))
             throw new ConflitoRegraNegocioException("Já existe uma Ordem de Serviço vinculada a este agendamento.");
         OrdemServico entidade;
-        if (request.OrcamentoOrigemId.HasValue)
+        var orcamento = await OrigemComercialOrdemServicoFluxo.ResolverAsync(
+            orcamentos, agendamento, request.OrcamentoOrigemId, ct);
+        if (orcamento is not null)
         {
-            var orcamento = await orcamentos.ObterDetalheAsync(request.OrcamentoOrigemId.Value, ct)
-                ?? throw new RecursoNaoEncontradoException("Orçamento não encontrado.");
-            if (orcamento.Status != StatusOrcamento.Aprovado)
-                throw new ConflitoRegraNegocioException("Somente um orçamento aprovado pode originar uma ordem de serviço.");
-            if (orcamento.OrdemServicoOrigemId.HasValue)
-                throw new ConflitoRegraNegocioException("Um orçamento adicional não pode originar outra ordem de serviço.");
             if (await ordens.ExistePorOrcamentoAsync(orcamento.Id, ct))
                 throw new ConflitoRegraNegocioException("Este orçamento já possui uma ordem de serviço.");
-            if (orcamento.AgendamentoId != agendamentoId)
-                throw new ConflitoRegraNegocioException("O orçamento aprovado não pertence a este agendamento.");
-            if (orcamento.ClienteId != agendamento.ClienteId || orcamento.VeiculoId != agendamento.VeiculoId)
-                throw new ConflitoRegraNegocioException("Cliente e veículo do orçamento divergem do agendamento.");
             var partes = new PartesOrdemServicoSnapshot(orcamento.ClienteId, orcamento.ClienteNome,
                 orcamento.ClienteDocumento, orcamento.ClienteTelefone, orcamento.VeiculoId,
                 orcamento.VeiculoDescricao, orcamento.VeiculoPlaca);
@@ -167,6 +159,9 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
         }
         else
         {
+            if (request.Itens.Count == 0)
+                throw new ValidationException([new FluentValidation.Results.ValidationFailure(
+                    nameof(request.Itens), "Informe ao menos um item autorizado para criar a ordem de serviço.")]);
             var partesOrcamento = await OrcamentoFluxo.PrepararPartesAsync(clientes, usuario.EmpresaId,
                 agendamento.ClienteId, agendamento.VeiculoId, agendamento, ct);
             var itensOrcamento = await OrcamentoFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId,

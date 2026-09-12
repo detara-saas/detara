@@ -43,6 +43,12 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
         return Ok(RespostaApi<VinculoOrdemServicoAgendamentoResponse>.Ok(new(ordem)));
     }
 
+    [HttpGet("agendamentos/{agendamentoId:guid}/origem-comercial"), Authorize(Policy = Permissoes.OrdemServicoCriar)]
+    public async Task<ActionResult<RespostaApi<OrigemComercialOrdemServicoResponse>>> ObterOrigemComercial(
+        Guid agendamentoId, CancellationToken ct) =>
+        Ok(RespostaApi<OrigemComercialOrdemServicoResponse>.Ok(new(
+            await sender.Send(new ObterOrigemComercialOrdemServicoQuery(agendamentoId), ct))));
+
     [HttpPost, Authorize(Policy = Permissoes.OrdemServicoCriar)]
     public async Task<ActionResult<RespostaApi<OrdemServicoDetalheResponse>>> Criar(CriarOrdemServicoRequest request, CancellationToken ct)
     {
