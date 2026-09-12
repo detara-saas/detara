@@ -1,5 +1,5 @@
 @inject DespesasServico Api
-<DetaraDialog Titulo="@(Regra.Ativa ? "Inativar recorrência" : "Reativar recorrência")" Descricao="@Regra.Descricao" TextoPrimario="Confirmar" Erro="@_erro" Carregando="_salvando" OnPrimary="SalvarAsync">
+<DetaraDialog Titulo="@(Regra.Ativa ? "Inativar recorrência" : "Reativar recorrência")" Descricao="@Regra.Descricao" TextoPrimario="Confirmar" CorPrimaria="@(Regra.Ativa ? Color.Error : Color.Primary)" Erro="@_erro" Carregando="_salvando" OnPrimary="SalvarAsync">
     <MudText>@(Regra.Ativa ? "Nenhuma nova competência será gerada enquanto a regra estiver inativa. As contas existentes permanecem no financeiro." : "A regra volta a gerar contas a partir do mês atual ou do início previsto. Meses inativos serão ignorados.")</MudText>
 </DetaraDialog>
 @code {

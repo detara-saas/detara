@@ -169,6 +169,20 @@ Os padrões são implementados em `app.css` e nos componentes `CabecalhoPagina`,
 - **Modais:** decisões focadas; grandes CRUDs não cabem em modal por padrão.
 - **Ícones:** MudBlazor/Material Icons, preferencialmente outlined; uma família consistente e sem emoji funcional.
 
+### Sistema de ações
+
+As variantes nativas do `MudButton` são a abstração canônica. Não crie wrappers por página: classifique a ação pelo contexto e use a combinação abaixo. Os rótulos usam sentence case; caixa alta fica reservada a eyebrows e labels estruturais.
+
+| Variante | Uso | Visual canônico |
+|---|---|---|
+| **Primary** | Única ação de continuidade ou confirmação principal da região | `Variant.Filled` + `Color.Primary` |
+| **Secondary** | Alternativa relevante que não deve competir com a continuidade principal | `Variant.Outlined`; `Color.Primary` somente quando o contexto exigir ênfase adicional |
+| **Tertiary / Ghost** | Voltar, cancelar dialog, editar contexto, expandir ou consultar detalhe | `Variant.Text` |
+| **Destructive** | Excluir, cancelar registro, inativar, remover ou estornar | `Color.Error`, com `Text`/`Outlined` para iniciar e `Filled` na confirmação explícita |
+| **Icon** | Ação compacta com ícone universal em tabela, toolbar ou mídia | `MudIconButton`, sempre com `aria-label`; tooltip quando o contexto não bastar |
+
+O tamanho default tem altura mínima de 42 px; compactos usam 34 px somente em regiões densas; ações mobile e CTAs grandes preservam alvo mínimo de 44–48 px. Padding, radius, tipografia, ícones, foco, hover e disabled são centralizados em `app.css`. Estados assíncronos devem bloquear duplo envio e preservar um rótulo estável ou indicador de progresso quando já suportado pelo fluxo.
+
 ### Componentes de produto compartilhados
 
 Os componentes canônicos abaixo ficam em `src/Detara.Web/Components/Shared/DesignSystem/` e devem ser preferidos a marcação local equivalente:

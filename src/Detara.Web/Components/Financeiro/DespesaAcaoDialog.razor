@@ -1,6 +1,6 @@
 @inject DespesasServico Api
 @using Detara.Web.Pages
-<DetaraDialog Titulo="@Titulo" Descricao="@Descricao" Erro="@_erro" TextoPrimario="@(Acao == "pagar" ? "Registrar pagamento" : "Confirmar")" Carregando="_salvando" OnPrimary="SalvarAsync">
+<DetaraDialog Titulo="@Titulo" Descricao="@Descricao" Erro="@_erro" TextoPrimario="@(Acao == "pagar" ? "Registrar pagamento" : "Confirmar")" CorPrimaria="@(Acao == "pagar" ? Color.Primary : Color.Error)" Carregando="_salvando" OnPrimary="SalvarAsync">
     <div class="dialog-financial-summary"><span>@Conta.Descricao</span><strong>@Despesas.Moeda(Conta.Valor)</strong></div>
     <MudText Typo="Typo.body2">Vencimento: @Conta.Vencimento.ToString("dd/MM/yyyy")</MudText>
     @if (Acao == "pagar")

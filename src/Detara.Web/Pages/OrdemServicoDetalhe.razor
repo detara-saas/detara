@@ -552,13 +552,13 @@ else
                                             }
                                             else if (_ordem.Status == StatusOrdemServicoContrato.EmExecucao)
                                             {
-                                                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Outlined.TaskAlt" OnClick="@(() => ExecutarTransicaoAsync("finalizar"))">
+                                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.TaskAlt" OnClick="@(() => ExecutarTransicaoAsync("finalizar"))">
                                                     Serviços finalizados
                                                 </MudButton>
                                             }
                                             else if (_ordem.Status == StatusOrdemServicoContrato.AguardandoRetirada)
                                             {
-                                                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Outlined.Key" OnClick="@(() => ExecutarTransicaoAsync("concluir"))">
+                                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Key" OnClick="@(() => ExecutarTransicaoAsync("concluir"))">
                                                     Confirmar entrega
                                                 </MudButton>
                                             }
@@ -628,19 +628,6 @@ else
                         </Authorized>
                     </AuthorizeView>
 
-                    <DetaraCard Titulo="Cliente e atendimento"
-                                Sobretitulo="CONTEXTO"
-                                Descricao="Referências rápidas desta ordem."
-                                Class="service-order-context-card">
-                        <ChildContent>
-                            <dl class="service-order-context-list">
-                                <div><dt>Cliente</dt><dd>@_ordem.ClienteNome</dd></div>
-                                <div><dt>Telefone</dt><dd>@(_ordem.ClienteTelefone ?? "Não informado")</dd></div>
-                                <div><dt>Origem</dt><dd>@NomeOrigem(_ordem)</dd></div>
-                                <div><dt>OS</dt><dd>@_ordem.Codigo</dd></div>
-                            </dl>
-                        </ChildContent>
-                    </DetaraCard>
                 </div>
             </aside>
         </div>
