@@ -1,18 +1,38 @@
 @implements IDisposable
 @inject PwaServico Pwa
 @inject IMensagemServico Mensagens
+@inject HttpClient Http
+@inject NavigationManager Navigation
 
-@if (Pwa.SemConexao || Pwa.AtualizacaoDisponivel)
+@if (Pwa.ExibirConectividade || Pwa.AtualizacaoDisponivel)
 {
     <div class="pwa-status-region" aria-live="polite">
-        @if (Pwa.SemConexao)
+        @if (Pwa.ExibirConectividade)
         {
-            <section class="pwa-status-banner pwa-status-offline" role="status">
-                <span class="pwa-status-icon"><MudIcon Icon="@Icons.Material.Outlined.CloudOff" /></span>
+            <section class="pwa-status-banner @ClasseConectividade" role="status" aria-atomic="true">
+                <span class="pwa-status-icon">
+                    @if (Pwa.Conectividade == EstadoConectividade.Reconectando)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" aria-label="Tentando reconectar" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@IconeConectividade" />
+                    }
+                </span>
                 <div>
-                    <strong>Sem conexão com o servidor</strong>
-                    <span>Algumas funcionalidades estão temporariamente indisponíveis.</span>
+                    <strong>@TituloConectividade</strong>
+                    <span>@DescricaoConectividade</span>
                 </div>
+                @if (Pwa.Conectividade != EstadoConectividade.Restabelecida)
+                {
+                    <div class="pwa-status-actions">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_tentandoReconectar" OnClick="TentarNovamenteAsync">
+                            @(_tentandoReconectar ? "Verificando..." : "Tentar novamente")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" OnClick="Recarregar">Recarregar agora</MudButton>
+                    </div>
+                }
             </section>
         }
 
@@ -37,8 +57,40 @@
 
 @code {
     private bool _atualizando;
+    private bool _tentandoReconectar;
 
     protected override void OnInitialized() => Pwa.Alterado += Atualizar;
+
+    private string ClasseConectividade => Pwa.Conectividade switch
+    {
+        EstadoConectividade.Restabelecida => "pwa-status-restored",
+        EstadoConectividade.Reconectando => "pwa-status-reconnecting",
+        EstadoConectividade.Falha => "pwa-status-failed",
+        _ => "pwa-status-offline"
+    };
+
+    private string IconeConectividade => Pwa.Conectividade switch
+    {
+        EstadoConectividade.Restabelecida => Icons.Material.Outlined.CloudDone,
+        EstadoConectividade.Falha => Icons.Material.Outlined.CloudOff,
+        _ => Icons.Material.Outlined.WifiOff
+    };
+
+    private string TituloConectividade => Pwa.Conectividade switch
+    {
+        EstadoConectividade.Reconectando => "Tentando reconectar...",
+        EstadoConectividade.Restabelecida => "Conexão restabelecida",
+        EstadoConectividade.Falha => "Não foi possível reconectar",
+        _ => "Conexão perdida"
+    };
+
+    private string DescricaoConectividade => Pwa.Conectividade switch
+    {
+        EstadoConectividade.Reconectando => "Estamos verificando o acesso seguro à Detara.",
+        EstadoConectividade.Restabelecida => "Você pode continuar de onde parou.",
+        EstadoConectividade.Falha => "Verifique sua internet ou tente novamente. Seus dados não foram reenviados.",
+        _ => "Parece que você está offline. Mantenha esta página aberta para preservar o que está preenchendo."
+    };
 
     private async Task AtualizarAsync()
     {
@@ -55,7 +107,52 @@
         }
     }
 
-    private void Atualizar() => InvokeAsync(StateHasChanged);
+    private async Task TentarNovamenteAsync()
+    {
+        if (_tentandoReconectar)
+        {
+            return;
+        }
+
+        _tentandoReconectar = true;
+        Pwa.IniciarReconexao();
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            using var resposta = await Http.GetAsync("health/live", timeout.Token);
+            if (resposta.IsSuccessStatusCode)
+            {
+                Pwa.RegistrarRespostaApi();
+            }
+            else
+            {
+                Pwa.RegistrarFalhaApi();
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            Pwa.RegistrarFalhaApi();
+        }
+        finally
+        {
+            _tentandoReconectar = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void Recarregar() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+
+    private void Atualizar()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            if (Pwa.Conectividade == EstadoConectividade.Reconectando && !_tentandoReconectar)
+            {
+                await TentarNovamenteAsync();
+            }
+        });
+    }
 
     public void Dispose() => Pwa.Alterado -= Atualizar;
 }

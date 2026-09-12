@@ -38,7 +38,7 @@ else
         <div class="customer-360-hero-actions">
             <AuthorizeView Policy="@Permissoes.ClientesEditar"><Authorized>
                 <MudButton Href="@($"/clientes/{Id}/editar")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Edit">Editar</MudButton>
-                <MudButton Variant="Variant.Text" Color="@(cliente.EhAtivo ? Color.Error : Color.Success)" OnClick="AlterarStatusAsync">@(cliente.EhAtivo ? "Inativar" : "Ativar")</MudButton>
+                <MudButton Variant="Variant.Text" Color="@(cliente.EhAtivo ? Color.Error : Color.Primary)" OnClick="AlterarStatusAsync">@(cliente.EhAtivo ? "Inativar" : "Ativar")</MudButton>
             </Authorized></AuthorizeView>
         </div>
     </header>

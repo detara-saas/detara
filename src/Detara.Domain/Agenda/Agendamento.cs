@@ -71,10 +71,14 @@ public sealed class Agendamento : EntidadeEmpresaBase
         int duracaoPlanejadaMinutos,
         string? observacaoSolicitante,
         string? observacaoInterna,
-        IReadOnlyCollection<ItemAgendamentoSnapshot> itens) =>
-        new(empresaId, clienteId, clienteNomeSnapshot, veiculoId, veiculoDescricaoSnapshot,
+        IReadOnlyCollection<ItemAgendamentoSnapshot> itens)
+    {
+        var agendamento = new Agendamento(empresaId, clienteId, clienteNomeSnapshot, veiculoId, veiculoDescricaoSnapshot,
             veiculoPlacaSnapshot, inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante,
             observacaoInterna, itens, permitirSemItens: itens.Count == 0);
+        agendamento.AlterarStatus(StatusAgendamento.Confirmado);
+        return agendamento;
+    }
 
     public Guid ClienteId { get; private set; }
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;

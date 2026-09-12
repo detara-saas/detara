@@ -457,8 +457,6 @@ public sealed partial class DemoBootstrapService(
         agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[6], servicos["Descontaminação de Pintura"], hoje.AddDays(4), 10, cancellationToken));
         agendamentos.Add(await CriarAgendamentoAsync(sender, clientes[7], servicos["Proteção de Plásticos"], hoje.AddDays(-1), 16, cancellationToken));
 
-        await AlterarStatusAgendaAsync(sender, agendamentos[2], StatusAgendamento.Confirmado, cancellationToken);
-        await AlterarStatusAgendaAsync(sender, agendamentos[3], StatusAgendamento.Confirmado, cancellationToken);
         await sender.Send(new AlterarStatusAgendaOperacionalCommand(
             agendamentos[6].Agendamento.Id,
             StatusAgendamento.Cancelado,
@@ -587,16 +585,6 @@ public sealed partial class DemoBootstrapService(
             "Criado pelo Demo Bootstrap local.",
             [new ItemAgendamentoEntrada(TipoItemAgendamento.Servico, servico.Id)]),
             cancellationToken);
-
-    private static Task<AgendamentoDetalheVisualizacao> AlterarStatusAgendaAsync(
-        ISender sender,
-        AgendamentoDetalheVisualizacao agendamento,
-        StatusAgendamento status,
-        CancellationToken cancellationToken) =>
-        sender.Send(new AlterarStatusAgendaOperacionalCommand(
-            agendamento.Agendamento.Id,
-            status,
-            null), cancellationToken);
 
     private static async Task<OrcamentoDetalheVisualizacao> CriarOrcamentoAsync(
         ISender sender,

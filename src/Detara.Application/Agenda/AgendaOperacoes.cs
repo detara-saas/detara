@@ -50,6 +50,7 @@ internal sealed class CriarAgendamentoHandler(IUsuarioContexto usuario, ICliente
         var snapshots = await AgendaFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId, request.Itens, new Dictionary<(TipoItemAgendamento, Guid), ItemAgendamentoSnapshot>(), exigirAtivosNovos: true, ct);
         var fuso = await AgendaFluxo.ObterFusoAsync(fusos, usuario.EmpresaId, ct);
         var entidade = new Agendamento(usuario.EmpresaId, request.ClienteId, clienteVeiculo.Cliente.Nome, request.VeiculoId, clienteVeiculo.Veiculo.Descricao, clienteVeiculo.Veiculo.Placa, conversor.ParaUtc(request.InicioLocal, fuso), request.DuracaoPlanejadaMinutos, request.ObservacaoSolicitante, request.ObservacaoInterna, snapshots);
+        entidade.AlterarStatus(StatusAgendamento.Confirmado);
         agenda.Adicionar(entidade); await agenda.SalvarAsync(ct);
         return await AgendaFluxo.ObterDetalheAsync(entidade.Id, usuario.EmpresaId, agenda, catalogo, fusos, conversor, ct);
     }
