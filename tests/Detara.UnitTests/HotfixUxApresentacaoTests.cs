@@ -169,6 +169,61 @@ public sealed class HotfixUxApresentacaoTests
         Assert.DoesNotContain("A Agenda não registra preço acordado", detalhe);
     }
 
+    [Fact]
+    public void Agenda_DuracaoAutomaticaNaoExibeSugestaoSeparadaETemErroEspecifico()
+    {
+        var raiz = EncontrarRaizRepositorio();
+        var formulario = File.ReadAllText(Path.Combine(raiz, "src", "Detara.Web", "Components",
+            "Agenda", "AgendamentoFormulario.razor"));
+
+        Assert.DoesNotContain("Independente da duração de referência do catálogo.", formulario);
+        Assert.DoesNotContain("Duração sugerida pelos itens", formulario);
+        Assert.DoesNotContain("duration-suggestion", formulario);
+        Assert.Contains("RequiredError=\"Informe a duração planejada.\"", formulario);
+        Assert.Contains("Mensagens.Mostrar(\"Informe a duração planejada.\"", formulario);
+    }
+
+    [Fact]
+    public void ComunicacaoOs_PriorizaHistoricoEstadoVazioEAcaoFinal()
+    {
+        var raiz = EncontrarRaizRepositorio();
+        var componente = File.ReadAllText(Path.Combine(raiz, "src", "Detara.Web", "Components",
+            "Notificacoes", "OrdemServicoComunicacao.razor"));
+
+        Assert.DoesNotContain("communication-summary", componente);
+        Assert.DoesNotContain("CANAL AUTOMÁTICO", componente);
+        Assert.DoesNotContain("ÚLTIMO CANAL", componente);
+        Assert.DoesNotContain("ÚLTIMA COMUNICAÇÃO", componente);
+        Assert.DoesNotContain("WHATSAPP DA EMPRESA", componente);
+        Assert.Contains("Nenhuma comunicação enviada.", componente);
+        Assert.Contains("Enviar atualização", componente);
+        Assert.True(componente.IndexOf("communication-history", StringComparison.Ordinal) <
+                    componente.IndexOf("communication-actions", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void OrdemHistorica_NaoExibeAlertaMasPreservaBloqueiosReais()
+    {
+        var raiz = EncontrarRaizRepositorio();
+        var pagina = File.ReadAllText(Path.Combine(raiz, "src", "Detara.Web", "Pages",
+            "OrdemServicoDetalhe.razor"));
+
+        Assert.DoesNotContain("Esta OS é histórica.", pagina);
+        Assert.DoesNotContain("service-order-history-alert", pagina);
+        Assert.Contains("Disabled=\"@EhTerminal\"", pagina);
+        Assert.Contains("private bool EhTerminal", pagina);
+    }
+
+    [Fact]
+    public void ModalComunicacao_AplicaGapNoGrupoRealDeOpcoes()
+    {
+        var raiz = EncontrarRaizRepositorio();
+        var estilos = File.ReadAllText(Path.Combine(raiz, "src", "Detara.Web", "wwwroot", "css", "app.css"));
+
+        Assert.Contains(".communication-dialog-options .mud-radio-group", estilos);
+        Assert.Contains("gap: 12px", estilos);
+    }
+
     private static OrdemServicoDetalheResponse Ordem(
         NivelExigenciaOperacionalContrato checklist = NivelExigenciaOperacionalContrato.Desabilitado,
         NivelExigenciaOperacionalContrato entrada = NivelExigenciaOperacionalContrato.Desabilitado,

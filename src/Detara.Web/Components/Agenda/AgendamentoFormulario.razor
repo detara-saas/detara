@@ -23,8 +23,7 @@ else
         <div class="form-grid agenda-time-grid">
             <MudDatePicker @bind-Date="_data" Label="Data *" Required="true" Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" />
             <MudTimePicker @bind-Time="_hora" Label="Hora *" Required="true" Variant="Variant.Outlined" AmPm="false" />
-            <MudNumericField T="int?" Value="_duracaoEstado.Valor" ValueChanged="PersonalizarDuracao" Label="Duração planejada (minutos) *" Required="true" Min="1" Max="43200" Variant="Variant.Outlined" HelperText="Independente da duração de referência do catálogo." />
-            <div class="duration-suggestion"><span>Duração sugerida pelos itens</span><strong>@FormatarDuracao(DuracaoSugerida)</strong>@if (ExibirAcaoUsarSugestao) { <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="UsarDuracaoSugerida">Usar sugestão</MudButton> }</div>
+            <MudNumericField T="int?" Value="_duracaoEstado.Valor" ValueChanged="PersonalizarDuracao" Label="Duração planejada (minutos) *" Required="true" RequiredError="Informe a duração planejada." Min="1" Max="43200" Variant="Variant.Outlined" />
         </div>
 
         <div class="section-heading agenda-form-section"><div><span class="section-eyebrow">ITENS</span><h2>@(OrcamentoId.HasValue ? "Escopo do orçamento aprovado" : "Serviços e pacotes")</h2></div><span class="selected-count">@_selecionados.Count selecionado(s)</span></div>
@@ -82,8 +81,6 @@ else
     private readonly Dictionary<(TipoItemAgendamentoContrato, Guid), ItemCatalogoAgendaResponse> _selecionados = [];
     private int _quantidadeSobreposicoes; private bool _sobreposicaoConfirmada;
     private int? DuracaoSugerida => _selecionados.Count > 0 && _selecionados.Values.All(x => x.DuracaoReferenciaMinutos.HasValue) ? _selecionados.Values.Sum(x => x.DuracaoReferenciaMinutos!.Value) : null;
-    private bool ExibirAcaoUsarSugestao => _duracaoEstado.Personalizada && DuracaoSugerida.HasValue
-        && _duracaoEstado.Valor != DuracaoSugerida;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -162,14 +159,14 @@ else
     private void SelecionarItem(ItemCatalogoAgendaResponse item, bool valor) { var chave = (item.TipoItem, item.Id); if (valor) _selecionados[chave] = item; else _selecionados.Remove(chave); AtualizarDuracaoAutomatica(); }
     private void RemoverItem(ItemCatalogoAgendaResponse item) { _selecionados.Remove((item.TipoItem, item.Id)); AtualizarDuracaoAutomatica(); }
     private void PersonalizarDuracao(int? valor) => _duracaoEstado.Personalizar(valor);
-    private void UsarDuracaoSugerida() => _duracaoEstado.UsarSugestao(DuracaoSugerida);
     private void AtualizarDuracaoAutomatica() => _duracaoEstado.AtualizarSugestao(DuracaoSugerida, _selecionados.Count > 0);
     private DateTime? ObterInicioLocal() => _data.HasValue && _hora.HasValue ? _data.Value.Date.Add(_hora.Value) : null;
 
     private async Task SalvarAsync()
     {
         if (_form is null) return; await _form.ValidateAsync(); var inicio = ObterInicioLocal();
-        if (!_form.IsValid || !_clienteId.HasValue || !_veiculoId.HasValue || _veiculoId.Value == Guid.Empty || !inicio.HasValue || !_duracaoEstado.Valor.HasValue || (_selecionados.Count == 0 && !OrcamentoId.HasValue)) { Mensagens.Mostrar("Preencha cliente, veículo, data, hora, duração e ao menos um item.", true); return; }
+        if (!_duracaoEstado.Valor.HasValue) { Mensagens.Mostrar("Informe a duração planejada.", true); return; }
+        if (!_form.IsValid || !_clienteId.HasValue || !_veiculoId.HasValue || _veiculoId.Value == Guid.Empty || !inicio.HasValue || (_selecionados.Count == 0 && !OrcamentoId.HasValue)) { Mensagens.Mostrar("Preencha cliente, veículo, data, hora e ao menos um item.", true); return; }
         var sobreposicoes = await AgendaApi.ContarSobreposicoesAsync(inicio.Value, _duracaoEstado.Valor.Value, AgendamentoId);
         if (!sobreposicoes.Sucesso) { Mensagens.Mostrar(sobreposicoes.Mensagem, true); return; }
         _quantidadeSobreposicoes = sobreposicoes.Resultado;

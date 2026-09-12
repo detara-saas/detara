@@ -68,4 +68,16 @@ public sealed class EstadoDuracaoPlanejadaTests
         estado.AtualizarSugestao(null, false);
         Assert.Null(estado.Valor);
     }
+
+    [Fact]
+    public void ModoAutomatico_ItemSemDuracaoLimpaSugestaoAnterior()
+    {
+        var estado = new EstadoDuracaoPlanejada();
+        estado.AtualizarSugestao(240, true);
+
+        estado.AtualizarSugestao(null, true);
+
+        Assert.False(estado.Personalizada);
+        Assert.Null(estado.Valor);
+    }
 }
