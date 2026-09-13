@@ -110,6 +110,7 @@ public sealed class Ui07ApresentacaoTests
     {
         var formulario = LerArquivo("src", "Detara.Web", "Components", "Agenda",
             "AgendamentoFormulario.razor");
+        var estilos = LerArquivo("src", "Detara.Web", "wwwroot", "css", "app.css");
         var cliente = LerArquivo("src", "Detara.Web", "Components", "Clientes",
             "ClienteFormulario.razor");
         var veiculo = LerArquivo("src", "Detara.Web", "Components", "Veiculos",
@@ -117,12 +118,26 @@ public sealed class Ui07ApresentacaoTests
 
         Assert.Contains("Policy=\"@Permissoes.ClientesCriar\"", formulario);
         Assert.Contains("Policy=\"@Permissoes.VeiculosCriar\"", formulario);
+        Assert.DoesNotContain(">Novo cliente</MudButton>", formulario);
+        Assert.DoesNotContain(">Novo veículo</MudButton>", formulario);
+        Assert.Contains("aria-label=\"Cadastrar novo cliente\"", formulario);
+        Assert.Contains("aria-label=\"Cadastrar novo veículo\"", formulario);
+        Assert.Contains("Text=\"Cadastrar novo cliente\"", formulario);
+        Assert.Contains("Text=\"Cadastrar novo veículo\"", formulario);
+        Assert.Equal(2, ContarOcorrencias(formulario, "Class=\"agenda-compound-prefix-button\""));
+        Assert.Contains("OnClick=\"CriarClienteRapidoAsync\"", formulario);
+        Assert.Contains("OnClick=\"CriarVeiculoRapidoAsync\"", formulario);
+        Assert.Contains("Disabled=\"@(!_clienteId.HasValue || _salvando)\"", formulario);
         Assert.Contains("Selecione ou cadastre um cliente primeiro.", formulario);
         Assert.Contains("await SelecionarClienteAsync", formulario);
         Assert.Contains("_veiculoId = veiculo.Id", formulario);
         Assert.Contains("if (_salvando) return", formulario);
         Assert.Contains("EventCallback<ClienteDetalheResponse> Salvo", cliente);
         Assert.Contains("EventCallback<VeiculoDetalheResponse> Salvo", veiculo);
+        Assert.Contains(".agenda-compound-field:has(input:focus)", estilos);
+        Assert.Contains(".agenda-compound-field:has(input[aria-invalid=\"true\"])", estilos);
+        Assert.Contains(".agenda-compound-field.is-disabled", estilos);
+        Assert.Contains(".agenda-compound-field > .mud-tooltip-root", estilos);
     }
 
     [Fact]
