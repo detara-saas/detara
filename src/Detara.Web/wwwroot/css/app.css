@@ -941,14 +941,13 @@ h1:focus { outline: none; }
 .agenda-compound-control { grid-column: 2; min-width: 0; }
 .agenda-compound-field:not(:has(.agenda-compound-prefix-button)) .agenda-compound-control { grid-column: 1; }
 .agenda-compound-control .mud-input-outlined-border { border-color: transparent !important; }
-.agenda-compound-control .mud-input-label.mud-input-label-inputcontrol.mud-input-label-outlined { transform: translate(16px,-4px) scale(.75); }
+.agenda-compound-control .mud-input-label.mud-input-label-inputcontrol.mud-input-label-outlined { transform: translate(16px,0) scale(.75); }
 .agenda-compound-field:hover:not(.is-disabled) { border-color: color-mix(in srgb,var(--detara-primary) 48%,var(--detara-border)); }
 .agenda-compound-field:has(input:focus) { border-color: var(--detara-primary-dark); box-shadow: inset 0 0 0 1px var(--detara-primary-dark); }
 .agenda-compound-field:has(input[aria-invalid="true"]) { border-color: var(--detara-error); }
 .agenda-compound-field.is-disabled { background: color-mix(in srgb,var(--detara-surface-alt) 82%,var(--detara-surface)); border-color: var(--detara-border-soft); }
 .agenda-compound-field.is-disabled > .mud-tooltip-root { border-right-color: var(--detara-border-soft); }
 .agenda-compound-field.is-disabled .agenda-compound-prefix-button { color: var(--detara-text-secondary) !important; }
-.agenda-related-helper { color: var(--detara-text-secondary); font-size: .72rem; line-height: 1.45; }
 .quick-create-form { padding: 0; border: 0; background: transparent; box-shadow: none; }
 .quick-create-dialog .detara-dialog__heading,
 .quick-create-dialog .detara-dialog__content { display: grid; gap: 4px; }

@@ -128,7 +128,7 @@ public sealed class Ui07ApresentacaoTests
         Assert.Contains("OnClick=\"CriarClienteRapidoAsync\"", formulario);
         Assert.Contains("OnClick=\"CriarVeiculoRapidoAsync\"", formulario);
         Assert.Contains("Disabled=\"@(!_clienteId.HasValue || _salvando)\"", formulario);
-        Assert.Contains("Selecione ou cadastre um cliente primeiro.", formulario);
+        Assert.DoesNotContain("Selecione ou cadastre um cliente primeiro.", formulario);
         Assert.Contains("await SelecionarClienteAsync", formulario);
         Assert.Contains("_veiculoId = veiculo.Id", formulario);
         Assert.Contains("if (_salvando) return", formulario);
@@ -139,7 +139,7 @@ public sealed class Ui07ApresentacaoTests
         Assert.Contains(".agenda-compound-field.is-disabled", estilos);
         Assert.Contains(".agenda-compound-field > .mud-tooltip-root", estilos);
         Assert.Contains(".agenda-compound-control .mud-input-label.mud-input-label-inputcontrol.mud-input-label-outlined", estilos);
-        Assert.Contains("translate(16px,-4px) scale(.75)", estilos);
+        Assert.Contains("translate(16px,0) scale(.75)", estilos);
     }
 
     [Fact]
