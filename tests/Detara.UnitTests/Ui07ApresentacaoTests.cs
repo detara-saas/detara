@@ -138,6 +138,8 @@ public sealed class Ui07ApresentacaoTests
         Assert.Contains(".agenda-compound-field:has(input[aria-invalid=\"true\"])", estilos);
         Assert.Contains(".agenda-compound-field.is-disabled", estilos);
         Assert.Contains(".agenda-compound-field > .mud-tooltip-root", estilos);
+        Assert.Contains(".agenda-compound-control .mud-input-label.mud-input-label-inputcontrol.mud-input-label-outlined", estilos);
+        Assert.Contains("translate(16px,-4px) scale(.75)", estilos);
     }
 
     [Fact]

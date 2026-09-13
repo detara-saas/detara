@@ -941,6 +941,7 @@ h1:focus { outline: none; }
 .agenda-compound-control { grid-column: 2; min-width: 0; }
 .agenda-compound-field:not(:has(.agenda-compound-prefix-button)) .agenda-compound-control { grid-column: 1; }
 .agenda-compound-control .mud-input-outlined-border { border-color: transparent !important; }
+.agenda-compound-control .mud-input-label.mud-input-label-inputcontrol.mud-input-label-outlined { transform: translate(16px,-4px) scale(.75); }
 .agenda-compound-field:hover:not(.is-disabled) { border-color: color-mix(in srgb,var(--detara-primary) 48%,var(--detara-border)); }
 .agenda-compound-field:has(input:focus) { border-color: var(--detara-primary-dark); box-shadow: inset 0 0 0 1px var(--detara-primary-dark); }
 .agenda-compound-field:has(input[aria-invalid="true"]) { border-color: var(--detara-error); }
