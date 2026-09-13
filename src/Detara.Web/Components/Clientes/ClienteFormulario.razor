@@ -2,7 +2,7 @@
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navigation
 
-<MudForm @ref="_form" Class="module-form">
+<MudForm @ref="_form" Class="@(Incorporado ? "module-form quick-create-form" : "module-form")">
     <div class="form-grid">
         <MudTextField T="string" @bind-Value="_modelo.Nome" Label="Nome *" Required="true" Variant="Variant.Outlined" />
         <MudSelect T="string" @bind-Value="_modelo.TipoPessoa" Label="Tipo de pessoa *" Required="true" Variant="Variant.Outlined">
@@ -20,7 +20,7 @@
         <MudTextField T="string" @bind-Value="_modelo.Observacao" Label="Observações" Variant="Variant.Outlined" Lines="4" Class="form-full" />
     </div>
     <div class="form-actions">
-        <MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="CancelarAsync" Disabled="_salvando">Cancelar</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SalvarAsync" Disabled="_salvando" StartIcon="@Icons.Material.Outlined.Save">
             @(_salvando ? "Salvando..." : "Salvar cliente")
         </MudButton>
@@ -30,6 +30,15 @@
 @code {
     [Parameter]
     public Guid? ClienteId { get; set; }
+
+    [Parameter]
+    public bool Incorporado { get; set; }
+
+    [Parameter]
+    public EventCallback<ClienteDetalheResponse> Salvo { get; set; }
+
+    [Parameter]
+    public EventCallback Cancelado { get; set; }
 
     private MudForm? _form;
     private ClienteFormModel _modelo = new();
@@ -61,10 +70,11 @@
 
     private async Task SalvarAsync()
     {
+        if (_salvando) return;
         if (_form is null) return;
-        await _form.ValidateAsync();
-        if (!_form.IsValid) return;
         _salvando = true;
+        await _form.ValidateAsync();
+        if (!_form.IsValid) { _salvando = false; return; }
         var request = new SalvarClienteRequest(
             _modelo.Nome,
             _modelo.TipoPessoa,
@@ -81,11 +91,16 @@
         Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
         if (resultado is { Sucesso: true, Resultado: not null })
         {
-            Navigation.NavigateTo($"/clientes/{resultado.Resultado.Id}");
+            if (Salvo.HasDelegate) await Salvo.InvokeAsync(resultado.Resultado);
+            else Navigation.NavigateTo($"/clientes/{resultado.Resultado.Id}");
         }
     }
 
-    private void Cancelar() => Navigation.NavigateTo(ClienteId.HasValue ? $"/clientes/{ClienteId}" : "/clientes");
+    private async Task CancelarAsync()
+    {
+        if (Cancelado.HasDelegate) await Cancelado.InvokeAsync();
+        else Navigation.NavigateTo(ClienteId.HasValue ? $"/clientes/{ClienteId}" : "/clientes");
+    }
 
     private sealed class ClienteFormModel
     {

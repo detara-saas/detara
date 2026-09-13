@@ -55,7 +55,7 @@ else
 
     <DetaraCard Class="customer-360-quick-actions" Sobretitulo="ATALHOS" Titulo="Próxima ação">
         <div class="customer-360-action-grid">
-            <AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="@LinkAgenda(cliente, false)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.EventAvailable">Novo agendamento</MudButton></Authorized></AuthorizeView>
+            <AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="@LinkAgenda(cliente)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.EventAvailable">Novo agendamento</MudButton></Authorized></AuthorizeView>
             <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="@LinkOrcamento(cliente)" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RequestQuote">Novo orçamento</MudButton></Authorized></AuthorizeView>
             <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="@LinkOrdemServico(cliente)" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.BuildCircle">Nova ordem de serviço</MudButton></Authorized></AuthorizeView>
             <AuthorizeView Policy="@Permissoes.VeiculosCriar"><Authorized><MudButton Href="@($"/veiculos/novo?clienteId={Id}")" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.AddRoad">Adicionar veículo</MudButton></Authorized></AuthorizeView>
@@ -225,7 +225,7 @@ else
     private static string Identificacao(VeiculoResumoClienteResponse veiculo) => !string.IsNullOrWhiteSpace(veiculo.Placa) ? veiculo.Placa : Valor(veiculo.IdentificacaoAlternativa, FormatacaoVeiculo.NomeTipo(veiculo.Tipo));
     private static IReadOnlyList<DetaraBreadcrumbItem> BreadcrumbsCliente(ClienteDetalheResponse cliente) =>
         [new("Clientes", "/clientes"), new(cliente.Nome)];
-    private string LinkAgenda(ClienteDetalheResponse cliente, bool agora) => $"/agenda/novo?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}{(agora ? "&agora=true" : string.Empty)}";
+    private string LinkAgenda(ClienteDetalheResponse cliente) => $"/agenda/novo?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}";
     private string LinkOrdemServico(ClienteDetalheResponse cliente) => $"/ordens-servico/nova?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}";
     private string LinkOrcamento(ClienteDetalheResponse cliente) => $"/orcamentos/novo?clienteId={Id}&clienteNome={Uri.EscapeDataString(cliente.Nome)}";
     private static string NomeCanal(CanalComunicacaoClienteContrato canal) => canal == CanalComunicacaoClienteContrato.Email ? "E-mail" : "WhatsApp";

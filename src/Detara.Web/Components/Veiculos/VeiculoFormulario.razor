@@ -3,7 +3,7 @@
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navigation
 
-<MudForm @ref="_form" Class="module-form">
+<MudForm @ref="_form" Class="@(Incorporado ? "module-form quick-create-form" : "module-form")">
     <div class="form-grid">
         <div class="form-full">
             <ClienteAutocomplete ClienteId="_modelo.ClienteId" ClienteNome="@_clienteNome" Fixo="ClienteFixo" SelecionadoChanged="SelecionarCliente" />
@@ -25,12 +25,15 @@
         <MudNumericField T="int?" @bind-Value="_modelo.Quilometragem" Label="Quilometragem" Variant="Variant.Outlined" Min="0" Adornment="Adornment.End" AdornmentText="km" />
         <MudTextField T="string" @bind-Value="_modelo.Observacao" Label="Observações" Variant="Variant.Outlined" Lines="4" Class="form-full" />
     </div>
-    <div class="form-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SalvarAsync" Disabled="_salvando" StartIcon="@Icons.Material.Outlined.Save">@(_salvando ? "Salvando..." : "Salvar veículo")</MudButton></div>
+    <div class="form-actions"><MudButton Variant="Variant.Text" OnClick="CancelarAsync" Disabled="_salvando">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SalvarAsync" Disabled="_salvando" StartIcon="@Icons.Material.Outlined.Save">@(_salvando ? "Salvando..." : "Salvar veículo")</MudButton></div>
 </MudForm>
 
 @code {
     [Parameter] public Guid? VeiculoId { get; set; }
     [Parameter] public Guid? ClienteInicialId { get; set; }
+    [Parameter] public bool Incorporado { get; set; }
+    [Parameter] public EventCallback<VeiculoDetalheResponse> Salvo { get; set; }
+    [Parameter] public EventCallback Cancelado { get; set; }
     private MudForm? _form;
     private VeiculoFormModel _modelo = new();
     private string? _clienteNome;
@@ -57,18 +60,27 @@
 
     private async Task SalvarAsync()
     {
+        if (_salvando) return;
         if (_form is null) return;
-        await _form.ValidateAsync();
-        if (!_form.IsValid || !_modelo.ClienteId.HasValue) { if (!_modelo.ClienteId.HasValue) Mensagens.Mostrar("Selecione um cliente.", true); return; }
         _salvando = true;
+        await _form.ValidateAsync();
+        if (!_form.IsValid || !_modelo.ClienteId.HasValue) { _salvando = false; if (!_modelo.ClienteId.HasValue) Mensagens.Mostrar("Selecione um cliente.", true); return; }
         var request = new SalvarVeiculoRequest(_modelo.ClienteId.Value, _modelo.Tipo, _modelo.Placa, _modelo.IdentificacaoAlternativa, _modelo.Marca, _modelo.Modelo, _modelo.Versao, _modelo.AnoFabricacao, _modelo.AnoModelo, _modelo.Cor, _modelo.Quilometragem, _modelo.Observacao);
         var resultado = VeiculoId.HasValue ? await VeiculosApi.AtualizarAsync(VeiculoId.Value, request) : await VeiculosApi.CriarAsync(request);
         _salvando = false;
         Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
-        if (resultado is { Sucesso: true, Resultado: not null }) Navigation.NavigateTo($"/veiculos/{resultado.Resultado.Id}");
+        if (resultado is { Sucesso: true, Resultado: not null })
+        {
+            if (Salvo.HasDelegate) await Salvo.InvokeAsync(resultado.Resultado);
+            else Navigation.NavigateTo($"/veiculos/{resultado.Resultado.Id}");
+        }
     }
 
-    private void Cancelar() => Navigation.NavigateTo(VeiculoId.HasValue ? $"/veiculos/{VeiculoId}" : ClienteInicialId.HasValue ? $"/clientes/{ClienteInicialId}" : "/veiculos");
+    private async Task CancelarAsync()
+    {
+        if (Cancelado.HasDelegate) await Cancelado.InvokeAsync();
+        else Navigation.NavigateTo(VeiculoId.HasValue ? $"/veiculos/{VeiculoId}" : ClienteInicialId.HasValue ? $"/clientes/{ClienteInicialId}" : "/veiculos");
+    }
     private static readonly TipoVeiculoContrato[] TiposVeiculo = Enum.GetValues<TipoVeiculoContrato>();
     private sealed class VeiculoFormModel { public Guid? ClienteId { get; set; } public TipoVeiculoContrato Tipo { get; set; } = TipoVeiculoContrato.Carro; public string? Placa { get; set; } public string? IdentificacaoAlternativa { get; set; } public string Marca { get; set; } = string.Empty; public string Modelo { get; set; } = string.Empty; public string? Versao { get; set; } public int? AnoFabricacao { get; set; } public int? AnoModelo { get; set; } public string? Cor { get; set; } public int? Quilometragem { get; set; } public string? Observacao { get; set; } }
 }
