@@ -172,8 +172,12 @@ public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
         await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() => handler.Handle(new(entidade.Id, null), default));
     }
 
-    [Fact]
-    public async Task PdfOficial_TemAssinaturaEConteudo_EContinuaAposSubstituicao()
+    [Theory]
+    [InlineData(30, 10)]
+    [InlineData(10, 10)]
+    [InlineData(10, 30)]
+    public async Task PdfOficial_EncaixaLogoSemFaixaSuperiorEContinuaAposSubstituicao(
+        int larguraLogo, int alturaLogo)
     {
         await using var c = Contexto(_empresaA, _usuarioA);
         const string chaveLogo = "empresas/logo-teste.png";
@@ -186,12 +190,14 @@ public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
         var emitido = await EmitirHandler(c).Handle(new(a.Orcamento.Id, null), default);
         c.ChangeTracker.Clear(); var b = await NovaHandler(c).Handle(new(a.Orcamento.Id), default); c.ChangeTracker.Clear(); await EmitirHandler(c).Handle(new(b.Orcamento.Id, null), default); c.ChangeTracker.Clear();
         var pdf = await new GerarPdfOrcamentoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c),
-            new PlataformaAtendimentoConsulta(c), new PdfOrcamentoGenerator(), new StorageLogo(chaveLogo)).Handle(new(a.Orcamento.Id), default);
+            new PlataformaAtendimentoConsulta(c), new PdfOrcamentoGenerator(),
+            new StorageLogo(chaveLogo, larguraLogo, alturaLogo)).Handle(new(a.Orcamento.Id), default);
         Assert.True(pdf.Conteudo.Length > 1000); Assert.Equal("%PDF-", System.Text.Encoding.ASCII.GetString(pdf.Conteudo, 0, 5));
         var conteudoPdf = System.Text.Encoding.Latin1.GetString(pdf.Conteudo);
         Assert.Contains(emitido.Orcamento.Codigo!, conteudoPdf);
         Assert.Contains("/XObject << /Logo", conteudoPdf);
         Assert.Contains("/SMask", conteudoPdf);
+        Assert.DoesNotContain("0 818 595 24 re f", conteudoPdf);
         Assert.DoesNotContain("Interna confidencial", conteudoPdf);
     }
 
@@ -552,18 +558,19 @@ public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
     private sealed class UsuarioContextoTeste(Guid empresaId, Guid usuarioId, bool autenticado = true) : IUsuarioContexto
     { public static UsuarioContextoTeste Anonimo { get; } = new(Guid.Empty, Guid.Empty, false); public Guid UsuarioId { get; } = usuarioId; public Guid EmpresaId { get; } = empresaId; public bool EstaAutenticado { get; } = autenticado; }
 
-    private sealed class StorageLogo(string chave) : IArquivoStorage
+    private sealed class StorageLogo(string chave, int largura = 12, int altura = 4) : IArquivoStorage
     {
-        private static readonly byte[] LogoPng = CriarLogo();
+        private readonly byte[] _logoPng = CriarLogo(largura, altura);
         public Task<Stream?> AbrirLeituraAsync(string arquivo, CancellationToken ct) =>
-            Task.FromResult<Stream?>(arquivo == chave ? new MemoryStream(LogoPng, writable: false) : null);
+            Task.FromResult<Stream?>(arquivo == chave ? new MemoryStream(_logoPng, writable: false) : null);
         public Task<bool> ExisteAsync(string arquivo, CancellationToken ct) => Task.FromResult(arquivo == chave);
         public Task SalvarAsync(string arquivo, Stream conteudo, CancellationToken ct) => throw new NotSupportedException();
         public Task<bool> ExcluirAsync(string arquivo, CancellationToken ct) => throw new NotSupportedException();
 
-        private static byte[] CriarLogo()
+        private static byte[] CriarLogo(int largura, int altura)
         {
-            using var superficie = SKSurface.Create(new SKImageInfo(12, 4, SKColorType.Rgba8888, SKAlphaType.Premul));
+            using var superficie = SKSurface.Create(new SKImageInfo(
+                largura, altura, SKColorType.Rgba8888, SKAlphaType.Premul));
             superficie.Canvas.Clear(new SKColor(0, 190, 145, 210));
             using var imagem = superficie.Snapshot();
             using var png = imagem.Encode(SKEncodedImageFormat.Png, 100);

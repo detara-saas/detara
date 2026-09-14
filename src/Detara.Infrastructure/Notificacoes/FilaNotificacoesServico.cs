@@ -95,7 +95,7 @@ internal sealed class FilaNotificacoesServico(IServiceScopeFactory scopeFactory,
         var tipoTentativa = item.TipoProximaTentativa;
         var solicitadoPor = item.ProximaTentativaSolicitadaPorUsuarioId;
         var (corpoEmail, logoInline) = await PrepararBrandingEmailAsync(
-            db, scope.ServiceProvider, item.CorpoHtmlSnapshot, ct);
+            db, scope.ServiceProvider, empresaId, item.CorpoHtmlSnapshot, logger, ct);
         var resultado = await provedor.EnviarAsync(new(item.DestinatarioEmailSnapshot!, item.AssuntoSnapshot,
             corpoEmail, item.ResponderParaSnapshot, $"notificacao-email/{item.Id:N}", logoInline), ct);
         var finalizadoEm = DateTime.UtcNow;
@@ -129,26 +129,39 @@ internal sealed class FilaNotificacoesServico(IServiceScopeFactory scopeFactory,
         return true;
     }
 
-    private static async Task<(string CorpoHtml, AnexoEmailInline? Logo)> PrepararBrandingEmailAsync(
-        DetaraDbContext db, IServiceProvider services, string corpoHtml, CancellationToken ct)
+    internal static async Task<(string CorpoHtml, AnexoEmailInline? Logo)> PrepararBrandingEmailAsync(
+        DetaraDbContext db, IServiceProvider services, Guid empresaId, string corpoHtml,
+        ILogger logger, CancellationToken ct)
     {
         const string marcador = "<!--detara-company-logo-->";
         if (!corpoHtml.Contains(marcador, StringComparison.Ordinal)) return (corpoHtml, null);
         try
         {
-            var chave = await db.Empresas.AsNoTracking().Select(x => x.LogoArquivoChave).SingleAsync(ct);
+            var chave = await db.Empresas.IgnoreQueryFilters().AsNoTracking()
+                .Where(x => x.Id == empresaId && x.EhAtivo)
+                .Select(x => x.LogoArquivoChave)
+                .SingleOrDefaultAsync(ct);
             if (chave is null) return (corpoHtml.Replace(marcador, string.Empty, StringComparison.Ordinal), null);
             var storage = services.GetRequiredService<IArquivoStorage>();
             await using var stream = await storage.AbrirLeituraAsync(chave, ct);
-            if (stream is null) return (corpoHtml.Replace(marcador, string.Empty, StringComparison.Ordinal), null);
+            if (stream is null)
+            {
+                logger.LogWarning("Logo da empresa não encontrada durante a preparação do e-mail. EmpresaId: {EmpresaId}.",
+                    empresaId);
+                return (corpoHtml.Replace(marcador, string.Empty, StringComparison.Ordinal), null);
+            }
             using var memoria = new MemoryStream();
             await stream.CopyToAsync(memoria, ct);
-            var imagem = "<img src=\"cid:company-logo\" alt=\"Logo da empresa\" width=\"180\" style=\"display:block;max-width:180px;max-height:60px;width:auto;height:auto;margin-bottom:14px\">";
+            if (memoria.Length is 0 or > 4 * 1024 * 1024)
+                return (corpoHtml.Replace(marcador, string.Empty, StringComparison.Ordinal), null);
+            var imagem = "<img src=\"cid:company-logo\" alt=\"Logo da empresa\" width=\"180\" style=\"display:block;max-width:180px;max-height:72px;width:auto;height:auto;object-fit:contain;margin:0 0 14px\">";
             return (corpoHtml.Replace(marcador, imagem, StringComparison.Ordinal),
                 new("company-logo.png", "image/png", "company-logo", memoria.ToArray()));
         }
-        catch when (!ct.IsCancellationRequested)
+        catch (Exception exception) when (!ct.IsCancellationRequested)
         {
+            logger.LogWarning("Falha não bloqueante ao preparar branding do e-mail. EmpresaId: {EmpresaId}; Tipo: {TipoErro}.",
+                empresaId, exception.GetType().Name);
             return (corpoHtml.Replace(marcador, string.Empty, StringComparison.Ordinal), null);
         }
     }

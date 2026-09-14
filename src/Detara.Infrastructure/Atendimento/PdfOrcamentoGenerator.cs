@@ -148,17 +148,37 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
         private void Garantir(decimal altura, bool repetirCabecalhoItens = false) { if (_y - altura >= 90) return; NovaPagina(); if (repetirCabecalhoItens) CabecalhoItens(); }
         private void NovaPagina()
         {
-            _conteudo = new StringBuilder(); _paginas.Add(_conteudo); _y = 790;
-            Cor(0, 0.55m, 0.42m); RetanguloPreenchido(0, 818, 595, 24); Cor(0.08m, 0.1m, 0.14m);
+            _conteudo = new StringBuilder(); _paginas.Add(_conteudo);
+            Cor(0.08m, 0.1m, 0.14m);
             if (_logo is not null)
             {
-                _conteudo.Append("q 125 0 0 42 48 765 cm /Logo Do Q\n");
-                Escrever(_empresa, 12, true, 190, 795);
+                DesenharLogo(_logo, 48, 770, 125, 50);
+                var linhasEmpresa = Quebrar(_empresa, 29).Take(2).ToArray();
+                for (var i = 0; i < linhasEmpresa.Length; i++)
+                    Escrever(linhasEmpresa[i], 11.5m, true, 190, 802 - i * 15);
             }
-            else Escrever(_empresa, 14, true, 48, 795);
-            Escrever(_codigo, 8, false, 460, 795);
+            else
+            {
+                var linhasEmpresa = Quebrar(_empresa, 44).Take(2).ToArray();
+                for (var i = 0; i < linhasEmpresa.Length; i++)
+                    Escrever(linhasEmpresa[i], 13, true, 48, 802 - i * 16);
+            }
+            Cor(0.45m, 0.49m, 0.55m); Escrever("DOCUMENTO", 7, true, 430, 810);
+            Cor(0.08m, 0.1m, 0.14m); Escrever(_codigo, 8.5m, true, 430, 795);
             Cor(0.45m, 0.49m, 0.55m); Escrever($"Página {_paginas.Count}", 8, false, 500, 35); Escrever("Gerado por Detara", 8, false, 48, 35); Cor(0.08m, 0.1m, 0.14m);
-            _y = 758;
+            _y = 742;
+        }
+        private void DesenharLogo(PdfImage logo, decimal x, decimal y,
+            decimal larguraMaxima, decimal alturaMaxima)
+        {
+            var escala = Math.Min(larguraMaxima / logo.Width, alturaMaxima / logo.Height);
+            var largura = logo.Width * escala;
+            var altura = logo.Height * escala;
+            var destinoX = x + (larguraMaxima - largura) / 2;
+            var destinoY = y + (alturaMaxima - altura) / 2;
+            _conteudo.Append("q ").Append(N(largura)).Append(" 0 0 ").Append(N(altura))
+                .Append(' ').Append(N(destinoX)).Append(' ').Append(N(destinoY))
+                .Append(" cm /Logo Do Q\n");
         }
         private void LinhaHorizontal() { Cor(0, 0.55m, 0.42m); Linha(48, _y, 547, _y); Cor(0.08m, 0.1m, 0.14m); _y -= 24; }
         private void Escrever(string texto, decimal tamanho, bool negrito, decimal x, decimal y) => _conteudo.Append("BT /").Append(negrito ? "F2" : "F1").Append(' ').Append(N(tamanho)).Append(" Tf 1 0 0 1 ").Append(N(x)).Append(' ').Append(N(y)).Append(" Tm (").Append(Escapar(texto)).Append(") Tj ET\n");
@@ -231,18 +251,34 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
             {
                 using var bitmap = SKBitmap.Decode(png);
                 if (bitmap is null || bitmap.Width <= 0 || bitmap.Height <= 0) return null;
-                var rgb = new byte[bitmap.Width * bitmap.Height * 3];
-                var alpha = new byte[bitmap.Width * bitmap.Height];
-                var i = 0;
-                var a = 0;
+                var minX = bitmap.Width;
+                var minY = bitmap.Height;
+                var maxX = -1;
+                var maxY = -1;
                 for (var y = 0; y < bitmap.Height; y++)
                     for (var x = 0; x < bitmap.Width; x++)
+                        if (bitmap.GetPixel(x, y).Alpha > 0)
+                        {
+                            minX = Math.Min(minX, x);
+                            minY = Math.Min(minY, y);
+                            maxX = Math.Max(maxX, x);
+                            maxY = Math.Max(maxY, y);
+                        }
+                if (maxX < minX || maxY < minY) return null;
+                var largura = maxX - minX + 1;
+                var altura = maxY - minY + 1;
+                var rgb = new byte[largura * altura * 3];
+                var alpha = new byte[largura * altura];
+                var i = 0;
+                var a = 0;
+                for (var y = minY; y <= maxY; y++)
+                    for (var x = minX; x <= maxX; x++)
                     {
                         var cor = bitmap.GetPixel(x, y);
                         rgb[i++] = cor.Red; rgb[i++] = cor.Green; rgb[i++] = cor.Blue;
                         alpha[a++] = cor.Alpha;
                     }
-                return new(bitmap.Width, bitmap.Height, Comprimir(rgb), Comprimir(alpha));
+                return new(largura, altura, Comprimir(rgb), Comprimir(alpha));
             }
             catch { return null; }
         }
