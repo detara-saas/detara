@@ -58,7 +58,7 @@
                         <div class="form-grid service-order-intake-grid">
                             <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
                             <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@FormatacaoVeiculo.Exibir(v.Descricao, v.Placa)</MudSelectItem> }</MudSelect>
-                            <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração planejada em minutos (opcional)" Variant="Variant.Outlined" Min="1" />
+                            <CampoDuracao @bind-ValorMinutos="_duracao" Label="Duração planejada (opcional)" />
                         </div>
                     </section>
 

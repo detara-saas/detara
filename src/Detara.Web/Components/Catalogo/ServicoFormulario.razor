@@ -1,32 +1,172 @@
 @inject CatalogoServico Catalogo
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navigation
+@inject IDialogService Dialogos
 
 <MudForm @ref="_form"><div class="form-grid">
     <MudTextField T="string" @bind-Value="_nome" Label="Nome" Required="true" Variant="Variant.Outlined" />
-    <MudSelect T="Guid" @bind-Value="_categoriaId" Label="Categoria *" Required="true" Variant="Variant.Outlined">
-        @foreach (var categoria in CategoriasDisponiveis)
-        {
-            <MudSelectItem Value="@categoria.Id">@categoria.Nome@(!categoria.EhAtivo ? " (inativa)" : "")</MudSelectItem>
-        }
-    </MudSelect>
+    @if (_carregandoCategorias)
+    {
+        <MudSkeleton Height="56px" Class="form-full" />
+    }
+    else if (!TemCategoriasDisponiveis)
+    {
+        <DetaraEmptyState Titulo="@TituloEmptyStateCategoria"
+                          Descricao="@DescricaoEmptyStateCategoria"
+                          Icone="@Icons.Material.Outlined.Category"
+                          Compacto="true"
+                          Class="form-full">
+            <Acao>
+                <AuthorizeView Policy="@Permissoes.ServicosCriar">
+                    <Authorized>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Outlined.Add"
+                                   OnClick="CriarCategoriaRapidaAsync">
+                            Cadastrar categoria
+                        </MudButton>
+                    </Authorized>
+                </AuthorizeView>
+            </Acao>
+        </DetaraEmptyState>
+    }
+    else
+    {
+        <MudSelect T="Guid?" @bind-Value="_categoriaId" Label="Categoria *" Required="true"
+                   RequiredError="Selecione uma categoria para o serviço." Variant="Variant.Outlined">
+            @foreach (var categoria in CategoriasDisponiveis)
+            {
+                <MudSelectItem T="Guid?" Value="@((Guid?)categoria.Id)">@categoria.Nome@(!categoria.EhAtivo ? " (inativa)" : "")</MudSelectItem>
+            }
+        </MudSelect>
+    }
     <MudSelect T="TipoPrecificacaoCatalogo" Value="_tipoPrecificacao" ValueChanged="AlterarTipoPrecificacao" Label="Tipo de preço *" Required="true" Variant="Variant.Outlined">
         <MudSelectItem Value="TipoPrecificacaoCatalogo.Fixo">Fixo</MudSelectItem>
         <MudSelectItem Value="TipoPrecificacaoCatalogo.APartirDe">A partir de</MudSelectItem>
         <MudSelectItem Value="TipoPrecificacaoCatalogo.SobConsulta">Sob consulta</MudSelectItem>
     </MudSelect>
     <MudNumericField T="decimal?" @bind-Value="_preco" Label="Preço de referência" Min="0" Format="N2" Variant="Variant.Outlined" Required="@(_tipoPrecificacao != TipoPrecificacaoCatalogo.SobConsulta)" Disabled="@(_tipoPrecificacao == TipoPrecificacaoCatalogo.SobConsulta)" HelperText="Referência do catálogo; o valor negociado pertencerá ao orçamento." />
-    <MudNumericField T="int?" @bind-Value="_duracao" Label="Duração estimada (minutos)" Min="1" Max="43200" Variant="Variant.Outlined" />
+    <CampoDuracao @bind-ValorMinutos="_duracao" Label="Duração estimada" />
     <MudNumericField T="int" @bind-Value="_ordem" Label="Ordem" Min="0" Variant="Variant.Outlined" />
     <MudTextField T="string" @bind-Value="_descricao" Label="Descrição" Variant="Variant.Outlined" Lines="4" Class="form-full" />
 </div><div class="form-actions"><MudButton Variant="Variant.Text" OnClick="Cancelar">Cancelar</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="_salvando" OnClick="SalvarAsync">@(_salvando ? "Salvando..." : "Salvar serviço")</MudButton></div></MudForm>
 
 @code {
     [Parameter] public Guid? ServicoId { get; set; }
-    private MudForm? _form; private IReadOnlyCollection<CategoriaServicoResponse> _categorias = []; private string _nome = string.Empty; private string? _descricao; private Guid _categoriaId; private TipoPrecificacaoCatalogo _tipoPrecificacao = TipoPrecificacaoCatalogo.Fixo; private decimal? _preco; private int? _duracao; private int _ordem; private bool _salvando;
-    private IEnumerable<CategoriaServicoResponse> CategoriasDisponiveis => _categorias.Where(x => x.EhAtivo || x.Id == _categoriaId).OrderBy(x => x.Ordem).ThenBy(x => x.Nome);
-    protected override async Task OnParametersSetAsync() { var cr = await Catalogo.ListarCategoriasAsync(); _categorias = cr.Resultado ?? []; if (ServicoId.HasValue) { var r = await Catalogo.ObterServicoAsync(ServicoId.Value); if (r.Resultado is not { } s) { Mensagens.Mostrar(r.Mensagem, true); return; } _nome=s.Nome; _descricao=s.Descricao; _categoriaId=s.CategoriaServicoId; _tipoPrecificacao=s.TipoPrecificacao; _preco=s.PrecoBase; _duracao=s.DuracaoEstimadaMinutos; _ordem=s.Ordem; } else if (_categoriaId == Guid.Empty) _categoriaId = _categorias.FirstOrDefault(x => x.EhAtivo)?.Id ?? Guid.Empty; }
-    private void AlterarTipoPrecificacao(TipoPrecificacaoCatalogo tipo) { _tipoPrecificacao = tipo; if (tipo == TipoPrecificacaoCatalogo.SobConsulta) _preco = null; }
-    private async Task SalvarAsync() { if (_form is null) return; await _form.ValidateAsync(); if (!_form.IsValid || _categoriaId == Guid.Empty) { Mensagens.Mostrar("Selecione uma categoria ativa e informe a precificação corretamente.", true); return; } _salvando=true; var req=new SalvarServicoRequest(_categoriaId,_nome,_descricao,_tipoPrecificacao,_preco,_duracao,_ordem); var r=ServicoId.HasValue?await Catalogo.AtualizarServicoAsync(ServicoId.Value,req):await Catalogo.CriarServicoAsync(req); _salvando=false; Mensagens.Mostrar(r.Mensagem,!r.Sucesso); if(r.Resultado is { } s) Navigation.NavigateTo($"/servicos/{s.Id}"); }
-    private void Cancelar()=>Navigation.NavigateTo(ServicoId.HasValue?$"/servicos/{ServicoId}":"/servicos");
+
+    private MudForm? _form;
+    private IReadOnlyCollection<CategoriaServicoResponse> _categorias = [];
+    private string _nome = string.Empty;
+    private string? _descricao;
+    private Guid? _categoriaId;
+    private TipoPrecificacaoCatalogo _tipoPrecificacao = TipoPrecificacaoCatalogo.Fixo;
+    private decimal? _preco;
+    private int? _duracao;
+    private int _ordem;
+    private bool _salvando;
+    private bool _carregandoCategorias = true;
+
+    private IEnumerable<CategoriaServicoResponse> CategoriasDisponiveis => _categorias
+        .Where(x => x.EhAtivo || x.Id == _categoriaId)
+        .OrderBy(x => x.Ordem)
+        .ThenBy(x => x.Nome);
+    private bool TemCategoriasDisponiveis => CategoriasDisponiveis.Any();
+    private string TituloEmptyStateCategoria => _categorias.Count == 0
+        ? "Nenhuma categoria cadastrada"
+        : "Nenhuma categoria ativa";
+    private string DescricaoEmptyStateCategoria => _categorias.Count == 0
+        ? "Para cadastrar seu primeiro serviço, crie uma categoria primeiro."
+        : "Crie ou reative uma categoria antes de salvar este serviço.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarCategoriasAsync();
+        if (ServicoId.HasValue)
+        {
+            var resultado = await Catalogo.ObterServicoAsync(ServicoId.Value);
+            if (resultado.Resultado is not { } servico)
+            {
+                Mensagens.Mostrar(resultado.Mensagem, true);
+                return;
+            }
+
+            _nome = servico.Nome;
+            _descricao = servico.Descricao;
+            _categoriaId = servico.CategoriaServicoId;
+            _tipoPrecificacao = servico.TipoPrecificacao;
+            _preco = servico.PrecoBase;
+            _duracao = servico.DuracaoEstimadaMinutos;
+            _ordem = servico.Ordem;
+        }
+        else if (!_categoriaId.HasValue)
+        {
+            _categoriaId = _categorias.FirstOrDefault(x => x.EhAtivo)?.Id;
+        }
+    }
+
+    private async Task CarregarCategoriasAsync()
+    {
+        _carregandoCategorias = true;
+        var resultado = await Catalogo.ListarCategoriasAsync();
+        _categorias = resultado.Resultado ?? [];
+        _carregandoCategorias = false;
+        if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true);
+    }
+
+    private async Task CriarCategoriaRapidaAsync()
+    {
+        var parametros = new DialogParameters<CategoriaServicoRapidaDialog>
+        {
+            { x => x.OrdemSugerida, _categorias.Count }
+        };
+        var dialogo = await Dialogos.ShowAsync<CategoriaServicoRapidaDialog>(
+            "Nova categoria",
+            parametros,
+            new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true,
+                CloseButton = true,
+                BackdropClick = false
+            });
+        var resultado = await dialogo.Result;
+        if (resultado is null || resultado.Canceled ||
+            resultado.Data is not CategoriaServicoResponse categoria) return;
+
+        await CarregarCategoriasAsync();
+        if (_categorias.All(x => x.Id != categoria.Id))
+            _categorias = [.. _categorias, categoria];
+        _categoriaId = categoria.Id;
+    }
+
+    private void AlterarTipoPrecificacao(TipoPrecificacaoCatalogo tipo)
+    {
+        _tipoPrecificacao = tipo;
+        if (tipo == TipoPrecificacaoCatalogo.SobConsulta) _preco = null;
+    }
+
+    private async Task SalvarAsync()
+    {
+        if (_form is null) return;
+        await _form.ValidateAsync();
+        if (!_form.IsValid || !_categoriaId.HasValue || _categoriaId.Value == Guid.Empty)
+        {
+            Mensagens.Mostrar("Selecione uma categoria para o serviço.", true);
+            return;
+        }
+
+        _salvando = true;
+        var request = new SalvarServicoRequest(_categoriaId.Value, _nome, _descricao,
+            _tipoPrecificacao, _preco, _duracao, _ordem);
+        var resultado = ServicoId.HasValue
+            ? await Catalogo.AtualizarServicoAsync(ServicoId.Value, request)
+            : await Catalogo.CriarServicoAsync(request);
+        _salvando = false;
+        Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
+        if (resultado.Resultado is { } servico)
+            Navigation.NavigateTo($"/servicos/{servico.Id}");
+    }
+
+    private void Cancelar() => Navigation.NavigateTo(
+        ServicoId.HasValue ? $"/servicos/{ServicoId}" : "/servicos");
 }

@@ -1,0 +1,58 @@
+@inject CatalogoServico Catalogo
+@inject IMensagemServico Mensagens
+
+<DetaraDialog Titulo="Nova categoria"
+              Descricao="Organize o serviço no catálogo sem perder os dados já preenchidos."
+              Erro="@_erro"
+              TextoPrimario="Cadastrar categoria"
+              TextoCarregando="Cadastrando…"
+              Carregando="_salvando"
+              OnPrimary="SalvarAsync">
+    <MudForm @ref="_form">
+        <div class="form-stack">
+            <MudTextField T="string" @bind-Value="_nome" Label="Nome" Required="true"
+                          RequiredError="Informe o nome da categoria." MaxLength="120"
+                          Variant="Variant.Outlined" />
+            <MudTextField T="string" @bind-Value="_descricao" Label="Descrição"
+                          MaxLength="1000" Lines="2" Variant="Variant.Outlined" />
+            <MudNumericField T="int" @bind-Value="_ordem" Label="Ordem" Min="0"
+                             Variant="Variant.Outlined" />
+        </div>
+    </MudForm>
+</DetaraDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int OrdemSugerida { get; set; }
+
+    private MudForm? _form;
+    private string _nome = string.Empty;
+    private string? _descricao;
+    private int _ordem;
+    private string? _erro;
+    private bool _salvando;
+
+    protected override void OnInitialized() => _ordem = OrdemSugerida;
+
+    private async Task SalvarAsync()
+    {
+        if (_form is null || _salvando) return;
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _salvando = true;
+        _erro = null;
+        var resultado = await Catalogo.CriarCategoriaAsync(
+            new SalvarCategoriaServicoRequest(_nome, _descricao, _ordem));
+        _salvando = false;
+
+        if (resultado.Resultado is not { } categoria)
+        {
+            _erro = resultado.Mensagem;
+            return;
+        }
+
+        Mensagens.Mostrar(resultado.Mensagem, false);
+        MudDialog.Close(DialogResult.Ok(categoria));
+    }
+}

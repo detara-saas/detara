@@ -1,0 +1,11 @@
+.detara-duration-field {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(128px, 1fr);
+    align-items: start;
+    gap: var(--detara-form-gap);
+}
+
+@media (max-width: 600px) {
+    .detara-duration-field { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,0 +1,80 @@
+<div class="detara-duration-field @Class">
+    <MudNumericField T="decimal?"
+                     Value="_quantidade"
+                     ValueChanged="AtualizarQuantidadeAsync"
+                     Label="@Label"
+                     Required="@Obrigatorio"
+                     RequiredError="@RequiredError"
+                     Min="@MinimoNaUnidade"
+                     Max="@MaximoNaUnidade"
+                     Step="@Passo"
+                     Format="0.##"
+                     Variant="Variant.Outlined"
+                     HelperText="@TextoAuxiliar" />
+    <MudSelect T="UnidadeDuracao"
+               Value="_unidade"
+               ValueChanged="AtualizarUnidadeAsync"
+               Label="Unidade"
+               Variant="Variant.Outlined">
+        <MudSelectItem Value="UnidadeDuracao.Minutos">Minutos</MudSelectItem>
+        <MudSelectItem Value="UnidadeDuracao.Horas">Horas</MudSelectItem>
+        <MudSelectItem Value="UnidadeDuracao.Dias">Dias</MudSelectItem>
+    </MudSelect>
+</div>
+
+@code {
+    [Parameter] public int? ValorMinutos { get; set; }
+    [Parameter] public EventCallback<int?> ValorMinutosChanged { get; set; }
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public bool Obrigatorio { get; set; }
+    [Parameter] public string RequiredError { get; set; } = "Informe a duração.";
+    [Parameter] public string HelperText { get; set; } = "Informe o tempo em minutos, horas ou dias.";
+    [Parameter] public int MinimoMinutos { get; set; } = 1;
+    [Parameter] public int MaximoMinutos { get; set; } = 43200;
+    [Parameter] public string? Class { get; set; }
+
+    private decimal? _quantidade;
+    private UnidadeDuracao _unidade = UnidadeDuracao.Minutos;
+    private int? _valorSincronizado;
+
+    private decimal MinimoNaUnidade => MinimoMinutos / (decimal)DuracaoEntrada.Fator(_unidade);
+    private decimal MaximoNaUnidade => MaximoMinutos / (decimal)DuracaoEntrada.Fator(_unidade);
+    private decimal Passo => _unidade == UnidadeDuracao.Minutos ? 1m : .25m;
+    private string TextoAuxiliar => _valorSincronizado.HasValue
+        ? $"{HelperText} Total: {DuracaoEntrada.Formatar(_valorSincronizado.Value)}."
+        : HelperText;
+
+    protected override void OnParametersSet()
+    {
+        if (ValorMinutos == _valorSincronizado) return;
+
+        _valorSincronizado = ValorMinutos;
+        if (!ValorMinutos.HasValue)
+        {
+            _quantidade = null;
+            _unidade = UnidadeDuracao.Minutos;
+            return;
+        }
+
+        _unidade = DuracaoEntrada.SugerirUnidade(ValorMinutos.Value);
+        _quantidade = DuracaoEntrada.ParaQuantidade(ValorMinutos.Value, _unidade);
+    }
+
+    private async Task AtualizarQuantidadeAsync(decimal? quantidade)
+    {
+        _quantidade = quantidade;
+        _valorSincronizado = quantidade.HasValue
+            ? DuracaoEntrada.ParaMinutos(quantidade.Value, _unidade)
+            : null;
+        await ValorMinutosChanged.InvokeAsync(_valorSincronizado);
+    }
+
+    private Task AtualizarUnidadeAsync(UnidadeDuracao unidade)
+    {
+        _unidade = unidade;
+        _quantidade = _valorSincronizado.HasValue
+            ? DuracaoEntrada.ParaQuantidade(_valorSincronizado.Value, unidade)
+            : null;
+        return Task.CompletedTask;
+    }
+}
