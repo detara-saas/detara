@@ -34,6 +34,29 @@ public sealed class Empresa : EntidadeBase
     public string FusoHorario { get; private set; } = "America/Sao_Paulo";
     public long VersaoSeguranca { get; private set; } = 1;
     public long VersaoCadastro { get; private set; } = 1;
+    public string? LogoArquivoChave { get; private set; }
+    public long LogoVersao { get; private set; }
+    public DateTime? LogoAtualizadaEmUtc { get; private set; }
+    public Guid? LogoTokenPublico { get; private set; }
+
+    public void DefinirLogo(string arquivoChave)
+    {
+        LogoArquivoChave = Exigir(arquivoChave, nameof(arquivoChave));
+        LogoVersao++;
+        LogoAtualizadaEmUtc = DateTime.UtcNow;
+        LogoTokenPublico = Guid.NewGuid();
+        MarcarComoAtualizada();
+    }
+
+    public void RemoverLogo()
+    {
+        if (LogoArquivoChave is null) return;
+        LogoArquivoChave = null;
+        LogoVersao++;
+        LogoAtualizadaEmUtc = DateTime.UtcNow;
+        LogoTokenPublico = null;
+        MarcarComoAtualizada();
+    }
 
     public void AtualizarCadastro(
         string nomeFantasia,

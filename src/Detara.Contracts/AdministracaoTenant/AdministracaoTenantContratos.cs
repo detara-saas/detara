@@ -10,7 +10,14 @@ public sealed record EmpresaTenantResponse(
     string FusoHorario,
     bool EhAtiva,
     DateTime CriadoEmUtc,
-    long Versao);
+    long Versao,
+    LogoEmpresaResponse Logo);
+
+public sealed record LogoEmpresaResponse(
+    bool PossuiLogo,
+    string? Url,
+    long Versao,
+    DateTime? AtualizadaEmUtc);
 
 public sealed record AtualizarEmpresaTenantRequest(
     string NomeFantasia,

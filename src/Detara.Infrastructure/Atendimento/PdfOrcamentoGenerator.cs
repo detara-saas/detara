@@ -1,7 +1,9 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Text;
 using Detara.Application.Atendimento;
 using Detara.Domain.Atendimento;
+using SkiaSharp;
 
 namespace Detara.Infrastructure.Atendimento;
 
@@ -11,7 +13,8 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
 
     public byte[] Gerar(DocumentoPdfOrcamento documento)
     {
-        var canvas = new PdfCanvas(documento.Empresa.NomeFantasia, documento.Orcamento.Orcamento.Codigo ?? "ORÇAMENTO");
+        var canvas = new PdfCanvas(documento.Empresa.NomeFantasia,
+            documento.Orcamento.Orcamento.Codigo ?? "ORÇAMENTO", PdfImage.Criar(documento.LogoPng));
         var o = documento.Orcamento.Orcamento;
         var identificacaoEmpresa = string.Join("  •  ", new[]
         {
@@ -49,11 +52,12 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
     {
         private readonly string _empresa;
         private readonly string _codigo;
+        private readonly PdfImage? _logo;
         private readonly List<StringBuilder> _paginas = [];
         private StringBuilder _conteudo = null!;
         private decimal _y;
 
-        public PdfCanvas(string empresa, string codigo) { _empresa = empresa; _codigo = codigo; NovaPagina(); }
+        public PdfCanvas(string empresa, string codigo, PdfImage? logo) { _empresa = empresa; _codigo = codigo; _logo = logo; NovaPagina(); }
 
         public void Titulo(string titulo, string codigo, string identificacaoEmpresa)
         {
@@ -137,7 +141,7 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
             foreach (var linha in Quebrar(texto, 100)) Texto(linha, 8);
         }
 
-        public byte[] Gerar() => PdfWriter.Gerar(_paginas.Select(x => Encoding.Latin1.GetBytes(x.ToString())).ToArray());
+        public byte[] Gerar() => PdfWriter.Gerar(_paginas.Select(x => Encoding.Latin1.GetBytes(x.ToString())).ToArray(), _logo);
 
         private void LinhaResumo(string rotulo, decimal valor, bool negrito)
         { Escrever(rotulo, 9.5m, negrito, 350, _y); Escrever(Dinheiro(valor), 9.5m, negrito, 486, _y); _y -= 19; }
@@ -146,7 +150,13 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
         {
             _conteudo = new StringBuilder(); _paginas.Add(_conteudo); _y = 790;
             Cor(0, 0.55m, 0.42m); RetanguloPreenchido(0, 818, 595, 24); Cor(0.08m, 0.1m, 0.14m);
-            Escrever(_empresa, 14, true, 48, 795); Escrever(_codigo, 8, false, 460, 795);
+            if (_logo is not null)
+            {
+                _conteudo.Append("q 125 0 0 42 48 765 cm /Logo Do Q\n");
+                Escrever(_empresa, 12, true, 190, 795);
+            }
+            else Escrever(_empresa, 14, true, 48, 795);
+            Escrever(_codigo, 8, false, 460, 795);
             Cor(0.45m, 0.49m, 0.55m); Escrever($"Página {_paginas.Count}", 8, false, 500, 35); Escrever("Gerado por Detara", 8, false, 48, 35); Cor(0.08m, 0.1m, 0.14m);
             _y = 758;
         }
@@ -172,19 +182,26 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
 
     private static class PdfWriter
     {
-        public static byte[] Gerar(IReadOnlyCollection<byte[]> conteudos)
+        public static byte[] Gerar(IReadOnlyCollection<byte[]> conteudos, PdfImage? logo)
         {
             var paginas = conteudos.ToArray();
             var objetos = new List<byte[]> { Array.Empty<byte>() };
             objetos.Add(Ascii("<< /Type /Catalog /Pages 2 0 R >>"));
-            var kids = string.Join(' ', Enumerable.Range(0, paginas.Length).Select(i => $"{5 + i * 2} 0 R"));
+            var primeiraPagina = logo is null ? 5 : 7;
+            var kids = string.Join(' ', Enumerable.Range(0, paginas.Length).Select(i => $"{primeiraPagina + i * 2} 0 R"));
             objetos.Add(Ascii($"<< /Type /Pages /Count {paginas.Length} /Kids [{kids}] >>"));
             objetos.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
             objetos.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"));
+            if (logo is not null)
+            {
+                objetos.Add(Concatenar(Ascii($"<< /Type /XObject /Subtype /Image /Width {logo.Width} /Height {logo.Height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask 6 0 R /Length {logo.Rgb.Length} >>\nstream\n"), logo.Rgb, Ascii("\nendstream")));
+                objetos.Add(Concatenar(Ascii($"<< /Type /XObject /Subtype /Image /Width {logo.Width} /Height {logo.Height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length {logo.Alpha.Length} >>\nstream\n"), logo.Alpha, Ascii("\nendstream")));
+            }
             for (var i = 0; i < paginas.Length; i++)
             {
-                var paginaNumero = 5 + i * 2; var conteudoNumero = paginaNumero + 1;
-                objetos.Add(Ascii($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {conteudoNumero} 0 R >>"));
+                var paginaNumero = primeiraPagina + i * 2; var conteudoNumero = paginaNumero + 1;
+                var imagem = logo is null ? string.Empty : " /XObject << /Logo 5 0 R >>";
+                objetos.Add(Ascii($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>{imagem} >> /Contents {conteudoNumero} 0 R >>"));
                 objetos.Add(Concatenar(Ascii($"<< /Length {paginas[i].Length} >>\nstream\n"), paginas[i], Ascii("\nendstream")));
             }
             using var stream = new MemoryStream();
@@ -203,5 +220,38 @@ internal sealed class PdfOrcamentoGenerator : IOrcamentoPdfGenerator
 
         private static byte[] Ascii(string texto) => Encoding.ASCII.GetBytes(texto);
         private static byte[] Concatenar(params byte[][] partes) { var tamanho = partes.Sum(x => x.Length); var resultado = new byte[tamanho]; var posicao = 0; foreach (var parte in partes) { Buffer.BlockCopy(parte, 0, resultado, posicao, parte.Length); posicao += parte.Length; } return resultado; }
+    }
+
+    private sealed record PdfImage(int Width, int Height, byte[] Rgb, byte[] Alpha)
+    {
+        public static PdfImage? Criar(byte[]? png)
+        {
+            if (png is null) return null;
+            try
+            {
+                using var bitmap = SKBitmap.Decode(png);
+                if (bitmap is null || bitmap.Width <= 0 || bitmap.Height <= 0) return null;
+                var rgb = new byte[bitmap.Width * bitmap.Height * 3];
+                var alpha = new byte[bitmap.Width * bitmap.Height];
+                var i = 0;
+                var a = 0;
+                for (var y = 0; y < bitmap.Height; y++)
+                    for (var x = 0; x < bitmap.Width; x++)
+                    {
+                        var cor = bitmap.GetPixel(x, y);
+                        rgb[i++] = cor.Red; rgb[i++] = cor.Green; rgb[i++] = cor.Blue;
+                        alpha[a++] = cor.Alpha;
+                    }
+                return new(bitmap.Width, bitmap.Height, Comprimir(rgb), Comprimir(alpha));
+            }
+            catch { return null; }
+        }
+
+        private static byte[] Comprimir(byte[] dados)
+        {
+            using var saida = new MemoryStream();
+            using (var zlib = new ZLibStream(saida, CompressionLevel.SmallestSize, leaveOpen: true)) zlib.Write(dados);
+            return saida.ToArray();
+        }
     }
 }

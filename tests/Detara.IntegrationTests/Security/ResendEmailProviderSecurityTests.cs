@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Detara.Application.Notificacoes;
 using Detara.Application.Comunicacao;
 using Detara.Infrastructure.Notificacoes;
@@ -43,6 +44,33 @@ public sealed class ResendEmailProviderSecurityTests
         Assert.False(resultado.Sucesso);
         Assert.True(resultado.FalhaTemporaria);
         Assert.DoesNotContain("segredo", resultado.ErroSeguro, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LogoInline_EhEnviadaComoCidSemDataUriNoHtml()
+    {
+        string? json = null;
+        using var http = new HttpClient(new HandlerFixo(async (request, ct) =>
+        {
+            json = await request.Content!.ReadAsStringAsync(ct);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"email-1\"}") };
+        }))
+        { BaseAddress = new Uri("https://api.resend.com/") };
+        var provider = CriarProvider(http);
+        var mensagem = CriarMensagem() with
+        {
+            CorpoHtml = "<img src=\"cid:company-logo\" alt=\"Logo da empresa\">",
+            AnexoInline = new("company-logo.png", "image/png", "company-logo", [1, 2, 3])
+        };
+
+        var resultado = await provider.EnviarAsync(mensagem, CancellationToken.None);
+
+        Assert.True(resultado.Sucesso);
+        using var documento = JsonDocument.Parse(json!);
+        var anexo = Assert.Single(documento.RootElement.GetProperty("attachments").EnumerateArray());
+        Assert.Equal("company-logo", anexo.GetProperty("content_id").GetString());
+        Assert.Equal(Convert.ToBase64String([1, 2, 3]), anexo.GetProperty("content").GetString());
+        Assert.DoesNotContain("data:image", json, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ResendEmailProvider CriarProvider(HttpClient http) => new(

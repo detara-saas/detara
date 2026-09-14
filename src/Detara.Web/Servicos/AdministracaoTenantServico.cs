@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Detara.Contracts.AdministracaoTenant;
 using Detara.Contracts.Comum;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace Detara.Web.Servicos;
 
@@ -24,6 +25,20 @@ public sealed class AdministracaoTenantServico(HttpClient http)
         }
         return resultado;
     }
+
+    public Task<ResultadoServico<LogoEmpresaResponse>> SalvarLogoAsync(
+        IBrowserFile arquivo, CancellationToken ct = default) =>
+        EnviarAsync<LogoEmpresaResponse>(async () =>
+        {
+            using var formulario = new MultipartFormDataContent();
+            var conteudo = new StreamContent(arquivo.OpenReadStream(2 * 1024 * 1024, ct));
+            conteudo.Headers.ContentType = new(arquivo.ContentType);
+            formulario.Add(conteudo, "arquivo", arquivo.Name);
+            return await http.PutAsync("api/empresa/logo", formulario, ct);
+        }, ct);
+
+    public Task<ResultadoServico<LogoEmpresaResponse>> RemoverLogoAsync(CancellationToken ct = default) =>
+        EnviarAsync<LogoEmpresaResponse>(() => http.DeleteAsync("api/empresa/logo", ct), ct);
 
     public Task<ResultadoServico<PaginaResponse<UsuarioTenantListaResponse>>> ListarUsuariosAsync(
         int pagina, string? pesquisa, string? status, CancellationToken ct = default)

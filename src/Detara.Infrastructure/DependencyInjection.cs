@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IAutenticacaoPlataformaServico, AutenticacaoPlataformaServico>();
         services.AddScoped<IAdministracaoPlataformaServico, AdministracaoPlataformaServico>();
         services.AddScoped<IAdministracaoEmpresaTenantServico, AdministracaoEmpresaTenantServico>();
+        services.AddScoped<ILogoEmpresaTenantServico, LogoEmpresaTenantServico>();
         services.AddScoped<IAdministracaoUsuariosTenantServico, AdministracaoUsuariosTenantServico>();
         services.AddScoped<IAdministracaoPerfisTenantServico, AdministracaoPerfisTenantServico>();
         services.AddScoped<IMinhaContaTenantServico, MinhaContaTenantServico>();

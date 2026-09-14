@@ -7,7 +7,8 @@ public sealed record MensagemEmailClienteProvider(
     string Assunto,
     string CorpoHtml,
     string? ResponderPara,
-    string ChaveIdempotencia);
+    string ChaveIdempotencia,
+    AnexoEmailInline? AnexoInline = null);
 
 public sealed record MensagemWhatsAppClienteProvider(
     Guid EmpresaId,

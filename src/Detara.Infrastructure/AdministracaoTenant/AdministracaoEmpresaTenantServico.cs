@@ -73,7 +73,9 @@ internal sealed class AdministracaoEmpresaTenantServico(
         empresa.FusoHorario,
         empresa.EhAtivo,
         empresa.CriadoEmUtc,
-        empresa.VersaoCadastro);
+        empresa.VersaoCadastro,
+        new(empresa.LogoArquivoChave is not null, empresa.LogoVersao, empresa.LogoAtualizadaEmUtc,
+            empresa.LogoTokenPublico));
 
     private static string SomenteDigitos(string valor) => new(valor.Where(char.IsDigit).ToArray());
 

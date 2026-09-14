@@ -66,6 +66,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
     [Theory]
     [InlineData("/api/empresa")]
+    [InlineData("/api/empresa/logo")]
     [InlineData("/api/usuarios")]
     [InlineData("/api/perfis")]
     public async Task AdministracaoTenant_SemPermissaoRetorna403(string rota)
@@ -73,6 +74,20 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
 
         using var response = await _client.GetAsync(rota);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LogoEmpresa_SemPermissaoDeEdicaoRetorna403()
+    {
+        UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
+        using var formulario = new MultipartFormDataContent();
+        var arquivo = new ByteArrayContent([0x89, 0x50, 0x4e, 0x47]);
+        arquivo.Headers.ContentType = new("image/png");
+        formulario.Add(arquivo, "arquivo", "logo.png");
+
+        using var response = await _client.PutAsync("/api/empresa/logo", formulario);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -199,6 +214,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
     [Theory]
     [InlineData("/api/empresa")]
+    [InlineData("/api/empresa/logo")]
     [InlineData("/api/usuarios")]
     [InlineData("/api/perfis")]
     [InlineData("/api/minha-conta")]
@@ -213,6 +229,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
     [Theory]
     [InlineData("/api/empresa")]
+    [InlineData("/api/empresa/logo")]
     [InlineData("/api/usuarios")]
     [InlineData("/api/perfis")]
     [InlineData("/api/minha-conta")]
@@ -345,6 +362,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
         Assert.Equal(
             [
+                "GET /api/empresa/logo-publica/{token:guid}",
                 "GET /health/live",
                 "GET /health/ready",
                 "POST /api/autenticacao/login",
@@ -390,7 +408,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("api/ordens-servico/agendamentos/{agendamentoId:guid}/origem-comercial", rotas);
-        Assert.Equal(165, rotas.Length); // FLOW-02: leitura da origem comercial protegida por OrdemServicoCriar.
+        Assert.Equal(169, rotas.Length); // BRAND-01 adiciona leitura autenticada, leitura pública opaca, upload e remoção tenant-scoped da logo.
     }
 
     [Fact]

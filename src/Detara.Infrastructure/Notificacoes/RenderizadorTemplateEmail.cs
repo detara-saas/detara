@@ -69,17 +69,17 @@ internal sealed partial class RenderizadorTemplateEmail : IRenderizadorTemplateE
         if (assunto.Length is < 1 or > 200) throw new ConflitoRegraNegocioException("O assunto renderizado deve possuir entre 1 e 200 caracteres.");
         var valoresHtml = valoresTexto.ToDictionary(x => x.Key, x => HtmlEncoder.Default.Encode(x.Value), StringComparer.Ordinal);
         var corpo = SanitizarEValidarCorpo(Substituir(template.CorpoHtml, valoresHtml));
-        return new(assunto, MontarShell(corpo));
+        return new(assunto, MontarShell(corpo, valoresHtml["EmpresaNome"]));
     }
 
     private static string Substituir(string conteudo, IReadOnlyDictionary<string, string> valores) =>
         TokenRegex().Replace(conteudo, match => valores[match.Groups[1].Value]);
     private static string LimparCabecalho(string? valor) =>
         (valor ?? string.Empty).Replace("\r", string.Empty).Replace("\n", " ").Trim();
-    private static string MontarShell(string corpo) => $"""
+    private static string MontarShell(string corpo, string empresaNome) => $"""
         <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
         <body style="margin:0;background:#f5f6f8;color:#172033;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">Atualização sobre seu veículo</div>
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f6f8"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e3e7ee;border-radius:16px"><tr><td style="padding:28px"><div style="font-size:20px;font-weight:700;color:#1f6b55;margin-bottom:22px">DETARA</div><div style="font-size:16px;line-height:1.65">{corpo}</div><div style="border-top:1px solid #e3e7ee;margin-top:26px;padding-top:16px;color:#657086;font-size:12px">Mensagem operacional enviada pelo Detara.</div></td></tr></table></td></tr></table></body></html>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f6f8"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e3e7ee;border-radius:16px"><tr><td style="padding:28px"><div style="font-size:20px;font-weight:700;color:#1f6b55;margin-bottom:22px"><!--detara-company-logo-->{empresaNome}</div><div style="font-size:16px;line-height:1.65">{corpo}</div><div style="border-top:1px solid #e3e7ee;margin-top:26px;padding-top:16px;color:#657086;font-size:12px">Mensagem operacional enviada pelo Detara.</div></td></tr></table></td></tr></table></body></html>
         """;
 
     private static HtmlSanitizer CriarSanitizer()

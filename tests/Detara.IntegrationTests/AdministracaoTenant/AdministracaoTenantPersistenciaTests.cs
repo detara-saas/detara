@@ -10,6 +10,7 @@ using Detara.Domain.Plataforma;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using SkiaSharp;
 
 namespace Detara.IntegrationTests.AdministracaoTenant;
 
@@ -218,6 +219,72 @@ public sealed class AdministracaoTenantPersistenciaTests : IAsyncLifetime
         Assert.True(_senhas.Verificar(atualizado, atualizado.SenhaHash, "NovaSenha456!"));
     }
 
+    [Theory]
+    [InlineData(SKEncodedImageFormat.Png, "image/png")]
+    [InlineData(SKEncodedImageFormat.Jpeg, "image/jpeg")]
+    public async Task Logo_ValidaNormalizaEIsolaPorTenant(SKEncodedImageFormat formato, string mime)
+    {
+        var storage = new StorageMemoria();
+        await using var dbA = CriarContexto(_empresaA.Id, _usuarioA.Id);
+        var servicoA = new LogoEmpresaTenantServico(dbA, new Contexto(_empresaA.Id, _usuarioA.Id), storage);
+        await using var entrada = CriarImagem(300, 300, formato);
+
+        var resultado = await servicoA.SalvarAsync(entrada, mime, entrada.Length, CancellationToken.None);
+
+        Assert.True(resultado.PossuiLogo);
+        var chave = Assert.Single(storage.Arquivos.Keys);
+        Assert.StartsWith($"empresas/{_empresaA.Id:N}/branding/logo-", chave, StringComparison.Ordinal);
+        using var normalizada = SKBitmap.Decode(storage.Arquivos[chave]);
+        Assert.Equal(1200, normalizada.Width);
+        Assert.Equal(400, normalizada.Height);
+        Assert.Equal(0, normalizada.GetPixel(0, 0).Alpha);
+
+        await using var dbB = CriarContexto(_empresaB.Id, _usuarioB.Id);
+        var servicoB = new LogoEmpresaTenantServico(dbB, new Contexto(_empresaB.Id, _usuarioB.Id), storage);
+        Assert.Null(await servicoB.AbrirAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Logo_SubstituiRemoveERejeitaConteudoDisfarcado()
+    {
+        var storage = new StorageMemoria();
+        await using var db = CriarContexto(_empresaA.Id, _usuarioA.Id);
+        var servico = new LogoEmpresaTenantServico(db, new Contexto(_empresaA.Id, _usuarioA.Id), storage);
+        await using var primeira = CriarImagem(900, 300, SKEncodedImageFormat.Png);
+        var a = await servico.SalvarAsync(primeira, "image/png", primeira.Length, CancellationToken.None);
+        var chaveA = Assert.Single(storage.Arquivos.Keys);
+        await using var segunda = CriarImagem(120, 360, SKEncodedImageFormat.Jpeg);
+        var b = await servico.SalvarAsync(segunda, "image/jpeg", segunda.Length, CancellationToken.None);
+        Assert.True(b.Versao > a.Versao);
+        Assert.NotNull(a.TokenPublico);
+        Assert.NotNull(b.TokenPublico);
+        Assert.NotEqual(a.TokenPublico, b.TokenPublico);
+        Assert.Null(await servico.AbrirPublicaAsync(a.TokenPublico.Value, CancellationToken.None));
+        await using var publica = await servico.AbrirPublicaAsync(b.TokenPublico.Value, CancellationToken.None);
+        Assert.NotNull(publica);
+        Assert.DoesNotContain(chaveA, storage.Arquivos.Keys);
+
+        await using var invalido = new MemoryStream("%PDF-1.7"u8.ToArray());
+        await Assert.ThrowsAsync<ArgumentException>(() => servico.SalvarAsync(
+            invalido, "image/png", invalido.Length, CancellationToken.None));
+
+        var removida = await servico.RemoverAsync(CancellationToken.None);
+        Assert.False(removida.PossuiLogo);
+        Assert.Null(removida.TokenPublico);
+        Assert.Empty(storage.Arquivos);
+    }
+
+    private static MemoryStream CriarImagem(int largura, int altura, SKEncodedImageFormat formato)
+    {
+        using var superficie = SKSurface.Create(new SKImageInfo(largura, altura));
+        superficie.Canvas.Clear(SKColors.Transparent);
+        using var tinta = new SKPaint { Color = SKColors.Teal };
+        superficie.Canvas.DrawRect(largura / 4f, altura / 4f, largura / 2f, altura / 2f, tinta);
+        using var imagem = superficie.Snapshot();
+        using var dados = imagem.Encode(formato, 90);
+        return new MemoryStream(dados.ToArray(), writable: false);
+    }
+
     private async Task<(Perfil Perfil, Usuario Usuario)> CriarAdministradorAsync(
         Empresa empresa, string email, string senha)
     {
@@ -257,5 +324,16 @@ public sealed class AdministracaoTenantPersistenciaTests : IAsyncLifetime
         public Guid UsuarioId { get; } = usuarioId;
         public Guid EmpresaId { get; } = empresaId;
         public bool EstaAutenticado { get; } = autenticado;
+    }
+
+    private sealed class StorageMemoria : IArquivoStorage
+    {
+        public Dictionary<string, byte[]> Arquivos { get; } = [];
+        public async Task SalvarAsync(string chave, Stream conteudo, CancellationToken ct)
+        { using var ms = new MemoryStream(); await conteudo.CopyToAsync(ms, ct); Arquivos.Add(chave, ms.ToArray()); }
+        public Task<Stream?> AbrirLeituraAsync(string chave, CancellationToken ct) =>
+            Task.FromResult<Stream?>(Arquivos.TryGetValue(chave, out var bytes) ? new MemoryStream(bytes, false) : null);
+        public Task<bool> ExcluirAsync(string chave, CancellationToken ct) => Task.FromResult(Arquivos.Remove(chave));
+        public Task<bool> ExisteAsync(string chave, CancellationToken ct) => Task.FromResult(Arquivos.ContainsKey(chave));
     }
 }

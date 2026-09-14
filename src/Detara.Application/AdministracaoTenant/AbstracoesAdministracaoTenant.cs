@@ -17,7 +17,14 @@ public sealed record EmpresaTenantResultado(
     string FusoHorario,
     bool EhAtiva,
     DateTime CriadoEmUtc,
-    long Versao);
+    long Versao,
+    LogoEmpresaResultado Logo);
+
+public sealed record LogoEmpresaResultado(
+    bool PossuiLogo,
+    long Versao,
+    DateTime? AtualizadaEmUtc,
+    Guid? TokenPublico);
 
 public sealed record UsuarioTenantResultado(
     Guid Id,
@@ -76,6 +83,19 @@ public interface IAdministracaoEmpresaTenantServico
         string fusoHorario,
         long versao,
         CancellationToken cancellationToken);
+}
+
+public sealed record ArquivoLogoEmpresa(Stream Conteudo, string ContentType, long Versao) : IAsyncDisposable
+{
+    public ValueTask DisposeAsync() => Conteudo.DisposeAsync();
+}
+
+public interface ILogoEmpresaTenantServico
+{
+    Task<LogoEmpresaResultado> SalvarAsync(Stream conteudo, string contentType, long tamanho, CancellationToken cancellationToken);
+    Task<ArquivoLogoEmpresa?> AbrirAsync(CancellationToken cancellationToken);
+    Task<ArquivoLogoEmpresa?> AbrirPublicaAsync(Guid token, CancellationToken cancellationToken);
+    Task<LogoEmpresaResultado> RemoverAsync(CancellationToken cancellationToken);
 }
 
 public interface IAdministracaoUsuariosTenantServico
