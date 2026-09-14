@@ -64,7 +64,7 @@ public sealed class RenderizadorTemplateEmailTests
 
     [Fact]
     public void Renderizar_UsaMesmoShellResponsivo()
-    { var r = _renderer.Renderizar(_renderer.ObterPadraoVeiculoPronto(), Dados); Assert.Contains("viewport", r.CorpoHtmlCompleto); Assert.Contains("max-width:620px", r.CorpoHtmlCompleto); Assert.Contains("Mensagem operacional", r.CorpoHtmlCompleto); }
+    { var r = _renderer.Renderizar(_renderer.ObterPadraoVeiculoPronto(), Dados); Assert.Contains("viewport", r.CorpoHtmlCompleto); Assert.Contains("max-width:620px", r.CorpoHtmlCompleto); Assert.Contains("Enviado via Detara", r.CorpoHtmlCompleto); Assert.Contains("<!--detara-company-logo-->", r.CorpoHtmlCompleto); }
 
     [Fact]
     public void Renderizar_VeiculoSemPlaca_MantemDescricaoEVariavelPlacaVazia()

@@ -20,9 +20,15 @@
     {
         <div class="branding-content">
             <div class="branding-preview @(Logo?.PossuiLogo == true ? "has-logo" : null)">
-                @if (Logo?.PossuiLogo == true)
+                @if (!string.IsNullOrWhiteSpace(_logoPreview))
                 {
-                    <img src="@UrlLogo" alt="Logo da empresa" />
+                    <img src="@_logoPreview" alt="Logo da empresa" />
+                }
+                else if (Logo?.PossuiLogo == true)
+                {
+                    <MudIcon Icon="@Icons.Material.Outlined.BrokenImage" />
+                    <strong>Não foi possível exibir a logo</strong>
+                    <span>Você pode tentar substituí-la por uma nova imagem.</span>
                 }
                 else
                 {
@@ -65,12 +71,13 @@
     private bool _carregando = true;
     private bool _enviando;
     private bool _removendo;
-    private string? UrlLogo => Logo?.Url;
+    private string? _logoPreview;
 
     protected override async Task OnInitializedAsync()
     {
         var resultado = await EmpresaApi.ObterEmpresaAsync();
         Logo = resultado.Resultado?.Logo;
+        await AtualizarPreviewAsync();
         _carregando = false;
     }
 
@@ -86,6 +93,7 @@
             if (resultado.Sucesso && resultado.Resultado is not null)
             {
                 Logo = resultado.Resultado;
+                await AtualizarPreviewAsync();
                 Mensagens.Mostrar("Logo atualizada.");
             }
             else Mensagens.Mostrar(resultado.Mensagem ?? "Não foi possível enviar a logo.", true);
@@ -106,8 +114,17 @@
         if (resultado.Sucesso && resultado.Resultado is not null)
         {
             Logo = resultado.Resultado;
+            _logoPreview = null;
             Mensagens.Mostrar("Logo removida.");
         }
         else Mensagens.Mostrar(resultado.Mensagem ?? "Não foi possível remover a logo.", true);
+    }
+
+    private async Task AtualizarPreviewAsync()
+    {
+        _logoPreview = null;
+        if (Logo?.PossuiLogo != true) return;
+        var resultado = await EmpresaApi.ObterLogoPreviewAsync(Logo.Versao);
+        if (resultado.Sucesso) _logoPreview = resultado.Resultado;
     }
 }

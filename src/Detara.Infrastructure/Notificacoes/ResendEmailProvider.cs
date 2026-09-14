@@ -32,7 +32,8 @@ internal sealed class ResendEmailProvider(HttpClient http, IOptions<EmailOptions
         request.Content = JsonContent.Create(new ResendRequest($"{config.FromName} <{config.FromAddress}>",
             [mensagem.Destinatario], mensagem.Assunto, mensagem.CorpoHtml, mensagem.ResponderPara,
             mensagem.AnexoInline is null ? null : [new(Convert.ToBase64String(mensagem.AnexoInline.Conteudo),
-                mensagem.AnexoInline.NomeArquivo, mensagem.AnexoInline.ContentId)]));
+                mensagem.AnexoInline.NomeArquivo, mensagem.AnexoInline.ContentId,
+                mensagem.AnexoInline.ContentType)]));
         try
         {
             using var response = await http.SendAsync(request, ct);
@@ -65,6 +66,7 @@ internal sealed class ResendEmailProvider(HttpClient http, IOptions<EmailOptions
     private sealed record ResendAttachment(
         [property: JsonPropertyName("content")] string Content,
         [property: JsonPropertyName("filename")] string Filename,
-        [property: JsonPropertyName("content_id")] string ContentId);
+        [property: JsonPropertyName("content_id")] string ContentId,
+        [property: JsonPropertyName("content_type")] string ContentType);
     private sealed record ResendResponse([property: JsonPropertyName("id")] string Id);
 }

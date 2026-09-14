@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace Detara.IntegrationTests.Notificacoes;
 
@@ -691,6 +692,50 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task WorkerEmail_IncorporaSomenteLogoDoTenantComoCid()
+    {
+        const string chaveA = "empresas/a/branding/logo.png";
+        const string chaveB = "empresas/b/branding/logo.png";
+        await DefinirLogoAsync(_empresaA, chaveA);
+        await DefinirLogoAsync(_empresaB, chaveB);
+        await CriarNotificacaoComBrandingAsync();
+        await Task.Delay(20);
+        var storage = new StorageBrandingFake(new Dictionary<string, byte[]>
+        {
+            [chaveA] = [1, 2, 3],
+            [chaveB] = [7, 8, 9]
+        });
+        var fake = new ProvedorFake();
+        await using var provider = CriarProviderWorker(fake, storage);
+
+        Assert.Equal(1, await CriarFila(provider).ProcessarLoteAsync(default));
+
+        var mensagem = Assert.Single(fake.Mensagens);
+        Assert.Equal([1, 2, 3], mensagem.AnexoInline?.Conteudo);
+        Assert.Equal("company-logo", mensagem.AnexoInline?.ContentId);
+        Assert.Contains("src=\"cid:company-logo\"", mensagem.CorpoHtml);
+        Assert.DoesNotContain("detara-company-logo", mensagem.CorpoHtml);
+    }
+
+    [Fact]
+    public async Task WorkerEmail_FalhaNaLogoPreservaEnvioComFallbackTextual()
+    {
+        await DefinirLogoAsync(_empresaA, "empresas/a/branding/logo.png");
+        await CriarNotificacaoComBrandingAsync();
+        await Task.Delay(20);
+        var fake = new ProvedorFake();
+        await using var provider = CriarProviderWorker(fake,
+            new StorageBrandingFake(new Dictionary<string, byte[]>(), falharLeitura: true));
+
+        Assert.Equal(1, await CriarFila(provider).ProcessarLoteAsync(default));
+
+        var mensagem = Assert.Single(fake.Mensagens);
+        Assert.Null(mensagem.AnexoInline);
+        Assert.DoesNotContain("detara-company-logo", mensagem.CorpoHtml);
+        Assert.Contains("Estética A", WebUtility.HtmlDecode(mensagem.CorpoHtml));
+    }
+
+    [Fact]
     public async Task WorkerEmail_SucessoAtualizaHistoricoUnificado()
     {
         var osId = Guid.NewGuid();
@@ -766,6 +811,42 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
     private NotificacaoEmail CriarNotificacao(Guid osId) => new(_empresaA, osId, _clienteA,
         TipoTemplateEmail.VeiculoProntoRetirada, "marina@cliente.com", "Marina Souza",
         "Assunto", "<p>Corpo</p>", OrigemTemplateEmail.PadraoDetara, null);
+
+    private async Task DefinirLogoAsync(Guid empresaId, string chave)
+    {
+        await using var db = Db(empresaId);
+        var empresa = await db.Empresas.SingleAsync(x => x.Id == empresaId);
+        empresa.DefinirLogo(chave);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task CriarNotificacaoComBrandingAsync()
+    {
+        var renderizada = new RenderizadorTemplateEmail().Renderizar(
+            new("Aviso", "<p>Seu veículo está pronto.</p>", OrigemTemplateEmail.PadraoDetara),
+            new("Estética A", "Marina Souza", "Honda Civic", "ABC1D23", "OS-2026-42"));
+        await using var db = Db(_empresaA);
+        db.NotificacoesEmail.Add(new NotificacaoEmail(_empresaA, Guid.NewGuid(), _clienteA,
+            TipoTemplateEmail.VeiculoProntoRetirada, "marina@cliente.com", "Marina",
+            renderizada.Assunto, renderizada.CorpoHtmlCompleto,
+            OrigemTemplateEmail.PadraoDetara, null));
+        await db.SaveChangesAsync();
+    }
+
+    private ServiceProvider CriarProviderWorker(
+        IEmailClienteProvider email, IArquivoStorage storage)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(_options);
+        services.AddSingleton(email);
+        services.AddSingleton(storage);
+        return services.BuildServiceProvider();
+    }
+
+    private static FilaNotificacoesServico CriarFila(ServiceProvider provider) => new(
+        provider.GetRequiredService<IServiceScopeFactory>(),
+        Options.Create(new FilaNotificacoesOptions { TamanhoLote = 10 }),
+        NullLogger<FilaNotificacoesServico>.Instance);
     private OrdemServicoFinalizadaNotificacoes Evento(Guid osId) => new(_empresaA, osId, "OS-2026-42", _clienteA,
         "Marina Souza", "Honda Civic", "ABC1D23");
     private DetaraDbContext Db(Guid empresa) => new(_options, new Contexto(empresa, empresa == _empresaA ? _usuarioA : Guid.NewGuid()));
@@ -793,10 +874,30 @@ public sealed class NotificacoesPersistenciaTests : IAsyncLifetime
             MensagemEmailClienteProvider mensagem, CancellationToken cancellationToken)
         {
             Mensagens.Add(new(mensagem.Destinatario, mensagem.Assunto,
-                mensagem.CorpoHtml, mensagem.ResponderPara, mensagem.ChaveIdempotencia));
+                mensagem.CorpoHtml, mensagem.ResponderPara, mensagem.ChaveIdempotencia,
+                mensagem.AnexoInline));
             return Task.FromResult(new ResultadoEnvioComunicacaoCliente(
                 true, false, "fake-id", null));
         }
+    }
+    private sealed class StorageBrandingFake(
+        IReadOnlyDictionary<string, byte[]> arquivos,
+        bool falharLeitura = false) : IArquivoStorage
+    {
+        public Task<Stream?> AbrirLeituraAsync(string arquivo, CancellationToken ct)
+        {
+            if (falharLeitura) throw new IOException("Falha simulada de storage.");
+            return Task.FromResult<Stream?>(arquivos.TryGetValue(arquivo, out var conteudo)
+                ? new MemoryStream(conteudo, writable: false)
+                : null);
+        }
+
+        public Task<bool> ExisteAsync(string arquivo, CancellationToken ct) =>
+            Task.FromResult(arquivos.ContainsKey(arquivo));
+        public Task SalvarAsync(string arquivo, Stream conteudo, CancellationToken ct) =>
+            throw new NotSupportedException();
+        public Task<bool> ExcluirAsync(string arquivo, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
     private sealed class WhatsAppProviderFake(ResultadoEnvioComunicacaoCliente resultado)
         : IWhatsAppClienteProvider

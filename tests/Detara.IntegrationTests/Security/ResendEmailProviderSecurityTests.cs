@@ -69,6 +69,7 @@ public sealed class ResendEmailProviderSecurityTests
         using var documento = JsonDocument.Parse(json!);
         var anexo = Assert.Single(documento.RootElement.GetProperty("attachments").EnumerateArray());
         Assert.Equal("company-logo", anexo.GetProperty("content_id").GetString());
+        Assert.Equal("image/png", anexo.GetProperty("content_type").GetString());
         Assert.Equal(Convert.ToBase64String([1, 2, 3]), anexo.GetProperty("content").GetString());
         Assert.DoesNotContain("data:image", json, StringComparison.OrdinalIgnoreCase);
     }

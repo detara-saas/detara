@@ -40,6 +40,37 @@ public sealed class AdministracaoTenantServico(HttpClient http)
     public Task<ResultadoServico<LogoEmpresaResponse>> RemoverLogoAsync(CancellationToken ct = default) =>
         EnviarAsync<LogoEmpresaResponse>(() => http.DeleteAsync("api/empresa/logo", ct), ct);
 
+    public async Task<ResultadoServico<string>> ObterLogoPreviewAsync(
+        long versao, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await http.GetAsync($"api/empresa/logo?v={versao}", ct);
+            if (!response.IsSuccessStatusCode ||
+                response.Content.Headers.ContentType?.MediaType is not "image/png")
+            {
+                return ResultadoServico<string>.Falha("Não foi possível carregar a logo da empresa.");
+            }
+
+            var conteudo = await response.Content.ReadAsByteArrayAsync(ct);
+            if (conteudo.Length == 0 || conteudo.Length > 4 * 1024 * 1024)
+            {
+                return ResultadoServico<string>.Falha("A logo retornada pela API é inválida.");
+            }
+
+            return ResultadoServico<string>.Ok(
+                $"data:image/png;base64,{Convert.ToBase64String(conteudo)}");
+        }
+        catch (HttpRequestException)
+        {
+            return ResultadoServico<string>.Falha("A API não está disponível no momento.");
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return ResultadoServico<string>.Falha("A API não respondeu dentro do tempo esperado.");
+        }
+    }
+
     public Task<ResultadoServico<PaginaResponse<UsuarioTenantListaResponse>>> ListarUsuariosAsync(
         int pagina, string? pesquisa, string? status, CancellationToken ct = default)
     {
