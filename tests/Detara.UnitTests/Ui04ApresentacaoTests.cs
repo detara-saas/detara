@@ -33,7 +33,8 @@ public sealed class Ui04ApresentacaoTests
         Assert.DoesNotContain("_observacaoAutorizacao", pagina);
         Assert.Contains("ClienteOrcamentoAutocomplete", pagina);
         Assert.Contains("Label=\"Veículo *\"", pagina);
-        Assert.Contains("Label=\"Duração planejada em minutos (opcional)\"", pagina);
+        Assert.Contains("<CampoDuracao", pagina);
+        Assert.Contains("Label=\"Duração planejada (opcional)\"", pagina);
         Assert.Contains("service-order-intake-grid", pagina);
         Assert.Contains("_duracao, 0, 0,\n            null,", pagina);
     }

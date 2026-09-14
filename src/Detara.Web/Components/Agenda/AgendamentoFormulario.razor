@@ -66,7 +66,9 @@ else
         <div class="form-grid agenda-time-grid">
             <MudDatePicker @bind-Date="_data" Label="Data *" Required="true" RequiredError="Informe uma data válida." Variant="Variant.Outlined" DateFormat="dd/MM/yyyy" Culture="@EntradaDataHoraAgenda.Cultura" Editable="true" ImmediateText="false" Mask="_mascaraData" Placeholder="dd/mm/aaaa" AdornmentAriaLabel="Abrir calendário" @attributes="AtributosEntradaNumerica" />
             <MudTimePicker @bind-Time="_hora" Label="Hora *" Required="true" RequiredError="Informe um horário válido." Variant="Variant.Outlined" AmPm="false" TimeFormat="HH:mm" Culture="@EntradaDataHoraAgenda.Cultura" Editable="true" ImmediateText="false" Mask="_mascaraHora" Placeholder="hh:mm" AdornmentAriaLabel="Abrir seletor de horário" @attributes="AtributosEntradaNumerica" />
-            <MudNumericField T="int?" Value="_duracaoEstado.Valor" ValueChanged="PersonalizarDuracao" Label="Duração planejada (minutos) *" Required="true" RequiredError="Informe a duração planejada." Min="1" Max="43200" Variant="Variant.Outlined" />
+            <CampoDuracao ValorMinutos="_duracaoEstado.Valor" ValorMinutosChanged="PersonalizarDuracao"
+                          Label="Duração planejada *" Obrigatorio="true"
+                          RequiredError="Informe a duração planejada." />
         </div>
 
         <div class="section-heading agenda-form-section"><div><span class="section-eyebrow">ITENS</span><h2>@(OrcamentoId.HasValue ? "Escopo do orçamento aprovado" : "Serviços e pacotes")</h2></div><span class="selected-count">@_selecionados.Count selecionado(s)</span></div>

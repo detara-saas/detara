@@ -496,6 +496,64 @@ public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ServicoComGuidEmptyNaCategoria_RetornaValidacaoEspecifica(bool atualizacao)
+    {
+        UsarPermissoes(atualizacao ? Permissoes.ServicosEditar : Permissoes.ServicosCriar);
+        var request = new SalvarServicoRequest(
+            Guid.Empty,
+            "Primeiro serviço",
+            null,
+            TipoPrecificacaoCatalogo.Fixo,
+            100m,
+            60,
+            0);
+
+        var response = atualizacao
+            ? await _client.PutAsJsonAsync($"/api/servicos/{_factory.ServicoId}", request)
+            : await _client.PostAsJsonAsync("/api/servicos", request);
+        var corpo = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("validacao", corpo?.Erro?.Codigo);
+        Assert.Contains("Selecione uma categoria para o serviço.",
+            corpo!.Erro!.Detalhes!["CategoriaServicoId"]);
+    }
+
+    [Fact]
+    public async Task TenantSemCategorias_CriaCategoriaEServicoSemExporOutroTenant()
+    {
+        await _factory.LimparCatalogoTenantAsync();
+        UsarPermissoes(Permissoes.ServicosVisualizar, Permissoes.ServicosCriar);
+
+        var vazio = await _client.GetFromJsonAsync<RespostaApi<IReadOnlyCollection<CategoriaServicoResponse>>>(
+            "/api/categorias-servico");
+        Assert.Empty(vazio!.Resultado!);
+
+        var criacaoCategoria = await _client.PostAsJsonAsync(
+            "/api/categorias-servico",
+            new SalvarCategoriaServicoRequest("Primeiros cuidados", "Categoria inicial", 0));
+        var categoria = (await criacaoCategoria.Content
+            .ReadFromJsonAsync<RespostaApi<CategoriaServicoResponse>>())?.Resultado;
+
+        Assert.Equal(HttpStatusCode.Created, criacaoCategoria.StatusCode);
+        Assert.NotNull(categoria);
+
+        var categorias = await _client.GetFromJsonAsync<RespostaApi<IReadOnlyCollection<CategoriaServicoResponse>>>(
+            "/api/categorias-servico");
+        Assert.Contains(categorias!.Resultado!, item => item.Id == categoria.Id);
+        Assert.DoesNotContain(categorias.Resultado!, item => item.Nome == "Lavagem outro tenant");
+
+        var criacaoServico = await _client.PostAsJsonAsync(
+            "/api/servicos",
+            new SalvarServicoRequest(categoria.Id, "Cuidado inicial", null,
+                TipoPrecificacaoCatalogo.Fixo, 120m, 60, 0));
+
+        Assert.Equal(HttpStatusCode.Created, criacaoServico.StatusCode);
+    }
+
+    [Theory]
     [InlineData("/api/servicos", Permissoes.ServicosCriar)]
     [InlineData("/api/pacotes", Permissoes.PacotesCriar)]
     public async Task UsuarioSemPermissaoDeCriacao_Recebe403(string rota, string permissaoNecessaria)
@@ -1002,6 +1060,16 @@ public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
             await using var context = new DetaraDbContext(options, new TestUserContext(EmpresaId));
             return await context.Pacotes.AnyAsync(item => item.Nome == nome);
+        }
+
+        public async Task LimparCatalogoTenantAsync()
+        {
+            using var scope = Services.CreateScope();
+            var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+            await using var context = new DetaraDbContext(options, new TestUserContext(EmpresaId));
+            context.Servicos.RemoveRange(context.Servicos);
+            context.CategoriasServico.RemoveRange(context.CategoriasServico);
+            await context.SaveChangesAsync();
         }
 
         public async Task AdicionarOrdensConcluidasAsync(Guid segundoVeiculoId)

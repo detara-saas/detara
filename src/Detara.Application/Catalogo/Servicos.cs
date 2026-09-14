@@ -18,19 +18,44 @@ public sealed record CriarServicoCommand(Guid CategoriaServicoId, string Nome, s
 public sealed record AtualizarServicoCommand(Guid Id, Guid CategoriaServicoId, string Nome, string? Descricao, TipoPrecificacao TipoPrecificacao, decimal? PrecoBase, int? DuracaoEstimadaMinutos, int Ordem) : IRequest<ServicoDetalheResultado>;
 public sealed record AlterarStatusServicoCommand(Guid Id, bool EhAtivo) : IRequest;
 
-internal abstract class ServicoValidatorBase<T> : AbstractValidator<T>
+internal sealed class CriarServicoValidator : AbstractValidator<CriarServicoCommand>
 {
-    protected void Regras(Func<T, Guid> categoria, Func<T, string> nome, Func<T, string?> descricao, Func<T, TipoPrecificacao> tipo, Func<T, decimal?> preco, Func<T, int?> duracao, Func<T, int> ordem)
+    public CriarServicoValidator()
     {
-        RuleFor(x => categoria(x)).NotEmpty(); RuleFor(x => nome(x)).NotEmpty().MinimumLength(2).MaximumLength(160);
-        RuleFor(x => descricao(x)).MaximumLength(2000); RuleFor(x => tipo(x)).IsInEnum();
-        RuleFor(x => preco(x)).NotNull().GreaterThanOrEqualTo(0).When(x => tipo(x) is TipoPrecificacao.Fixo or TipoPrecificacao.APartirDe);
-        RuleFor(x => preco(x)).Null().When(x => tipo(x) == TipoPrecificacao.SobConsulta);
-        RuleFor(x => duracao(x)).InclusiveBetween(1, 43200).When(x => duracao(x).HasValue); RuleFor(x => ordem(x)).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.CategoriaServicoId).NotEmpty()
+            .WithMessage("Selecione uma categoria para o serviço.");
+        RuleFor(x => x.Nome).NotEmpty().MinimumLength(2).MaximumLength(160);
+        RuleFor(x => x.Descricao).MaximumLength(2000);
+        RuleFor(x => x.TipoPrecificacao).IsInEnum();
+        RuleFor(x => x.PrecoBase).NotNull().GreaterThanOrEqualTo(0)
+            .When(x => x.TipoPrecificacao is TipoPrecificacao.Fixo or TipoPrecificacao.APartirDe);
+        RuleFor(x => x.PrecoBase).Null()
+            .When(x => x.TipoPrecificacao == TipoPrecificacao.SobConsulta);
+        RuleFor(x => x.DuracaoEstimadaMinutos).InclusiveBetween(1, 43200)
+            .When(x => x.DuracaoEstimadaMinutos.HasValue);
+        RuleFor(x => x.Ordem).GreaterThanOrEqualTo(0);
     }
 }
-internal sealed class CriarServicoValidator : ServicoValidatorBase<CriarServicoCommand> { public CriarServicoValidator() => Regras(x => x.CategoriaServicoId, x => x.Nome, x => x.Descricao, x => x.TipoPrecificacao, x => x.PrecoBase, x => x.DuracaoEstimadaMinutos, x => x.Ordem); }
-internal sealed class AtualizarServicoValidator : ServicoValidatorBase<AtualizarServicoCommand> { public AtualizarServicoValidator() { RuleFor(x => x.Id).NotEmpty(); Regras(x => x.CategoriaServicoId, x => x.Nome, x => x.Descricao, x => x.TipoPrecificacao, x => x.PrecoBase, x => x.DuracaoEstimadaMinutos, x => x.Ordem); } }
+
+internal sealed class AtualizarServicoValidator : AbstractValidator<AtualizarServicoCommand>
+{
+    public AtualizarServicoValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.CategoriaServicoId).NotEmpty()
+            .WithMessage("Selecione uma categoria para o serviço.");
+        RuleFor(x => x.Nome).NotEmpty().MinimumLength(2).MaximumLength(160);
+        RuleFor(x => x.Descricao).MaximumLength(2000);
+        RuleFor(x => x.TipoPrecificacao).IsInEnum();
+        RuleFor(x => x.PrecoBase).NotNull().GreaterThanOrEqualTo(0)
+            .When(x => x.TipoPrecificacao is TipoPrecificacao.Fixo or TipoPrecificacao.APartirDe);
+        RuleFor(x => x.PrecoBase).Null()
+            .When(x => x.TipoPrecificacao == TipoPrecificacao.SobConsulta);
+        RuleFor(x => x.DuracaoEstimadaMinutos).InclusiveBetween(1, 43200)
+            .When(x => x.DuracaoEstimadaMinutos.HasValue);
+        RuleFor(x => x.Ordem).GreaterThanOrEqualTo(0);
+    }
+}
 internal sealed class ListarServicosValidator : AbstractValidator<ListarServicosQuery> { public ListarServicosValidator() { RuleFor(x => x.Filtro.Pagina).GreaterThanOrEqualTo(1); RuleFor(x => x.Filtro.TamanhoPagina).Must(x => x is 10 or 25 or 50); RuleFor(x => x.Filtro.Pesquisa).MaximumLength(160); } }
 
 internal sealed class ListarServicosHandler(IServicosRepositorio repositorio) : IRequestHandler<ListarServicosQuery, PaginacaoResultado<ServicoListaItemResultado>> { public Task<PaginacaoResultado<ServicoListaItemResultado>> Handle(ListarServicosQuery request, CancellationToken cancellationToken) => repositorio.ListarAsync(request.Filtro, cancellationToken); }
