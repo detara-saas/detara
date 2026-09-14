@@ -1,0 +1,113 @@
+@inject AdministracaoTenantServico EmpresaApi
+@inject IMensagemServico Mensagens
+@inject IDialogService Dialogs
+
+<section id="identidade-visual" class="module-panel branding-panel @(Compacto ? "branding-panel-compact" : null)" aria-labelledby="branding-heading">
+    <div class="section-heading settings-heading">
+        <div>
+            <span class="section-eyebrow">IDENTIDADE VISUAL · OPCIONAL</span>
+            <h2 id="branding-heading">Logo da empresa</h2>
+            <p>Personalize orçamentos e comunicações enviados aos seus clientes.</p>
+        </div>
+        <MudIcon Icon="@Icons.Material.Outlined.BrandingWatermark" Color="Color.Primary" />
+    </div>
+
+    @if (_carregando)
+    {
+        <div class="module-loading compact-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else
+    {
+        <div class="branding-content">
+            <div class="branding-preview @(Logo?.PossuiLogo == true ? "has-logo" : null)">
+                @if (Logo?.PossuiLogo == true)
+                {
+                    <img src="@UrlLogo" alt="Logo da empresa" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Outlined.AddPhotoAlternate" />
+                    <strong>Adicione sua logo</strong>
+                    <span>Ela aparecerá nos orçamentos e e-mails da empresa.</span>
+                }
+            </div>
+            <div class="branding-guidance">
+                <strong>PNG transparente recomendado</strong>
+                <span>PNG ou JPG · 1200 × 400 px · máximo 2 MB</span>
+                <span>A imagem é centralizada sem corte ou deformação.</span>
+                @if (PodeEditar)
+                {
+                    <div class="branding-actions">
+                        <InputFile id="company-logo-input" class="visually-hidden-file" accept="image/png,image/jpeg" OnChange="SelecionarAsync" disabled="@_enviando" />
+                        <MudButton HtmlTag="label" for="company-logo-input" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Upload" Disabled="_enviando">
+                            @(_enviando ? "Enviando..." : Logo?.PossuiLogo == true ? "Substituir logo" : "Selecionar logo")
+                        </MudButton>
+                        @if (Logo?.PossuiLogo == true)
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Outlined.DeleteOutline" Disabled="_removendo" OnClick="RemoverAsync">Remover</MudButton>
+                        }
+                        @if (Compacto && Logo?.PossuiLogo != true)
+                        {
+                            <MudButton Variant="Variant.Text" OnClick="Pular">Pular por enquanto</MudButton>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public bool Compacto { get; set; }
+    [Parameter] public bool PodeEditar { get; set; }
+    [Parameter] public EventCallback Pular { get; set; }
+    private LogoEmpresaResponse? Logo { get; set; }
+    private bool _carregando = true;
+    private bool _enviando;
+    private bool _removendo;
+    private string? UrlLogo => Logo?.Url;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var resultado = await EmpresaApi.ObterEmpresaAsync();
+        Logo = resultado.Resultado?.Logo;
+        _carregando = false;
+    }
+
+    private Task SelecionarAsync(InputFileChangeEventArgs args) => EnviarAsync(args.File);
+
+    private async Task EnviarAsync(IBrowserFile arquivo)
+    {
+        if (_enviando) return;
+        _enviando = true;
+        try
+        {
+            var resultado = await EmpresaApi.SalvarLogoAsync(arquivo);
+            if (resultado.Sucesso && resultado.Resultado is not null)
+            {
+                Logo = resultado.Resultado;
+                Mensagens.Mostrar("Logo atualizada.");
+            }
+            else Mensagens.Mostrar(resultado.Mensagem ?? "Não foi possível enviar a logo.", true);
+        }
+        catch (IOException) { Mensagens.Mostrar("A imagem deve possuir no máximo 2 MB.", true); }
+        finally { _enviando = false; }
+    }
+
+    private async Task RemoverAsync()
+    {
+        var confirmar = await Dialogs.ShowMessageBoxAsync("Remover a logo da empresa?",
+            "Orçamentos e comunicações voltarão a usar o nome da empresa em texto.",
+            yesText: "Remover", cancelText: "Cancelar");
+        if (confirmar != true) return;
+        _removendo = true;
+        var resultado = await EmpresaApi.RemoverLogoAsync();
+        _removendo = false;
+        if (resultado.Sucesso && resultado.Resultado is not null)
+        {
+            Logo = resultado.Resultado;
+            Mensagens.Mostrar("Logo removida.");
+        }
+        else Mensagens.Mostrar(resultado.Mensagem ?? "Não foi possível remover a logo.", true);
+    }
+}

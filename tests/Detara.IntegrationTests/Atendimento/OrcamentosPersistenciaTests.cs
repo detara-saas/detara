@@ -14,6 +14,7 @@ using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using SkiaSharp;
 
 namespace Detara.IntegrationTests.Atendimento;
 
@@ -175,15 +176,23 @@ public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
     public async Task PdfOficial_TemAssinaturaEConteudo_EContinuaAposSubstituicao()
     {
         await using var c = Contexto(_empresaA, _usuarioA);
+        const string chaveLogo = "empresas/logo-teste.png";
+        var empresa = await c.Empresas.SingleAsync(x => x.Id == _empresaA);
+        empresa.DefinirLogo(chaveLogo);
+        await c.SaveChangesAsync();
+        c.ChangeTracker.Clear();
         var a = await CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, _servicoA, 160m), default);
         c.ChangeTracker.Clear();
         var emitido = await EmitirHandler(c).Handle(new(a.Orcamento.Id, null), default);
         c.ChangeTracker.Clear(); var b = await NovaHandler(c).Handle(new(a.Orcamento.Id), default); c.ChangeTracker.Clear(); await EmitirHandler(c).Handle(new(b.Orcamento.Id, null), default); c.ChangeTracker.Clear();
         var pdf = await new GerarPdfOrcamentoHandler(new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c),
-            new PlataformaAtendimentoConsulta(c), new PdfOrcamentoGenerator()).Handle(new(a.Orcamento.Id), default);
+            new PlataformaAtendimentoConsulta(c), new PdfOrcamentoGenerator(), new StorageLogo(chaveLogo)).Handle(new(a.Orcamento.Id), default);
         Assert.True(pdf.Conteudo.Length > 1000); Assert.Equal("%PDF-", System.Text.Encoding.ASCII.GetString(pdf.Conteudo, 0, 5));
-        Assert.Contains(emitido.Orcamento.Codigo!, System.Text.Encoding.Latin1.GetString(pdf.Conteudo));
-        Assert.DoesNotContain("Interna confidencial", System.Text.Encoding.Latin1.GetString(pdf.Conteudo));
+        var conteudoPdf = System.Text.Encoding.Latin1.GetString(pdf.Conteudo);
+        Assert.Contains(emitido.Orcamento.Codigo!, conteudoPdf);
+        Assert.Contains("/XObject << /Logo", conteudoPdf);
+        Assert.Contains("/SMask", conteudoPdf);
+        Assert.DoesNotContain("Interna confidencial", conteudoPdf);
     }
 
     [Fact]
@@ -542,4 +551,23 @@ public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
 
     private sealed class UsuarioContextoTeste(Guid empresaId, Guid usuarioId, bool autenticado = true) : IUsuarioContexto
     { public static UsuarioContextoTeste Anonimo { get; } = new(Guid.Empty, Guid.Empty, false); public Guid UsuarioId { get; } = usuarioId; public Guid EmpresaId { get; } = empresaId; public bool EstaAutenticado { get; } = autenticado; }
+
+    private sealed class StorageLogo(string chave) : IArquivoStorage
+    {
+        private static readonly byte[] LogoPng = CriarLogo();
+        public Task<Stream?> AbrirLeituraAsync(string arquivo, CancellationToken ct) =>
+            Task.FromResult<Stream?>(arquivo == chave ? new MemoryStream(LogoPng, writable: false) : null);
+        public Task<bool> ExisteAsync(string arquivo, CancellationToken ct) => Task.FromResult(arquivo == chave);
+        public Task SalvarAsync(string arquivo, Stream conteudo, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ExcluirAsync(string arquivo, CancellationToken ct) => throw new NotSupportedException();
+
+        private static byte[] CriarLogo()
+        {
+            using var superficie = SKSurface.Create(new SKImageInfo(12, 4, SKColorType.Rgba8888, SKAlphaType.Premul));
+            superficie.Canvas.Clear(new SKColor(0, 190, 145, 210));
+            using var imagem = superficie.Snapshot();
+            using var png = imagem.Encode(SKEncodedImageFormat.Png, 100);
+            return png.ToArray();
+        }
+    }
 }

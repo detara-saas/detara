@@ -30,7 +30,9 @@ internal sealed class ResendEmailProvider(HttpClient http, IOptions<EmailOptions
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.ApiKey);
         request.Headers.Add("Idempotency-Key", mensagem.ChaveIdempotencia);
         request.Content = JsonContent.Create(new ResendRequest($"{config.FromName} <{config.FromAddress}>",
-            [mensagem.Destinatario], mensagem.Assunto, mensagem.CorpoHtml, mensagem.ResponderPara));
+            [mensagem.Destinatario], mensagem.Assunto, mensagem.CorpoHtml, mensagem.ResponderPara,
+            mensagem.AnexoInline is null ? null : [new(Convert.ToBase64String(mensagem.AnexoInline.Conteudo),
+                mensagem.AnexoInline.NomeArquivo, mensagem.AnexoInline.ContentId)]));
         try
         {
             using var response = await http.SendAsync(request, ct);
@@ -58,6 +60,11 @@ internal sealed class ResendEmailProvider(HttpClient http, IOptions<EmailOptions
     private sealed record ResendRequest([property: JsonPropertyName("from")] string From,
         [property: JsonPropertyName("to")] string[] To, [property: JsonPropertyName("subject")] string Subject,
         [property: JsonPropertyName("html")] string Html, [property: JsonPropertyName("reply_to"),
-        JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ReplyTo);
+        JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ReplyTo,
+        [property: JsonPropertyName("attachments"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ResendAttachment[]? Attachments);
+    private sealed record ResendAttachment(
+        [property: JsonPropertyName("content")] string Content,
+        [property: JsonPropertyName("filename")] string Filename,
+        [property: JsonPropertyName("content_id")] string ContentId);
     private sealed record ResendResponse([property: JsonPropertyName("id")] string Id);
 }

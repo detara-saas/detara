@@ -44,7 +44,7 @@ public interface IAgendaAtendimentoIntegracao
 }
 
 public sealed record EmpresaAtendimentoInterno(Guid Id, string NomeFantasia, string RazaoSocial, string CpfCnpj,
-    string? Email, string? Telefone, string FusoHorario);
+    string? Email, string? Telefone, string FusoHorario, string? LogoArquivoChave = null);
 
 public interface IPlataformaAtendimentoConsulta
 {
@@ -57,4 +57,5 @@ public interface IOrcamentoPdfGenerator
     byte[] Gerar(DocumentoPdfOrcamento documento);
 }
 
-public sealed record DocumentoPdfOrcamento(EmpresaAtendimentoInterno Empresa, OrcamentoDetalheVisualizacao Orcamento);
+public sealed record DocumentoPdfOrcamento(EmpresaAtendimentoInterno Empresa, OrcamentoDetalheVisualizacao Orcamento,
+    byte[]? LogoPng = null);

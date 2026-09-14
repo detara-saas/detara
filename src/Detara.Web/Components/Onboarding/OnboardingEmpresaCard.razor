@@ -71,6 +71,12 @@
             }
         </ol>
 
+        <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar">
+            <Authorized>
+                <IdentidadeVisualEmpresa Compacto="true" PodeEditar="true" Pular="OnRecolher" />
+            </Authorized>
+        </AuthorizeView>
+
         <footer class="onboarding-footer">
             <span>O progresso é atualizado automaticamente com os dados reais da sua empresa.</span>
             <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.VisibilityOff" OnClick="OnRecolher">

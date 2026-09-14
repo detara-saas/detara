@@ -14,7 +14,7 @@ internal sealed class EmailClienteProvider(IProvedorEmail transporte) : IEmailCl
     {
         var resultado = await transporte.EnviarAsync(new MensagemEmailProvedor(
             mensagem.Destinatario, mensagem.Assunto, mensagem.CorpoHtml,
-            mensagem.ResponderPara, mensagem.ChaveIdempotencia), cancellationToken);
+            mensagem.ResponderPara, mensagem.ChaveIdempotencia, mensagem.AnexoInline), cancellationToken);
         return new(resultado.Sucesso, resultado.FalhaTemporaria,
             resultado.MensagemId, resultado.ErroSeguro);
     }

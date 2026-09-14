@@ -245,7 +245,7 @@ internal sealed class ObterContextoOrcamentoHandler(IUsuarioContexto usuario, IP
 { public async Task<ContextoOrcamentoVisualizacao> Handle(ObterContextoOrcamentoQuery request, CancellationToken ct) { var empresa = await OrcamentoFluxo.ObterEmpresaAsync(plataforma, usuario.EmpresaId, ct); var hoje = OrcamentoFluxo.HojeLocal(empresa.FusoHorario); return new(hoje, hoje.AddDays(7)); } }
 
 internal sealed class GerarPdfOrcamentoHandler(IUsuarioContexto usuario, IOrcamentosRepositorio repositorio, IPlataformaAtendimentoConsulta plataforma,
-    IOrcamentoPdfGenerator gerador) : IRequestHandler<GerarPdfOrcamentoQuery, PdfOrcamentoResultado>
+    IOrcamentoPdfGenerator gerador, IArquivoStorage? storage = null) : IRequestHandler<GerarPdfOrcamentoQuery, PdfOrcamentoResultado>
 {
     public async Task<PdfOrcamentoResultado> Handle(GerarPdfOrcamentoQuery request, CancellationToken ct)
     {
@@ -253,7 +253,22 @@ internal sealed class GerarPdfOrcamentoHandler(IUsuarioContexto usuario, IOrcame
         if (detalhe.Orcamento.Status == StatusOrcamento.Rascunho || !detalhe.Orcamento.EmitidoEmUtc.HasValue || string.IsNullOrWhiteSpace(detalhe.Orcamento.Codigo))
             throw new ConflitoRegraNegocioException("O PDF oficial só está disponível para documentos que foram emitidos.");
         var empresa = await OrcamentoFluxo.ObterEmpresaAsync(plataforma, usuario.EmpresaId, ct);
-        return new($"{detalhe.Orcamento.Codigo ?? "orcamento"}.pdf", gerador.Gerar(new(empresa, detalhe)));
+        byte[]? logo = null;
+        if (empresa.LogoArquivoChave is not null && storage is not null)
+        {
+            try
+            {
+                await using var stream = await storage.AbrirLeituraAsync(empresa.LogoArquivoChave, ct);
+                if (stream is not null)
+                {
+                    using var memoria = new MemoryStream();
+                    await stream.CopyToAsync(memoria, ct);
+                    logo = memoria.ToArray();
+                }
+            }
+            catch when (!ct.IsCancellationRequested) { logo = null; }
+        }
+        return new($"{detalhe.Orcamento.Codigo ?? "orcamento"}.pdf", gerador.Gerar(new(empresa, detalhe, logo)));
     }
 }
 

@@ -5,7 +5,10 @@ public sealed record MensagemEmailProvedor(
     string Assunto,
     string CorpoHtml,
     string? ResponderPara,
-    string ChaveIdempotencia);
+    string ChaveIdempotencia,
+    AnexoEmailInline? AnexoInline = null);
+
+public sealed record AnexoEmailInline(string NomeArquivo, string ContentType, string ContentId, byte[] Conteudo);
 
 public sealed record ResultadoEnvioEmail(
     bool Sucesso,

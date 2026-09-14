@@ -668,6 +668,18 @@ h1:focus { outline: none; }
 .settings-layout { display: grid; grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
 .settings-panel { padding: 24px; }
 .settings-panel-wide { grid-column: 1 / -1; }
+.branding-panel { grid-column: 1 / -1; padding: 24px; }
+.branding-content { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(260px, 1.1fr); gap: 24px; align-items: center; }
+.branding-preview { min-height: 170px; border: 1px dashed var(--detara-border); border-radius: var(--detara-radius-lg); background: var(--detara-surface-alt); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 20px; text-align: center; color: var(--detara-text-secondary); }
+.branding-preview > .mud-icon-root { font-size: 34px; color: var(--detara-primary); }
+.branding-preview strong { color: var(--detara-text); }
+.branding-preview img { display: block; width: 100%; height: 130px; object-fit: contain; }
+.branding-preview.has-logo { border-style: solid; background: linear-gradient(135deg, var(--detara-surface-alt), var(--detara-surface)); }
+.branding-guidance { display: flex; flex-direction: column; gap: 5px; color: var(--detara-text-secondary); }
+.branding-guidance strong { color: var(--detara-text); }
+.branding-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 15px; }
+.branding-panel-compact { margin-top: 18px; box-shadow: none; }
+.branding-panel-compact .settings-heading { margin-bottom: 16px; }
 .notification-settings { display: grid; gap: 26px; }
 .communication-settings-stack { display: grid; gap: var(--detara-page-gap); }
 .communication-config-block { display: grid; gap: 20px; padding: 22px; background: var(--detara-surface-alt); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-lg); }
@@ -1115,6 +1127,7 @@ h1:focus { outline: none; }
     .dashboard-loading-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
     .onboarding-steps { grid-template-columns: 1fr; }
     .onboarding-step:first-child { grid-column: auto; }
+    .branding-content { grid-template-columns: 1fr; }
     .module-toolbar { grid-template-columns: minmax(240px,1fr) 150px 170px auto; }
     .related-grid { grid-template-columns: 1fr; }
     .agenda-time-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
