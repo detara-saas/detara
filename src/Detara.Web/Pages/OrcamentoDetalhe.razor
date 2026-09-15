@@ -15,7 +15,7 @@ else
     <CabecalhoPagina Titulo="@(_orcamento.Codigo ?? (_orcamento.Status == StatusOrcamentoContrato.Rascunho ? "Rascunho sem código" : "Documento sem emissão"))" Descricao="@($"{_orcamento.ClienteNome} · {FormatacaoVeiculo.Exibir(_orcamento.VeiculoDescricao, _orcamento.VeiculoPlaca)}")" Sobretitulo="ORÇAMENTO">
         <Acoes>
             <DetaraStatusBadge Texto="@NomeStatus(_orcamento.Status)" Tone="@TomStatus(_orcamento.Status)" />
-            @if (_orcamento.EmitidoEmUtc.HasValue) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.PictureAsPdf" OnClick="BaixarPdfAsync">Baixar PDF</MudButton> }
+            @if (_orcamento.EmitidoEmUtc.HasValue) { <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.PictureAsPdf" Disabled="_baixandoPdf" OnClick="BaixarPdfAsync">@(_baixandoPdf ? "Preparando PDF…" : "Baixar PDF")</MudButton> }
             @if (_orcamento.OrdemServicoOrigemId.HasValue) { <MudButton Href="@($"/ordens-servico/{_orcamento.OrdemServicoOrigemId}")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.FactCheck">Ver OS de origem</MudButton> }
             else if (_orcamento.Status == StatusOrcamentoContrato.Aprovado)
             {
@@ -89,7 +89,7 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    private OrcamentoDetalheResponse? _orcamento; private bool _carregando = true;
+    private OrcamentoDetalheResponse? _orcamento; private bool _carregando = true; private bool _baixandoPdf;
     private bool TemAcoesComerciais => _orcamento?.Status is StatusOrcamentoContrato.Rascunho or StatusOrcamentoContrato.Emitido;
     protected override Task OnParametersSetAsync() => CarregarAsync();
     private async Task CarregarAsync() { _carregando = true; var r = await OrcamentosApi.ObterAsync(Id); _orcamento = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
@@ -127,7 +127,36 @@ else
 
         await CarregarAsync();
     }
-    private async Task BaixarPdfAsync() { var (conteudo, mensagem) = await OrcamentosApi.BaixarPdfAsync(Id); if (conteudo is null) { Mensagens.Mostrar(mensagem, true); return; } await Js.InvokeVoidAsync("detara.baixarArquivoBase64", $"{_orcamento?.Codigo ?? "orcamento"}.pdf", "application/pdf", Convert.ToBase64String(conteudo)); }
+    private async Task BaixarPdfAsync()
+    {
+        if (_baixandoPdf) return;
+        _baixandoPdf = true;
+        try
+        {
+            var (conteudo, mensagem) = await OrcamentosApi.BaixarPdfAsync(Id);
+            if (conteudo is null)
+            {
+                Mensagens.Mostrar(mensagem, true);
+                return;
+            }
+
+            using var arquivo = new MemoryStream(conteudo, writable: false);
+            using var referencia = new DotNetStreamReference(arquivo);
+            await Js.InvokeVoidAsync(
+                "detara.baixarArquivo",
+                $"{_orcamento?.Codigo ?? "orcamento"}.pdf",
+                "application/pdf",
+                referencia);
+        }
+        catch (JSException)
+        {
+            Mensagens.Mostrar("Não foi possível iniciar o download do PDF neste dispositivo.", true);
+        }
+        finally
+        {
+            _baixandoPdf = false;
+        }
+    }
     private static string TextoOuVazio(string? texto) => string.IsNullOrWhiteSpace(texto) ? "Não informado." : texto;
     private static string NomeOrigem(OrcamentoDetalheResponse orcamento) => orcamento.OrdemServicoOrigemId.HasValue ? "Ordem de serviço" : orcamento.AgendamentoOrigemId.HasValue ? "Agendamento" : "Atendimento direto";
     private static string NomeStatus(StatusOrcamentoContrato status) => status switch { StatusOrcamentoContrato.Substituido => "Substituído", StatusOrcamentoContrato.Expirado => "Expirado", _ => status.ToString() };

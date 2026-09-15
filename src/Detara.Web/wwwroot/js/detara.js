@@ -17,13 +17,19 @@ window.detara = {
         const themeColor = document.querySelector('meta[name="theme-color"]');
         if (themeColor) themeColor.content = escuro ? '#111827' : '#FFFFFF';
     },
-    baixarArquivoBase64: (nome, tipo, base64) => {
+    baixarArquivo: async (nome, tipo, streamReference) => {
+        const buffer = await streamReference.arrayBuffer();
+        const arquivo = new Blob([buffer], { type: tipo });
+        const url = URL.createObjectURL(arquivo);
         const link = document.createElement('a');
-        link.href = `data:${tipo};base64,${base64}`;
+        link.href = url;
         link.download = nome;
+        link.rel = 'noopener';
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
         link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     },
     criarUrlImagem: async (streamReference, contentType) => {
         const buffer = await streamReference.arrayBuffer();
