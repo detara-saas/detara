@@ -72,6 +72,24 @@ public sealed class Ui04ApresentacaoTests
     }
 
     [Fact]
+    public void OrcamentoPdf_UsaStreamBlobCompativelComNavegadoresMoveis()
+    {
+        var pagina = LerArquivo("src", "Detara.Web", "Pages", "OrcamentoDetalhe.razor");
+        var javascript = LerArquivo("src", "Detara.Web", "wwwroot", "js", "detara.js");
+
+        Assert.Contains("DotNetStreamReference", pagina);
+        Assert.Contains("detara.baixarArquivo", pagina);
+        Assert.Contains("Preparando PDF", pagina);
+        Assert.DoesNotContain("Convert.ToBase64String", pagina);
+        Assert.DoesNotContain("baixarArquivoBase64", javascript);
+        Assert.Contains("streamReference.arrayBuffer()", javascript);
+        Assert.Contains("new Blob([buffer]", javascript);
+        Assert.Contains("URL.createObjectURL", javascript);
+        Assert.Contains("link.download = nome", javascript);
+        Assert.Contains("URL.revokeObjectURL", javascript);
+    }
+
+    [Fact]
     public void HierarquiaCritica_UsaUmaAcaoPrincipalEDestrutivasSemanticas()
     {
         var agendamento = LerArquivo("src", "Detara.Web", "Pages", "AgendamentoDetalhe.razor");
