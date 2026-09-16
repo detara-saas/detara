@@ -2,7 +2,7 @@ namespace Detara.Application.Assinaturas;
 
 public static class TermosAssinatura
 {
-    public const string VersaoAtual = "0.3";
+    public const string VersaoAtual = "1.0";
 }
 
 public sealed record DocumentoAssinatura(Stream Conteudo, string NomeArquivo, string ContentType);

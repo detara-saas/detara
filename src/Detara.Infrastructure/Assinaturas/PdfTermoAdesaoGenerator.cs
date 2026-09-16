@@ -74,9 +74,9 @@ internal sealed class PdfTermoAdesaoGenerator : IGeradorPdfTermoAssinatura
         using var fonteRegular = new SKFont(SKTypeface.Default, 10);
         using var fonteTitulo = new SKFont(SKTypeface.FromFamilyName(null, SKFontStyle.Bold), 18);
         using var fonteSubtitulo = new SKFont(SKTypeface.FromFamilyName(null, SKFontStyle.Bold), 11);
-        var pagina = new Pagina(documento, texto, destaque, fonteRegular, fonteTitulo, fonteSubtitulo);
+        var pagina = new Pagina(documento, texto, destaque, fonteRegular, fonteTitulo, fonteSubtitulo,
+            dados.VersaoTermo);
         pagina.Titulo("DETARA", "Termo de Adesão e Condições de Assinatura", "Software de gestão para estética automotiva");
-        pagina.Caixa("MINUTA PARA REVISÃO. Este documento organiza as regras comerciais e operacionais definidas para a primeira fase do Detara. Antes de disponibilizá-lo para aceite de clientes, recomenda-se revisão por profissional jurídico, especialmente antes do uso definitivo com clientes.");
         pagina.Secao("Quadro-resumo da contratação");
         pagina.LinhaResumo("Produto", "Detara — plataforma de gestão para estética automotiva");
         pagina.LinhaResumo("CONTRATADA", "Gustavo Steilein Navroski — pessoa física responsável pelo Detara");
@@ -93,7 +93,7 @@ internal sealed class PdfTermoAdesaoGenerator : IGeradorPdfTermoAssinatura
         pagina.LinhaResumo("Suporte", "detara.saas@gmail.com");
         foreach (var clausula in Clausulas)
         {
-            if (char.IsDigit(clausula[0]) && clausula.Contains(". ") && !char.IsDigit(clausula[Math.Min(2, clausula.Length - 1)])) pagina.Secao(clausula);
+            if (EhTituloSecao(clausula)) pagina.Secao(clausula);
             else pagina.Paragrafo(clausula);
         }
         pagina.Secao("Registro de aceite");
@@ -108,12 +108,19 @@ internal sealed class PdfTermoAdesaoGenerator : IGeradorPdfTermoAssinatura
         return stream.ToArray();
     }
 
+    private static bool EhTituloSecao(string valor)
+    {
+        var separador = valor.IndexOf(". ", StringComparison.Ordinal);
+        return separador > 0 && valor[..separador].All(char.IsDigit);
+    }
+
     private sealed class Pagina(SKDocument documento, SKPaint texto, SKPaint destaque,
-        SKFont fonteRegular, SKFont fonteTitulo, SKFont fonteSubtitulo)
+        SKFont fonteRegular, SKFont fonteTitulo, SKFont fonteSubtitulo, string versaoTermo)
     {
         private SKCanvas _canvas = null!;
         private float _y;
         private int _numero;
+        private readonly string _versaoTermo = versaoTermo;
         private const float Esquerda = 48;
         private const float Direita = 547;
 
@@ -144,22 +151,14 @@ internal sealed class PdfTermoAdesaoGenerator : IGeradorPdfTermoAssinatura
             _y += 5;
         }
 
-        public void Caixa(string valor)
-        {
-            var linhas = Quebrar(valor, 92).ToArray();
-            Garantir(linhas.Length * 14 + 26);
-            using var fundo = new SKPaint { Color = new SKColor(245, 247, 250) };
-            _canvas.DrawRoundRect(Esquerda, _y - 12, Direita - Esquerda, linhas.Length * 14 + 20, 5, 5, fundo);
-            foreach (var linha in linhas) { _canvas.DrawText(linha, Esquerda + 10, _y + 4, SKTextAlign.Left, fonteRegular, texto); _y += 14; }
-            _y += 18;
-        }
-
         public void LinhaResumo(string rotulo, string valor)
         {
-            var linhas = Quebrar(valor, 72).ToArray();
+            var inicioValor = Math.Max(175, Esquerda + fonteSubtitulo.MeasureText(rotulo) + 12);
+            var limite = Math.Max(32, (int)((Direita - inicioValor) / 5.2f));
+            var linhas = Quebrar(valor, limite).ToArray();
             Garantir(Math.Max(24, linhas.Length * 14 + 8));
             _canvas.DrawText(rotulo, Esquerda, _y, SKTextAlign.Left, fonteSubtitulo, texto);
-            for (var i = 0; i < linhas.Length; i++) _canvas.DrawText(linhas[i], 175, _y + i * 14, SKTextAlign.Left, fonteRegular, texto);
+            for (var i = 0; i < linhas.Length; i++) _canvas.DrawText(linhas[i], inicioValor, _y + i * 14, SKTextAlign.Left, fonteRegular, texto);
             _y += Math.Max(24, linhas.Length * 14 + 8);
         }
 
@@ -179,7 +178,7 @@ internal sealed class PdfTermoAdesaoGenerator : IGeradorPdfTermoAssinatura
             _y = 52;
             using var rodape = new SKPaint { Color = new SKColor(110, 120, 135), IsAntialias = true };
             using var fonteRodape = new SKFont(SKTypeface.Default, 8);
-            _canvas.DrawText($"Detara · Termo v0.3 · Página {_numero}", Esquerda, 818,
+            _canvas.DrawText($"Detara · Termo v{_versaoTermo} · Página {_numero}", Esquerda, 818,
                 SKTextAlign.Left, fonteRodape, rodape);
         }
 

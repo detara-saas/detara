@@ -48,7 +48,7 @@ public sealed class AssinaturasTenantServicoTests
         Assert.Equal(1, gerador.QuantidadeGeracoes);
         Assert.Equal(1, storage.QuantidadeSalvamentos);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(documentoOriginal)), primeiro.TermoAceito.HashSha256);
-        Assert.Equal("0.3", primeiro.TermoAceito.VersaoTermo);
+        Assert.Equal("1.0", primeiro.TermoAceito.VersaoTermo);
         Assert.Equal("Empresa Teste Ltda", gerador.UltimosDados!.EmpresaNome);
         Assert.Equal("12345678000199", gerador.UltimosDados.EmpresaDocumento);
         Assert.Equal("Responsável Legal", gerador.UltimosDados.ResponsavelNome);
@@ -96,7 +96,7 @@ public sealed class AssinaturasTenantServicoTests
             var assinatura = new AssinaturaEmpresa(empresaA.Id, 120m, new DateOnly(2026, 9, 16));
             setupA.AssinaturasEmpresas.Add(assinatura);
             setupA.AceitesTermosAssinaturas.Add(new AceiteTermoAssinatura(empresaA.Id, assinatura.Id,
-                usuarioAId, "0.3", DateTime.UtcNow, "empresas/a/termo.pdf", new string('C', 64),
+                usuarioAId, "1.0", DateTime.UtcNow, "empresas/a/termo.pdf", new string('C', 64),
                 120m, assinatura.DataInicio, assinatura.PrimeiroVencimento, empresaA.RazaoSocial,
                 empresaA.CpfCnpj, "Responsável A", "a@example.com", null));
             await setupA.SaveChangesAsync();
@@ -117,10 +117,11 @@ public sealed class AssinaturasTenantServicoTests
         var pdf = new PdfTermoAdesaoGenerator().Gerar(new DadosTermoAssinatura(
             "Empresa Ltda", "12345678000199", "Responsável", "responsavel@example.com", 120m,
             new DateOnly(2026, 9, 16), new DateOnly(2026, 9, 23), new DateOnly(2026, 10, 10),
-            10, "0.3"));
+            10, "1.0"));
 
         Assert.True(pdf.Length > 1_000);
         Assert.True(pdf.AsSpan().StartsWith("%PDF"u8));
+        Assert.Equal("1.0", TermosAssinatura.VersaoAtual);
     }
 
     private sealed class Contexto(Guid empresaId, Guid usuarioId) : IUsuarioContexto

@@ -35,7 +35,7 @@ public sealed class AssinaturasPersistenciaTests
             contextoA.Usuarios.Add(usuario);
             var assinatura = new AssinaturaEmpresa(empresaA.Id, 120m, new DateOnly(2026, 9, 16));
             contextoA.AssinaturasEmpresas.Add(assinatura);
-            contextoA.AceitesTermosAssinaturas.Add(new(empresaA.Id, assinatura.Id, usuario.Id, "0.3",
+            contextoA.AceitesTermosAssinaturas.Add(new(empresaA.Id, assinatura.Id, usuario.Id, "1.0",
                 DateTime.UtcNow, $"empresas/{empresaA.Id:N}/termo.pdf", new string('A', 64), 120m,
                 assinatura.DataInicio, assinatura.PrimeiroVencimento, empresaA.RazaoSocial,
                 empresaA.CpfCnpj, "Responsável A", "a@example.com", null));
@@ -76,6 +76,11 @@ public sealed class AssinaturasPersistenciaTests
 
         contexto.AceitesTermosAssinaturas.Remove(aceite);
         await Assert.ThrowsAsync<InvalidOperationException>(() => contexto.SaveChangesAsync());
+
+        contexto.ChangeTracker.Clear();
+        var aceiteHistorico = await contexto.AceitesTermosAssinaturas.SingleAsync();
+        Assert.Equal("0.3", aceiteHistorico.VersaoTermo);
+        Assert.Equal("1.0", Detara.Application.Assinaturas.TermosAssinatura.VersaoAtual);
     }
 
     private sealed class Contexto(Guid empresaId, Guid? usuarioId = null) : IUsuarioContexto
