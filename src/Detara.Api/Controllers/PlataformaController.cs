@@ -2,6 +2,8 @@ using Detara.Api.Autenticacao;
 using Detara.Application.Plataforma;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Plataforma;
+using Detara.Contracts.Assinaturas;
+using Detara.Application.Assinaturas;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +13,10 @@ namespace Detara.Api.Controllers;
 [ApiController]
 [Authorize(Policy = EsquemasAutenticacao.PolicyAdministradorPlataforma)]
 [Route("api/plataforma")]
-public sealed class PlataformaController(ISender sender) : ControllerBase
+public sealed class PlataformaController(
+    ISender sender,
+    IAssinaturasPlataformaServico assinaturas,
+    IContextoAdministradorPlataforma contextoPlataforma) : ControllerBase
 {
     [HttpGet("dashboard")]
     public async Task<ActionResult<RespostaApi<DashboardPlataformaResponse>>> Dashboard(
@@ -142,6 +147,71 @@ public sealed class PlataformaController(ISender sender) : ControllerBase
             resultado.TotalPaginas)));
     }
 
+    [HttpGet("assinaturas")]
+    public async Task<ActionResult<RespostaApi<IReadOnlyCollection<AssinaturaPlataformaResponse>>>> Assinaturas(
+        CancellationToken cancellationToken) =>
+        Ok(RespostaApi<IReadOnlyCollection<AssinaturaPlataformaResponse>>.Ok(
+            (await assinaturas.ListarAsync(cancellationToken)).Select(MapearAssinatura).ToArray()));
+
+    [HttpGet("empresas/{id:guid}/assinatura")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> Assinatura(
+        Guid id, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.ObterAsync(id, cancellationToken))));
+
+    [HttpPost("empresas/{id:guid}/assinatura")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> CriarAssinatura(
+        Guid id, CriarAssinaturaPlataformaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.CriarAsync(
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.ValorMensal, request.DataInicio,
+                request.DiaVencimento, request.AsaasCustomerId, request.AsaasSubscriptionId), cancellationToken)), "Assinatura criada."));
+
+    [HttpPut("empresas/{id:guid}/assinatura")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> AlterarAssinatura(
+        Guid id, AlterarCondicoesAssinaturaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.AlterarCondicoesAsync(
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.ValorMensal, request.ProximoVencimento,
+                request.DiaVencimento, request.AsaasCustomerId, request.AsaasSubscriptionId, request.Versao,
+                request.Motivo), cancellationToken)), "Condições atualizadas."));
+
+    [HttpPost("empresas/{id:guid}/assinatura/pagamentos")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> ConfirmarPagamento(
+        Guid id, ConfirmarPagamentoAssinaturaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.ConfirmarPagamentoAsync(
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.DataPagamento,
+                request.ReferenciaPagamento, request.AsaasCustomerId, request.AsaasSubscriptionId,
+                request.Versao, request.Motivo), cancellationToken)), "Pagamento confirmado."));
+
+    [HttpPost("empresas/{id:guid}/assinatura/atraso")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> MarcarAtraso(
+        Guid id, AlterarStatusAssinaturaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.MarcarAtrasoAsync(
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.Versao, request.Motivo), cancellationToken))));
+
+    [HttpPost("empresas/{id:guid}/assinatura/suspender")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> SuspenderAssinatura(
+        Guid id, AlterarStatusAssinaturaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.SuspenderAsync(
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.Versao, request.Motivo), cancellationToken))));
+
+    [HttpPost("empresas/{id:guid}/assinatura/reativar")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> ReativarAssinatura(
+        Guid id, AlterarStatusAssinaturaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.ReativarAsync(
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.Versao, request.Motivo), cancellationToken))));
+
+    [HttpPost("empresas/{id:guid}/assinatura/cancelar")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> CancelarAssinatura(
+        Guid id, AlterarStatusAssinaturaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.CancelarAsync(
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.Versao, request.Motivo), cancellationToken))));
+
+    [HttpGet("empresas/{id:guid}/assinatura/termo")]
+    public async Task<IActionResult> TermoAssinatura(Guid id, CancellationToken cancellationToken)
+    {
+        var documento = await assinaturas.AbrirTermoAceitoAsync(id, cancellationToken);
+        return File(documento.Conteudo, documento.ContentType, documento.NomeArquivo, enableRangeProcessing: false);
+    }
+
     private static EmpresaPlataformaResumoResponse MapearResumo(EmpresaPlataformaResumo item) => new(
         item.Id,
         item.NomeFantasia,
@@ -174,4 +244,19 @@ public sealed class PlataformaController(ISender sender) : ControllerBase
         item.ConviteExpiraEmUtc,
         item.TentativasEnvio,
         item.UltimoErroEnvioSeguro);
+
+    private static AssinaturaPlataformaResponse MapearAssinatura(AssinaturaPlataformaResultado item) => new(
+        item.EmpresaId, item.EmpresaNome,
+        new(item.Assinatura.PossuiAssinatura, item.Assinatura.Id, item.Assinatura.Status,
+            item.Assinatura.ValorMensal, item.Assinatura.DataInicio, item.Assinatura.FimTeste,
+            item.Assinatura.DiaVencimento, item.Assinatura.PrimeiroVencimento,
+            item.Assinatura.ProximoVencimento, item.Assinatura.Versao,
+            item.Assinatura.AsaasCustomerId, item.Assinatura.AsaasSubscriptionId,
+            item.Assinatura.TermoAceito is null ? null : new(item.Assinatura.TermoAceito.Id,
+                item.Assinatura.TermoAceito.VersaoTermo, item.Assinatura.TermoAceito.AceitoEmUtc,
+                item.Assinatura.TermoAceito.HashSha256, item.Assinatura.TermoAceito.ResponsavelNome,
+                item.Assinatura.TermoAceito.ResponsavelEmail)),
+        item.Historico.Select(x => new HistoricoAssinaturaResponse(x.Id, x.TipoEvento,
+            x.StatusAnterior, x.StatusNovo, x.OcorridoEmUtc, x.Motivo, x.Responsavel,
+            x.ReferenciaPagamento)).ToArray());
 }

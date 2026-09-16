@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using Detara.Api.Autenticacao;
 using Detara.Api.Erros;
 using Detara.Api.Operacao;
+using Detara.Api.Assinaturas;
 using Detara.Application;
 using Detara.Application.Abstracoes;
 using Detara.Infrastructure;
@@ -383,6 +384,7 @@ app.UseCors("Web");
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
+app.UseMiddleware<AssinaturaSuspensaMiddleware>();
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

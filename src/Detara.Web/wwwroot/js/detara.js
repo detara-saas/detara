@@ -31,6 +31,18 @@ window.detara = {
         link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     },
+    visualizarArquivo: async (tipo, streamReference) => {
+        const buffer = await streamReference.arrayBuffer();
+        const url = URL.createObjectURL(new Blob([buffer], { type: tipo }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
     criarUrlImagem: async (streamReference, contentType) => {
         const buffer = await streamReference.arrayBuffer();
         return URL.createObjectURL(new Blob([buffer], { type: contentType }));

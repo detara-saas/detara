@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IWebAssemblyHostEnvironment HostEnvironment
+@inject AssinaturasServico Assinaturas
 
 <MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
 <MudPopoverProvider />
@@ -115,6 +116,14 @@
         var autenticacao = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         if (autenticacao.User.Identity?.IsAuthenticated != true)
         {
+            return;
+        }
+
+        var assinatura = await Assinaturas.ObterAsync();
+        if (assinatura is { Sucesso: true, Resultado.Status: "Suspensa" })
+        {
+            if (!Navigation.Uri.Contains("/assinatura-suspensa", StringComparison.OrdinalIgnoreCase))
+                Navigation.NavigateTo("/assinatura-suspensa", replace: true);
             return;
         }
 

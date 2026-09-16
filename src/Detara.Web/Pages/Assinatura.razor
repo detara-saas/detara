@@ -1,0 +1,118 @@
+@page "/configuracoes/assinatura"
+@attribute [Authorize(Policy = Permissoes.ConfiguracoesVisualizar)]
+@inject AssinaturasServico Assinaturas
+@inject IMensagemServico Mensagens
+@inject IJSRuntime JS
+
+<PageTitle>Assinatura | Detara</PageTitle>
+
+<div class="page-container page-container-focused subscription-page">
+    <DetaraBreadcrumbs Itens="_breadcrumbs" />
+    <CabecalhoPagina Titulo="Assinatura" Descricao="Consulte suas condições comerciais e o Termo de Adesão vinculado à empresa." Sobretitulo="CONFIGURAÇÕES" />
+
+    @if (_carregando)
+    {
+        <div class="module-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else if (_assinatura is null)
+    {
+        <DetaraEmptyState Titulo="Assinatura indisponível" Descricao="Não foi possível carregar as informações comerciais." Icone="@Icons.Material.Outlined.CloudOff" />
+    }
+    else if (!_assinatura.PossuiAssinatura)
+    {
+        <DetaraCard Class="subscription-empty-card">
+            <DetaraEmptyState Titulo="Nenhuma assinatura comercial vinculada" Descricao="Sua empresa continua com acesso normal. A assinatura será exibida aqui quando for configurada pelo Detara." Icone="@Icons.Material.Outlined.ReceiptLong" />
+        </DetaraCard>
+    }
+    else
+    {
+        <section class="subscription-summary" aria-label="Resumo da assinatura">
+            <DetaraCard><span class="section-eyebrow">SITUAÇÃO</span><strong class="subscription-status">@NomeStatus(_assinatura.Status)</strong><small>@DescricaoStatus(_assinatura.Status)</small></DetaraCard>
+            <DetaraCard><span class="section-eyebrow">MENSALIDADE</span><strong>@_assinatura.ValorMensal?.ToString("C2")</strong><small>Condição comercial vigente</small></DetaraCard>
+            <DetaraCard><span class="section-eyebrow">PRÓXIMO VENCIMENTO</span><strong>@Formatar(_assinatura.ProximoVencimento)</strong><small>Vencimento padrão: dia @_assinatura.DiaVencimento</small></DetaraCard>
+        </section>
+
+        <DetaraCard Class="subscription-term-card">
+            <div class="subscription-term-heading">
+                <div><span class="section-eyebrow">TERMO DE ADESÃO</span><h2>Condições da assinatura</h2><p>O documento é individualizado com os dados comerciais da sua empresa.</p></div>
+                <MudIcon Icon="@Icons.Material.Outlined.Description" Color="Color.Primary" Size="Size.Large" />
+            </div>
+            @if (_assinatura.TermoAceito is not null)
+            {
+                <div class="subscription-accepted">
+                    <MudIcon Icon="@Icons.Material.Outlined.Verified" />
+                    <div><strong>Termo v@_assinatura.TermoAceito.VersaoTermo aceito</strong><span>@_assinatura.TermoAceito.ResponsavelNome · @_assinatura.TermoAceito.AceitoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span><code>SHA-256: @_assinatura.TermoAceito.HashSha256</code></div>
+                </div>
+                <div class="subscription-actions">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Visibility" OnClick="@(() => AbrirTermoAsync(false))">Visualizar termo</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Download" OnClick="BaixarTermoAsync">Baixar termo</MudButton>
+                </div>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Visualize o documento completo antes de registrar o aceite eletrônico.</MudAlert>
+                <div class="subscription-actions"><MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.OpenInNew" OnClick="@(() => AbrirTermoAsync(true))">Visualizar documento</MudButton></div>
+                <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar">
+                    <Authorized>
+                        <div class="subscription-consent">
+                            <MudCheckBox T="bool" @bind-Value="_confirmou" Color="Color.Primary" Label="Li e aceito o Termo de Adesão e Condições de Assinatura do Detara." />
+                            <MudButton Class="subscription-accept-button" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.CheckCircle" Disabled="@(!_confirmou || _aceitando)" OnClick="AceitarAsync">@(_aceitando ? "Registrando..." : "Aceitar e continuar")</MudButton>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            }
+        </DetaraCard>
+    }
+</div>
+
+@code {
+    private AssinaturaEmpresaResponse? _assinatura;
+    private bool _carregando = true;
+    private bool _confirmou;
+    private bool _aceitando;
+    private readonly IReadOnlyList<DetaraBreadcrumbItem> _breadcrumbs =
+        [new("Configurações", "/configuracoes"), new("Assinatura")];
+
+    protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var resultado = await Assinaturas.ObterAsync();
+        _assinatura = resultado.Resultado;
+        if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true);
+        _carregando = false;
+    }
+
+    private async Task AceitarAsync()
+    {
+        if (!_confirmou) return;
+        _aceitando = true;
+        var resultado = await Assinaturas.AceitarAsync();
+        if (resultado.Sucesso) { _assinatura = resultado.Resultado; Mensagens.Mostrar("Termo aceito e armazenado com segurança."); }
+        else Mensagens.Mostrar(resultado.Mensagem, true);
+        _aceitando = false;
+    }
+
+    private async Task AbrirTermoAsync(bool previa)
+    {
+        var arquivo = await Assinaturas.ObterTermoAsync(previa);
+        if (arquivo.Conteudo is null) { Mensagens.Mostrar(arquivo.Mensagem, true); return; }
+        using var stream = new MemoryStream(arquivo.Conteudo);
+        using var referencia = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("detara.visualizarArquivo", "application/pdf", referencia);
+    }
+
+    private async Task BaixarTermoAsync()
+    {
+        var arquivo = await Assinaturas.ObterTermoAsync(false);
+        if (arquivo.Conteudo is null) { Mensagens.Mostrar(arquivo.Mensagem, true); return; }
+        using var stream = new MemoryStream(arquivo.Conteudo);
+        using var referencia = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("detara.baixarArquivo", arquivo.Nome, "application/pdf", referencia);
+    }
+
+    private static string Formatar(DateOnly? data) => data?.ToString("dd/MM/yyyy") ?? "—";
+    private static string NomeStatus(string? status) => status switch { "EmTeste" => "Em teste", "EmAtraso" => "Em atraso", "Suspensa" => "Suspensa", "Cancelada" => "Cancelada", _ => "Ativa" };
+    private static string DescricaoStatus(string? status) => status switch { "EmTeste" => "Período inicial ou aguardando primeiro vencimento", "EmAtraso" => "Dentro do período de tolerância", "Suspensa" => "Acesso operacional temporariamente limitado", "Cancelada" => "Assinatura encerrada", _ => "Acesso operacional regular" };
+}
