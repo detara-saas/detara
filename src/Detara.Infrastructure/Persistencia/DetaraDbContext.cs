@@ -7,6 +7,7 @@ using Detara.Domain.Clientes;
 using Detara.Domain.Financeiro;
 using Detara.Domain.Notificacoes;
 using Detara.Domain.Plataforma;
+using Detara.Domain.Assinaturas;
 using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Persistencia;
@@ -76,6 +77,9 @@ public sealed class DetaraDbContext(
         Set<CodigoRecuperacaoAdministradorPlataforma>();
     public DbSet<AuditoriaPlataforma> AuditoriasPlataforma => Set<AuditoriaPlataforma>();
     public DbSet<ConviteAdministradorEmpresa> ConvitesAdministradoresEmpresa => Set<ConviteAdministradorEmpresa>();
+    public DbSet<AssinaturaEmpresa> AssinaturasEmpresas => Set<AssinaturaEmpresa>();
+    public DbSet<HistoricoAssinaturaEmpresa> HistoricosAssinaturasEmpresas => Set<HistoricoAssinaturaEmpresa>();
+    public DbSet<AceiteTermoAssinatura> AceitesTermosAssinaturas => Set<AceiteTermoAssinatura>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -109,6 +113,13 @@ public sealed class DetaraDbContext(
             .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
         {
             throw new InvalidOperationException("A auditoria da plataforma é append-only.");
+        }
+        if (ChangeTracker.Entries<HistoricoAssinaturaEmpresa>()
+                .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted) ||
+            ChangeTracker.Entries<AceiteTermoAssinatura>()
+                .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException("Históricos e aceites de assinatura são append-only.");
         }
 
         var alteracoesTenant = ChangeTracker.Entries<EntidadeEmpresaBase>()

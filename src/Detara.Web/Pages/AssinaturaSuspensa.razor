@@ -1,0 +1,31 @@
+@page "/assinatura-suspensa"
+@attribute [Authorize]
+@inject AssinaturasServico Assinaturas
+@inject AutenticacaoServico Autenticacao
+@inject NavigationManager Navigation
+
+<PageTitle>Assinatura pendente | Detara</PageTitle>
+
+<div class="subscription-blocked-page">
+    <DetaraCard Class="subscription-blocked-card">
+        <div class="subscription-blocked-icon"><MudIcon Icon="@Icons.Material.Outlined.AccountBalanceWallet" Size="Size.Large" /></div>
+        <span class="section-eyebrow">ASSINATURA PENDENTE</span>
+        <h1>Acesso operacional temporariamente suspenso</h1>
+        <p>Existe uma pendência na assinatura desta empresa. Seus dados permanecem preservados e o acesso será restabelecido após a confirmação do pagamento.</p>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Caso o pagamento já tenha sido realizado, entre em contato para que possamos confirmar a regularização.</MudAlert>
+        <div class="subscription-blocked-actions">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.MailOutline" Href="mailto:detara.saas@gmail.com?subject=Regularização%20da%20assinatura%20Detara">Falar com o Detara</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="VerificarAsync">Verificar novamente</MudButton>
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Logout" OnClick="SairAsync">Sair</MudButton>
+        </div>
+    </DetaraCard>
+</div>
+
+@code {
+    private async Task VerificarAsync()
+    {
+        var resultado = await Assinaturas.ObterAsync();
+        if (resultado is { Sucesso: true, Resultado.Status: not "Suspensa" }) Navigation.NavigateTo("/dashboard", replace: true);
+    }
+    private async Task SairAsync() { await Autenticacao.SairAsync(); Navigation.NavigateTo("/login", replace: true); }
+}

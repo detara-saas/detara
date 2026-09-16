@@ -1,0 +1,7 @@
+.subscription-blocked-page { min-height: calc(100vh - 9rem); display: grid; place-items: center; padding: var(--detara-page-gap); }
+.subscription-blocked-card { width: min(100%, 660px); display: grid; justify-items: center; text-align: center; gap: var(--detara-section-gap); padding: clamp(1.5rem, 5vw, 3rem); }
+.subscription-blocked-card h1 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.5rem); }
+.subscription-blocked-card p { margin: 0; max-width: 56ch; color: var(--detara-text-secondary); line-height: 1.65; }
+.subscription-blocked-icon { width: 4rem; height: 4rem; display: grid; place-items: center; border-radius: var(--detara-radius-xl); color: var(--detara-primary-dark); background: color-mix(in srgb, var(--detara-primary) 12%, transparent); }
+.subscription-blocked-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; width: 100%; }
+@media (max-width: 600px) { .subscription-blocked-page { padding: 16px; } .subscription-blocked-actions { display: grid; } .subscription-blocked-actions ::deep .mud-button-root { width: 100%; } }

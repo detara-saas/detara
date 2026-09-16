@@ -1,0 +1,135 @@
+@inject PlataformaServico Plataforma
+@inject IMensagemServico Mensagens
+@inject IJSRuntime JS
+
+<MudPaper Elevation="0" Class="platform-panel platform-subscription-panel">
+    <div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.Payments" /><span><strong>Assinatura comercial</strong><small>Teste, vencimentos, aceite e situação operacional</small></span></div>@if (_dados?.Assinatura.PossuiAssinatura == true) { <span class="status-badge @ClasseStatus(_dados.Assinatura.Status)">@NomeStatus(_dados.Assinatura.Status)</span> }</div>
+    @if (_carregando)
+    {
+        <div class="module-loading compact-loading"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+    }
+    else if (_dados is null)
+    {
+        <p>Não foi possível consultar a assinatura.</p>
+    }
+    else if (!_dados.Assinatura.PossuiAssinatura)
+    {
+        <div class="platform-subscription-form">
+            <MudNumericField T="decimal" @bind-Value="_valor" Label="Mensalidade" Variant="Variant.Outlined" Min="0.01m" />
+            <MudDatePicker @bind-Date="_inicio" Label="Início comercial" Variant="Variant.Outlined" />
+            <MudNumericField T="int" @bind-Value="_diaVencimento" Label="Dia do vencimento" Variant="Variant.Outlined" Min="1" Max="28" />
+            <MudTextField T="string" @bind-Value="_asaasCustomerId" Label="Asaas Customer ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
+            <MudTextField T="string" @bind-Value="_asaasSubscriptionId" Label="Asaas Subscription ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
+        </div>
+        <div class="platform-panel-actions"><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add" Disabled="@_processando" OnClick="CriarAsync">Criar assinatura</MudButton></div>
+    }
+    else
+    {
+        <dl class="platform-definition-list platform-subscription-facts">
+            <div><dt>Mensalidade</dt><dd>@_dados.Assinatura.ValorMensal?.ToString("C2")</dd></div>
+            <div><dt>Fim do teste</dt><dd>@_dados.Assinatura.FimTeste?.ToString("dd/MM/yyyy")</dd></div>
+            <div><dt>Primeiro vencimento</dt><dd>@_dados.Assinatura.PrimeiroVencimento?.ToString("dd/MM/yyyy")</dd></div>
+            <div><dt>Próximo vencimento</dt><dd>@_dados.Assinatura.ProximoVencimento?.ToString("dd/MM/yyyy")</dd></div>
+            <div><dt>Termo</dt><dd>@(_dados.Assinatura.TermoAceito is null ? "Pendente" : $"v{_dados.Assinatura.TermoAceito.VersaoTermo} aceito")</dd></div>
+        </dl>
+        <div class="platform-subscription-form">
+            <MudNumericField T="decimal" @bind-Value="_valor" Label="Mensalidade" Variant="Variant.Outlined" Min="0.01m" />
+            <MudDatePicker @bind-Date="_proximoVencimento" Label="Próximo vencimento" Variant="Variant.Outlined" />
+            <MudNumericField T="int" @bind-Value="_diaVencimento" Label="Dia do vencimento" Variant="Variant.Outlined" Min="1" Max="28" />
+            <MudTextField T="string" @bind-Value="_asaasCustomerId" Label="Asaas Customer ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
+            <MudTextField T="string" @bind-Value="_asaasSubscriptionId" Label="Asaas Subscription ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
+            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo da operação" Variant="Variant.Outlined" MaxLength="500" />
+        </div>
+        <div class="platform-panel-actions platform-subscription-actions">
+            @if (_dados.Assinatura.TermoAceito is not null)
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Description" Disabled="@_processando" OnClick="AbrirTermoAceitoAsync">Ver termo aceito</MudButton>
+            }
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="@_processando" OnClick="SalvarAsync">Salvar condições</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PriceCheck" Disabled="@_processando" OnClick="ConfirmarPagamentoAsync">Confirmar pagamento</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Disabled="@_processando" OnClick="@(() => AlterarStatusAsync("atraso"))">Marcar atraso</MudButton>
+            @if (_dados.Assinatura.Status == "Suspensa")
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@_processando" OnClick="@(() => AlterarStatusAsync("reativar"))">Reativar</MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="@_processando" OnClick="@(() => AlterarStatusAsync("suspender"))">Suspender</MudButton>
+            }
+            <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="@_processando" OnClick="@(() => AlterarStatusAsync("cancelar"))">Cancelar</MudButton>
+        </div>
+        @if (_dados.Historico.Count > 0)
+        {
+            <div class="platform-subscription-history"><strong>Histórico comercial</strong>@foreach (var item in _dados.Historico.Take(8)) { <article><span>@NomeStatus(item.StatusNovo)</span><p>@item.Motivo</p><small>@item.OcorridoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @item.Responsavel</small></article> }</div>
+        }
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public Guid EmpresaId { get; set; }
+    private AssinaturaPlataformaResponse? _dados;
+    private bool _carregando = true, _processando;
+    private decimal _valor = 120m;
+    private int _diaVencimento = 10;
+    private DateTime? _inicio = DateTime.Today, _proximoVencimento;
+    private string _motivo = "Atualização administrativa da assinatura.";
+    private string? _asaasCustomerId, _asaasSubscriptionId;
+
+    protected override async Task OnParametersSetAsync() => await CarregarAsync();
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        var resultado = await Plataforma.ObterAssinaturaAsync(EmpresaId);
+        _dados = resultado.Resultado;
+        if (_dados?.Assinatura.PossuiAssinatura == true)
+        {
+            _valor = _dados.Assinatura.ValorMensal ?? 120m;
+            _diaVencimento = _dados.Assinatura.DiaVencimento ?? 10;
+            _proximoVencimento = _dados.Assinatura.ProximoVencimento?.ToDateTime(TimeOnly.MinValue);
+            _asaasCustomerId = _dados.Assinatura.AsaasCustomerId;
+            _asaasSubscriptionId = _dados.Assinatura.AsaasSubscriptionId;
+        }
+        _carregando = false;
+    }
+    private async Task CriarAsync() => await ExecutarAsync(() => Plataforma.CriarAssinaturaAsync(EmpresaId,
+        new(_valor, DateOnly.FromDateTime(_inicio ?? DateTime.Today), _diaVencimento,
+            _asaasCustomerId, _asaasSubscriptionId)));
+    private async Task SalvarAsync()
+    {
+        if (_dados?.Assinatura.Versao is not long versao || _proximoVencimento is null) return;
+        await ExecutarAsync(() => Plataforma.AlterarAssinaturaAsync(EmpresaId, new(_valor,
+            DateOnly.FromDateTime(_proximoVencimento.Value), _diaVencimento,
+            _asaasCustomerId, _asaasSubscriptionId, versao, _motivo)));
+    }
+    private async Task ConfirmarPagamentoAsync()
+    {
+        if (_dados?.Assinatura.Versao is not long versao) return;
+        await ExecutarAsync(() => Plataforma.ConfirmarPagamentoAsync(EmpresaId,
+            new(DateOnly.FromDateTime(DateTime.Today), null, _asaasCustomerId,
+                _asaasSubscriptionId, versao, _motivo)));
+    }
+    private async Task AlterarStatusAsync(string acao)
+    {
+        if (_dados?.Assinatura.Versao is not long versao) return;
+        await ExecutarAsync(() => Plataforma.AlterarStatusAssinaturaAsync(EmpresaId, acao, new(versao, _motivo)));
+    }
+    private async Task AbrirTermoAceitoAsync()
+    {
+        var arquivo = await Plataforma.ObterTermoAssinaturaAsync(EmpresaId);
+        if (arquivo.Conteudo is null) { Mensagens.Mostrar(arquivo.Mensagem, true); return; }
+        using var stream = new MemoryStream(arquivo.Conteudo);
+        using var referencia = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("detara.visualizarArquivo", "application/pdf", referencia);
+    }
+    private async Task ExecutarAsync(Func<Task<ResultadoServico<AssinaturaPlataformaResponse>>> executar)
+    {
+        if (string.IsNullOrWhiteSpace(_motivo)) { Mensagens.Mostrar("Informe o motivo da operação.", true); return; }
+        _processando = true;
+        var resultado = await executar();
+        if (resultado.Sucesso) { _dados = resultado.Resultado; Mensagens.Mostrar("Assinatura atualizada."); await CarregarAsync(); }
+        else Mensagens.Mostrar(resultado.Mensagem, true);
+        _processando = false;
+    }
+    private static string NomeStatus(string? status) => status switch { "EmTeste" => "Em teste", "EmAtraso" => "Em atraso", "Suspensa" => "Suspensa", "Cancelada" => "Cancelada", _ => "Ativa" };
+    private static string ClasseStatus(string? status) => status switch { "Suspensa" or "Cancelada" => "status-cancelled", "EmAtraso" => "status-pending", _ => "status-running" };
+}

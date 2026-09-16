@@ -1,0 +1,25 @@
+.subscription-page { display: grid; gap: var(--detara-page-gap); }
+.subscription-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--detara-section-gap); }
+.subscription-summary ::deep .detara-card__content { display: grid; gap: 8px; }
+.subscription-summary strong { font-size: 1.35rem; color: var(--detara-text); }
+.subscription-summary small { color: var(--detara-text-secondary); }
+.subscription-term-card { display: grid; gap: var(--detara-section-gap); }
+.subscription-term-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--detara-section-gap); }
+.subscription-term-heading h2 { margin: .25rem 0; }
+.subscription-term-heading p { margin: 0; color: var(--detara-text-secondary); }
+.subscription-accepted { display: flex; gap: 16px; padding: 16px; border: 1px solid color-mix(in srgb, var(--detara-primary) 35%, var(--detara-border-soft)); border-radius: var(--detara-radius-lg); background: color-mix(in srgb, var(--detara-primary) 8%, transparent); }
+.subscription-accepted > .mud-icon-root { color: var(--detara-primary-dark); }
+.subscription-accepted div { display: grid; gap: .3rem; min-width: 0; }
+.subscription-accepted span, .subscription-accepted code { color: var(--detara-text-secondary); overflow-wrap: anywhere; }
+.subscription-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.subscription-consent { display: grid; gap: 16px; padding-top: 16px; border-top: 1px solid var(--detara-border-soft); }
+.subscription-consent ::deep .mud-input-control,
+.subscription-consent ::deep .mud-input-control-input-container,
+.subscription-consent ::deep .mud-input-control-input { min-width: 0; width: 100%; }
+.subscription-consent ::deep .mud-input-control-input-container { align-items: flex-start; }
+.subscription-consent ::deep .mud-checkbox { min-width: 0; width: 100%; }
+.subscription-consent ::deep .mud-checkbox > .mud-button-root { flex: 0 0 auto; }
+.subscription-consent ::deep .mud-checkbox > .mud-typography { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.subscription-consent ::deep .subscription-accept-button { justify-self: end; }
+@media (max-width: 900px) { .subscription-summary { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .subscription-actions { display: grid; } .subscription-actions ::deep .mud-button-root { width: 100%; } .subscription-consent ::deep .subscription-accept-button { width: 100%; justify-self: stretch; } }

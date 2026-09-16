@@ -1,13 +1,15 @@
 using System.Net;
 using System.Net.Http.Headers;
 using Detara.Web.Servicos;
+using Microsoft.AspNetCore.Components;
 
 namespace Detara.Web.Seguranca;
 
 public sealed class TokenAuthorizationHandler(
     TokenStorage tokenStorage,
     JwtAuthenticationStateProvider authenticationStateProvider,
-    PwaServico pwa)
+    PwaServico pwa,
+    NavigationManager? navigation = null)
     : DelegatingHandler
 {
     public Uri? ApiBaseAddress { get; set; }
@@ -51,6 +53,12 @@ public sealed class TokenAuthorizationHandler(
         {
             await tokenStorage.RemoverAsync();
             authenticationStateProvider.NotificarLogout();
+        }
+
+        if (response.StatusCode == HttpStatusCode.PaymentRequired && destinoDaApi && navigation is not null &&
+            !navigation.Uri.Contains("/assinatura-suspensa", StringComparison.OrdinalIgnoreCase))
+        {
+            navigation.NavigateTo("/assinatura-suspensa", replace: true);
         }
 
         return response;

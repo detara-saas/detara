@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Plataforma;
+using Detara.Contracts.Assinaturas;
 using Detara.Web.Seguranca;
 
 namespace Detara.Web.Servicos;
@@ -104,6 +105,54 @@ public sealed class PlataformaServico(HttpClientPlataforma cliente, PlatformToke
         Guid id,
         CancellationToken cancellationToken = default) =>
         ObterAsync<EmpresaPlataformaDetalheResponse>($"api/plataforma/empresas/{id}", cancellationToken);
+
+    public Task<ResultadoServico<AssinaturaPlataformaResponse>> ObterAssinaturaAsync(Guid empresaId,
+        CancellationToken cancellationToken = default) =>
+        ObterAsync<AssinaturaPlataformaResponse>($"api/plataforma/empresas/{empresaId}/assinatura", cancellationToken);
+
+    public Task<ResultadoServico<AssinaturaPlataformaResponse>> CriarAssinaturaAsync(Guid empresaId,
+        CriarAssinaturaPlataformaRequest request, CancellationToken cancellationToken = default) =>
+        EnviarAsync<AssinaturaPlataformaResponse>(() => _http.PostAsJsonAsync(
+            $"api/plataforma/empresas/{empresaId}/assinatura", request, cancellationToken), cancellationToken);
+
+    public Task<ResultadoServico<AssinaturaPlataformaResponse>> AlterarAssinaturaAsync(Guid empresaId,
+        AlterarCondicoesAssinaturaRequest request, CancellationToken cancellationToken = default) =>
+        EnviarAsync<AssinaturaPlataformaResponse>(() => _http.PutAsJsonAsync(
+            $"api/plataforma/empresas/{empresaId}/assinatura", request, cancellationToken), cancellationToken);
+
+    public Task<ResultadoServico<AssinaturaPlataformaResponse>> ConfirmarPagamentoAsync(Guid empresaId,
+        ConfirmarPagamentoAssinaturaRequest request, CancellationToken cancellationToken = default) =>
+        EnviarAsync<AssinaturaPlataformaResponse>(() => _http.PostAsJsonAsync(
+            $"api/plataforma/empresas/{empresaId}/assinatura/pagamentos", request, cancellationToken), cancellationToken);
+
+    public Task<ResultadoServico<AssinaturaPlataformaResponse>> AlterarStatusAssinaturaAsync(Guid empresaId,
+        string acao, AlterarStatusAssinaturaRequest request, CancellationToken cancellationToken = default) =>
+        EnviarAsync<AssinaturaPlataformaResponse>(() => _http.PostAsJsonAsync(
+            $"api/plataforma/empresas/{empresaId}/assinatura/{acao}", request, cancellationToken), cancellationToken);
+
+    public async Task<(byte[]? Conteudo, string Nome, string Mensagem)> ObterTermoAssinaturaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await _http.GetAsync(
+                $"api/plataforma/empresas/{empresaId}/assinatura/termo",
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return (null, string.Empty, "Não foi possível obter o termo aceito.");
+            }
+
+            var nome = response.Content.Headers.ContentDisposition?.FileNameStar?.Trim('"')
+                ?? "termo-adesao-detara.pdf";
+            return (await response.Content.ReadAsByteArrayAsync(cancellationToken), nome, string.Empty);
+        }
+        catch (HttpRequestException)
+        {
+            return (null, string.Empty, "A API não está disponível no momento.");
+        }
+    }
 
     public Task<ResultadoServico<EmpresaPlataformaDetalheResponse>> ProvisionarAsync(
         ProvisionarEmpresaRequest request,

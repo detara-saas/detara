@@ -408,7 +408,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("api/ordens-servico/agendamentos/{agendamentoId:guid}/origem-comercial", rotas);
-        Assert.Equal(169, rotas.Length); // BRAND-01 adiciona leitura autenticada, leitura pública opaca, upload e remoção tenant-scoped da logo.
+        Assert.Equal(183, rotas.Length); // SUBS-01 adiciona 14 endpoints tenant/platform para assinatura e termo.
     }
 
     [Fact]

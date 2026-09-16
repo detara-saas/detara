@@ -394,6 +394,12 @@ O worker pertencente a Notificações processa a fila persistente em lotes, usa 
 
 Concluir a OS não cria outra conta e não significa pagamento. Da mesma forma, pagar a conta não altera o estado operacional da OS. O módulo permanece no monólito; uma eventual extração futura depende dos critérios operacionais abaixo, não apenas de sua existência.
 
+### Assinaturas comerciais
+
+Assinaturas é dono de `AssinaturaEmpresa`, `HistoricoAssinaturaEmpresa` e `AceiteTermoAssinatura`. O módulo controla condições comerciais, calendário, estado de acesso e a evidência imutável do termo aceito; não cria contas do Financeiro operacional e não integra com o Asaas nesta fase. Empresa e Usuário são consultados apenas para materializar os snapshots do contratante e do responsável no documento.
+
+O Platform Admin existente é a única fronteira cross-tenant de escrita. Operações do tenant sempre obtêm `EmpresaId` e `UsuarioId` do contexto autenticado. O PDF aceito é persistido no storage existente sob chave tenant-scoped e identificado por SHA-256; histórico e aceite são append-only. A suspensão é aplicada centralmente no boundary HTTP, mantendo autenticação e os endpoints mínimos de assinatura disponíveis. A ausência de uma assinatura explícita significa compatibilidade legada e não bloqueia a empresa.
+
 ## Critérios para extração futura
 
 Um módulo pode virar serviço independente quando existir benefício comprovado, como:

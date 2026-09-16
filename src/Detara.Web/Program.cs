@@ -70,6 +70,7 @@ builder.Services.AddScoped<OnboardingServico>();
 builder.Services.AddScoped<DashboardServico>();
 builder.Services.AddScoped<RelatoriosServico>();
 builder.Services.AddScoped<AdministracaoTenantServico>();
+builder.Services.AddScoped<AssinaturasServico>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<PreferenciasInterfaceServico>().InicializarAsync();

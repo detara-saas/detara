@@ -37,6 +37,7 @@
                 <div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.MarkEmailRead" /><span><strong>Convite de ativação</strong><small>Token nunca exposto nesta tela</small></span></div><span class="status-badge @ClasseConvite">@TextoConvite</span></div>
                 <dl class="platform-definition-list"><div><dt>Expiração</dt><dd>@(_empresa.ConviteExpiraEmUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Aguardando envio")</dd></div><div><dt>Tentativas</dt><dd>@_empresa.TentativasEnvio</dd></div>@if (!string.IsNullOrWhiteSpace(_empresa.UltimoErroEnvioSeguro)) { <div><dt>Último erro</dt><dd>@_empresa.UltimoErroEnvioSeguro</dd></div> }</dl>
             </MudPaper>
+            <AssinaturaPlataformaCard EmpresaId="Id" />
         </div>
 
         <MudPaper Elevation="0" Class="platform-panel platform-contact-panel"><div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.ContactMail" /><span><strong>Contato comercial</strong><small>Metadados do cadastro da empresa</small></span></div></div><dl class="platform-definition-list inline"><div><dt>E-mail</dt><dd>@(_empresa.Email ?? "Não informado")</dd></div><div><dt>Telefone</dt><dd>@(_empresa.Telefone ?? "Não informado")</dd></div></dl></MudPaper>
