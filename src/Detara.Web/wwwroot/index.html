@@ -30,14 +30,16 @@
 
     <div id="blazor-error-ui" role="alert" aria-live="assertive">
         <div class="blazor-error-card">
-            <span class="blazor-error-mark" aria-hidden="true">!</span>
-            <div class="blazor-error-copy">
-                <strong>Não foi possível continuar</strong>
-                <span>A aplicação encontrou uma falha inesperada. Recarregue somente quando puder repetir a última ação com segurança.</span>
+            <div class="blazor-error-content">
+                <span class="blazor-error-mark" aria-hidden="true">!</span>
+                <div class="blazor-error-copy">
+                    <strong>Não foi possível continuar</strong>
+                    <span>A última ação não foi concluída. Recarregue quando puder repeti-la com segurança.</span>
+                </div>
             </div>
             <div class="blazor-error-actions">
+                <button type="button" class="dismiss" aria-label="Fechar aviso e permanecer nesta tela">Permanecer aqui</button>
                 <a href="." class="reload">Recarregar agora</a>
-                <button type="button" class="dismiss" aria-label="Fechar aviso">Agora não</button>
             </div>
         </div>
     </div>
