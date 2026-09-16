@@ -5,8 +5,10 @@ public sealed record AssinaturaEmpresaResponse(
     Guid? Id,
     string? Status,
     decimal? ValorMensal,
-    DateOnly? DataInicio,
+    DateOnly? InicioTeste,
     DateOnly? FimTeste,
+    DateOnly? DataConfirmacaoComercial,
+    DateTime? ConfirmacaoComercialRegistradaEmUtc,
     int? DiaVencimento,
     DateOnly? PrimeiroVencimento,
     DateOnly? ProximoVencimento,
@@ -27,10 +29,15 @@ public sealed record AceitarTermoAssinaturaRequest(bool Aceito);
 
 public sealed record CriarAssinaturaPlataformaRequest(
     decimal ValorMensal,
-    DateOnly DataInicio,
+    DateOnly InicioTeste,
     int DiaVencimento,
     string? AsaasCustomerId,
     string? AsaasSubscriptionId);
+
+public sealed record ConfirmarComercialmenteAssinaturaRequest(
+    DateOnly DataConfirmacaoComercial,
+    long Versao,
+    string Motivo);
 
 public sealed record AlterarCondicoesAssinaturaRequest(
     decimal ValorMensal,

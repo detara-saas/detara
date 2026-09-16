@@ -162,7 +162,7 @@ public sealed class PlataformaController(
     public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> CriarAssinatura(
         Guid id, CriarAssinaturaPlataformaRequest request, CancellationToken cancellationToken) =>
         Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(await assinaturas.CriarAsync(
-            contextoPlataforma.AdministradorPlataformaId, id, new(request.ValorMensal, request.DataInicio,
+            contextoPlataforma.AdministradorPlataformaId, id, new(request.ValorMensal, request.InicioTeste,
                 request.DiaVencimento, request.AsaasCustomerId, request.AsaasSubscriptionId), cancellationToken)), "Assinatura criada."));
 
     [HttpPut("empresas/{id:guid}/assinatura")]
@@ -180,6 +180,14 @@ public sealed class PlataformaController(
             contextoPlataforma.AdministradorPlataformaId, id, new(request.DataPagamento,
                 request.ReferenciaPagamento, request.AsaasCustomerId, request.AsaasSubscriptionId,
                 request.Versao, request.Motivo), cancellationToken)), "Pagamento confirmado."));
+
+    [HttpPost("empresas/{id:guid}/assinatura/confirmacao-comercial")]
+    public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> ConfirmarComercialmente(
+        Guid id, ConfirmarComercialmenteAssinaturaRequest request, CancellationToken cancellationToken) =>
+        Ok(RespostaApi<AssinaturaPlataformaResponse>.Ok(MapearAssinatura(
+            await assinaturas.ConfirmarComercialmenteAsync(contextoPlataforma.AdministradorPlataformaId,
+                id, new(request.DataConfirmacaoComercial, request.Versao, request.Motivo), cancellationToken)),
+            "Confirmação comercial registrada."));
 
     [HttpPost("empresas/{id:guid}/assinatura/atraso")]
     public async Task<ActionResult<RespostaApi<AssinaturaPlataformaResponse>>> MarcarAtraso(
@@ -248,7 +256,8 @@ public sealed class PlataformaController(
     private static AssinaturaPlataformaResponse MapearAssinatura(AssinaturaPlataformaResultado item) => new(
         item.EmpresaId, item.EmpresaNome,
         new(item.Assinatura.PossuiAssinatura, item.Assinatura.Id, item.Assinatura.Status,
-            item.Assinatura.ValorMensal, item.Assinatura.DataInicio, item.Assinatura.FimTeste,
+            item.Assinatura.ValorMensal, item.Assinatura.InicioTeste, item.Assinatura.FimTeste,
+            item.Assinatura.DataConfirmacaoComercial, item.Assinatura.ConfirmacaoComercialRegistradaEmUtc,
             item.Assinatura.DiaVencimento, item.Assinatura.PrimeiroVencimento,
             item.Assinatura.ProximoVencimento, item.Assinatura.Versao,
             item.Assinatura.AsaasCustomerId, item.Assinatura.AsaasSubscriptionId,

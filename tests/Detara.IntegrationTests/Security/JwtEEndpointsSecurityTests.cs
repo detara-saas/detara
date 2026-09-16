@@ -408,7 +408,8 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.DoesNotContain(rotas, rota => rota.Contains("bootstrap", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("api/ordens-servico/agendamentos/{agendamentoId:guid}/origem-comercial", rotas);
-        Assert.Equal(183, rotas.Length); // SUBS-01 adiciona 14 endpoints tenant/platform para assinatura e termo.
+        Assert.Contains("api/plataforma/empresas/{id:guid}/assinatura/confirmacao-comercial", rotas);
+        Assert.Equal(184, rotas.Length); // SUBS-01.2 adiciona a confirmação comercial protegida do Platform Admin.
     }
 
     [Fact]

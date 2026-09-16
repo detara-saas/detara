@@ -10,12 +10,15 @@ public sealed record DocumentoAssinatura(Stream Conteudo, string NomeArquivo, st
 public sealed record TermoAceitoResultado(Guid Id, string VersaoTermo, DateTime AceitoEmUtc,
     string HashSha256, string ResponsavelNome, string ResponsavelEmail);
 public sealed record AssinaturaEmpresaResultado(bool PossuiAssinatura, Guid? Id, string? Status,
-    decimal? ValorMensal, DateOnly? DataInicio, DateOnly? FimTeste, int? DiaVencimento,
+    decimal? ValorMensal, DateOnly? InicioTeste, DateOnly? FimTeste,
+    DateOnly? DataConfirmacaoComercial, DateTime? ConfirmacaoComercialRegistradaEmUtc, int? DiaVencimento,
     DateOnly? PrimeiroVencimento, DateOnly? ProximoVencimento, long? Versao,
     string? AsaasCustomerId, string? AsaasSubscriptionId,
     TermoAceitoResultado? TermoAceito);
-public sealed record CriarAssinaturaEntrada(decimal ValorMensal, DateOnly DataInicio, int DiaVencimento,
+public sealed record CriarAssinaturaEntrada(decimal ValorMensal, DateOnly InicioTeste, int DiaVencimento,
     string? AsaasCustomerId, string? AsaasSubscriptionId);
+public sealed record ConfirmarComercialmenteAssinaturaEntrada(DateOnly DataConfirmacaoComercial,
+    long Versao, string Motivo);
 public sealed record AlterarCondicoesAssinaturaEntrada(decimal ValorMensal, DateOnly ProximoVencimento,
     int DiaVencimento, string? AsaasCustomerId, string? AsaasSubscriptionId, long Versao, string Motivo);
 public sealed record AlterarStatusAssinaturaEntrada(long Versao, string Motivo);
@@ -61,6 +64,8 @@ public interface IAssinaturasPlataformaServico
         CriarAssinaturaEntrada request, CancellationToken cancellationToken);
     Task<AssinaturaPlataformaResultado> AlterarCondicoesAsync(Guid administradorId, Guid empresaId,
         AlterarCondicoesAssinaturaEntrada request, CancellationToken cancellationToken);
+    Task<AssinaturaPlataformaResultado> ConfirmarComercialmenteAsync(Guid administradorId, Guid empresaId,
+        ConfirmarComercialmenteAssinaturaEntrada request, CancellationToken cancellationToken);
     Task<AssinaturaPlataformaResultado> ConfirmarPagamentoAsync(Guid administradorId, Guid empresaId,
         ConfirmarPagamentoAssinaturaEntrada request, CancellationToken cancellationToken);
     Task<AssinaturaPlataformaResultado> MarcarAtrasoAsync(Guid administradorId, Guid empresaId,

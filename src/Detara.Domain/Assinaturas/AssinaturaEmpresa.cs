@@ -20,7 +20,8 @@ public enum TipoEventoAssinatura
     Suspensa = 5,
     Reativada = 6,
     Cancelada = 7,
-    CondicoesAlteradas = 8
+    CondicoesAlteradas = 8,
+    ConfirmacaoComercialRegistrada = 9
 }
 
 public static class CalendarioAssinatura
@@ -39,6 +40,11 @@ public static class CalendarioAssinatura
             ? candidato
             : CriarVencimento(fimTeste.AddMonths(1).Year, fimTeste.AddMonths(1).Month, diaVencimento);
     }
+
+    public static DateOnly CalcularPrimeiroVencimento(DateOnly fimTeste, DateOnly confirmacaoComercial,
+        int diaVencimento = DiaVencimentoPadrao) =>
+        CalcularPrimeiroVencimento(confirmacaoComercial > fimTeste ? confirmacaoComercial : fimTeste,
+            diaVencimento);
 
     public static DateOnly CalcularProximoVencimento(DateOnly referencia, int diaVencimento)
     {
@@ -97,6 +103,8 @@ public sealed class AssinaturaEmpresa : EntidadeEmpresaBase
     public DateOnly DataInicio { get; private set; }
     public DateOnly InicioTeste { get; private set; }
     public DateOnly FimTeste { get; private set; }
+    public DateOnly? DataConfirmacaoComercial { get; private set; }
+    public DateTime? ConfirmacaoComercialRegistradaEmUtc { get; private set; }
     public int DiaVencimento { get; private set; }
     public DateOnly PrimeiroVencimento { get; private set; }
     public DateOnly ProximoVencimento { get; private set; }
@@ -106,6 +114,28 @@ public sealed class AssinaturaEmpresa : EntidadeEmpresaBase
     public string? AsaasCustomerId { get; private set; }
     public string? AsaasSubscriptionId { get; private set; }
     public long Versao { get; private set; }
+
+    public bool ConfirmarComercialmente(DateOnly dataConfirmacaoComercial, DateTime registradaEmUtc,
+        long versaoEsperada)
+    {
+        if (DataConfirmacaoComercial.HasValue) return false;
+        ValidarVersao(versaoEsperada);
+        ExigirNaoCancelada();
+        if (dataConfirmacaoComercial < InicioTeste)
+            throw new ArgumentOutOfRangeException(nameof(dataConfirmacaoComercial),
+                "A confirmação comercial não pode ser anterior ao início do teste.");
+        if (registradaEmUtc.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("O instante de registro deve estar em UTC.", nameof(registradaEmUtc));
+
+        DataConfirmacaoComercial = dataConfirmacaoComercial;
+        ConfirmacaoComercialRegistradaEmUtc = registradaEmUtc;
+        PrimeiroVencimento = CalendarioAssinatura.CalcularPrimeiroVencimento(
+            FimTeste, dataConfirmacaoComercial, DiaVencimento);
+        if (!UltimoPagamentoConfirmadoEmUtc.HasValue)
+            ProximoVencimento = PrimeiroVencimento;
+        AvancarVersao();
+        return true;
+    }
 
     public bool MarcarEmAtraso(long versaoEsperada)
     {

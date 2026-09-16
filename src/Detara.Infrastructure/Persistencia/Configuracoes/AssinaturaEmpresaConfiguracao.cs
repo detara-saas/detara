@@ -14,6 +14,8 @@ internal sealed class AssinaturaEmpresaConfiguracao : IEntityTypeConfiguration<A
         builder.HasIndex(x => x.EmpresaId).IsUnique();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.ValorMensal).HasPrecision(18, 2);
+        builder.Property(x => x.DataConfirmacaoComercial).HasColumnType("date");
+        builder.Property(x => x.ConfirmacaoComercialRegistradaEmUtc).HasColumnType("datetime2");
         builder.Property(x => x.AsaasCustomerId).HasMaxLength(120);
         builder.Property(x => x.AsaasSubscriptionId).HasMaxLength(120);
         builder.Property(x => x.Versao).IsConcurrencyToken();
