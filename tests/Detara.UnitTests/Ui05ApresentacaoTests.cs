@@ -73,7 +73,20 @@ public sealed class Ui05ApresentacaoTests
         Assert.Contains("Recarregar agora", componente);
         Assert.DoesNotContain("forceLoad: true", servico);
         Assert.Contains("blazor-error-card", paginaInicial);
+        Assert.Contains("blazor-error-content", paginaInicial);
+        Assert.Contains("Permanecer aqui", paginaInicial);
         Assert.DoesNotContain("🗙", paginaInicial);
+    }
+
+    [Fact]
+    public void FalhaGlobal_FicaIsoladaEmCardResponsivoSemEstilosLegados()
+    {
+        var estilos = LerArquivo("src", "Detara.Web", "wwwroot", "css", "app.css");
+
+        Assert.Contains("#blazor-error-ui { display: none; position: fixed;", estilos);
+        Assert.Contains("background: transparent; border: 0; box-shadow: none;", estilos);
+        Assert.Contains("#blazor-error-ui .reload, #blazor-error-ui .dismiss { position: static; inset: auto;", estilos);
+        Assert.Contains(".blazor-error-actions { display: grid; grid-template-columns: 1fr 1fr; }", estilos);
     }
 
     private static string LerArquivo(params string[] partes) =>

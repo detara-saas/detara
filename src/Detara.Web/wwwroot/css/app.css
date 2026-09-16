@@ -1095,14 +1095,15 @@ h1:focus { outline: none; }
 .company-selection-copy small { color: var(--detara-text-secondary); font-size: .75rem; font-weight: 500; }
 .company-selection-cancel { min-height: 44px; margin-top: 18px !important; text-transform: none !important; }
 
-#blazor-error-ui { display: none; position: fixed; z-index: 1500; top: calc(var(--detara-topbar-height) + 16px); right: calc(20px + var(--detara-safe-right)); width: min(440px, calc(100vw - 40px)); color: var(--detara-text); }
-.blazor-error-card { display: grid; grid-template-columns: 42px minmax(0,1fr); gap: 14px; padding: 16px; background: color-mix(in srgb, var(--detara-surface) 96%, transparent); border: 1px solid color-mix(in srgb, var(--detara-error) 38%, var(--detara-border-soft)); border-radius: var(--detara-radius-lg); box-shadow: var(--detara-shadow-lg); backdrop-filter: blur(12px); }
-.blazor-error-mark { width: 42px; height: 42px; display: grid; place-items: center; color: var(--detara-error); background: color-mix(in srgb, var(--detara-error) 9%, var(--detara-surface)); border-radius: var(--detara-radius-md); font-weight: 800; }
-.blazor-error-copy { display: grid; gap: 4px; min-width: 0; }
-.blazor-error-copy strong { font-size: .86rem; }
-.blazor-error-copy span { color: var(--detara-text-secondary); font-size: .76rem; line-height: 1.45; }
-.blazor-error-actions { grid-column: 2; display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
-#blazor-error-ui .reload, #blazor-error-ui .dismiss { min-height: var(--detara-action-height-compact); display: inline-flex; align-items: center; justify-content: center; padding-inline: 12px; color: var(--detara-text); background: var(--detara-surface-alt); border: 1px solid var(--detara-border); border-radius: var(--detara-radius-sm); font: inherit; font-size: .72rem; font-weight: 700; text-decoration: none; cursor: pointer; }
+#blazor-error-ui { display: none; position: fixed; z-index: 1500; inset: auto calc(24px + var(--detara-safe-right)) calc(24px + var(--detara-safe-bottom)) auto; width: min(420px, calc(100vw - 48px - var(--detara-safe-left) - var(--detara-safe-right))); margin: 0; padding: 0; color: var(--detara-text); background: transparent; border: 0; box-shadow: none; box-sizing: border-box; }
+.blazor-error-card { display: grid; gap: 16px; width: 100%; padding: 18px; overflow: hidden; background: color-mix(in srgb, var(--detara-surface) 97%, transparent); border: 1px solid color-mix(in srgb, var(--detara-error) 32%, var(--detara-border-soft)); border-radius: var(--detara-radius-lg); box-shadow: var(--detara-shadow-lg); backdrop-filter: blur(16px); box-sizing: border-box; }
+.blazor-error-content { display: grid; grid-template-columns: 40px minmax(0,1fr); align-items: start; gap: 12px; min-width: 0; }
+.blazor-error-mark { width: 40px; height: 40px; display: grid; place-items: center; color: var(--detara-error); background: color-mix(in srgb, var(--detara-error) 10%, var(--detara-surface)); border: 1px solid color-mix(in srgb, var(--detara-error) 16%, transparent); border-radius: var(--detara-radius-md); font-size: 1rem; font-weight: 800; }
+.blazor-error-copy { display: grid; gap: 5px; min-width: 0; padding-top: 1px; }
+.blazor-error-copy strong { color: var(--detara-text); font-size: .88rem; line-height: 1.35; }
+.blazor-error-copy span { color: var(--detara-text-secondary); font-size: .77rem; line-height: 1.5; }
+.blazor-error-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 2px; }
+#blazor-error-ui .reload, #blazor-error-ui .dismiss { position: static; inset: auto; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding-inline: 14px; color: var(--detara-text); background: var(--detara-surface-alt); border: 1px solid var(--detara-border); border-radius: var(--detara-radius-sm); box-shadow: none; font: inherit; font-size: .74rem; font-weight: 700; line-height: 1; text-decoration: none; cursor: pointer; }
 #blazor-error-ui .reload { color: var(--detara-surface); background: var(--detara-primary-dark); border-color: var(--detara-primary-dark); }
 #blazor-error-ui .reload:hover { background: var(--detara-primary-hover); border-color: var(--detara-primary-hover); }
 #blazor-error-ui .dismiss:hover { background: color-mix(in srgb, var(--detara-primary) 7%, var(--detara-surface)); border-color: color-mix(in srgb, var(--detara-primary) 20%, var(--detara-border-soft)); }
@@ -1188,15 +1189,17 @@ h1:focus { outline: none; }
     .whatsapp-connect-dialog { min-height: 330px; }
     .detara-content { padding-top: calc(var(--detara-topbar-height) + 18px); padding-bottom: calc(28px + var(--detara-safe-bottom)); }
     .pwa-status-region { width: 100%; margin-bottom: 18px; }
-    #blazor-error-ui { top: calc(var(--detara-topbar-height) + 10px); right: calc(12px + var(--detara-safe-right)); width: calc(100vw - 24px - var(--detara-safe-left) - var(--detara-safe-right)); }
+    #blazor-error-ui { inset: auto calc(12px + var(--detara-safe-right)) calc(12px + var(--detara-safe-bottom)) calc(12px + var(--detara-safe-left)); width: auto; }
     .pwa-status-banner { grid-template-columns: 38px minmax(0,1fr); align-items: start; padding: 14px; }
     .pwa-status-icon { width: 38px; height: 38px; }
     .pwa-status-actions { grid-column: 1 / -1; width: 100%; display: grid !important; grid-auto-flow: row; grid-template-columns: 1fr 1fr; gap: 8px !important; }
     .pwa-status-actions .mud-button-root, .pwa-status-update .mud-button-root { width: 100%; min-height: 44px; }
     .pwa-status-update .mud-button-root { grid-column: 1 / -1; }
-    .blazor-error-card { grid-template-columns: 38px minmax(0,1fr); padding: 14px; }
+    .blazor-error-card { gap: 14px; padding: 16px; }
+    .blazor-error-content { grid-template-columns: 38px minmax(0,1fr); gap: 11px; }
     .blazor-error-mark { width: 38px; height: 38px; }
-    .blazor-error-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+    .blazor-error-actions { display: grid; grid-template-columns: 1fr 1fr; }
+    #blazor-error-ui .reload, #blazor-error-ui .dismiss { min-height: 44px; padding-inline: 10px; }
     .company-context, .topbar-eyebrow { display: none; }
     .desktop-menu-button { display: none !important; }
     .mobile-menu-button { display: inline-flex !important; }
