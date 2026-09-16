@@ -398,6 +398,8 @@ Concluir a OS não cria outra conta e não significa pagamento. Da mesma forma, 
 
 Assinaturas é dono de `AssinaturaEmpresa`, `HistoricoAssinaturaEmpresa` e `AceiteTermoAssinatura`. O módulo controla condições comerciais, calendário, estado de acesso e a evidência imutável do termo aceito; não cria contas do Financeiro operacional e não integra com o Asaas nesta fase. Empresa e Usuário são consultados apenas para materializar os snapshots do contratante e do responsável no documento.
 
+O início e o fim do teste, a confirmação comercial e o primeiro vencimento são marcos distintos. A confirmação pode ocorrer antes ou depois do fim do teste, sem reduzir os sete dias gratuitos. O primeiro vencimento é o primeiro dia de vencimento estritamente posterior a `max(FimTeste, DataConfirmacaoComercial)`. A confirmação é explícita, idempotente e auditável; não representa pagamento nem altera, por si só, o estado `EmTeste`. Registros históricos sem confirmação conhecida permanecem com essa data nula, sem inferência ou recálculo retroativo.
+
 O Platform Admin existente é a única fronteira cross-tenant de escrita. Operações do tenant sempre obtêm `EmpresaId` e `UsuarioId` do contexto autenticado. O PDF aceito é persistido no storage existente sob chave tenant-scoped e identificado por SHA-256; histórico e aceite são append-only. A suspensão é aplicada centralmente no boundary HTTP, mantendo autenticação e os endpoints mínimos de assinatura disponíveis. A ausência de uma assinatura explícita significa compatibilidade legada e não bloqueia a empresa.
 
 ## Critérios para extração futura

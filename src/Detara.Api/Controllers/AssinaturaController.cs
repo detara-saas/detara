@@ -44,7 +44,8 @@ public sealed class AssinaturaController(IAssinaturasTenantServico servico) : Co
 
     private static AssinaturaEmpresaResponse Mapear(AssinaturaEmpresaResultado resultado) => new(
         resultado.PossuiAssinatura, resultado.Id, resultado.Status, resultado.ValorMensal,
-        resultado.DataInicio, resultado.FimTeste, resultado.DiaVencimento,
+        resultado.InicioTeste, resultado.FimTeste, resultado.DataConfirmacaoComercial,
+        resultado.ConfirmacaoComercialRegistradaEmUtc, resultado.DiaVencimento,
         resultado.PrimeiroVencimento, resultado.ProximoVencimento, resultado.Versao,
         resultado.AsaasCustomerId, resultado.AsaasSubscriptionId,
         resultado.TermoAceito is null ? null : new(resultado.TermoAceito.Id,

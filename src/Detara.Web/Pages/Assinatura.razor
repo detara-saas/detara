@@ -29,8 +29,17 @@
         <section class="subscription-summary" aria-label="Resumo da assinatura">
             <DetaraCard><span class="section-eyebrow">SITUAÇÃO</span><strong class="subscription-status">@NomeStatus(_assinatura.Status)</strong><small>@DescricaoStatus(_assinatura.Status)</small></DetaraCard>
             <DetaraCard><span class="section-eyebrow">MENSALIDADE</span><strong>@_assinatura.ValorMensal?.ToString("C2")</strong><small>Condição comercial vigente</small></DetaraCard>
-            <DetaraCard><span class="section-eyebrow">PRÓXIMO VENCIMENTO</span><strong>@Formatar(_assinatura.ProximoVencimento)</strong><small>Vencimento padrão: dia @_assinatura.DiaVencimento</small></DetaraCard>
+            <DetaraCard><span class="section-eyebrow">PRÓXIMO VENCIMENTO</span><strong>@FormatarVencimento(_assinatura.ProximoVencimento)</strong><small>Vencimento mensal: dia @_assinatura.DiaVencimento</small></DetaraCard>
         </section>
+
+        <DetaraCard Class="subscription-dates-card" Titulo="Período gratuito e contratação" Descricao="O teste gratuito e a confirmação comercial são momentos independentes.">
+            <dl class="subscription-dates">
+                <div><dt>Início do teste</dt><dd>@Formatar(_assinatura.InicioTeste)</dd></div>
+                <div><dt>Fim do teste</dt><dd>@Formatar(_assinatura.FimTeste)</dd></div>
+                <div><dt>Confirmação comercial</dt><dd>@(_assinatura.DataConfirmacaoComercial is null ? "Aguardando confirmação" : Formatar(_assinatura.DataConfirmacaoComercial))</dd></div>
+                <div><dt>Primeiro vencimento</dt><dd>@FormatarVencimento(_assinatura.PrimeiroVencimento)</dd></div>
+            </dl>
+        </DetaraCard>
 
         <DetaraCard Class="subscription-term-card">
             <div class="subscription-term-heading">
@@ -55,8 +64,8 @@
                 <AuthorizeView Policy="@Permissoes.ConfiguracoesEditar">
                     <Authorized>
                         <div class="subscription-consent">
-                            <MudCheckBox T="bool" @bind-Value="_confirmou" Color="Color.Primary" Label="Li e aceito o Termo de Adesão e Condições de Assinatura do Detara." />
-                            <MudButton Class="subscription-accept-button" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.CheckCircle" Disabled="@(!_confirmou || _aceitando)" OnClick="AceitarAsync">@(_aceitando ? "Registrando..." : "Aceitar e continuar")</MudButton>
+                            <MudCheckBox T="bool" @bind-Value="_confirmou" Color="Color.Primary" Label="Li e aceito o Termo de Adesão e confirmo a continuidade da assinatura após o período gratuito." />
+                            <MudButton Class="subscription-accept-button" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.CheckCircle" Disabled="@(!_confirmou || _aceitando)" OnClick="AceitarAsync">@(_aceitando ? "Registrando..." : "Aceitar termo e confirmar continuidade")</MudButton>
                         </div>
                     </Authorized>
                 </AuthorizeView>
@@ -89,7 +98,7 @@
         if (!_confirmou) return;
         _aceitando = true;
         var resultado = await Assinaturas.AceitarAsync();
-        if (resultado.Sucesso) { _assinatura = resultado.Resultado; Mensagens.Mostrar("Termo aceito e armazenado com segurança."); }
+        if (resultado.Sucesso) { _assinatura = resultado.Resultado; Mensagens.Mostrar("Termo aceito e confirmação comercial registrada."); }
         else Mensagens.Mostrar(resultado.Mensagem, true);
         _aceitando = false;
     }
@@ -113,6 +122,9 @@
     }
 
     private static string Formatar(DateOnly? data) => data?.ToString("dd/MM/yyyy") ?? "—";
+    private string FormatarVencimento(DateOnly? data) => _assinatura?.DataConfirmacaoComercial is null
+        ? "Após confirmação comercial"
+        : Formatar(data);
     private static string NomeStatus(string? status) => status switch { "EmTeste" => "Em teste", "EmAtraso" => "Em atraso", "Suspensa" => "Suspensa", "Cancelada" => "Cancelada", _ => "Ativa" };
-    private static string DescricaoStatus(string? status) => status switch { "EmTeste" => "Período inicial ou aguardando primeiro vencimento", "EmAtraso" => "Dentro do período de tolerância", "Suspensa" => "Acesso operacional temporariamente limitado", "Cancelada" => "Assinatura encerrada", _ => "Acesso operacional regular" };
+    private string DescricaoStatus(string? status) => status switch { "EmTeste" when _assinatura?.DataConfirmacaoComercial is null => "Período gratuito · aguardando confirmação comercial", "EmTeste" => "Continuidade confirmada · período gratuito preservado", "EmAtraso" => "Dentro do período de tolerância", "Suspensa" => "Acesso operacional temporariamente limitado", "Cancelada" => "Assinatura encerrada", _ => "Acesso operacional regular" };
 }

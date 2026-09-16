@@ -1,8 +1,9 @@
 .platform-subscription-panel { grid-column: 1 / -1; }
 .platform-subscription-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.platform-confirmation-date { grid-column: span 2; }
 .platform-subscription-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .platform-subscription-history { display: grid; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--detara-border-soft); }
 .platform-subscription-history article { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .platform-subscription-history p { margin: 0; color: var(--detara-text); }
 .platform-subscription-history small { color: var(--detara-text-secondary); }
-@media (max-width: 900px) { .platform-subscription-form { grid-template-columns: 1fr; } .platform-subscription-history article { grid-template-columns: 1fr; gap: 3px; } }
+@media (max-width: 900px) { .platform-subscription-form { grid-template-columns: 1fr; } .platform-confirmation-date { grid-column: auto; } .platform-subscription-history article { grid-template-columns: 1fr; gap: 3px; } }

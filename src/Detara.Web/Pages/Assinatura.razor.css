@@ -4,6 +4,10 @@
 .subscription-summary strong { font-size: 1.35rem; color: var(--detara-text); }
 .subscription-summary small { color: var(--detara-text-secondary); }
 .subscription-term-card { display: grid; gap: var(--detara-section-gap); }
+.subscription-dates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--detara-section-gap); margin: 0; }
+.subscription-dates div { display: grid; gap: 6px; min-width: 0; }
+.subscription-dates dt { color: var(--detara-text-secondary); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.subscription-dates dd { margin: 0; color: var(--detara-text); font-weight: 650; overflow-wrap: anywhere; }
 .subscription-term-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--detara-section-gap); }
 .subscription-term-heading h2 { margin: .25rem 0; }
 .subscription-term-heading p { margin: 0; color: var(--detara-text-secondary); }
@@ -21,5 +25,6 @@
 .subscription-consent ::deep .mud-checkbox > .mud-button-root { flex: 0 0 auto; }
 .subscription-consent ::deep .mud-checkbox > .mud-typography { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .subscription-consent ::deep .subscription-accept-button { justify-self: end; }
-@media (max-width: 900px) { .subscription-summary { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .subscription-summary { grid-template-columns: 1fr; } .subscription-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .subscription-dates { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .subscription-actions { display: grid; } .subscription-actions ::deep .mud-button-root { width: 100%; } .subscription-consent ::deep .subscription-accept-button { width: 100%; justify-self: stretch; } }

@@ -31,6 +31,49 @@ public sealed class AssinaturaEmpresaTests
         Assert.True(CalendarioAssinatura.DeveSuspender(vencimento, new(2026, 10, 17)));
     }
 
+    [Theory]
+    [InlineData(2026, 9, 23, 2026, 9, 20, 2026, 10, 10)]
+    [InlineData(2026, 9, 23, 2026, 9, 23, 2026, 10, 10)]
+    [InlineData(2026, 10, 12, 2026, 10, 8, 2026, 11, 10)]
+    [InlineData(2026, 10, 8, 2026, 10, 12, 2026, 11, 10)]
+    [InlineData(2026, 10, 8, 2026, 10, 10, 2026, 11, 10)]
+    [InlineData(2026, 12, 20, 2026, 12, 22, 2027, 1, 10)]
+    public void Calendario_UsaMaiorDataEPrimeiroDiaDezEstritamentePosterior(
+        int anoFim, int mesFim, int diaFim, int anoConfirmacao, int mesConfirmacao,
+        int diaConfirmacao, int anoVencimento, int mesVencimento, int diaVencimento)
+    {
+        var vencimento = CalendarioAssinatura.CalcularPrimeiroVencimento(
+            new DateOnly(anoFim, mesFim, diaFim),
+            new DateOnly(anoConfirmacao, mesConfirmacao, diaConfirmacao));
+
+        Assert.Equal(new DateOnly(anoVencimento, mesVencimento, diaVencimento), vencimento);
+    }
+
+    [Fact]
+    public void ConfirmacaoComercial_PreservaTrialCalculaVencimentoEMantemStatus()
+    {
+        var assinatura = new AssinaturaEmpresa(Guid.NewGuid(), 120m, new(2026, 9, 16));
+        var fimTesteOriginal = assinatura.FimTeste;
+        var registradaEmUtc = new DateTime(2026, 9, 20, 15, 0, 0, DateTimeKind.Utc);
+
+        var alterou = assinatura.ConfirmarComercialmente(
+            new DateOnly(2026, 9, 20), registradaEmUtc, assinatura.Versao);
+        var versaoConfirmada = assinatura.Versao;
+        var repetida = assinatura.ConfirmarComercialmente(
+            new DateOnly(2026, 9, 21), registradaEmUtc.AddMinutes(1), versaoConfirmada - 1);
+
+        Assert.True(alterou);
+        Assert.False(repetida);
+        Assert.Equal(new DateOnly(2026, 9, 23), fimTesteOriginal);
+        Assert.Equal(fimTesteOriginal, assinatura.FimTeste);
+        Assert.Equal(new DateOnly(2026, 9, 20), assinatura.DataConfirmacaoComercial);
+        Assert.Equal(registradaEmUtc, assinatura.ConfirmacaoComercialRegistradaEmUtc);
+        Assert.Equal(new DateOnly(2026, 10, 10), assinatura.PrimeiroVencimento);
+        Assert.Equal(assinatura.PrimeiroVencimento, assinatura.ProximoVencimento);
+        Assert.Equal(StatusAssinaturaEmpresa.EmTeste, assinatura.Status);
+        Assert.Equal(versaoConfirmada, assinatura.Versao);
+    }
+
     [Fact]
     public void Assinatura_PercorreAtrasoSuspensaoEReativacaoPorPagamento()
     {

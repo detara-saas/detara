@@ -54,7 +54,7 @@ internal sealed class AssinaturasPlataformaServico(
             throw new RecursoNaoEncontradoException("Empresa não encontrada.");
         if (await contexto.AssinaturasEmpresas.AnyAsync(cancellationToken))
             throw new ConflitoRegraNegocioException("A empresa já possui assinatura comercial.");
-        var assinatura = new AssinaturaEmpresa(empresaId, request.ValorMensal, request.DataInicio,
+        var assinatura = new AssinaturaEmpresa(empresaId, request.ValorMensal, request.InicioTeste,
             request.DiaVencimento, request.AsaasCustomerId, request.AsaasSubscriptionId);
         var agora = relogio.GetUtcNow().UtcDateTime;
         contexto.AssinaturasEmpresas.Add(assinatura);
@@ -72,6 +72,13 @@ internal sealed class AssinaturasPlataformaServico(
             request.Motivo, null, (assinatura, agora) => assinatura.AlterarCondicoes(
                 request.ValorMensal, request.ProximoVencimento, request.DiaVencimento,
                 request.AsaasCustomerId, request.AsaasSubscriptionId, request.Versao), cancellationToken);
+
+    public Task<AssinaturaPlataformaResultado> ConfirmarComercialmenteAsync(Guid administradorId, Guid empresaId,
+        ConfirmarComercialmenteAssinaturaEntrada request, CancellationToken cancellationToken) =>
+        AlterarAsync(administradorId, empresaId, request.Versao,
+            TipoEventoAssinatura.ConfirmacaoComercialRegistrada, request.Motivo, null,
+            (assinatura, agora) => assinatura.ConfirmarComercialmente(
+                request.DataConfirmacaoComercial, agora, request.Versao), cancellationToken);
 
     public async Task<AssinaturaPlataformaResultado> ConfirmarPagamentoAsync(Guid administradorId, Guid empresaId,
         ConfirmarPagamentoAssinaturaEntrada request, CancellationToken cancellationToken)
@@ -134,6 +141,8 @@ internal sealed class AssinaturasPlataformaServico(
                 TipoEventoAssinatura.Suspensa => assinatura.Status == StatusAssinaturaEmpresa.Suspensa,
                 TipoEventoAssinatura.Reativada => assinatura.Status == StatusAssinaturaEmpresa.Ativa,
                 TipoEventoAssinatura.Cancelada => assinatura.Status == StatusAssinaturaEmpresa.Cancelada,
+                TipoEventoAssinatura.ConfirmacaoComercialRegistrada =>
+                    assinatura.DataConfirmacaoComercial.HasValue,
                 _ => false
             };
             if (jaAplicada) return await ObterAsync(empresaId, cancellationToken);
@@ -142,11 +151,15 @@ internal sealed class AssinaturasPlataformaServico(
         var anterior = assinatura.Status;
         var agora = relogio.GetUtcNow().UtcDateTime;
         if (!alterar(assinatura, agora)) return await ObterAsync(empresaId, cancellationToken);
+        var motivoHistorico = evento == TipoEventoAssinatura.ConfirmacaoComercialRegistrada
+            ? $"{motivo.Trim()} Confirmação comercial: {assinatura.DataConfirmacaoComercial:dd/MM/yyyy}. " +
+              $"Primeiro vencimento: {assinatura.PrimeiroVencimento:dd/MM/yyyy}."
+            : motivo;
         contexto.HistoricosAssinaturasEmpresas.Add(new(empresaId, assinatura.Id, evento,
-            anterior, assinatura.Status, agora, motivo, administradorPlataformaId: administradorId,
+            anterior, assinatura.Status, agora, motivoHistorico, administradorPlataformaId: administradorId,
             referenciaPagamento: referencia));
         AdicionarAuditoria(contexto, administradorId, empresaId, assinatura.Id,
-            $"Assinatura{evento}", motivo);
+            $"Assinatura{evento}", motivoHistorico);
         try { await contexto.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { throw new ConflitoRegraNegocioException("A assinatura foi atualizada por outra operação."); }
         return await ObterAsync(empresaId, cancellationToken);

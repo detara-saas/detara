@@ -55,9 +55,14 @@ public sealed class AssinaturasTenantServicoTests
         Assert.Equal(135.50m, gerador.UltimosDados.ValorMensal);
         Assert.Equal(new DateOnly(2026, 10, 10), gerador.UltimosDados.PrimeiroVencimento);
         Assert.Equal(instante.UtcDateTime, gerador.UltimosDados.AceitoEmUtc);
+        Assert.Equal(new DateOnly(2026, 9, 16), primeiro.DataConfirmacaoComercial);
+        Assert.Equal(instante.UtcDateTime, primeiro.ConfirmacaoComercialRegistradaEmUtc);
+        Assert.Equal(new DateOnly(2026, 9, 23), primeiro.FimTeste);
         Assert.Single(await db.AceitesTermosAssinaturas.ToListAsync());
         Assert.Single(await db.HistoricosAssinaturasEmpresas
             .Where(x => x.TipoEvento == TipoEventoAssinatura.TermoAceito).ToListAsync());
+        Assert.Single(await db.HistoricosAssinaturasEmpresas
+            .Where(x => x.TipoEvento == TipoEventoAssinatura.ConfirmacaoComercialRegistrada).ToListAsync());
 
         empresa.AtualizarCadastro("Empresa Renomeada", "Empresa Renomeada Ltda", "99999999000199",
             null, null, "America/Sao_Paulo", empresa.VersaoCadastro);
@@ -67,6 +72,71 @@ public sealed class AssinaturasTenantServicoTests
         using var copia = new MemoryStream();
         await streamAceito.CopyToAsync(copia);
         Assert.Equal(documentoOriginal, copia.ToArray());
+    }
+
+    [Fact]
+    public async Task Aceite_AposFimDoTesteUsaConfirmacaoComoBaseDoPrimeiroVencimento()
+    {
+        await using var conexao = new SqliteConnection("Data Source=:memory:");
+        await conexao.OpenAsync();
+        var opcoes = new DbContextOptionsBuilder<DetaraDbContext>().UseSqlite(conexao).Options;
+        var empresa = new Empresa("Empresa Tardia", "Empresa Tardia Ltda", "44444444000144",
+            "empresa-confirmacao-tardia");
+        var perfil = new Perfil(empresa.Id, "Administrador");
+        var usuario = new Usuario(empresa.Id, perfil.Id, "Responsável", "tardia@example.com", "hash");
+        var assinatura = new AssinaturaEmpresa(empresa.Id, 120m, new DateOnly(2026, 10, 1));
+        var contextoUsuario = new Contexto(empresa.Id, usuario.Id);
+
+        await using var db = new DetaraDbContext(opcoes, contextoUsuario);
+        await db.Database.EnsureCreatedAsync();
+        db.AddRange(empresa, perfil, usuario, assinatura);
+        await db.SaveChangesAsync();
+        var servico = new AssinaturasTenantServico(db, contextoUsuario, new StorageEmMemoria(),
+            new GeradorDeterministico(),
+            new RelogioFixo(new DateTimeOffset(2026, 10, 12, 15, 0, 0, TimeSpan.Zero)));
+
+        var resultado = await servico.AceitarAsync("127.0.0.1", CancellationToken.None);
+
+        Assert.Equal(new DateOnly(2026, 10, 1), resultado.InicioTeste);
+        Assert.Equal(new DateOnly(2026, 10, 8), resultado.FimTeste);
+        Assert.Equal(new DateOnly(2026, 10, 12), resultado.DataConfirmacaoComercial);
+        Assert.Equal(new DateOnly(2026, 11, 10), resultado.PrimeiroVencimento);
+    }
+
+    [Fact]
+    public async Task AceiteV1Historico_NaoInfereConfirmacaoNemAlteraDocumento()
+    {
+        await using var conexao = new SqliteConnection("Data Source=:memory:");
+        await conexao.OpenAsync();
+        var opcoes = new DbContextOptionsBuilder<DetaraDbContext>().UseSqlite(conexao).Options;
+        var empresa = new Empresa("Empresa Histórica", "Empresa Histórica Ltda", "55555555000155",
+            "empresa-aceite-historico");
+        var perfil = new Perfil(empresa.Id, "Administrador");
+        var usuario = new Usuario(empresa.Id, perfil.Id, "Responsável", "historico@example.com", "hash");
+        var assinatura = new AssinaturaEmpresa(empresa.Id, 120m, new DateOnly(2026, 9, 16));
+        var aceite = new AceiteTermoAssinatura(empresa.Id, assinatura.Id, usuario.Id, "1.0",
+            new DateTime(2026, 9, 17, 12, 0, 0, DateTimeKind.Utc), "empresas/historico/termo.pdf",
+            new string('D', 64), 120m, assinatura.DataInicio, assinatura.PrimeiroVencimento,
+            empresa.RazaoSocial, empresa.CpfCnpj, usuario.Nome, usuario.Email, null);
+        var contextoUsuario = new Contexto(empresa.Id, usuario.Id);
+
+        await using var db = new DetaraDbContext(opcoes, contextoUsuario);
+        await db.Database.EnsureCreatedAsync();
+        db.AddRange(empresa, perfil, usuario, assinatura, aceite);
+        await db.SaveChangesAsync();
+        var storage = new StorageEmMemoria();
+        var gerador = new GeradorDeterministico();
+        var servico = new AssinaturasTenantServico(db, contextoUsuario, storage, gerador,
+            new RelogioFixo(new DateTimeOffset(2026, 9, 20, 15, 0, 0, TimeSpan.Zero)));
+
+        var resultado = await servico.AceitarAsync("127.0.0.1", CancellationToken.None);
+
+        Assert.Null(resultado.DataConfirmacaoComercial);
+        Assert.Null(resultado.ConfirmacaoComercialRegistradaEmUtc);
+        Assert.Equal(aceite.Id, resultado.TermoAceito!.Id);
+        Assert.Equal(0, gerador.QuantidadeGeracoes);
+        Assert.Equal(0, storage.QuantidadeSalvamentos);
+        Assert.Empty(await db.HistoricosAssinaturasEmpresas.ToListAsync());
     }
 
     [Fact]

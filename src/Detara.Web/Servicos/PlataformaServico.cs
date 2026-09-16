@@ -125,6 +125,12 @@ public sealed class PlataformaServico(HttpClientPlataforma cliente, PlatformToke
         EnviarAsync<AssinaturaPlataformaResponse>(() => _http.PostAsJsonAsync(
             $"api/plataforma/empresas/{empresaId}/assinatura/pagamentos", request, cancellationToken), cancellationToken);
 
+    public Task<ResultadoServico<AssinaturaPlataformaResponse>> ConfirmarComercialmenteAsync(Guid empresaId,
+        ConfirmarComercialmenteAssinaturaRequest request, CancellationToken cancellationToken = default) =>
+        EnviarAsync<AssinaturaPlataformaResponse>(() => _http.PostAsJsonAsync(
+            $"api/plataforma/empresas/{empresaId}/assinatura/confirmacao-comercial",
+            request, cancellationToken), cancellationToken);
+
     public Task<ResultadoServico<AssinaturaPlataformaResponse>> AlterarStatusAssinaturaAsync(Guid empresaId,
         string acao, AlterarStatusAssinaturaRequest request, CancellationToken cancellationToken = default) =>
         EnviarAsync<AssinaturaPlataformaResponse>(() => _http.PostAsJsonAsync(

@@ -41,6 +41,10 @@ internal sealed class AssinaturasTenantServico(
         if (existente is not null) return Mapear(assinatura, existente);
 
         var agora = relogio.GetUtcNow().UtcDateTime;
+        var dataConfirmacao = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+            agora, TimeZoneInfo.FindSystemTimeZoneById(empresa.FusoHorario)));
+        var confirmacaoRegistrada = assinatura.ConfirmarComercialmente(
+            dataConfirmacao, agora, assinatura.Versao);
         var pdf = gerador.Gerar(CriarDados(assinatura, empresa, usuario, agora));
         var aceiteId = Guid.NewGuid();
         var chave = $"empresas/{empresa.Id:N}/assinaturas/{assinatura.Id:N}/termos/{aceiteId:N}.pdf";
@@ -53,6 +57,15 @@ internal sealed class AssinaturasTenantServico(
             assinatura.DataInicio, assinatura.PrimeiroVencimento, empresa.RazaoSocial,
             empresa.CpfCnpj, usuario.Nome, usuario.Email, ipAceite);
         db.AceitesTermosAssinaturas.Add(aceite);
+        if (confirmacaoRegistrada)
+        {
+            db.HistoricosAssinaturasEmpresas.Add(new HistoricoAssinaturaEmpresa(
+                empresa.Id, assinatura.Id, TipoEventoAssinatura.ConfirmacaoComercialRegistrada,
+                assinatura.Status, assinatura.Status, agora,
+                $"Confirmação comercial registrada em {dataConfirmacao:dd/MM/yyyy}. " +
+                $"Primeiro vencimento: {assinatura.PrimeiroVencimento:dd/MM/yyyy}.",
+                usuarioId: usuario.Id));
+        }
         db.HistoricosAssinaturasEmpresas.Add(new HistoricoAssinaturaEmpresa(
             empresa.Id, assinatura.Id, TipoEventoAssinatura.TermoAceito, assinatura.Status,
             assinatura.Status, agora, $"Termo v{TermosAssinatura.VersaoAtual} aceito eletronicamente.",
@@ -107,12 +120,13 @@ internal sealed class AssinaturasTenantServico(
 
     internal static AssinaturaEmpresaResultado Mapear(AssinaturaEmpresa assinatura, AceiteTermoAssinatura? aceite) =>
         new(true, assinatura.Id, assinatura.Status.ToString(), assinatura.ValorMensal,
-            assinatura.DataInicio, assinatura.FimTeste, assinatura.DiaVencimento,
+            assinatura.InicioTeste, assinatura.FimTeste, assinatura.DataConfirmacaoComercial,
+            assinatura.ConfirmacaoComercialRegistradaEmUtc, assinatura.DiaVencimento,
             assinatura.PrimeiroVencimento, assinatura.ProximoVencimento, assinatura.Versao,
             assinatura.AsaasCustomerId, assinatura.AsaasSubscriptionId,
             aceite is null ? null : new(aceite.Id, aceite.VersaoTermo, aceite.AceitoEmUtc,
                 aceite.HashSha256, aceite.ResponsavelNome, aceite.ResponsavelEmail));
 
     internal static AssinaturaEmpresaResultado Vazia() =>
-        new(false, null, null, null, null, null, null, null, null, null, null, null, null);
+        new(false, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 }

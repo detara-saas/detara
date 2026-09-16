@@ -16,7 +16,7 @@
     {
         <div class="platform-subscription-form">
             <MudNumericField T="decimal" @bind-Value="_valor" Label="Mensalidade" Variant="Variant.Outlined" Min="0.01m" />
-            <MudDatePicker @bind-Date="_inicio" Label="Início comercial" Variant="Variant.Outlined" />
+            <MudDatePicker @bind-Date="_inicio" Label="Início do teste" Variant="Variant.Outlined" />
             <MudNumericField T="int" @bind-Value="_diaVencimento" Label="Dia do vencimento" Variant="Variant.Outlined" Min="1" Max="28" />
             <MudTextField T="string" @bind-Value="_asaasCustomerId" Label="Asaas Customer ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
             <MudTextField T="string" @bind-Value="_asaasSubscriptionId" Label="Asaas Subscription ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
@@ -27,18 +27,29 @@
     {
         <dl class="platform-definition-list platform-subscription-facts">
             <div><dt>Mensalidade</dt><dd>@_dados.Assinatura.ValorMensal?.ToString("C2")</dd></div>
+            <div><dt>Início do teste</dt><dd>@Formatar(_dados.Assinatura.InicioTeste)</dd></div>
             <div><dt>Fim do teste</dt><dd>@_dados.Assinatura.FimTeste?.ToString("dd/MM/yyyy")</dd></div>
-            <div><dt>Primeiro vencimento</dt><dd>@_dados.Assinatura.PrimeiroVencimento?.ToString("dd/MM/yyyy")</dd></div>
-            <div><dt>Próximo vencimento</dt><dd>@_dados.Assinatura.ProximoVencimento?.ToString("dd/MM/yyyy")</dd></div>
+            <div><dt>Confirmação comercial</dt><dd>@(_dados.Assinatura.DataConfirmacaoComercial is null ? "Aguardando confirmação comercial" : Formatar(_dados.Assinatura.DataConfirmacaoComercial))</dd></div>
+            <div><dt>Primeiro vencimento</dt><dd>@FormatarVencimento(_dados.Assinatura.PrimeiroVencimento)</dd></div>
+            <div><dt>Próximo vencimento</dt><dd>@FormatarVencimento(_dados.Assinatura.ProximoVencimento)</dd></div>
             <div><dt>Termo</dt><dd>@(_dados.Assinatura.TermoAceito is null ? "Pendente" : $"v{_dados.Assinatura.TermoAceito.VersaoTermo} aceito")</dd></div>
         </dl>
         <div class="platform-subscription-form">
             <MudNumericField T="decimal" @bind-Value="_valor" Label="Mensalidade" Variant="Variant.Outlined" Min="0.01m" />
-            <MudDatePicker @bind-Date="_proximoVencimento" Label="Próximo vencimento" Variant="Variant.Outlined" />
+            @if (_dados.Assinatura.DataConfirmacaoComercial is not null)
+            {
+                <MudDatePicker @bind-Date="_proximoVencimento" Label="Próximo vencimento" Variant="Variant.Outlined" />
+            }
             <MudNumericField T="int" @bind-Value="_diaVencimento" Label="Dia do vencimento" Variant="Variant.Outlined" Min="1" Max="28" />
             <MudTextField T="string" @bind-Value="_asaasCustomerId" Label="Asaas Customer ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
             <MudTextField T="string" @bind-Value="_asaasSubscriptionId" Label="Asaas Subscription ID (opcional)" Variant="Variant.Outlined" MaxLength="120" />
             <MudTextField T="string" @bind-Value="_motivo" Label="Motivo da operação" Variant="Variant.Outlined" MaxLength="500" />
+            @if (_dados.Assinatura.DataConfirmacaoComercial is null)
+            {
+                <div class="platform-confirmation-date">
+                    <MudDatePicker @bind-Date="_confirmacaoComercial" Label="Data da confirmação comercial" Variant="Variant.Outlined" />
+                </div>
+            }
         </div>
         <div class="platform-panel-actions platform-subscription-actions">
             @if (_dados.Assinatura.TermoAceito is not null)
@@ -46,7 +57,14 @@
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Description" Disabled="@_processando" OnClick="AbrirTermoAceitoAsync">Ver termo aceito</MudButton>
             }
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Save" Disabled="@_processando" OnClick="SalvarAsync">Salvar condições</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PriceCheck" Disabled="@_processando" OnClick="ConfirmarPagamentoAsync">Confirmar pagamento</MudButton>
+            @if (_dados.Assinatura.DataConfirmacaoComercial is null)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Handshake" Disabled="@_processando" OnClick="ConfirmarComercialmenteAsync">Confirmar contratação</MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.PriceCheck" Disabled="@_processando" OnClick="ConfirmarPagamentoAsync">Confirmar pagamento</MudButton>
+            }
             <MudButton Variant="Variant.Outlined" Color="Color.Warning" Disabled="@_processando" OnClick="@(() => AlterarStatusAsync("atraso"))">Marcar atraso</MudButton>
             @if (_dados.Assinatura.Status == "Suspensa")
             {
@@ -60,7 +78,7 @@
         </div>
         @if (_dados.Historico.Count > 0)
         {
-            <div class="platform-subscription-history"><strong>Histórico comercial</strong>@foreach (var item in _dados.Historico.Take(8)) { <article><span>@NomeStatus(item.StatusNovo)</span><p>@item.Motivo</p><small>@item.OcorridoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @item.Responsavel</small></article> }</div>
+            <div class="platform-subscription-history"><strong>Histórico comercial</strong>@foreach (var item in _dados.Historico.Take(8)) { <article><span>@NomeEvento(item.TipoEvento)</span><p>@item.Motivo</p><small>@item.OcorridoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @item.Responsavel</small></article> }</div>
         }
     }
 </MudPaper>
@@ -71,7 +89,7 @@
     private bool _carregando = true, _processando;
     private decimal _valor = 120m;
     private int _diaVencimento = 10;
-    private DateTime? _inicio = DateTime.Today, _proximoVencimento;
+    private DateTime? _inicio = DateTime.Today, _proximoVencimento, _confirmacaoComercial = DateTime.Today;
     private string _motivo = "Atualização administrativa da assinatura.";
     private string? _asaasCustomerId, _asaasSubscriptionId;
 
@@ -86,6 +104,8 @@
             _valor = _dados.Assinatura.ValorMensal ?? 120m;
             _diaVencimento = _dados.Assinatura.DiaVencimento ?? 10;
             _proximoVencimento = _dados.Assinatura.ProximoVencimento?.ToDateTime(TimeOnly.MinValue);
+            _confirmacaoComercial = _dados.Assinatura.DataConfirmacaoComercial?.ToDateTime(TimeOnly.MinValue)
+                ?? DateTime.Today;
             _asaasCustomerId = _dados.Assinatura.AsaasCustomerId;
             _asaasSubscriptionId = _dados.Assinatura.AsaasSubscriptionId;
         }
@@ -107,6 +127,12 @@
         await ExecutarAsync(() => Plataforma.ConfirmarPagamentoAsync(EmpresaId,
             new(DateOnly.FromDateTime(DateTime.Today), null, _asaasCustomerId,
                 _asaasSubscriptionId, versao, _motivo)));
+    }
+    private async Task ConfirmarComercialmenteAsync()
+    {
+        if (_dados?.Assinatura.Versao is not long versao || _confirmacaoComercial is null) return;
+        await ExecutarAsync(() => Plataforma.ConfirmarComercialmenteAsync(EmpresaId,
+            new(DateOnly.FromDateTime(_confirmacaoComercial.Value), versao, _motivo)));
     }
     private async Task AlterarStatusAsync(string acao)
     {
@@ -131,5 +157,16 @@
         _processando = false;
     }
     private static string NomeStatus(string? status) => status switch { "EmTeste" => "Em teste", "EmAtraso" => "Em atraso", "Suspensa" => "Suspensa", "Cancelada" => "Cancelada", _ => "Ativa" };
+    private static string NomeEvento(string evento) => evento switch
+    {
+        "ConfirmacaoComercialRegistrada" => "Confirmação comercial",
+        "TermoAceito" => "Termo aceito",
+        "PagamentoConfirmado" => "Pagamento confirmado",
+        _ => evento
+    };
+    private static string Formatar(DateOnly? data) => data?.ToString("dd/MM/yyyy") ?? "—";
+    private string FormatarVencimento(DateOnly? data) => _dados?.Assinatura.DataConfirmacaoComercial is null
+        ? "Após confirmação comercial"
+        : Formatar(data);
     private static string ClasseStatus(string? status) => status switch { "Suspensa" or "Cancelada" => "status-cancelled", "EmAtraso" => "status-pending", _ => "status-running" };
 }
