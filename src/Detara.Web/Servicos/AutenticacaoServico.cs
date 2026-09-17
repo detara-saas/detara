@@ -100,8 +100,19 @@ public sealed class AutenticacaoServico(
     public async Task SairAsync()
     {
         _selecaoPendente = null;
-        await tokenStorage.RemoverAsync();
-        authenticationStateProvider.NotificarLogout();
+        try
+        {
+            using var response = await httpClient.PostAsync("api/autenticacao/logout", null);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            // Logout local é best effort quando a API está indisponível.
+        }
+        finally
+        {
+            await tokenStorage.RemoverAsync();
+            authenticationStateProvider.NotificarLogout();
+        }
     }
 }
 

@@ -39,10 +39,29 @@ public sealed class PlataformaServicoPaginacaoTests
         {
             BaseAddress = new Uri("https://api.detara.test/")
         };
+        var js = new JsRuntimeNulo();
+        var platformStorage = new PlatformTokenStorage(js);
+        var refreshHttp = new HttpClient(new SempreUnauthorizedHandler())
+        {
+            BaseAddress = new Uri("https://api.detara.test/")
+        };
+        var refresh = new SessaoRefreshServico(
+            new HttpClientAutenticacao(refreshHttp),
+            new TokenStorage(js),
+            platformStorage);
         var servico = new PlataformaServico(
             new HttpClientPlataforma(http),
-            new PlatformTokenStorage(new JsRuntimeNulo()));
+            platformStorage,
+            refresh);
         return new ContextoTeste(http, handler, servico);
+    }
+
+    private sealed class SempreUnauthorizedHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
     }
 
     private sealed record ContextoTeste(

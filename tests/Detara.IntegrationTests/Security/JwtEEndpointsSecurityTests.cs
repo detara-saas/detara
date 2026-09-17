@@ -325,6 +325,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
 
     [Theory]
     [InlineData("/api/autenticacao/selecionar-empresa", 11)]
+    [InlineData("/api/autenticacao/refresh", 31)]
     [InlineData("/api/plataforma/autenticacao/login", 6)]
     [InlineData("/api/plataforma/autenticacao/mfa/verificar", 9)]
     [InlineData("/api/convites/administrador/validar", 11)]
@@ -366,13 +367,17 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
                 "GET /health/live",
                 "GET /health/ready",
                 "POST /api/autenticacao/login",
+                "POST /api/autenticacao/logout",
+                "POST /api/autenticacao/refresh",
                 "POST /api/autenticacao/selecionar-empresa",
                 "POST /api/convites/administrador/aceitar",
                 "POST /api/convites/administrador/validar",
                 "POST /api/plataforma/autenticacao/login",
+                "POST /api/plataforma/autenticacao/logout",
                 "POST /api/plataforma/autenticacao/mfa/ativar",
                 "POST /api/plataforma/autenticacao/mfa/configuracao",
-                "POST /api/plataforma/autenticacao/mfa/verificar"
+                "POST /api/plataforma/autenticacao/mfa/verificar",
+                "POST /api/plataforma/autenticacao/refresh"
             ],
             anonimos);
         var autorizacao = _factory.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AuthorizationOptions>>();
@@ -409,7 +414,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("api/ordens-servico/agendamentos/{agendamentoId:guid}/origem-comercial", rotas);
         Assert.Contains("api/plataforma/empresas/{id:guid}/assinatura/confirmacao-comercial", rotas);
-        Assert.Equal(184, rotas.Length); // SUBS-01.2 adiciona a confirmação comercial protegida do Platform Admin.
+        Assert.Equal(188, rotas.Length); // AUTH-02 adiciona refresh/logout segregados para tenant e Platform Admin.
     }
 
     [Fact]
@@ -579,6 +584,7 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         request.Headers.Add("Access-Control-Request-Method", "GET");
         using var response = await client.SendAsync(request);
         Assert.Equal(permitido, response.Headers.Contains("Access-Control-Allow-Origin"));
+        Assert.Equal(permitido, response.Headers.Contains("Access-Control-Allow-Credentials"));
     }
 
     [Fact]

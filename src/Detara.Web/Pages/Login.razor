@@ -3,11 +3,13 @@
 @attribute [AllowAnonymous]
 @implements IDisposable
 @using Detara.Contracts.Autenticacao
+@using Detara.Web.Seguranca
 @inject AutenticacaoServico Autenticacao
 @inject PreferenciasInterfaceServico Preferencias
 @inject PwaServico Pwa
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navigation
+@inject JwtAuthenticationStateProvider AuthenticationState
 
 <PageTitle>Entrar | Detara</PageTitle>
 
@@ -42,13 +44,21 @@
         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="login-subtitle">
             Informe seu e-mail e sua senha para continuar.
         </MudText>
-        <MudForm @ref="_form">
+        <MudForm @ref="_form" @onkeydown="AoPressionarTeclaAsync">
             <MudTextField T="string" @bind-Value="_email" Label="E-mail" InputType="InputType.Email"
                           Variant="Variant.Outlined" Required="true" RequiredError="Informe o e-mail."
                           Immediate="true" Class="login-field" autocomplete="username" />
             <MudTextField T="string" @bind-Value="_senha" Label="Senha" InputType="InputType.Password"
                           Variant="Variant.Outlined" Required="true" RequiredError="Informe a senha."
                           Immediate="true" Class="login-field" autocomplete="current-password" />
+            <div class="login-remember-row">
+                <MudCheckBox T="bool" @bind-Value="_manterConectado"
+                             Label="Manter-me conectado"
+                             Color="Color.Primary" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Permaneça conectado neste dispositivo.
+                </MudText>
+            </div>
             <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
                        Disabled="@_processando" OnClick="EntrarAsync" Class="login-button">
                 @if (_processando)
@@ -83,6 +93,7 @@
     private MudForm _form = null!;
     private string _email = string.Empty;
     private string _senha = string.Empty;
+    private bool _manterConectado;
     private bool _processando;
     private string IconeTema => Preferencias.Atual.Tema switch
     {
@@ -95,6 +106,15 @@
     public string? Retorno { get; set; }
 
     protected override void OnInitialized() => Pwa.Alterado += AtualizarPwa;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender &&
+            (await AuthenticationState.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo(ObterDestinoSeguro(), replace: true);
+        }
+    }
 
     private async Task EntrarAsync()
     {
@@ -109,7 +129,7 @@
         {
             var destino = ObterDestinoSeguro();
             var resultado = await Autenticacao.EntrarAsync(
-                new LoginRequest(_email, _senha),
+                new LoginRequest(_email, _senha, _manterConectado),
                 destino);
             Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso);
             _senha = string.Empty;
@@ -131,6 +151,9 @@
             _processando = false;
         }
     }
+
+    private Task AoPressionarTeclaAsync(KeyboardEventArgs evento) =>
+        evento.Key == "Enter" ? EntrarAsync() : Task.CompletedTask;
 
     private string ObterDestinoSeguro()
     {

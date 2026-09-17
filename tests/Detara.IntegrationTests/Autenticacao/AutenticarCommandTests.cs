@@ -4,6 +4,7 @@ using Detara.Application.Autenticacao;
 using Detara.Domain.Entidades;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Detara.IntegrationTests.Support;
 
 namespace Detara.IntegrationTests.Autenticacao;
 
@@ -76,6 +77,20 @@ public sealed class AutenticarCommandTests
 
         Assert.Equal(candidatoEsperado.Empresa.Id, resultado.EmpresaId);
         Assert.Equal(candidatoEsperado.Empresa.Id, token.EmpresaEmitida);
+    }
+
+    [Fact]
+    public async Task RememberMe_EhPropagadoParaSessaoDoTenantSelecionado()
+    {
+        var candidato = CriarCandidato("senha-valida");
+        using var provider = CriarServicos([candidato]);
+
+        _ = await provider.GetRequiredService<ISender>().Send(
+            new AutenticarCommand("admin@detara.local", "senha-valida", true));
+
+        var sessoes = provider.GetRequiredService<ISessoesAutenticacaoServico>();
+        var fake = Assert.IsType<SessoesAutenticacaoTeste>(sessoes);
+        Assert.Equal((candidato.Usuario.Id, candidato.Empresa.Id, true), Assert.Single(fake.CriacoesTenant));
     }
 
     [Fact]
@@ -192,6 +207,7 @@ public sealed class AutenticarCommandTests
         services.AddSingleton(senhaServico ?? new SenhaRastreavel());
         services.AddSingleton(tokenServico ?? new TokenRastreavel());
         services.AddSingleton<IChallengeSelecaoEmpresaTenant, ChallengeFixo>();
+        services.AddSingleton<ISessoesAutenticacaoServico, SessoesAutenticacaoTeste>();
         return services.BuildServiceProvider();
     }
 

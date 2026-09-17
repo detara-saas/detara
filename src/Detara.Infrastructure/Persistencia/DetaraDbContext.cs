@@ -8,6 +8,7 @@ using Detara.Domain.Financeiro;
 using Detara.Domain.Notificacoes;
 using Detara.Domain.Plataforma;
 using Detara.Domain.Assinaturas;
+using Detara.Domain.Identidade;
 using Microsoft.EntityFrameworkCore;
 
 namespace Detara.Infrastructure.Persistencia;
@@ -80,6 +81,7 @@ public sealed class DetaraDbContext(
     public DbSet<AssinaturaEmpresa> AssinaturasEmpresas => Set<AssinaturaEmpresa>();
     public DbSet<HistoricoAssinaturaEmpresa> HistoricosAssinaturasEmpresas => Set<HistoricoAssinaturaEmpresa>();
     public DbSet<AceiteTermoAssinatura> AceitesTermosAssinaturas => Set<AceiteTermoAssinatura>();
+    public DbSet<SessaoAutenticacao> SessoesAutenticacao => Set<SessaoAutenticacao>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -6,7 +6,10 @@ using Detara.Web.Seguranca;
 
 namespace Detara.Web.Servicos;
 
-public sealed class PlataformaServico(HttpClientPlataforma cliente, PlatformTokenStorage storage)
+public sealed class PlataformaServico(
+    HttpClientPlataforma cliente,
+    PlatformTokenStorage storage,
+    SessaoRefreshServico refreshServico)
 {
     private const int TamanhoPaginaPadrao = 25;
     private readonly HttpClient _http = cliente.Valor;
@@ -69,10 +72,27 @@ public sealed class PlataformaServico(HttpClientPlataforma cliente, PlatformToke
 
     public ValueTask<string?> ObterTokenAsync() => storage.ObterTokenAsync();
 
+    public async Task<bool> RestaurarSessaoAsync(CancellationToken cancellationToken = default)
+    {
+        if (!string.IsNullOrWhiteSpace(await storage.ObterTokenAsync())) return true;
+        return await refreshServico.RenovarPlataformaAsync(cancellationToken) == ResultadoRefresh.Sucesso;
+    }
+
     public async Task SairAsync()
     {
-        await storage.RemoverTokenAsync();
-        await storage.RemoverDesafioAsync();
+        try
+        {
+            using var response = await _http.PostAsync("api/plataforma/autenticacao/logout", null);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            // O estado local sempre é encerrado, mesmo sem conectividade.
+        }
+        finally
+        {
+            await storage.RemoverTokenAsync();
+            await storage.RemoverDesafioAsync();
+        }
     }
 
     public Task<ResultadoServico<DashboardPlataformaResponse>> ObterDashboardAsync(

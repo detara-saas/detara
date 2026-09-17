@@ -7,5 +7,5 @@ public sealed class JwtOptions
     public string Emissor { get; init; } = "Detara.Api";
     public string Audiencia { get; init; } = "Detara.Web";
     public string ChaveAssinatura { get; init; } = string.Empty;
-    public int ExpiracaoMinutos { get; init; } = 480;
+    public int ExpiracaoMinutos { get; init; } = 15;
 }

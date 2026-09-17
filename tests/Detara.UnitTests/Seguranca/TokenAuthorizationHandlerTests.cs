@@ -1,4 +1,7 @@
 using System.Net;
+using System.Net.Http.Json;
+using Detara.Contracts.Autenticacao;
+using Detara.Contracts.Comum;
 using Detara.Web.Seguranca;
 using Detara.Web.Servicos;
 using Microsoft.JSInterop;
@@ -35,6 +38,68 @@ public sealed class TokenAuthorizationHandlerTests
         Assert.True(contexto.Pwa.ServidorDisponivel);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.PaymentRequired)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task Resposta402Ou403_NaoDisparaRefresh(HttpStatusCode statusCode)
+    {
+        var refreshHandler = new RefreshContadorHandler(sucesso: true);
+        var contexto = CriarContexto(new RespostaHandler(statusCode), refreshHandler);
+        await contexto.Storage.SalvarAsync("token-ativo");
+
+        var resposta = await contexto.Http.GetAsync("api/clientes");
+
+        Assert.Equal(statusCode, resposta.StatusCode);
+        Assert.Equal(0, refreshHandler.Chamadas);
+        Assert.Equal("token-ativo", await contexto.Storage.ObterAsync());
+    }
+
+    [Fact]
+    public async Task Resposta401_RefreshComSucessoRepeteRequestUmaUnicaVez()
+    {
+        var refreshHandler = new RefreshContadorHandler(sucesso: true);
+        var operacao = new OperacaoProtegidaHandler();
+        var contexto = CriarContexto(operacao, refreshHandler);
+        await contexto.Storage.SalvarAsync("token-expirado");
+
+        var resposta = await contexto.Http.GetAsync("api/clientes");
+
+        Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+        Assert.Equal(1, refreshHandler.Chamadas);
+        Assert.Equal(2, operacao.Chamadas);
+        Assert.Equal("novo-token", await contexto.Storage.ObterAsync());
+    }
+
+    [Fact]
+    public async Task Multiplos401Simultaneos_UsamUmUnicoRefresh()
+    {
+        var refreshHandler = new RefreshContadorHandler(sucesso: true, atraso: true);
+        var operacao = new OperacaoProtegidaHandler();
+        var contexto = CriarContexto(operacao, refreshHandler);
+        await contexto.Storage.SalvarAsync("token-expirado");
+
+        var respostas = await Task.WhenAll(Enumerable.Range(0, 5)
+            .Select(_ => contexto.Http.GetAsync("api/clientes")));
+
+        Assert.All(respostas, resposta => Assert.Equal(HttpStatusCode.OK, resposta.StatusCode));
+        Assert.Equal(1, refreshHandler.Chamadas);
+        Assert.Equal(10, operacao.Chamadas);
+    }
+
+    [Fact]
+    public async Task FalhaDeRedeNoRefresh_NaoApagaSessaoLocal()
+    {
+        var contexto = CriarContexto(
+            new RespostaHandler(HttpStatusCode.Unauthorized),
+            new RefreshContadorHandler(sucesso: false, falhaRede: true));
+        await contexto.Storage.SalvarAsync("token-expirado");
+
+        var resposta = await contexto.Http.GetAsync("api/clientes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resposta.StatusCode);
+        Assert.Equal("token-expirado", await contexto.Storage.ObterAsync());
+    }
+
     [Fact]
     public async Task Timeout_NaoRemoveTokenESeTornaFalhaDeComunicacaoControlada()
     {
@@ -54,10 +119,11 @@ public sealed class TokenAuthorizationHandlerTests
     {
         var js = new StorageJsRuntime();
         var storage = new TokenStorage(js);
-        var autenticacao = new JwtAuthenticationStateProvider(storage);
+        var refresh = CriarRefresh(js, storage);
+        var autenticacao = new JwtAuthenticationStateProvider(storage, refresh);
         var pwa = new PwaServico(js);
         pwa.RegistrarFalhaApi();
-        var handler = new TokenAuthorizationHandler(storage, autenticacao, pwa)
+        var handler = new TokenAuthorizationHandler(storage, autenticacao, refresh, pwa)
         {
             ApiBaseAddress = ApiBaseAddress,
             InnerHandler = new RespostaHandler(HttpStatusCode.OK)
@@ -110,7 +176,8 @@ public sealed class TokenAuthorizationHandlerTests
         var storage = new PlatformTokenStorage(js);
         await storage.SalvarTokenAsync("token-platform");
         var captura = new CapturaAuthorizationHandler();
-        var handler = new PlatformAuthorizationHandler(storage)
+        var refresh = CriarRefresh(js, platformStorage: storage);
+        var handler = new PlatformAuthorizationHandler(storage, refresh)
         {
             ApiBaseAddress = ApiBaseAddress,
             InnerHandler = captura
@@ -134,7 +201,8 @@ public sealed class TokenAuthorizationHandlerTests
         var js = new StorageJsRuntime();
         var storage = new PlatformTokenStorage(js);
         await storage.SalvarTokenAsync("token-platform");
-        var handler = new PlatformAuthorizationHandler(storage)
+        var refresh = CriarRefresh(js, platformStorage: storage);
+        var handler = new PlatformAuthorizationHandler(storage, refresh)
         {
             ApiBaseAddress = ApiBaseAddress,
             InnerHandler = new RespostaHandler(HttpStatusCode.Unauthorized)
@@ -146,19 +214,85 @@ public sealed class TokenAuthorizationHandlerTests
         Assert.Null(await storage.ObterTokenAsync());
     }
 
-    private static ContextoTeste CriarContexto(HttpMessageHandler innerHandler)
+    private static ContextoTeste CriarContexto(
+        HttpMessageHandler innerHandler,
+        HttpMessageHandler? refreshHandler = null)
     {
         var js = new StorageJsRuntime();
         var storage = new TokenStorage(js);
-        var autenticacao = new JwtAuthenticationStateProvider(storage);
+        var refresh = CriarRefresh(js, storage, refreshHandler: refreshHandler);
+        var autenticacao = new JwtAuthenticationStateProvider(storage, refresh);
         var pwa = new PwaServico(js);
-        var handler = new TokenAuthorizationHandler(storage, autenticacao, pwa)
+        var handler = new TokenAuthorizationHandler(storage, autenticacao, refresh, pwa)
         {
             ApiBaseAddress = ApiBaseAddress,
             InnerHandler = innerHandler
         };
         var http = new HttpClient(handler) { BaseAddress = ApiBaseAddress };
         return new ContextoTeste(http, storage, pwa);
+    }
+
+    private static SessaoRefreshServico CriarRefresh(
+        StorageJsRuntime js,
+        TokenStorage? storage = null,
+        PlatformTokenStorage? platformStorage = null,
+        HttpMessageHandler? refreshHandler = null)
+    {
+        storage ??= new TokenStorage(js);
+        platformStorage ??= new PlatformTokenStorage(js);
+        var http = new HttpClient(refreshHandler ?? new RespostaHandler(HttpStatusCode.Unauthorized))
+        {
+            BaseAddress = ApiBaseAddress
+        };
+        return new SessaoRefreshServico(
+            new HttpClientAutenticacao(http),
+            storage,
+            platformStorage);
+    }
+
+    private sealed class OperacaoProtegidaHandler : HttpMessageHandler
+    {
+        public int Chamadas;
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref Chamadas);
+            var status = request.Headers.Authorization?.Parameter == "novo-token"
+                ? HttpStatusCode.OK
+                : HttpStatusCode.Unauthorized;
+            return Task.FromResult(new HttpResponseMessage(status));
+        }
+    }
+
+    private sealed class RefreshContadorHandler(
+        bool sucesso,
+        bool atraso = false,
+        bool falhaRede = false) : HttpMessageHandler
+    {
+        public int Chamadas;
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref Chamadas);
+            if (atraso) await Task.Delay(50, cancellationToken);
+            if (falhaRede) throw new HttpRequestException("offline");
+            if (!sucesso) return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(RespostaApi<LoginAutenticadoResponse>.Ok(new(
+                    "novo-token",
+                    DateTime.UtcNow.AddMinutes(15),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "Usuário",
+                    "Administrador",
+                    [])))
+            };
+        }
     }
 
     private sealed record ContextoTeste(HttpClient Http, TokenStorage Storage, PwaServico Pwa);

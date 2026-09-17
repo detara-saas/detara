@@ -120,6 +120,18 @@ public sealed class AssinaturaSuspensaMiddlewareTests
         await middleware.InvokeAsync(permitido, db);
         Assert.True(proximoExecutado);
 
+        foreach (var rotaAutenticacao in new[]
+                 {
+                     "/api/autenticacao/login",
+                     "/api/autenticacao/refresh",
+                     "/api/autenticacao/logout"
+                 })
+        {
+            proximoExecutado = false;
+            await middleware.InvokeAsync(ContextoHttp(empresa.Id, rotaAutenticacao), db);
+            Assert.True(proximoExecutado);
+        }
+
         proximoExecutado = false;
         var leituraLogo = ContextoHttp(empresa.Id, "/api/empresa/logo");
         leituraLogo.Request.Method = HttpMethods.Get;

@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Detara.Application.Abstracoes;
 
 namespace Detara.Application.Plataforma;
 
@@ -21,13 +22,19 @@ public sealed record RegenerarCodigosRecuperacaoPlataformaCommand(
     string? TraceId)
     : IRequest<IReadOnlyCollection<string>>;
 
+public sealed record RenovarSessaoPlataformaCommand(string RefreshToken)
+    : IRequest<SessaoPlataformaResultado>;
+
+public sealed record EncerrarSessaoPlataformaCommand(string? RefreshToken) : IRequest;
+
 public sealed record SessaoPlataformaResultado(
     string Token,
     DateTime ExpiraEmUtc,
     Guid AdministradorId,
     string Nome,
     string Email,
-    IReadOnlyCollection<string> CodigosRecuperacao);
+    IReadOnlyCollection<string> CodigosRecuperacao,
+    RefreshTokenCriado RefreshToken);
 
 internal sealed class IniciarAutenticacaoPlataformaHandler(IAutenticacaoPlataformaServico servico)
     : IRequestHandler<IniciarAutenticacaoPlataformaCommand, InicioAutenticacaoPlataformaResultado>
@@ -49,7 +56,8 @@ internal sealed class ObterConfiguracaoMfaPlataformaHandler(IAutenticacaoPlatafo
 
 internal sealed class AtivarMfaPlataformaHandler(
     IAutenticacaoPlataformaServico servico,
-    ITokenPlataformaServico tokenServico)
+    ITokenPlataformaServico tokenServico,
+    ISessoesAutenticacaoServico sessoes)
     : IRequestHandler<AtivarMfaPlataformaCommand, SessaoPlataformaResultado>
 {
     public async Task<SessaoPlataformaResultado> Handle(
@@ -61,23 +69,37 @@ internal sealed class AtivarMfaPlataformaHandler(
             request.Codigo,
             request.TraceId,
             cancellationToken);
-        return CriarSessao(resultado, tokenServico.Gerar(resultado.Identidade));
+        return await CriarSessaoAsync(
+            resultado,
+            tokenServico.Gerar(resultado.Identidade),
+            sessoes,
+            cancellationToken);
     }
 
-    internal static SessaoPlataformaResultado CriarSessao(
+    internal static async Task<SessaoPlataformaResultado> CriarSessaoAsync(
         AutenticacaoMfaPlataformaResultado resultado,
-        TokenPlataformaGerado token) => new(
+        TokenPlataformaGerado token,
+        ISessoesAutenticacaoServico sessoes,
+        CancellationToken cancellationToken)
+    {
+        var refresh = await sessoes.CriarPlataformaAsync(
+            resultado.Identidade.Id,
+            cancellationToken);
+        return new(
             token.Valor,
             token.ExpiraEmUtc,
             resultado.Identidade.Id,
             resultado.Identidade.Nome,
             resultado.Identidade.Email,
-            resultado.CodigosRecuperacao);
+            resultado.CodigosRecuperacao,
+            refresh);
+    }
 }
 
 internal sealed class VerificarMfaPlataformaHandler(
     IAutenticacaoPlataformaServico servico,
-    ITokenPlataformaServico tokenServico)
+    ITokenPlataformaServico tokenServico,
+    ISessoesAutenticacaoServico sessoes)
     : IRequestHandler<VerificarMfaPlataformaCommand, SessaoPlataformaResultado>
 {
     public async Task<SessaoPlataformaResultado> Handle(
@@ -89,10 +111,48 @@ internal sealed class VerificarMfaPlataformaHandler(
             request.Codigo,
             request.TraceId,
             cancellationToken);
-        return AtivarMfaPlataformaHandler.CriarSessao(
+        return await AtivarMfaPlataformaHandler.CriarSessaoAsync(
             resultado,
-            tokenServico.Gerar(resultado.Identidade));
+            tokenServico.Gerar(resultado.Identidade),
+            sessoes,
+            cancellationToken);
     }
+}
+
+internal sealed class RenovarSessaoPlataformaCommandHandler(
+    ISessoesAutenticacaoServico sessoes,
+    ITokenPlataformaServico tokenServico)
+    : IRequestHandler<RenovarSessaoPlataformaCommand, SessaoPlataformaResultado>
+{
+    public async Task<SessaoPlataformaResultado> Handle(
+        RenovarSessaoPlataformaCommand request,
+        CancellationToken cancellationToken)
+    {
+        var renovada = await sessoes.RenovarPlataformaAsync(request.RefreshToken, cancellationToken);
+        var identidade = new IdentidadeAdministradorPlataformaResultado(
+            renovada.AdministradorId,
+            renovada.Nome,
+            renovada.Email,
+            renovada.VersaoSeguranca);
+        var token = tokenServico.Gerar(identidade);
+        return new(
+            token.Valor,
+            token.ExpiraEmUtc,
+            identidade.Id,
+            identidade.Nome,
+            identidade.Email,
+            [],
+            renovada.RefreshToken);
+    }
+}
+
+internal sealed class EncerrarSessaoPlataformaCommandHandler(ISessoesAutenticacaoServico sessoes)
+    : IRequestHandler<EncerrarSessaoPlataformaCommand>
+{
+    public async Task Handle(
+        EncerrarSessaoPlataformaCommand request,
+        CancellationToken cancellationToken) =>
+        await sessoes.RevogarPlataformaAsync(request.RefreshToken, cancellationToken);
 }
 
 internal sealed class RegenerarCodigosRecuperacaoPlataformaHandler(
@@ -154,4 +214,11 @@ internal sealed class RegenerarCodigosRecuperacaoPlataformaValidator
         RuleFor(x => x.SenhaAtual).NotEmpty().MaximumLength(256);
         RuleFor(x => x.CodigoTotp).Matches("^[0-9]{6}$").WithMessage("Informe o código de 6 dígitos.");
     }
+}
+
+internal sealed class RenovarSessaoPlataformaCommandValidator
+    : AbstractValidator<RenovarSessaoPlataformaCommand>
+{
+    public RenovarSessaoPlataformaCommandValidator() =>
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(160);
 }

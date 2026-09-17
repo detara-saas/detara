@@ -38,7 +38,7 @@ dotnet user-secrets list --project .\src\Detara.Api
 
 Não compartilhe a saída desse comando, pois ela contém os valores reais armazenados. Depois da configuração inicial, pare e inicie novamente a solução pelo Visual Studio para que o profile de Development seja aplicado.
 
-O Web mantém o JWT somente em `sessionStorage`. Antes de produção, avaliar um BFF com cookie HttpOnly para reduzir ainda mais a exposição do token a código executado no navegador.
+O Web mantém o access token JWT somente em `sessionStorage`. A persistência opcional usa um refresh token opaco, rotacionado e revogável em cookie `HttpOnly`; consulte `docs/security/persistent-sessions.md`. Uma futura migração do próprio access token para BFF/cookie exige decisão arquitetural separada e proteção CSRF correspondente.
 
 ## Fluxo
 

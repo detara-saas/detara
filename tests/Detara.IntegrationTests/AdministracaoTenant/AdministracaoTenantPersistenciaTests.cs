@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SkiaSharp;
+using Detara.IntegrationTests.Support;
 
 namespace Detara.IntegrationTests.AdministracaoTenant;
 
@@ -140,7 +141,11 @@ public sealed class AdministracaoTenantPersistenciaTests : IAsyncLifetime
     {
         var contextoExterno = new Contexto(_empresaA.Id, Guid.NewGuid());
         await using var db = new DetaraDbContext(_options, contextoExterno);
-        var servico = new AdministracaoUsuariosTenantServico(db, contextoExterno, _senhas);
+        var servico = new AdministracaoUsuariosTenantServico(
+            db,
+            contextoExterno,
+            _senhas,
+            new SessoesAutenticacaoTeste());
 
         var erro = await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() => servico.AlterarStatusAsync(
             _usuarioA.Id, false, _usuarioA.Versao, CancellationToken.None));
@@ -191,7 +196,11 @@ public sealed class AdministracaoTenantPersistenciaTests : IAsyncLifetime
     public async Task MinhaConta_EmailExigeSenhaAtualEPermiteEmailExistenteEmOutroTenant()
     {
         await using var db = CriarContexto(_empresaA.Id, _usuarioA.Id);
-        var servico = new MinhaContaTenantServico(db, new Contexto(_empresaA.Id, _usuarioA.Id), _senhas);
+        var servico = new MinhaContaTenantServico(
+            db,
+            new Contexto(_empresaA.Id, _usuarioA.Id),
+            _senhas,
+            new SessoesAutenticacaoTeste());
         await Assert.ThrowsAsync<ConflitoRegraNegocioException>(() => servico.AtualizarEmailAsync(
             "novo@exemplo.test", "senha-incorreta", _usuarioA.Versao, CancellationToken.None));
 
@@ -207,7 +216,11 @@ public sealed class AdministracaoTenantPersistenciaTests : IAsyncLifetime
     public async Task MinhaConta_AlterarSenhaRevogaVersaoEInvalidaSenhaAnterior()
     {
         await using var db = CriarContexto(_empresaA.Id, _usuarioA.Id);
-        var servico = new MinhaContaTenantServico(db, new Contexto(_empresaA.Id, _usuarioA.Id), _senhas);
+        var servico = new MinhaContaTenantServico(
+            db,
+            new Contexto(_empresaA.Id, _usuarioA.Id),
+            _senhas,
+            new SessoesAutenticacaoTeste());
         var versaoSeguranca = _usuarioA.VersaoSeguranca;
 
         await servico.AlterarSenhaAsync("SenhaAtual123!", "NovaSenha456!", _usuarioA.Versao,
@@ -313,7 +326,7 @@ public sealed class AdministracaoTenantPersistenciaTests : IAsyncLifetime
 
     private AdministracaoUsuariosTenantServico CriarUsuariosServico(
         DetaraDbContext db, Guid empresaId, Guid usuarioId) =>
-        new(db, new Contexto(empresaId, usuarioId), _senhas);
+        new(db, new Contexto(empresaId, usuarioId), _senhas, new SessoesAutenticacaoTeste());
 
     private DetaraDbContext CriarContexto(Guid empresaId, Guid usuarioId) =>
         new(_options, new Contexto(empresaId, usuarioId));

@@ -76,7 +76,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        if (string.IsNullOrWhiteSpace(await Plataforma.ObterTokenAsync()))
+        if (!await Plataforma.RestaurarSessaoAsync())
         {
             Navigation.NavigateTo("/plataforma/login", replace: true);
             return;

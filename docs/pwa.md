@@ -87,7 +87,7 @@ O QA PWA deve servir o conteúdo de `bin/Release/net10.0/publish/wwwroot` em `lo
 
 ## Administração da plataforma
 
-Login Platform, MFA, provisionamento, auditoria e convite são network-only: as rotas `/api/` já são desviadas do Service Worker e todas as respostas usam `no-store`. O token administrativo fica somente em `sessionStorage` separado; o token de convite fica apenas em memória após ser lido do fragment. Não há fallback offline, fila de gravação, install CTA ou silent refresh nesses fluxos privilegiados.
+Login Platform, MFA, provisionamento, auditoria e convite são network-only: as rotas `/api/` já são desviadas do Service Worker e todas as respostas usam `no-store`. O access token administrativo fica somente em `sessionStorage` separado; o token de convite fica apenas em memória após ser lido do fragment. A sessão administrativa pode ser renovada silenciosamente por cookie `HttpOnly` de sessão somente depois de MFA válido, sem fallback offline ou fila de gravação.
 
 ## Troubleshooting
 

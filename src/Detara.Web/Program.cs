@@ -36,6 +36,9 @@ builder.Services.AddScoped<AuthenticationStateProvider>(provider =>
     provider.GetRequiredService<JwtAuthenticationStateProvider>());
 builder.Services.AddScoped<TokenAuthorizationHandler>();
 builder.Services.AddScoped<PlatformAuthorizationHandler>();
+builder.Services.AddScoped(_ => new HttpClientAutenticacao(
+    new HttpClient(new HttpClientHandler()) { BaseAddress = apiBaseAddress }));
+builder.Services.AddScoped<SessaoRefreshServico>();
 builder.Services.AddScoped(provider =>
 {
     var authorizationHandler = provider.GetRequiredService<TokenAuthorizationHandler>();

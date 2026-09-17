@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Detara.Contracts.Autenticacao;
 
-public sealed record LoginRequest(string Email, string Senha);
+public sealed record LoginRequest(string Email, string Senha, bool ManterConectado = false);
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "tipo")]
 [JsonDerivedType(typeof(LoginAutenticadoResponse), "autenticado")]
