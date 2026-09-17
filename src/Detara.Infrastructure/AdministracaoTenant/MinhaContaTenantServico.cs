@@ -9,7 +9,8 @@ namespace Detara.Infrastructure.AdministracaoTenant;
 internal sealed class MinhaContaTenantServico(
     DetaraDbContext db,
     IUsuarioContexto usuarioContexto,
-    ISenhaServico senhaServico) : IMinhaContaTenantServico
+    ISenhaServico senhaServico,
+    ISessoesAutenticacaoServico sessoes) : IMinhaContaTenantServico
 {
     public async Task<MinhaContaResultado> ObterAsync(CancellationToken cancellationToken) =>
         Mapear(await ObterUsuarioAsync(asNoTracking: true, cancellationToken));
@@ -60,6 +61,10 @@ internal sealed class MinhaContaTenantServico(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        await sessoes.RevogarTodasDoUsuarioAsync(
+            usuario.Id,
+            "email_alterado",
+            cancellationToken);
     }
 
     public async Task AlterarSenhaAsync(
@@ -85,6 +90,10 @@ internal sealed class MinhaContaTenantServico(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        await sessoes.RevogarTodasDoUsuarioAsync(
+            usuario.Id,
+            "senha_alterada",
+            cancellationToken);
     }
 
     private async Task<Usuario> ObterUsuarioAsync(

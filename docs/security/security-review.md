@@ -97,7 +97,7 @@ Total: **95** endpoints — 94 ações de controller e `GET /health`.
 ### Findings Low/Info residuais
 
 - SEC-007: o servidor não decodifica a imagem. Mitigações: 10 MiB, JPEG/PNG/WebP por magic bytes, SVG/HTML rejeitados, storage privado, nome aleatório, `nosniff` e nenhuma transformação server-side. Adicionar decoder seguro, limite de dimensões e política EXIF junto ao pipeline de thumbnails.
-- SEC-008: `sessionStorage` reduz persistência entre sessões, mas não protege contra XSS. Migração para BFF/cookie HttpOnly não é uma mudança isolada: introduz CSRF e arquitetura server-side. Manter CSP/sanitização e reavaliar com Platform Admin.
+- SEC-008: o access token em `sessionStorage` reduz persistência entre sessões, mas continua acessível a XSS same-origin. O refresh token opaco fica em cookie `HttpOnly`; consulte `persistent-sessions.md`. Migrar também o access token para BFF/cookie continua sendo uma decisão arquitetural separada, com proteção CSRF correspondente.
 - SEC-009: auto-hospedar Inter em Production Readiness para reduzir dependência e metadados enviados ao terceiro.
 - SEC-013: busca por padrões e revisão de arquivos rastreados foram executadas sem revelar secret real. Habilitar scanner de histórico no CI; nenhum valor deve ser impresso em logs de pipeline.
 - SEC-014: o publish .NET 10 gera um `importmap` inline necessário para resolver assets fingerprintados. O Nginx estático permite `unsafe-inline` em `script-src`; `self`, `wasm-unsafe-eval`, `object-src 'none'`, `frame-ancestors 'none'`, sanitização e encoding permanecem. Automatizar nonce/hash exigirá uma camada dinâmica ou etapa de build dedicada.
@@ -105,13 +105,13 @@ Total: **95** endpoints — 94 ações de controller e `GET /health`.
 ## Autenticação e sessão
 
 - JWT: HS256 somente, key >= 32 bytes, issuer/audience/lifetime obrigatórios, clock skew de 1 minuto e error details desabilitados.
-- Expiração configurável entre 1 e 1440 minutos; atual padrão 480 minutos.
+- Expiração configurável entre 1 e 1440 minutos; o padrão tenant atual é 15 minutos.
 - Key vem de secret/variável, nunca do browser.
 - Token expirado, adulterado, HS384 e HS512 são rejeitados.
 - Usuário, empresa, perfil, troca de senha e permissões são revalidados no banco em cada request.
 - Login retorna resposta genérica, executa hash fictício quando necessário e limita 10 tentativas/minuto por IP observado.
 - O reverse proxy futuro deve preservar IP real apenas via `KnownProxies`/`KnownNetworks`; habilitar forwarded headers sem trust list permitiria spoofing do rate limit.
-- Não existem refresh tokens, cookies de autenticação ou logout server-side nesta fase.
+- Sessões de refresh opacas, rotacionadas e revogáveis usam cookie `HttpOnly`; logout revoga a família no servidor. Detalhes e threat model estão em `persistent-sessions.md`.
 
 ## Multi-tenancy e BOLA
 

@@ -1,5 +1,7 @@
 using Detara.Api.Autenticacao;
 using Detara.Application.Plataforma;
+using Detara.Application.Abstracoes;
+using Detara.Application.Autenticacao;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Plataforma;
 using MediatR;
@@ -11,7 +13,9 @@ namespace Detara.Api.Controllers;
 
 [ApiController]
 [Route("api/plataforma/autenticacao")]
-public sealed class PlataformaAutenticacaoController(ISender sender) : ControllerBase
+public sealed class PlataformaAutenticacaoController(
+    ISender sender,
+    RefreshCookieServico refreshCookie) : ControllerBase
 {
     [AllowAnonymous]
     [EnableRateLimiting("platform-login")]
@@ -57,6 +61,7 @@ public sealed class PlataformaAutenticacaoController(ISender sender) : Controlle
             request.Desafio,
             request.Codigo,
             HttpContext.TraceIdentifier), cancellationToken);
+        refreshCookie.EscreverPlataforma(Response, resultado.RefreshToken);
         return Ok(RespostaApi<SessaoPlataformaResponse>.Ok(MapearSessao(resultado),
             "MFA configurado. Salve os códigos de recuperação agora."));
     }
@@ -72,9 +77,40 @@ public sealed class PlataformaAutenticacaoController(ISender sender) : Controlle
             request.Desafio,
             request.Codigo,
             HttpContext.TraceIdentifier), cancellationToken);
+        refreshCookie.EscreverPlataforma(Response, resultado.RefreshToken);
         return Ok(RespostaApi<SessaoPlataformaResponse>.Ok(
             MapearSessao(resultado),
             "Autenticação administrativa concluída."));
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("refresh")]
+    [HttpPost("refresh")]
+    public async Task<ActionResult<RespostaApi<SessaoPlataformaResponse>>> Refresh(
+        CancellationToken cancellationToken)
+    {
+        ValidarOrigem();
+        var token = refreshCookie.ObterPlataforma(Request)
+            ?? throw new SessaoAutenticacaoInvalidaException();
+        var resultado = await sender.Send(
+            new RenovarSessaoPlataformaCommand(token),
+            cancellationToken);
+        refreshCookie.EscreverPlataforma(Response, resultado.RefreshToken);
+        return Ok(RespostaApi<SessaoPlataformaResponse>.Ok(
+            MapearSessao(resultado),
+            "Sessão administrativa renovada."));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    public async Task<ActionResult> Logout(CancellationToken cancellationToken)
+    {
+        ValidarOrigem();
+        await sender.Send(
+            new EncerrarSessaoPlataformaCommand(refreshCookie.ObterPlataforma(Request)),
+            cancellationToken);
+        refreshCookie.LimparPlataforma(Response);
+        return NoContent();
     }
 
     [Authorize(Policy = EsquemasAutenticacao.PolicyAdministradorPlataforma)]
@@ -99,4 +135,12 @@ public sealed class PlataformaAutenticacaoController(ISender sender) : Controlle
         resultado.Nome,
         resultado.Email,
         resultado.CodigosRecuperacao);
+
+    private void ValidarOrigem()
+    {
+        if (!refreshCookie.OrigemPermitida(Request))
+        {
+            throw new OrigemAutenticacaoInvalidaException();
+        }
+    }
 }

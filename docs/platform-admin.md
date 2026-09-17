@@ -8,8 +8,8 @@ Os tokens também são separados:
 
 - tenant: scheme `DetaraTenantBearer`, audience `Detara.Web` e chave `Jwt__ChaveAssinatura`;
 - plataforma: scheme `DetaraPlatformBearer`, audience `detara-platform` e chave exclusiva `PlatformJwt__ChaveAssinatura`;
-- o token de plataforma dura 45 minutos, exige `identidade=platform_admin` e `amr=mfa`, é revalidado contra status e versão de segurança em toda requisição e não possui refresh token;
-- o frontend mantém o token em `sessionStorage`, sob `detara.platform.token`, e usa um `HttpClient`/handler dedicado. O handler tenant exclui explicitamente as rotas de plataforma e convite.
+- o access token de plataforma dura 45 minutos, exige `identidade=platform_admin` e `amr=mfa` e é revalidado contra status e versão de segurança em toda requisição;
+- o frontend mantém o access token em `sessionStorage`, sob `detara.platform.token`, e usa um `HttpClient`/handler dedicado. Após MFA válido, a API cria uma sessão administrativa não persistente em cookie `HttpOnly` separado; o refresh reconstrói a identidade e preserva `amr=mfa`. O handler tenant exclui explicitamente as rotas de plataforma e convite.
 
 Não existe “entrar como empresa”, bypass de tenant ou endpoint de bootstrap.
 
@@ -105,7 +105,7 @@ Convites têm 10 requisições por cinco minutos por origem. As respostas são `
 ## Limitações deliberadas
 
 - somente o primeiro Platform Admin é criado nesta versão; o segundo administrador fica para backlog;
-- não há refresh token, self-signup, billing, impersonation ou support access;
+- não há sessão administrativa persistente, self-signup, billing, impersonation ou support access;
 - o limite por challenge usa cache de processo; antes de escalar réplicas, deve migrar para cache distribuído;
 - e-mail e commit de conclusão não formam transação distribuída. Idempotência reduz duplicidade, e leases interrompidos são recuperados;
 - proteção criptográfica do key ring em produção depende do secret/KMS e volume seguro da infraestrutura.

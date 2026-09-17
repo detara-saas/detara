@@ -21,6 +21,7 @@ using Detara.Infrastructure.Plataforma;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Detara.IntegrationTests.Support;
 
 namespace Detara.IntegrationTests.Demo;
 
@@ -225,7 +226,8 @@ public sealed class DemoBootstrapTests : IAsyncLifetime
             new UsuarioAutenticacaoRepositorio(loginDb),
             new SenhaServico(new PasswordHasher<Usuario>()),
             new TokenTeste(),
-            new ChallengeTeste()).Handle(
+            new ChallengeTeste(),
+            new SessoesAutenticacaoTeste()).Handle(
                 new AutenticarCommand(DemoBootstrapService.EmailAdministrador, _senhaTeste),
                 CancellationToken.None);
 

@@ -1,4 +1,6 @@
+using Detara.Api.Autenticacao;
 using Detara.Application.Autenticacao;
+using Detara.Application.Abstracoes;
 using Detara.Contracts.Autenticacao;
 using Detara.Contracts.Comum;
 using MediatR;
@@ -10,7 +12,9 @@ namespace Detara.Api.Controllers;
 
 [ApiController]
 [Route("api/autenticacao")]
-public sealed class AutenticacaoController(ISender sender) : ControllerBase
+public sealed class AutenticacaoController(
+    ISender sender,
+    RefreshCookieServico refreshCookie) : ControllerBase
 {
     [AllowAnonymous]
     [EnableRateLimiting("login")]
@@ -24,8 +28,12 @@ public sealed class AutenticacaoController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         var resultado = await sender.Send(
-            new AutenticarCommand(request.Email, request.Senha),
+            new AutenticarCommand(request.Email, request.Senha, request.ManterConectado),
             cancellationToken);
+        if (resultado is SessaoTenantResultado sessao)
+        {
+            refreshCookie.EscreverTenant(Response, sessao.RefreshToken);
+        }
         var response = Mapear(resultado);
 
         var mensagem = resultado is SelecaoEmpresaNecessariaResultado
@@ -48,11 +56,42 @@ public sealed class AutenticacaoController(ISender sender) : ControllerBase
         var resultado = await sender.Send(
             new SelecionarEmpresaCommand(request.Challenge, request.EmpresaId),
             cancellationToken);
+        refreshCookie.EscreverTenant(Response, resultado.RefreshToken);
         var response = MapearSessao(resultado);
 
         return Ok(RespostaApi<LoginAutenticadoResponse>.Ok(
             response,
             "Empresa selecionada com sucesso."));
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("refresh")]
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(RespostaApi<LoginAutenticadoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RespostaApi<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<RespostaApi<LoginAutenticadoResponse>>> Refresh(
+        CancellationToken cancellationToken)
+    {
+        ValidarOrigem();
+        var token = refreshCookie.ObterTenant(Request)
+            ?? throw new SessaoAutenticacaoInvalidaException();
+        var resultado = await sender.Send(new RenovarSessaoTenantCommand(token), cancellationToken);
+        refreshCookie.EscreverTenant(Response, resultado.RefreshToken);
+        return Ok(RespostaApi<LoginAutenticadoResponse>.Ok(
+            MapearSessao(resultado),
+            "Sessão renovada com sucesso."));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    public async Task<ActionResult> Logout(CancellationToken cancellationToken)
+    {
+        ValidarOrigem();
+        await sender.Send(
+            new EncerrarSessaoTenantCommand(refreshCookie.ObterTenant(Request)),
+            cancellationToken);
+        refreshCookie.LimparTenant(Response);
+        return NoContent();
     }
 
     private static LoginResponse Mapear(ResultadoAutenticacao resultado) => resultado switch
@@ -77,4 +116,12 @@ public sealed class AutenticacaoController(ISender sender) : ControllerBase
         resultado.Nome,
         resultado.Perfil,
         resultado.Permissoes);
+
+    private void ValidarOrigem()
+    {
+        if (!refreshCookie.OrigemPermitida(Request))
+        {
+            throw new OrigemAutenticacaoInvalidaException();
+        }
+    }
 }

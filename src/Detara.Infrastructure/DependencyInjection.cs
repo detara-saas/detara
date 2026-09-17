@@ -24,6 +24,7 @@ using Detara.Application.AdministracaoTenant;
 using Detara.Application.Dashboard;
 using Detara.Application.Relatorios;
 using Detara.Application.Assinaturas;
+using Detara.Application.Autenticacao;
 using Detara.Infrastructure.Assinaturas;
 using Detara.Infrastructure.AdministracaoTenant;
 using Detara.Infrastructure.Notificacoes;
@@ -57,6 +58,22 @@ public static class DependencyInjection
         services.AddScoped<IChallengeSelecaoEmpresaTenant, ChallengeSelecaoEmpresaTenant>();
         services.AddSingleton<ISenhaServico, SenhaServico>();
         services.AddScoped<IValidadorIdentidadeAutenticada, ValidadorIdentidadeAutenticada>();
+        services.AddOptions<SessaoAutenticacaoOptions>()
+            .Bind(configuration.GetSection(SessaoAutenticacaoOptions.Secao))
+            .Validate(options => options.DuracaoSessaoHoras is >= 1 and <= 24,
+                "A sessão do navegador deve durar entre 1 e 24 horas.")
+            .Validate(options => options.DuracaoPersistenteDias is >= 1 and <= 90,
+                "A sessão persistente deve durar entre 1 e 90 dias.")
+            .Validate(options => options.DuracaoPlataformaHoras is >= 1 and <= 12,
+                "A sessão de Platform Admin deve durar entre 1 e 12 horas.")
+            .Validate(options => options.JanelaConcorrenciaSegundos is >= 5 and <= 120,
+                "A janela de concorrência deve ficar entre 5 e 120 segundos.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.CookieTenant) &&
+                !string.IsNullOrWhiteSpace(options.CookiePlataforma) &&
+                !string.Equals(options.CookieTenant, options.CookiePlataforma, StringComparison.Ordinal),
+                "Os cookies de tenant e Platform Admin devem possuir nomes distintos.")
+            .ValidateOnStart();
+        services.AddScoped<ISessoesAutenticacaoServico, SessoesAutenticacaoServico>();
         services.AddScoped<IAutenticacaoPlataformaServico, AutenticacaoPlataformaServico>();
         services.AddScoped<IAdministracaoPlataformaServico, AdministracaoPlataformaServico>();
         services.AddScoped<IAssinaturasTenantServico, AssinaturasTenantServico>();

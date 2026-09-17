@@ -68,6 +68,16 @@ internal sealed class TratadorGlobalExcecoes(ILogger<TratadorGlobalExcecoes> log
                 exception.Message,
                 "selecao_empresa_invalida",
                 null),
+            SessaoAutenticacaoInvalidaException => (
+                StatusCodes.Status401Unauthorized,
+                exception.Message,
+                "sessao_invalida",
+                null),
+            OrigemAutenticacaoInvalidaException => (
+                StatusCodes.Status403Forbidden,
+                exception.Message,
+                "origem_nao_permitida",
+                null),
             CredenciaisPlataformaInvalidasException => (
                 StatusCodes.Status401Unauthorized,
                 exception.Message,

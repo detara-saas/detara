@@ -13,7 +13,8 @@ namespace Detara.Infrastructure.AdministracaoTenant;
 internal sealed class AdministracaoUsuariosTenantServico(
     DetaraDbContext db,
     IUsuarioContexto usuarioContexto,
-    ISenhaServico senhaServico) : IAdministracaoUsuariosTenantServico
+    ISenhaServico senhaServico,
+    ISessoesAutenticacaoServico sessoes) : IAdministracaoUsuariosTenantServico
 {
     public async Task<PaginaTenant<UsuarioTenantResultado>> ListarAsync(
         int pagina,
@@ -221,6 +222,13 @@ internal sealed class AdministracaoUsuariosTenantServico(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        if (!ativar)
+        {
+            await sessoes.RevogarTodasDoUsuarioAsync(
+                usuario.Id,
+                "usuario_desativado",
+                cancellationToken);
+        }
         await transacao.CommitAsync(cancellationToken);
         var convite = await ObterConviteTenantAsync(id, true, cancellationToken);
         return Mapear(usuario, convite, DateTime.UtcNow);

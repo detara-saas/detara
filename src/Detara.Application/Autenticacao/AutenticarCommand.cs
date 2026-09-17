@@ -3,7 +3,7 @@ using MediatR;
 
 namespace Detara.Application.Autenticacao;
 
-public sealed record AutenticarCommand(string Email, string Senha)
+public sealed record AutenticarCommand(string Email, string Senha, bool ManterConectado = false)
     : IRequest<ResultadoAutenticacao>;
 
 public sealed record SelecionarEmpresaCommand(string Challenge, Guid EmpresaId)
@@ -18,7 +18,13 @@ public sealed record SessaoTenantResultado(
     Guid EmpresaId,
     string Nome,
     string Perfil,
-    IReadOnlyCollection<string> Permissoes) : ResultadoAutenticacao;
+    IReadOnlyCollection<string> Permissoes,
+    RefreshTokenCriado RefreshToken) : ResultadoAutenticacao;
+
+public sealed record RenovarSessaoTenantCommand(string RefreshToken)
+    : IRequest<SessaoTenantResultado>;
+
+public sealed record EncerrarSessaoTenantCommand(string? RefreshToken) : IRequest;
 
 public sealed record SelecaoEmpresaTenantItemResultado(Guid EmpresaId, string NomeExibicao);
 
@@ -31,7 +37,8 @@ internal sealed class AutenticarCommandHandler(
     IConsultaIdentidadeLoginTenant consulta,
     ISenhaServico senhaServico,
     ITokenServico tokenServico,
-    IChallengeSelecaoEmpresaTenant challengeServico)
+    IChallengeSelecaoEmpresaTenant challengeServico,
+    ISessoesAutenticacaoServico sessoes)
     : IRequestHandler<AutenticarCommand, ResultadoAutenticacao>
 {
     public async Task<ResultadoAutenticacao> Handle(
@@ -71,11 +78,16 @@ internal sealed class AutenticarCommandHandler(
 
         if (candidatosValidos.Count == 1)
         {
-            return CriarSessao(candidatosValidos[0], tokenServico);
+            return await CriarSessaoAsync(
+                candidatosValidos[0],
+                request.ManterConectado,
+                tokenServico,
+                sessoes,
+                cancellationToken);
         }
 
         var memberships = candidatosValidos
-            .Select(CriarMembershipAutorizada)
+            .Select(candidato => CriarMembershipAutorizada(candidato, request.ManterConectado))
             .ToArray();
         var challenge = challengeServico.Criar(memberships);
         var empresas = candidatosValidos
@@ -91,11 +103,19 @@ internal sealed class AutenticarCommandHandler(
             empresas);
     }
 
-    internal static SessaoTenantResultado CriarSessao(
+    internal static async Task<SessaoTenantResultado> CriarSessaoAsync(
         CandidatoLoginTenant candidato,
-        ITokenServico tokenServico)
+        bool manterConectado,
+        ITokenServico tokenServico,
+        ISessoesAutenticacaoServico sessoes,
+        CancellationToken cancellationToken)
     {
         var token = tokenServico.Gerar(candidato);
+        var refreshToken = await sessoes.CriarTenantAsync(
+            candidato.Usuario.Id,
+            candidato.Empresa.Id,
+            manterConectado,
+            cancellationToken);
 
         return new SessaoTenantResultado(
             token.Valor,
@@ -104,22 +124,26 @@ internal sealed class AutenticarCommandHandler(
             candidato.Empresa.Id,
             candidato.Usuario.Nome,
             candidato.Perfil.Nome,
-            candidato.Perfil.PermissoesAtivas);
+            candidato.Perfil.PermissoesAtivas,
+            refreshToken);
     }
 
     internal static MembershipLoginTenantAutorizada CriarMembershipAutorizada(
-        CandidatoLoginTenant candidato) => new(
+        CandidatoLoginTenant candidato,
+        bool manterConectado = false) => new(
             candidato.Usuario.Id,
             candidato.Empresa.Id,
-            candidato.Usuario.VersaoSeguranca,
-            candidato.Empresa.VersaoSeguranca,
-            candidato.Perfil.AtualizadoEmTicks);
+        candidato.Usuario.VersaoSeguranca,
+        candidato.Empresa.VersaoSeguranca,
+        candidato.Perfil.AtualizadoEmTicks,
+        manterConectado);
 }
 
 internal sealed class SelecionarEmpresaCommandHandler(
     IConsultaIdentidadeLoginTenant consulta,
     IChallengeSelecaoEmpresaTenant challengeServico,
-    ITokenServico tokenServico)
+    ITokenServico tokenServico,
+    ISessoesAutenticacaoServico sessoes)
     : IRequestHandler<SelecionarEmpresaCommand, SessaoTenantResultado>
 {
     public async Task<SessaoTenantResultado> Handle(
@@ -144,6 +168,43 @@ internal sealed class SelecionarEmpresaCommandHandler(
             throw new ChallengeSelecaoEmpresaInvalidoException();
         }
 
-        return AutenticarCommandHandler.CriarSessao(candidato, tokenServico);
+        return await AutenticarCommandHandler.CriarSessaoAsync(
+            candidato,
+            autorizada.ManterConectado,
+            tokenServico,
+            sessoes,
+            cancellationToken);
     }
+}
+
+internal sealed class RenovarSessaoTenantCommandHandler(
+    ISessoesAutenticacaoServico sessoes,
+    ITokenServico tokenServico)
+    : IRequestHandler<RenovarSessaoTenantCommand, SessaoTenantResultado>
+{
+    public async Task<SessaoTenantResultado> Handle(
+        RenovarSessaoTenantCommand request,
+        CancellationToken cancellationToken)
+    {
+        var renovada = await sessoes.RenovarTenantAsync(request.RefreshToken, cancellationToken);
+        var token = tokenServico.Gerar(renovada.Candidato);
+        return new SessaoTenantResultado(
+            token.Valor,
+            token.ExpiraEmUtc,
+            renovada.Candidato.Usuario.Id,
+            renovada.Candidato.Empresa.Id,
+            renovada.Candidato.Usuario.Nome,
+            renovada.Candidato.Perfil.Nome,
+            renovada.Candidato.Perfil.PermissoesAtivas,
+            renovada.RefreshToken);
+    }
+}
+
+internal sealed class EncerrarSessaoTenantCommandHandler(ISessoesAutenticacaoServico sessoes)
+    : IRequestHandler<EncerrarSessaoTenantCommand>
+{
+    public async Task Handle(
+        EncerrarSessaoTenantCommand request,
+        CancellationToken cancellationToken) =>
+        await sessoes.RevogarTenantAsync(request.RefreshToken, cancellationToken);
 }

@@ -15,6 +15,7 @@ using Detara.Infrastructure;
 using Detara.Infrastructure.Persistencia;
 using Detara.Contracts.Autorizacao;
 using Detara.Application.Plataforma;
+using Detara.Application.Autenticacao;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -123,6 +124,7 @@ builder.Services.AddScoped<IUsuarioContexto, HttpUsuarioContexto>();
 builder.Services.AddScoped<IContextoAdministradorPlataforma, HttpAdministradorPlataformaContexto>();
 builder.Services.AddScoped<ITokenServico, JwtTokenServico>();
 builder.Services.AddScoped<ITokenPlataformaServico, PlatformJwtTokenServico>();
+builder.Services.AddScoped<RefreshCookieServico>();
 builder.Services.AddExceptionHandler<TratadorGlobalExcecoes>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHsts(options =>
@@ -135,7 +137,8 @@ builder.Services.AddHealthChecks()
 builder.Services.AddCors(options => options.AddPolicy("Web", policy => policy
     .WithOrigins(origensCors)
     .AllowAnyHeader()
-    .AllowAnyMethod()));
+    .AllowAnyMethod()
+    .AllowCredentials()));
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -144,6 +147,14 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    options.AddPolicy("refresh", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "origem-desconhecida",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));

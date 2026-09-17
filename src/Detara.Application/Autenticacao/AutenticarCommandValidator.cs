@@ -11,6 +11,13 @@ internal sealed class AutenticarCommandValidator : AbstractValidator<AutenticarC
     }
 }
 
+internal sealed class RenovarSessaoTenantCommandValidator
+    : AbstractValidator<RenovarSessaoTenantCommand>
+{
+    public RenovarSessaoTenantCommandValidator() =>
+        RuleFor(x => x.RefreshToken).NotEmpty().MaximumLength(160);
+}
+
 internal sealed class SelecionarEmpresaCommandValidator : AbstractValidator<SelecionarEmpresaCommand>
 {
     public SelecionarEmpresaCommandValidator()

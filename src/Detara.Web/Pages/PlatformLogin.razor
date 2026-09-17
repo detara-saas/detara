@@ -55,7 +55,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !string.IsNullOrWhiteSpace(await Plataforma.ObterTokenAsync()))
+        if (firstRender && await Plataforma.RestaurarSessaoAsync())
         {
             Navigation.NavigateTo("/plataforma", replace: true);
         }

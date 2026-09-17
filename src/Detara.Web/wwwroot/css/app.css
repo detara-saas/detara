@@ -1078,10 +1078,16 @@ h1:focus { outline: none; }
 .login-card h2 { color: var(--detara-text); font-weight: 800; letter-spacing: -.035em; }
 .login-subtitle { margin: 8px 0 30px !important; }
 .login-field { margin-bottom: 14px !important; }
+.login-remember-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 18px; }
+.login-remember-row .mud-typography { text-align: right; }
 .login-button { min-height: 50px; margin-top: 8px !important; border-radius: var(--detara-radius-md) !important; text-transform: none !important; font-weight: 700 !important; box-shadow: none !important; }
 .login-security-note { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 20px; color: var(--detara-primary-dark); }
 .login-install-button { min-height: 44px; margin-top: 14px; }
 .login-help { display: block; margin-top: 28px !important; }
+@media (max-width: 479px) {
+    .login-remember-row { align-items: flex-start; flex-direction: column; gap: 2px; }
+    .login-remember-row .mud-typography { padding-left: 12px; text-align: left; }
+}
 .login-mobile-brand { display: none; }
 :root[data-theme="dark"] .login-mobile-brand img { content: url('../brand/detara-logo-on-dark.png'); }
 .company-selection-card { width: min(100%, 480px); }
