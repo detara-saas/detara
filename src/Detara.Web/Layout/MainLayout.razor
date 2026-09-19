@@ -9,6 +9,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IWebAssemblyHostEnvironment HostEnvironment
 @inject AssinaturasServico Assinaturas
+@inject EmpresaCapacidadesState Capacidades
 
 <MudThemeProvider Theme="@Detara.Web.Temas.DetaraTema.Valor" IsDarkMode="@Preferencias.EhEscuro" />
 <MudPopoverProvider />
@@ -128,6 +129,7 @@
         }
 
         var conta = await AdministracaoTenant.ObterMinhaContaAsync();
+        await Capacidades.CarregarAsync();
         if (conta is { Sucesso: true, Resultado: not null })
         {
             _empresaNome = conta.Resultado.EmpresaNome;

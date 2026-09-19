@@ -2,9 +2,20 @@
 @attribute [Authorize(Policy = Permissoes.VeiculosVisualizar)]
 @inject VeiculosServico VeiculosApi
 @inject IMensagemServico Mensagens
+@inject EmpresaCapacidadesState Capacidades
 
 <PageTitle>Veículos | Detara</PageTitle>
 
+@if (!_capacidadeCarregada)
+{
+    <div class="page-container page-container-fluid"><DetaraSkeleton Variant="DetaraSkeletonVariant.Table" Rotulo="Validando módulos da empresa" /></div>
+}
+else if (!_capacidadeDisponivel)
+{
+    <div class="page-container page-container-focused"><EstadoVazio Titulo="@TituloCapacidadeIndisponivel" Descricao="@DescricaoCapacidadeIndisponivel" Icone="@Icons.Material.Outlined.ExtensionOff" /></div>
+}
+else
+{
 <div class="page-container page-container-fluid list-page">
 <CabecalhoPagina Titulo="Veículos" Descricao="Consulte os veículos atendidos pela sua operação." Sobretitulo="CADASTROS">
     <Acoes>
@@ -75,6 +86,7 @@ else
 }
 
 </div>
+}
 
 @code {
     private PaginaResponse<VeiculoListaResponse>? _pagina;
@@ -82,8 +94,19 @@ else
     private string? _pesquisa;
     private string _status = "todos";
     private int _paginaAtual = 1;
+    private bool _capacidadeDisponivel;
+    private bool _capacidadeCarregada;
+    private string TituloCapacidadeIndisponivel => Capacidades.Estado == EstadoCarregamentoCapacidades.Carregado ? "Módulo indisponível" : "Não foi possível validar os módulos";
+    private string DescricaoCapacidadeIndisponivel => Capacidades.Estado == EstadoCarregamentoCapacidades.Carregado ? "Veículos não está habilitado para esta empresa." : Capacidades.Mensagem ?? "Tente novamente quando a conexão estiver disponível.";
     private bool TemFiltrosAtivos => !string.IsNullOrWhiteSpace(_pesquisa) || _status != "todos";
-    protected override Task OnInitializedAsync() => CarregarAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await Capacidades.CarregarAsync();
+        _capacidadeCarregada = true;
+        _capacidadeDisponivel = Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
+        if (_capacidadeDisponivel) await CarregarAsync();
+        else _carregando = false;
+    }
     private async Task CarregarAsync()
     {
         _carregando = true;

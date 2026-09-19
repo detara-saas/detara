@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthenticationState
 @inject NotificacoesServico NotificacoesApi
 @inject IDialogService Dialogs
+@inject EmpresaCapacidadesState Capacidades
 
 <PageTitle>@(_ordem?.Codigo ?? "Ordem de Serviço") | Detara</PageTitle>
 
@@ -436,7 +437,7 @@ else
                                                   Icone="@Icons.Material.Outlined.TaskAlt"
                                                   Compacto="true" />
                             }
-                            else if (CheckInPendente)
+                            else if (CheckInPendente && _checkInDisponivel)
                             {
                                 <div class="service-order-next-action service-order-next-action-checkin">
                                     <span class="service-order-next-action-icon"><MudIcon Icon="@Icons.Material.Outlined.Login" /></span>
@@ -531,6 +532,13 @@ else
                                         </div>
                                     </Authorized>
                                 </AuthorizeView>
+                            }
+                            else if (CheckInPendente)
+                            {
+                                <DetaraEmptyState Titulo="Check-in indisponível"
+                                                  Descricao="Esta capacidade não está habilitada para a empresa. A ordem permanece disponível para consulta."
+                                                  Icone="@Icons.Material.Outlined.ExtensionOff"
+                                                  Compacto="true" />
                             }
                             else
                             {
@@ -650,6 +658,7 @@ else
     private readonly List<RespostaEdicao> _respostas = [];
     private readonly List<RespostaEntradaEdicao> _respostasEntrada = [];
     private readonly Dictionary<Guid, string> _urlsFotos = [];
+    private bool _checkInDisponivel;
 
     private bool EhTerminal => _ordem?.Status is StatusOrdemServicoContrato.Concluida or StatusOrdemServicoContrato.Cancelada;
     private bool CheckInPendente => _ordem?.Status == StatusOrdemServicoContrato.Aberta &&
@@ -719,6 +728,8 @@ else
     private async Task CarregarAsync()
     {
         _carregando = true;
+        await Capacidades.CarregarAsync();
+        _checkInDisponivel = Capacidades.Possui(CodigosCapacidadeContrato.CheckIn);
         var respostasEntradaAnteriores = _respostasEntrada.ToDictionary(
             item => item.Ordem, item => (item.Resposta, item.Observacao));
         var resposta = await OrdensApi.ObterAsync(Id);

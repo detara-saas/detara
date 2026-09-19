@@ -26,6 +26,8 @@ using Detara.Application.Relatorios;
 using Detara.Application.Assinaturas;
 using Detara.Application.Autenticacao;
 using Detara.Infrastructure.Assinaturas;
+using Detara.Application.Capacidades;
+using Detara.Infrastructure.Capacidades;
 using Detara.Infrastructure.AdministracaoTenant;
 using Detara.Infrastructure.Notificacoes;
 using Detara.Domain.Plataforma;
@@ -76,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<ISessoesAutenticacaoServico, SessoesAutenticacaoServico>();
         services.AddScoped<IAutenticacaoPlataformaServico, AutenticacaoPlataformaServico>();
         services.AddScoped<IAdministracaoPlataformaServico, AdministracaoPlataformaServico>();
+        services.AddScoped<IEmpresaCapacidadesServico, EmpresaCapacidadesServico>();
         services.AddScoped<IAssinaturasTenantServico, AssinaturasTenantServico>();
         services.AddScoped<IAssinaturasPlataformaServico, AssinaturasPlataformaServico>();
         services.AddSingleton<IGeradorPdfTermoAssinatura, PdfTermoAdesaoGenerator>();

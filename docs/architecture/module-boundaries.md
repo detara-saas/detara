@@ -451,3 +451,4 @@ Antes de implementar:
 6. O fluxo base passou a depender de add-on?
 7. Há cascade, navegação ou transação atravessando fronteiras sem justificativa?
 8. A matriz de ownership e este documento precisam ser atualizados?
+9. Uma funcionalidade Core passou a exigir `VeiculoId`, check-in ou outro conceito automotivo? Se sim, a justificativa de domínio foi registrada explicitamente?

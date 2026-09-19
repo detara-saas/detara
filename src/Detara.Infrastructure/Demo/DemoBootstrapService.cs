@@ -14,6 +14,7 @@ using Detara.Domain.Agenda;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
 using Detara.Domain.Entidades;
+using Detara.Domain.Capacidades;
 using Detara.Domain.Financeiro;
 using Detara.Domain.Notificacoes;
 using Detara.Infrastructure.Agenda;
@@ -220,6 +221,9 @@ public sealed partial class DemoBootstrapService(
 
         try
         {
+            if (!await db.EmpresasCapacidades.AnyAsync(cancellationToken))
+                db.EmpresasCapacidades.AddRange(
+                    PresetCapacidadesEmpresa.Criar(empresaId, SegmentosEmpresa.EsteticaAutomotiva));
             if (limparAntes)
             {
                 await LimparTenantAsync(db, empresaId, cancellationToken);
@@ -811,6 +815,10 @@ public sealed partial class DemoBootstrapService(
         Guid empresaId,
         CancellationToken cancellationToken)
     {
+        await using (var tenant = CriarContexto(new ContextoDemo(empresaId, Guid.NewGuid())))
+        {
+            await tenant.EmpresasCapacidades.ExecuteDeleteAsync(cancellationToken);
+        }
         await using var db = CriarContexto(ContextoDemo.Anonimo);
         var empresa = await db.Empresas.SingleOrDefaultAsync(
             item => item.Id == empresaId && item.Slug == SlugEmpresa,

@@ -8,11 +8,13 @@ using Detara.Domain.Entidades;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Detara.Api.Capacidades;
 
 namespace Detara.Api.Controllers;
 
 [ApiController]
 [Route("api/veiculos")]
+[Authorize(Policy = PoliticasCapacidade.Veiculos)]
 public sealed class VeiculosController(ISender sender) : ControllerBase
 {
     [HttpGet]

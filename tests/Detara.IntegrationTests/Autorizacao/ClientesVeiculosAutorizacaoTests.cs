@@ -12,9 +12,11 @@ using Detara.Contracts.Clientes;
 using Detara.Contracts.Comum;
 using Detara.Contracts.Onboarding;
 using Detara.Contracts.Veiculos;
+using Detara.Contracts.Capacidades;
 using Detara.Domain.Entidades;
 using Detara.Domain.Atendimento;
 using Detara.Domain.Catalogo;
+using Detara.Domain.Capacidades;
 using Detara.Infrastructure.Persistencia;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -52,6 +54,56 @@ public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
     {
         var response = await _client.GetAsync("/api/clientes");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task VeiculosOff_ComPermissao_Retorna403CapabilityDisabledESessaoPermaneceValida()
+    {
+        await _factory.DefinirCapacidadeAsync(CodigosCapacidadeEmpresa.Veiculos, false);
+        await _factory.DefinirCapacidadeAsync(CodigosCapacidadeEmpresa.CheckIn, false);
+        UsarPermissoes(Permissoes.VeiculosVisualizar);
+
+        var response = await _client.GetAsync("/api/veiculos");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+        Assert.Equal("capability_disabled", payload?.Erro?.Codigo);
+        var snapshot = await _client.GetAsync("/api/configuracoes/capacidades");
+        Assert.Equal(HttpStatusCode.OK, snapshot.StatusCode);
+    }
+
+    [Fact]
+    public async Task VeiculosOn_ComPermissao_PermiteAcesso()
+    {
+        UsarPermissoes(Permissoes.VeiculosVisualizar);
+        var response = await _client.GetAsync("/api/veiculos");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CheckInOff_ComPermissao_Retorna403CapabilityDisabled()
+    {
+        await _factory.DefinirCapacidadeAsync(CodigosCapacidadeEmpresa.CheckIn, false);
+        UsarPermissoes(Permissoes.OrdemServicoEditar);
+        using var response = await _client.PostAsJsonAsync(
+            "/api/ordens-servico/00000000-0000-0000-0000-000000000001/check-in",
+            new { });
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<RespostaApi<object>>();
+        Assert.Equal("capability_disabled", payload?.Erro?.Codigo);
+    }
+
+    [Fact]
+    public async Task Snapshot_IgnoraEmpresaIdForjadoEIsolaOutroTenant()
+    {
+        await _factory.DefinirCapacidadeOutroTenantAsync(CodigosCapacidadeEmpresa.Veiculos, false);
+
+        var response = await _client.GetFromJsonAsync<RespostaApi<SnapshotCapacidadesEmpresaResponse>>(
+            $"/api/configuracoes/capacidades?empresaId={_factory.EmpresaOutroTenantId}");
+
+        Assert.True(response?.Sucesso);
+        Assert.True(response!.Resultado!.Capacidades.Single(item =>
+            item.Codigo == CodigosCapacidadeEmpresa.Veiculos).Habilitada);
     }
 
     [Fact]
@@ -969,6 +1021,8 @@ public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
                 options,
                 new TestUserContext(EmpresaOutroTenantId)))
             {
+                outroTenant.EmpresasCapacidades.AddRange(
+                    PresetCapacidadesEmpresa.Criar(EmpresaOutroTenantId, SegmentosEmpresa.EsteticaAutomotiva));
                 var clienteOutroTenant = new Cliente(
                     EmpresaOutroTenantId,
                     "Cliente outro tenant",
@@ -1003,6 +1057,8 @@ public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             }
 
             await using var tenantContext = new DetaraDbContext(options, new TestUserContext(EmpresaId));
+            tenantContext.EmpresasCapacidades.AddRange(
+                PresetCapacidadesEmpresa.Criar(EmpresaId, SegmentosEmpresa.EsteticaAutomotiva));
             var perfilLogin = new Perfil(EmpresaId, "Administrador Login");
             tenantContext.Perfis.Add(perfilLogin);
             await tenantContext.SaveChangesAsync();
@@ -1060,6 +1116,26 @@ public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
             var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
             await using var context = new DetaraDbContext(options, new TestUserContext(EmpresaId));
             return await context.Pacotes.AnyAsync(item => item.Nome == nome);
+        }
+
+        public async Task DefinirCapacidadeAsync(string codigo, bool habilitada)
+        {
+            using var scope = Services.CreateScope();
+            var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+            await using var context = new DetaraDbContext(options, new TestUserContext(EmpresaId));
+            var capacidade = await context.EmpresasCapacidades.SingleAsync(item => item.Codigo == codigo);
+            capacidade.Alterar(habilitada, capacidade.Versao);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task DefinirCapacidadeOutroTenantAsync(string codigo, bool habilitada)
+        {
+            using var scope = Services.CreateScope();
+            var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<DetaraDbContext>>();
+            await using var context = new DetaraDbContext(options, new TestUserContext(EmpresaOutroTenantId));
+            var capacidade = await context.EmpresasCapacidades.SingleAsync(item => item.Codigo == codigo);
+            capacidade.Alterar(habilitada, capacidade.Versao);
+            await context.SaveChangesAsync();
         }
 
         public async Task LimparCatalogoTenantAsync()

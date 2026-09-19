@@ -414,7 +414,8 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.DoesNotContain(rotas, rota => rota.Contains("superadmin", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("api/ordens-servico/agendamentos/{agendamentoId:guid}/origem-comercial", rotas);
         Assert.Contains("api/plataforma/empresas/{id:guid}/assinatura/confirmacao-comercial", rotas);
-        Assert.Equal(188, rotas.Length); // AUTH-02 adiciona refresh/logout segregados para tenant e Platform Admin.
+        Assert.Contains("api/configuracoes/capacidades", rotas);
+        Assert.Equal(189, rotas.Length); // ARCH-03 adiciona somente o snapshot tenant de capacidades.
     }
 
     [Fact]

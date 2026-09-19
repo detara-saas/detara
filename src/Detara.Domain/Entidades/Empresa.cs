@@ -13,7 +13,8 @@ public sealed class Empresa : EntidadeBase
         string slug,
         string? email = null,
         string? telefone = null,
-        string fusoHorario = "America/Sao_Paulo")
+        string fusoHorario = "America/Sao_Paulo",
+        string segmentoCodigo = Capacidades.SegmentosEmpresa.EsteticaAutomotiva)
         : base(Guid.NewGuid())
     {
         NomeFantasia = Exigir(nomeFantasia, nameof(nomeFantasia));
@@ -23,6 +24,9 @@ public sealed class Empresa : EntidadeBase
         Email = NormalizarOpcional(email);
         Telefone = NormalizarOpcional(telefone);
         FusoHorario = Exigir(fusoHorario, nameof(fusoHorario));
+        if (!Capacidades.SegmentosEmpresa.EhConhecido(segmentoCodigo))
+            throw new ArgumentException("O segmento informado não é suportado.", nameof(segmentoCodigo));
+        SegmentoCodigo = segmentoCodigo;
     }
 
     public string NomeFantasia { get; private set; } = string.Empty;
@@ -32,6 +36,7 @@ public sealed class Empresa : EntidadeBase
     public string? Telefone { get; private set; }
     public string Slug { get; private set; } = string.Empty;
     public string FusoHorario { get; private set; } = "America/Sao_Paulo";
+    public string SegmentoCodigo { get; private set; } = Capacidades.SegmentosEmpresa.EsteticaAutomotiva;
     public long VersaoSeguranca { get; private set; } = 1;
     public long VersaoCadastro { get; private set; } = 1;
     public string? LogoArquivoChave { get; private set; }

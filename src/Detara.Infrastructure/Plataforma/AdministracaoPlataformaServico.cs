@@ -6,6 +6,7 @@ using Detara.Application.Plataforma;
 using Detara.Contracts.Autorizacao;
 using Detara.Domain.Entidades;
 using Detara.Domain.Plataforma;
+using Detara.Domain.Capacidades;
 using Detara.Infrastructure.Persistencia;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -111,9 +112,12 @@ internal sealed class AdministracaoPlataformaServico(
         var usuario = await db.Usuarios.IgnoreQueryFilters().AsNoTracking()
             .SingleOrDefaultAsync(
                 x => x.EmpresaId == id && x.Id == convite.UsuarioId,
-                cancellationToken)
+            cancellationToken)
             ?? throw new RecursoNaoEncontradoException("Administrador inicial não encontrado.");
-        return MapearDetalhe(empresa, usuario, convite);
+        var capacidades = await db.EmpresasCapacidades.IgnoreQueryFilters().AsNoTracking()
+            .Where(item => item.EmpresaId == id)
+            .ToDictionaryAsync(item => item.Codigo, item => item.Habilitada, cancellationToken);
+        return MapearDetalhe(empresa, usuario, convite, capacidades);
     }
 
     public async Task<EmpresaPlataformaDetalhe> ProvisionarEmpresaAsync(
@@ -158,6 +162,8 @@ internal sealed class AdministracaoPlataformaServico(
             }
 
             contexto.Empresas.Add(empresa);
+            contexto.EmpresasCapacidades.AddRange(
+                PresetCapacidadesEmpresa.Criar(empresa.Id, empresa.SegmentoCodigo));
             await Financeiro.CategoriasDespesaIniciais.PrepararAsync(contexto, empresa.Id, cancellationToken);
             var perfil = new Perfil(
                 empresa.Id,
@@ -205,7 +211,9 @@ internal sealed class AdministracaoPlataformaServico(
                 "Empresa, perfil administrador, permissões, usuário pendente e convite criados atomicamente."));
             await contexto.SaveChangesAsync(cancellationToken);
             await transacao.CommitAsync(cancellationToken);
-            return MapearDetalhe(empresa, usuario, convite);
+            var capacidades = PresetCapacidadesEmpresa.Criar(empresa.Id, empresa.SegmentoCodigo)
+                .ToDictionary(item => item.Codigo, item => item.Habilitada, StringComparer.Ordinal);
+            return MapearDetalhe(empresa, usuario, convite, capacidades);
         }
         catch (DbUpdateException)
         {
@@ -346,7 +354,8 @@ internal sealed class AdministracaoPlataformaServico(
     private static EmpresaPlataformaDetalhe MapearDetalhe(
         Empresa empresa,
         Usuario usuario,
-        ConviteAdministradorEmpresa convite) => new(
+        ConviteAdministradorEmpresa convite,
+        IReadOnlyDictionary<string, bool> capacidades) => new(
             empresa.Id,
             empresa.NomeFantasia,
             empresa.RazaoSocial,
@@ -365,7 +374,16 @@ internal sealed class AdministracaoPlataformaServico(
             convite.Status.ToString(),
             convite.ExpiraEmUtc,
             convite.QuantidadeTentativasEnvio,
-            convite.UltimoErroSeguro);
+            convite.UltimoErroSeguro,
+            empresa.SegmentoCodigo,
+            CatalogoCapacidadesEmpresa.Todas.OrderBy(item => item.Ordem).Select(item =>
+                new CapacidadeEmpresaPlataformaDetalhe(
+                    item.Codigo,
+                    item.Nome,
+                    item.Categoria,
+                    capacidades.TryGetValue(item.Codigo, out var habilitada) && habilitada,
+                    item.Configuravel,
+                    item.Ordem)).ToArray());
 
     private static bool TimeZoneValido(string fuso)
     {

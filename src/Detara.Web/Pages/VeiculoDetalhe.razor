@@ -5,8 +5,19 @@
 @inject IMensagemServico Mensagens
 @inject IDialogService DialogService
 @inject IJSRuntime JS
+@inject EmpresaCapacidadesState Capacidades
 
 <PageTitle>@(_veiculo is null ? "Veículo" : $"{_veiculo.Marca} {_veiculo.Modelo}") | Detara</PageTitle>
+@if (!_capacidadeCarregada)
+{
+    <div class="page-container page-container-wide"><DetaraSkeleton Variant="DetaraSkeletonVariant.Detail" Rotulo="Validando módulos da empresa" /></div>
+}
+else if (!_capacidadeDisponivel)
+{
+    <div class="page-container page-container-focused"><EstadoVazio Titulo="@TituloCapacidadeIndisponivel" Descricao="@DescricaoCapacidadeIndisponivel" Icone="@Icons.Material.Outlined.ExtensionOff" /></div>
+}
+else
+{
 <div class="page-container page-container-wide">
 
 @if (_carregando)
@@ -148,6 +159,7 @@ else
 }
 
 </div>
+}
 
 @code {
     [Parameter] public Guid Id { get; set; }
@@ -159,6 +171,10 @@ else
     private bool _confirmandoStatus;
     private bool _enviandoFoto;
     private Guid? _alterandoFotoId;
+    private bool _capacidadeDisponivel;
+    private bool _capacidadeCarregada;
+    private string TituloCapacidadeIndisponivel => Capacidades.Estado == EstadoCarregamentoCapacidades.Carregado ? "Módulo indisponível" : "Não foi possível validar os módulos";
+    private string DescricaoCapacidadeIndisponivel => Capacidades.Estado == EstadoCarregamentoCapacidades.Carregado ? "Veículos não está habilitado para esta empresa." : Capacidades.Mensagem ?? "Tente novamente quando a conexão estiver disponível.";
 
     private string DescricaoVeiculo => _veiculo is null
         ? string.Empty
@@ -176,6 +192,14 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        await Capacidades.CarregarAsync();
+        _capacidadeCarregada = true;
+        _capacidadeDisponivel = Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
+        if (!_capacidadeDisponivel)
+        {
+            _carregando = false;
+            return;
+        }
         _carregando = true;
         await LiberarUrlsAsync();
         var resultado = await VeiculosApi.ObterAsync(Id);

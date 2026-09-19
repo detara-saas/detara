@@ -8,6 +8,7 @@ using Detara.Domain.Financeiro;
 using Detara.Domain.Notificacoes;
 using Detara.Domain.Plataforma;
 using Detara.Domain.Assinaturas;
+using Detara.Domain.Capacidades;
 using Detara.Domain.Identidade;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,7 @@ public sealed class DetaraDbContext(
     : DbContext(options)
 {
     public DbSet<Empresa> Empresas => Set<Empresa>();
+    public DbSet<EmpresaCapacidade> EmpresasCapacidades => Set<EmpresaCapacidade>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Perfil> Perfis => Set<Perfil>();
     public DbSet<Permissao> Permissoes => Set<Permissao>();
