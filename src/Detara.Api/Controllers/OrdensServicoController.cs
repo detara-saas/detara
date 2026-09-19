@@ -7,6 +7,7 @@ using Detara.Domain.Atendimento;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Detara.Api.Capacidades;
 
 namespace Detara.Api.Controllers;
 
@@ -61,6 +62,7 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{id:guid}/check-in"), Authorize(Policy = Permissoes.OrdemServicoEditar)]
+    [Authorize(Policy = PoliticasCapacidade.CheckIn)]
     public Task<ActionResult<RespostaApi<OrdemServicoDetalheResponse>>> CheckIn(Guid id, RealizarCheckInRequest request,
         CancellationToken ct) => Responder(sender.Send(new RealizarCheckInCommand(id, request.QuilometragemEntrada,
             request.ObservacaoEntrada)
@@ -72,6 +74,7 @@ public sealed class OrdensServicoController(ISender sender) : ControllerBase
         }, ct), "Check-in realizado com sucesso.");
 
     [HttpPut("{id:guid}/checklist"), Authorize(Policy = Permissoes.OrdemServicoEditar)]
+    [Authorize(Policy = PoliticasCapacidade.CheckIn)]
     public Task<ActionResult<RespostaApi<OrdemServicoDetalheResponse>>> Checklist(Guid id,
         AtualizarChecklistOrdemServicoRequest request, CancellationToken ct) => Responder(sender.Send(
             new AtualizarChecklistOrdemServicoCommand(id, request.Respostas.Select(item => new RespostaChecklistSnapshot(

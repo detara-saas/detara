@@ -51,6 +51,14 @@ public sealed record EmpresaPlataformaResumoResponse(
     string StatusConvite,
     DateTime CriadoEmUtc);
 
+public sealed record CapacidadeEmpresaPlataformaResponse(
+    string Codigo,
+    string Nome,
+    string Categoria,
+    bool Habilitada,
+    bool Configuravel,
+    int Ordem);
+
 public sealed record EmpresaPlataformaDetalheResponse(
     Guid Id,
     string NomeFantasia,
@@ -70,7 +78,9 @@ public sealed record EmpresaPlataformaDetalheResponse(
     string StatusConvite,
     DateTime? ConviteExpiraEmUtc,
     int TentativasEnvio,
-    string? UltimoErroEnvioSeguro);
+    string? UltimoErroEnvioSeguro,
+    string SegmentoCodigo,
+    IReadOnlyCollection<CapacidadeEmpresaPlataformaResponse> Capacidades);
 
 public sealed record AuditoriaPlataformaItemResponse(
     Guid Id,

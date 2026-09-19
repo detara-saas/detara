@@ -9,6 +9,8 @@ using Detara.Api.Autenticacao;
 using Detara.Api.Erros;
 using Detara.Api.Operacao;
 using Detara.Api.Assinaturas;
+using Detara.Api.Capacidades;
+using Detara.Domain.Capacidades;
 using Detara.Application;
 using Detara.Application.Abstracoes;
 using Detara.Infrastructure;
@@ -125,6 +127,8 @@ builder.Services.AddScoped<IContextoAdministradorPlataforma, HttpAdministradorPl
 builder.Services.AddScoped<ITokenServico, JwtTokenServico>();
 builder.Services.AddScoped<ITokenPlataformaServico, PlatformJwtTokenServico>();
 builder.Services.AddScoped<RefreshCookieServico>();
+builder.Services.AddScoped<IAuthorizationHandler, EmpresaCapacidadeAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, CapacidadeAuthorizationMiddlewareResultHandler>();
 builder.Services.AddExceptionHandler<TratadorGlobalExcecoes>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHsts(options =>
@@ -324,6 +328,12 @@ builder.Services.AddAuthorization(options =>
             .RequireAuthenticatedUser()
             .RequireClaim("permissao", permissao));
     }
+    options.AddPolicy(PoliticasCapacidade.Veiculos, policy => policy
+        .RequireAuthenticatedUser()
+        .AddRequirements(new EmpresaCapacidadeRequirement(CodigosCapacidadeEmpresa.Veiculos)));
+    options.AddPolicy(PoliticasCapacidade.CheckIn, policy => policy
+        .RequireAuthenticatedUser()
+        .AddRequirements(new EmpresaCapacidadeRequirement(CodigosCapacidadeEmpresa.CheckIn)));
     options.AddPolicy(EsquemasAutenticacao.PolicyAdministradorPlataforma, policy => policy
         .AddAuthenticationSchemes(EsquemasAutenticacao.Plataforma)
         .RequireAuthenticatedUser()

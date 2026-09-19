@@ -1,6 +1,7 @@
 using Detara.Application.Abstracoes;
 using Detara.Domain.Entidades;
 using Detara.Contracts.Autorizacao;
+using Detara.Domain.Capacidades;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -50,6 +51,8 @@ public static class DesenvolvimentoSeed
         }
 
         await using var contextTenant = new DetaraDbContext(options, new UsuarioContextoFixo(empresa.Id));
+        if (!await contextTenant.EmpresasCapacidades.AnyAsync(cancellationToken))
+            contextTenant.EmpresasCapacidades.AddRange(PresetCapacidadesEmpresa.Criar(empresa.Id, empresa.SegmentoCodigo));
         await Financeiro.CategoriasDespesaIniciais.PrepararAsync(contextTenant, empresa.Id, cancellationToken);
         var perfil = await contextTenant.Perfis
             .Include(x => x.Permissoes)

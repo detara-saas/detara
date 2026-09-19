@@ -251,7 +251,15 @@ public sealed class PlataformaController(
         item.StatusConvite,
         item.ConviteExpiraEmUtc,
         item.TentativasEnvio,
-        item.UltimoErroEnvioSeguro);
+        item.UltimoErroEnvioSeguro,
+        item.SegmentoCodigo,
+        item.Capacidades.Select(capacidade => new CapacidadeEmpresaPlataformaResponse(
+            capacidade.Codigo,
+            capacidade.Nome,
+            capacidade.Categoria,
+            capacidade.Habilitada,
+            capacidade.Configuravel,
+            capacidade.Ordem)).ToArray());
 
     private static AssinaturaPlataformaResponse MapearAssinatura(AssinaturaPlataformaResultado item) => new(
         item.EmpresaId, item.EmpresaNome,

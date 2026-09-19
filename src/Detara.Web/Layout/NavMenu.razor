@@ -1,4 +1,6 @@
 @inject PreferenciasInterfaceServico Preferencias
+@inject EmpresaCapacidadesState Capacidades
+@implements IDisposable
 
 <MudNavMenu Class="detara-nav">
     @if (Preferencias.Atual.Favoritos.Count > 0)
@@ -6,7 +8,9 @@
         <MudText Typo="Typo.overline" Class="nav-section">FAVORITOS</MudText>
         @foreach (var pagina in Preferencias.Atual.Favoritos)
         {
-            @if (Itens.TryGetValue(pagina, out var item))
+            @if (Itens.TryGetValue(pagina, out var item) &&
+                (!string.Equals(pagina, "veiculos", StringComparison.OrdinalIgnoreCase) ||
+                 Capacidades.Possui(CodigosCapacidadeContrato.Veiculos)))
             {
                 <MudNavLink Href="@item.Href" Icon="@Icons.Material.Outlined.StarOutline">
                     <span class="nav-label">@item.Nome</span>
@@ -39,7 +43,10 @@
     </AuthorizeView>
     <AuthorizeView Policy="@Permissoes.VeiculosVisualizar">
         <Authorized>
-            <MudNavLink Href="/veiculos" Icon="@Icons.Material.Outlined.DirectionsCar"><span class="nav-label">Veículos</span></MudNavLink>
+            @if (Capacidades.Possui(CodigosCapacidadeContrato.Veiculos))
+            {
+                <MudNavLink Href="/veiculos" Icon="@Icons.Material.Outlined.DirectionsCar"><span class="nav-label">Veículos</span></MudNavLink>
+            }
         </Authorized>
     </AuthorizeView>
     <AuthorizeView Policy="@Permissoes.ServicosVisualizar"><Authorized><MudNavLink Href="/servicos" Icon="@Icons.Material.Outlined.AutoFixHigh"><span class="nav-label">Serviços</span></MudNavLink></Authorized></AuthorizeView>
@@ -62,6 +69,10 @@
 @code {
     [Parameter]
     public bool Recolhida { get; set; }
+
+    protected override void OnInitialized() => Capacidades.Alterado += Atualizar;
+    private void Atualizar() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Capacidades.Alterado -= Atualizar;
 
     private static readonly IReadOnlyDictionary<string, (string Nome, string Href)> Itens =
         new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase)

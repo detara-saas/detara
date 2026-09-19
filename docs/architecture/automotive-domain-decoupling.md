@@ -513,3 +513,9 @@ Este discovery não:
 O Detara pode evoluir para suportar outros nichos sem abandonar o foco comercial em estética automotiva e sem necessidade de fork da aplicação. A arquitetura modular e o uso de IDs/snapshots, em vez de FKs cross-module em toda a cadeia, oferecem uma base favorável. O acoplamento, entretanto, é estrutural no backbone transacional e deve ser removido de forma incremental e compatível, não por condicionais de segmento ou simples ocultação de UI.
 
 A recomendação é preservar `OrdemServico` como conceito técnico Core, manter `Veiculo` como agregado automotivo bem definido, introduzir capacidades tenant-owned e tornar veículo/check-in opcionais por política. Todas as empresas atuais devem permanecer equivalentes ao perfil Estética Automotiva com o conjunto completo habilitado.
+
+## Atualização ARCH-03 — fundação implementada
+
+A primeira etapa do roadmap foi implementada sem apagar ou reinterpretar o discovery acima. O catálogo, o preset `estetica-automotiva`, a persistência tenant-owned, o backfill, o snapshot scoped, o endpoint tenant, as policies de Veículos/Check-in e o estado central do frontend estão descritos em [company-capabilities.md](company-capabilities.md).
+
+Nesta fase todas as capacidades produtivas permanecem ligadas e bloqueadas no Platform Admin. O segmento é somente metadata/preset e não controla comportamento. `VeiculoId` continua obrigatório no backbone transacional e o check-in continua obrigatório para iniciar a execução da OS; essas mudanças permanecem reservadas para ARCH-04 e ARCH-05.

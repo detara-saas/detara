@@ -3,6 +3,7 @@ using Detara.Application.Plataforma;
 using Detara.Contracts.Autorizacao;
 using Detara.Domain.Entidades;
 using Detara.Domain.Plataforma;
+using Detara.Domain.Capacidades;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
 using Microsoft.AspNetCore.Identity;
@@ -53,9 +54,16 @@ public sealed class ProvisionamentoPlataformaTests : IAsyncLifetime
             .SingleAsync();
         var usuario = await verificacao.Usuarios.IgnoreQueryFilters().SingleAsync();
         var convite = await verificacao.ConvitesAdministradoresEmpresa.SingleAsync();
+        var capacidades = await verificacao.EmpresasCapacidades.IgnoreQueryFilters().ToArrayAsync();
 
         Assert.Equal(resultado.Id, empresa.Id);
         Assert.Equal("oficina-acme", empresa.Slug);
+        Assert.Equal(SegmentosEmpresa.EsteticaAutomotiva, empresa.SegmentoCodigo);
+        Assert.Equal(CatalogoCapacidadesEmpresa.Todas.Count, capacidades.Length);
+        Assert.All(capacidades, capacidade => Assert.True(capacidade.Habilitada));
+        Assert.Equal(
+            CatalogoCapacidadesEmpresa.Todas.Select(item => item.Codigo).OrderBy(item => item),
+            capacidades.Select(item => item.Codigo).OrderBy(item => item));
         Assert.Equal(Permissoes.Definicoes.Count, perfil.Permissoes.Count);
         Assert.Equal(
             Permissoes.Todas.OrderBy(x => x),

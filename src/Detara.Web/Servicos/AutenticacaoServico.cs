@@ -9,7 +9,8 @@ public sealed class AutenticacaoServico(
     HttpClient httpClient,
     TokenStorage tokenStorage,
     JwtAuthenticationStateProvider authenticationStateProvider,
-    PreferenciasInterfaceServico preferencias)
+    PreferenciasInterfaceServico preferencias,
+    EmpresaCapacidadesState capacidades)
 {
     private SelecaoEmpresaPendente? _selecaoPendente;
 
@@ -94,6 +95,8 @@ public sealed class AutenticacaoServico(
         _selecaoPendente = null;
         await tokenStorage.SalvarAsync(sessao.Token);
         authenticationStateProvider.NotificarLogin();
+        capacidades.Limpar();
+        await capacidades.CarregarAsync();
         await preferencias.SincronizarAsync(cancellationToken);
     }
 
@@ -111,6 +114,7 @@ public sealed class AutenticacaoServico(
         finally
         {
             await tokenStorage.RemoverAsync();
+            capacidades.Limpar();
             authenticationStateProvider.NotificarLogout();
         }
     }

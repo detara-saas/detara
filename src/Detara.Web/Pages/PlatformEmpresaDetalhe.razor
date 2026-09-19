@@ -25,6 +25,7 @@
         <section class="platform-detail-metrics">
             <div><MudIcon Icon="@Icons.Material.Outlined.Badge" /><span>Documento<strong>@_empresa.CpfCnpj</strong></span></div>
             <div><MudIcon Icon="@Icons.Material.Outlined.Schedule" /><span>Fuso horário<strong>@_empresa.FusoHorario</strong></span></div>
+            <div><MudIcon Icon="@Icons.Material.Outlined.Category" /><span>Segmento<strong>@_empresa.SegmentoCodigo</strong></span></div>
             <div><MudIcon Icon="@Icons.Material.Outlined.Event" /><span>Provisionada em<strong>@_empresa.CriadoEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</strong></span></div>
         </section>
 
@@ -41,6 +42,20 @@
         </div>
 
         <MudPaper Elevation="0" Class="platform-panel platform-contact-panel"><div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.ContactMail" /><span><strong>Contato comercial</strong><small>Metadados do cadastro da empresa</small></span></div></div><dl class="platform-definition-list inline"><div><dt>E-mail</dt><dd>@(_empresa.Email ?? "Não informado")</dd></div><div><dt>Telefone</dt><dd>@(_empresa.Telefone ?? "Não informado")</dd></div></dl></MudPaper>
+
+        <MudPaper Elevation="0" Class="platform-panel platform-contact-panel">
+            <div class="platform-panel-heading"><div><MudIcon Icon="@Icons.Material.Outlined.Extension" /><span><strong>Capacidades da empresa</strong><small>Estado efetivo do tenant; alterações estão bloqueadas nesta fase</small></span></div></div>
+            <div class="capabilities-grid">
+                @foreach (var capacidade in _empresa.Capacidades.OrderBy(item => item.Ordem))
+                {
+                    <div class="capability-item">
+                        <span><strong>@capacidade.Nome</strong><small>@capacidade.Categoria · @capacidade.Codigo</small></span>
+                        <span class="status-badge @(capacidade.Habilitada ? "status-running" : "status-cancelled")">@(capacidade.Habilitada ? "Habilitada" : "Desabilitada")</span>
+                        <span class="status-badge status-pending">@(capacidade.Configuravel ? "Configurável" : "Bloqueada")</span>
+                    </div>
+                }
+            </div>
+        </MudPaper>
     }
 </div>
 

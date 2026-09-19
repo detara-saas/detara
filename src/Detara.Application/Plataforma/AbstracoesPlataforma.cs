@@ -91,6 +91,14 @@ public sealed record EmpresaPlataformaResumo(
     string StatusConvite,
     DateTime CriadoEmUtc);
 
+public sealed record CapacidadeEmpresaPlataformaDetalhe(
+    string Codigo,
+    string Nome,
+    string Categoria,
+    bool Habilitada,
+    bool Configuravel,
+    int Ordem);
+
 public sealed record EmpresaPlataformaDetalhe(
     Guid Id,
     string NomeFantasia,
@@ -110,7 +118,9 @@ public sealed record EmpresaPlataformaDetalhe(
     string StatusConvite,
     DateTime? ConviteExpiraEmUtc,
     int TentativasEnvio,
-    string? UltimoErroEnvioSeguro);
+    string? UltimoErroEnvioSeguro,
+    string SegmentoCodigo,
+    IReadOnlyCollection<CapacidadeEmpresaPlataformaDetalhe> Capacidades);
 
 public sealed record PaginaPlataforma<T>(
     IReadOnlyCollection<T> Itens,

@@ -55,6 +55,7 @@ builder.Services.AddScoped(provider =>
         new HttpClient(authorizationHandler) { BaseAddress = apiBaseAddress });
 });
 builder.Services.AddScoped<AutenticacaoServico>();
+builder.Services.AddScoped<EmpresaCapacidadesState>();
 builder.Services.AddScoped<IMensagemServico, MensagemServico>();
 builder.Services.AddScoped<PreferenciasInterfaceServico>();
 builder.Services.AddScoped<PwaServico>();

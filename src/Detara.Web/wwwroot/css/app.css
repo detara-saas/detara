@@ -2018,3 +2018,29 @@ h1:focus { outline: none; }
     .dashboard-quick-actions { grid-template-columns: 1fr; }
     .dashboard-now-grid > a > div { grid-template-columns: minmax(0,1fr) auto; }
 }
+.capabilities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--detara-section-gap);
+}
+
+.capability-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 16px;
+    padding: var(--detara-section-gap);
+    border: 1px solid var(--detara-border-soft);
+    border-radius: var(--detara-radius-sm);
+    background: var(--detara-surface-alt);
+}
+
+.capability-item > span:first-child {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.capability-item small {
+    color: var(--text-secondary);
+}
