@@ -4,7 +4,7 @@ using Detara.Domain.Catalogo;
 namespace Detara.Application.Catalogo;
 
 public sealed record ExecucaoItemCatalogoResultado(Guid OrdemServicoId, string OrdemServicoCodigo,
-    DateTime ExecutadaEmUtc, string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca,
+    DateTime ExecutadaEmUtc, string ClienteNome, string? VeiculoDescricao, string? VeiculoPlaca,
     decimal ValorUnitario, int Quantidade, StatusOrdemServico Status);
 
 public interface IHistoricoExecucoesCatalogoConsulta

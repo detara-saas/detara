@@ -73,7 +73,7 @@ internal sealed class AgendaDashboardConsulta(DetaraDbContext db) : IAgendaDashb
                 TipoAtividadeDashboard.AgendamentoCriado,
                 agendamento.Id,
                 agendamento.CriadoEmUtc,
-                agendamento.VeiculoDescricaoSnapshot))
+                agendamento.VeiculoDescricaoSnapshot ?? agendamento.ClienteNomeSnapshot))
             .ToArrayAsync(cancellationToken);
 
         return new(

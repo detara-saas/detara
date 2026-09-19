@@ -13,7 +13,7 @@ internal sealed class ContaReceberConfiguracao : IEntityTypeConfiguration<ContaR
         builder.HasAlternateKey(item => new { item.EmpresaId, item.Id });
         builder.Property(item => item.OrdemServicoCodigoSnapshot).HasMaxLength(32).IsRequired();
         builder.Property(item => item.ClienteNomeSnapshot).HasMaxLength(160).IsRequired();
-        builder.Property(item => item.VeiculoDescricaoSnapshot).HasMaxLength(200).IsRequired();
+        builder.Property(item => item.VeiculoDescricaoSnapshot).HasMaxLength(200);
         builder.Property(item => item.VeiculoPlacaSnapshot).HasMaxLength(10);
         builder.Property(item => item.SubtotalAutorizado).HasPrecision(18, 2);
         builder.Property(item => item.DescontoAutorizado).HasPrecision(18, 2);

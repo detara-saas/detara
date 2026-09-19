@@ -1,7 +1,8 @@
 .platform-subscription-panel { grid-column: 1 / -1; }
-.platform-subscription-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.platform-subscription-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--detara-form-gap); margin-top: var(--detara-section-gap); }
 .platform-confirmation-date { grid-column: span 2; }
-.platform-subscription-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.platform-panel-actions { margin-top: var(--detara-section-gap); }
+.platform-subscription-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .platform-subscription-history { display: grid; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--detara-border-soft); }
 .platform-subscription-history article { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .platform-subscription-history p { margin: 0; color: var(--detara-text); }

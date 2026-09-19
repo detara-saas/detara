@@ -17,7 +17,7 @@ internal sealed class OrdemServicoConfiguracao : IEntityTypeConfiguration<OrdemS
         builder.Property(item => item.ClienteNomeSnapshot).HasMaxLength(160).IsRequired();
         builder.Property(item => item.ClienteDocumentoSnapshot).HasMaxLength(20);
         builder.Property(item => item.ClienteTelefoneSnapshot).HasMaxLength(20);
-        builder.Property(item => item.VeiculoDescricaoSnapshot).HasMaxLength(200).IsRequired();
+        builder.Property(item => item.VeiculoDescricaoSnapshot).HasMaxLength(200);
         builder.Property(item => item.VeiculoPlacaSnapshot).HasMaxLength(10);
         builder.Property(item => item.DescontoAutorizado).HasPrecision(18, 2);
         builder.Property(item => item.AcrescimoAutorizado).HasPrecision(18, 2);

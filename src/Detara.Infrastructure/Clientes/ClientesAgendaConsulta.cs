@@ -6,6 +6,12 @@ namespace Detara.Infrastructure.Clientes;
 
 internal sealed class ClientesAgendaConsulta(DetaraDbContext db) : IClientesAgendaConsulta
 {
+    public Task<ClienteAgendaInterno?> ObterClienteAsync(Guid empresaId, Guid clienteId, CancellationToken ct) =>
+        db.Clientes.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId && x.Id == clienteId)
+            .Select(x => new ClienteAgendaInterno(x.Id, x.Nome, x.Telefone, x.EhAtivo))
+            .SingleOrDefaultAsync(ct);
+
     public async Task<ClienteVeiculoAgendaInterno?> ObterClienteVeiculoAsync(Guid empresaId, Guid clienteId, Guid veiculoId, CancellationToken ct)
     {
         var cliente = await db.Clientes.IgnoreQueryFilters().AsNoTracking().Where(x => x.EmpresaId == empresaId && x.Id == clienteId).Select(x => new ClienteAgendaInterno(x.Id, x.Nome, x.Telefone, x.EhAtivo)).SingleOrDefaultAsync(ct);

@@ -26,7 +26,7 @@ internal sealed class FinanceiroRepositorio(DetaraDbContext db) : IFinanceiroRep
             var termo = filtro.Pesquisa.Trim();
             var placa = new string(termo.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
             query = query.Where(item => item.OrdemServicoCodigoSnapshot.Contains(termo) ||
-                item.ClienteNomeSnapshot.Contains(termo) || item.VeiculoDescricaoSnapshot.Contains(termo) ||
+                item.ClienteNomeSnapshot.Contains(termo) || item.VeiculoDescricaoSnapshot != null && item.VeiculoDescricaoSnapshot.Contains(termo) ||
                 item.VeiculoPlacaSnapshot != null && item.VeiculoPlacaSnapshot.Contains(placa));
         }
 

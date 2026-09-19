@@ -73,8 +73,8 @@ internal sealed partial class RenderizadorTemplateWhatsApp : IRenderizadorTempla
             empresa;
     }
 
-    private static string Limpar(string valor) =>
-        valor.Replace("\r", " ", StringComparison.Ordinal)
+    private static string Limpar(string? valor) =>
+        (valor ?? string.Empty).Replace("\r", " ", StringComparison.Ordinal)
             .Replace("\n", " ", StringComparison.Ordinal).Trim();
 
     [GeneratedRegex(@"\{([A-Za-z][A-Za-z0-9]*)\}", RegexOptions.CultureInvariant)]

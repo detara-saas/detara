@@ -47,7 +47,7 @@ public sealed record ServicoDetalheResponse(
     IReadOnlyCollection<ExecucaoItemCatalogoResponse> Execucoes);
 
 public sealed record ExecucaoItemCatalogoResponse(Guid OrdemServicoId, string OrdemServicoCodigo,
-    DateTime ExecutadaEmUtc, string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca,
+    DateTime ExecutadaEmUtc, string ClienteNome, string? VeiculoDescricao, string? VeiculoPlaca,
     decimal ValorUnitario, int Quantidade, StatusOrdemServicoContrato Status);
 
 public sealed record ServicoSelecaoResponse(

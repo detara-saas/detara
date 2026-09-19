@@ -6,6 +6,26 @@
 >
 > Data do levantamento: 2026-09-18
 
+## Estado após a ARCH-04
+
+A ARCH-04 implementou a primeira etapa runtime deste discovery. A migration
+`MakeVehicleOptionalInTransactionalBackbone` tornou `VeiculoId` e
+`VeiculoDescricaoSnapshot` nullable exclusivamente em `Agendamentos`, `Orcamentos`,
+`OrdensServico` e `ContasReceber`. Os registros automotivos existentes não são
+reescritos, os índices são preservados e nenhuma FK nova foi criada.
+
+A ausência de veículo é representada somente por `null`. O backend consulta a
+capability `veiculos` antes de criar ou alterar transações: empresas com a capability
+habilitada continuam obrigadas a informar um veículo válido do mesmo tenant; empresas
+com a capability desabilitada devem omitir o vínculo e têm payloads com `VeiculoId`
+rejeitados. Agenda, Orçamento, OS e Financeiro propagam o mesmo valor nullable nas
+conversões, sem veículo sintético, `Guid.Empty`, `Asset` ou `ObjetoAtendido`.
+
+Esta mudança ainda não constitui liberação produtiva para tenants não automotivos.
+`veiculos` e `check-in` continuam bloqueadas no Platform Admin, a dependência
+`check-in -> veiculos` permanece e a máquina de estados da OS ainda exige check-in
+para iniciar a execução. A remoção condicional dessa etapa pertence à ARCH-05.
+
 ## Executive Summary
 
 O Detara já possui um núcleo substancialmente reutilizável por empresas de prestação de serviços: identidade e multi-tenancy, clientes, catálogo de serviços e pacotes, agenda temporal, orçamento e aprovação, execução por Ordem de Serviço (OS), contas a receber e pagar, despesas, pagamentos, dashboards, relatórios, usuários, permissões, comunicação, assinatura e Platform Admin. O foco comercial pode continuar em estética automotiva sem obrigar esse núcleo técnico a depender de conceitos automotivos.

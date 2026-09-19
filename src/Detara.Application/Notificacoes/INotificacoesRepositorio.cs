@@ -53,7 +53,7 @@ public interface IClientesNotificacoesConsulta
 }
 
 public sealed record OrdemServicoNotificacoesInterna(Guid Id, string Codigo,
-    StatusOrdemServico Status, Guid ClienteId, string ClienteNome, string VeiculoDescricao,
+    StatusOrdemServico Status, Guid ClienteId, string ClienteNome, string? VeiculoDescricao,
     string? VeiculoPlaca);
 
 public interface IAtendimentoNotificacoesConsulta
@@ -65,7 +65,7 @@ public interface IAtendimentoNotificacoesConsulta
 public sealed record ConteudoTemplateEmail(string Assunto, string CorpoHtml, OrigemTemplateEmail Origem);
 public sealed record ConteudoTemplateWhatsApp(string Nome, string Mensagem,
     OrigemTemplateComunicacao Origem);
-public sealed record DadosTemplateEmail(string EmpresaNome, string ClienteNome, string VeiculoDescricao,
+public sealed record DadosTemplateEmail(string EmpresaNome, string ClienteNome, string? VeiculoDescricao,
     string? Placa, string OrdemServicoCodigo);
 public sealed record EmailRenderizado(string Assunto, string CorpoHtmlCompleto);
 
@@ -87,7 +87,7 @@ public interface IRenderizadorTemplateWhatsApp
 }
 
 public sealed record OrdemServicoFinalizadaNotificacoes(Guid EmpresaId, Guid OrdemServicoId,
-    string OrdemServicoCodigo, Guid ClienteId, string ClienteNome, string VeiculoDescricao, string? VeiculoPlaca);
+    string OrdemServicoCodigo, Guid ClienteId, string ClienteNome, string? VeiculoDescricao, string? VeiculoPlaca);
 
 public interface IIntegracaoNotificacoesOrdensServico
 {

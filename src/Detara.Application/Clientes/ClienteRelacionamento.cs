@@ -23,8 +23,8 @@ public sealed record VeiculoRelacionamentoAtendimentoResultado(
 public sealed record AtendimentoRelacionamentoClienteResultado(
     Guid Id,
     string Codigo,
-    Guid VeiculoId,
-    string VeiculoDescricao,
+    Guid? VeiculoId,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     StatusOrdemServico Status,
     decimal TotalAutorizado,
@@ -34,8 +34,8 @@ public sealed record AtendimentoRelacionamentoClienteResultado(
 public sealed record OrcamentoRelacionamentoClienteResultado(
     Guid Id,
     string? Codigo,
-    Guid VeiculoId,
-    string VeiculoDescricao,
+    Guid? VeiculoId,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     StatusEfetivoOrcamento Status,
     decimal Total,

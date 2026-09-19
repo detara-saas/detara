@@ -15,7 +15,7 @@ internal sealed class OrcamentoConfiguracao : IEntityTypeConfiguration<Orcamento
         builder.Property(x => x.ClienteNomeSnapshot).HasMaxLength(160).IsRequired();
         builder.Property(x => x.ClienteDocumentoSnapshot).HasMaxLength(20);
         builder.Property(x => x.ClienteTelefoneSnapshot).HasMaxLength(20);
-        builder.Property(x => x.VeiculoDescricaoSnapshot).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.VeiculoDescricaoSnapshot).HasMaxLength(200);
         builder.Property(x => x.VeiculoPlacaSnapshot).HasMaxLength(10);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(x => x.ObservacaoCliente).HasMaxLength(2000);

@@ -1,4 +1,5 @@
 using Detara.Application.Abstracoes;
+using Detara.Application.Capacidades;
 using Detara.Domain.Agenda;
 using FluentValidation;
 using MediatR;
@@ -7,8 +8,8 @@ using System.Linq.Expressions;
 namespace Detara.Application.Agenda;
 
 public sealed record ItemAgendamentoEntrada(TipoItemAgendamento TipoItem, Guid ItemCatalogoId);
-public sealed record CriarAgendamentoCommand(Guid ClienteId, Guid VeiculoId, DateTime InicioLocal, int DuracaoPlanejadaMinutos, string? ObservacaoSolicitante, string? ObservacaoInterna, IReadOnlyCollection<ItemAgendamentoEntrada> Itens) : IRequest<AgendamentoDetalheVisualizacao>;
-public sealed record AtualizarAgendamentoCommand(Guid Id, Guid ClienteId, Guid VeiculoId, DateTime InicioLocal, int DuracaoPlanejadaMinutos, string? ObservacaoSolicitante, string? ObservacaoInterna, IReadOnlyCollection<ItemAgendamentoEntrada> Itens) : IRequest<AgendamentoDetalheVisualizacao>;
+public sealed record CriarAgendamentoCommand(Guid ClienteId, Guid? VeiculoId, DateTime InicioLocal, int DuracaoPlanejadaMinutos, string? ObservacaoSolicitante, string? ObservacaoInterna, IReadOnlyCollection<ItemAgendamentoEntrada> Itens) : IRequest<AgendamentoDetalheVisualizacao>;
+public sealed record AtualizarAgendamentoCommand(Guid Id, Guid ClienteId, Guid? VeiculoId, DateTime InicioLocal, int DuracaoPlanejadaMinutos, string? ObservacaoSolicitante, string? ObservacaoInterna, IReadOnlyCollection<ItemAgendamentoEntrada> Itens) : IRequest<AgendamentoDetalheVisualizacao>;
 public sealed record ReagendarAgendamentoCommand(Guid Id, DateTime InicioLocal, int DuracaoPlanejadaMinutos) : IRequest<AgendamentoDetalheVisualizacao>;
 public sealed record ObterAgendamentoQuery(Guid Id) : IRequest<AgendamentoDetalheVisualizacao>;
 public sealed record ListarAgendaPeriodoQuery(FiltroAgendaPeriodo Filtro) : IRequest<IReadOnlyCollection<AgendamentoPeriodoVisualizacao>>;
@@ -27,9 +28,9 @@ public sealed record ContextoAgendaVisualizacao(string FusoHorario, DateOnly Hoj
 
 internal abstract class SalvarAgendamentoValidatorBase<T> : AbstractValidator<T>
 {
-    protected void Regras(Expression<Func<T, Guid>> cliente, Expression<Func<T, Guid>> veiculo, Expression<Func<T, DateTime>> inicio, Expression<Func<T, int>> duracao, Expression<Func<T, string?>> observacaoSolicitante, Expression<Func<T, string?>> observacaoInterna, Expression<Func<T, IEnumerable<ItemAgendamentoEntrada>>> itens)
+    protected void Regras(Expression<Func<T, Guid>> cliente, Expression<Func<T, Guid?>> veiculo, Expression<Func<T, DateTime>> inicio, Expression<Func<T, int>> duracao, Expression<Func<T, string?>> observacaoSolicitante, Expression<Func<T, string?>> observacaoInterna, Expression<Func<T, IEnumerable<ItemAgendamentoEntrada>>> itens)
     {
-        RuleFor(cliente).NotEmpty(); RuleFor(veiculo).NotEmpty();
+        RuleFor(cliente).NotEmpty();
         RuleFor(inicio).NotEmpty(); RuleFor(duracao).InclusiveBetween(1, 43200);
         RuleFor(observacaoSolicitante).MaximumLength(2000); RuleFor(observacaoInterna).MaximumLength(4000);
         RuleFor(itens).NotEmpty().Must(x => x.Select(i => (i.TipoItem, i.ItemCatalogoId)).Distinct().Count() == x.Count()).WithMessage("Os itens não podem se repetir.");
@@ -42,24 +43,26 @@ internal sealed class ReagendarAgendamentoValidator : AbstractValidator<Reagenda
 internal sealed class ListarAgendaPeriodoValidator : AbstractValidator<ListarAgendaPeriodoQuery> { public ListarAgendaPeriodoValidator() { RuleFor(x => x.Filtro.FimUtc).GreaterThan(x => x.Filtro.InicioUtc); RuleFor(x => x.Filtro).Must(x => x.FimUtc - x.InicioUtc <= TimeSpan.FromDays(31)).WithMessage("O período máximo da agenda é de 31 dias."); RuleFor(x => x.Filtro.Pesquisa).MaximumLength(160); } }
 internal sealed class ListarHistoricoValidator : AbstractValidator<ListarHistoricoAgendamentosQuery> { public ListarHistoricoValidator() { RuleFor(x => x.Filtro.Pagina).GreaterThanOrEqualTo(1); RuleFor(x => x.Filtro.TamanhoPagina).Must(x => x is 10 or 25 or 50); RuleFor(x => x.Filtro.Pesquisa).MaximumLength(160); } }
 
-internal sealed class CriarAgendamentoHandler(IUsuarioContexto usuario, IClientesAgendaConsulta clientes, ICatalogoAgendaConsulta catalogo, IFusoHorarioEmpresaConsulta fusos, IConversorFusoHorario conversor, IAgendaRepositorio agenda) : IRequestHandler<CriarAgendamentoCommand, AgendamentoDetalheVisualizacao>
+internal sealed class CriarAgendamentoHandler(IUsuarioContexto usuario, IClientesAgendaConsulta clientes, ICatalogoAgendaConsulta catalogo, IFusoHorarioEmpresaConsulta fusos, IConversorFusoHorario conversor, IAgendaRepositorio agenda, IEmpresaCapacidadesServico capacidades) : IRequestHandler<CriarAgendamentoCommand, AgendamentoDetalheVisualizacao>
 {
     public async Task<AgendamentoDetalheVisualizacao> Handle(CriarAgendamentoCommand request, CancellationToken ct)
     {
-        var clienteVeiculo = await AgendaFluxo.ValidarClienteVeiculoAsync(clientes, usuario.EmpresaId, request.ClienteId, request.VeiculoId, exigirAtivos: true, ct);
+        var utilizaVeiculos = await VeiculoTransacionalRegra.ValidarAsync(capacidades, request.VeiculoId, ct);
+        var partes = await AgendaFluxo.ValidarPartesAsync(clientes, usuario.EmpresaId, request.ClienteId, request.VeiculoId, utilizaVeiculos, exigirAtivos: true, ct);
         var snapshots = await AgendaFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId, request.Itens, new Dictionary<(TipoItemAgendamento, Guid), ItemAgendamentoSnapshot>(), exigirAtivosNovos: true, ct);
         var fuso = await AgendaFluxo.ObterFusoAsync(fusos, usuario.EmpresaId, ct);
-        var entidade = new Agendamento(usuario.EmpresaId, request.ClienteId, clienteVeiculo.Cliente.Nome, request.VeiculoId, clienteVeiculo.Veiculo.Descricao, clienteVeiculo.Veiculo.Placa, conversor.ParaUtc(request.InicioLocal, fuso), request.DuracaoPlanejadaMinutos, request.ObservacaoSolicitante, request.ObservacaoInterna, snapshots);
+        var entidade = new Agendamento(usuario.EmpresaId, request.ClienteId, partes.Cliente.Nome, request.VeiculoId, partes.Veiculo?.Descricao, partes.Veiculo?.Placa, conversor.ParaUtc(request.InicioLocal, fuso), request.DuracaoPlanejadaMinutos, request.ObservacaoSolicitante, request.ObservacaoInterna, snapshots);
         entidade.AlterarStatus(StatusAgendamento.Confirmado);
         agenda.Adicionar(entidade); await agenda.SalvarAsync(ct);
         return await AgendaFluxo.ObterDetalheAsync(entidade.Id, usuario.EmpresaId, agenda, catalogo, fusos, conversor, ct);
     }
 }
 
-internal sealed class AtualizarAgendamentoHandler(IUsuarioContexto usuario, ICatalogoAgendaConsulta catalogo, IFusoHorarioEmpresaConsulta fusos, IConversorFusoHorario conversor, IAgendaRepositorio agenda) : IRequestHandler<AtualizarAgendamentoCommand, AgendamentoDetalheVisualizacao>
+internal sealed class AtualizarAgendamentoHandler(IUsuarioContexto usuario, ICatalogoAgendaConsulta catalogo, IFusoHorarioEmpresaConsulta fusos, IConversorFusoHorario conversor, IAgendaRepositorio agenda, IEmpresaCapacidadesServico capacidades) : IRequestHandler<AtualizarAgendamentoCommand, AgendamentoDetalheVisualizacao>
 {
     public async Task<AgendamentoDetalheVisualizacao> Handle(AtualizarAgendamentoCommand request, CancellationToken ct)
     {
+        await VeiculoTransacionalRegra.ValidarAsync(capacidades, request.VeiculoId, ct);
         var entidade = await agenda.ObterParaAlteracaoAsync(request.Id, ct) ?? throw new RecursoNaoEncontradoException("Agendamento não encontrado.");
         if (entidade.ClienteId != request.ClienteId || entidade.VeiculoId != request.VeiculoId) throw new ConflitoRegraNegocioException("Cliente e veículo não podem ser trocados na edição. Crie outro agendamento.");
         var antigos = entidade.Itens.ToDictionary(x => (x.TipoItem, x.ItemCatalogoId), x => new ItemAgendamentoSnapshot(x.TipoItem, x.ItemCatalogoId, x.NomeSnapshot, x.DescricaoSnapshot, x.TipoPrecificacaoSnapshot, x.PrecoReferenciaSnapshot, x.DuracaoReferenciaMinutosSnapshot));
@@ -90,6 +93,25 @@ internal sealed class ObterContextoAgendaHandler(IUsuarioContexto usuario, IFuso
 
 internal static class AgendaFluxo
 {
+    public sealed record PartesAgenda(ClienteAgendaInterno Cliente, VeiculoAgendaInterno? Veiculo);
+
+    public static async Task<PartesAgenda> ValidarPartesAsync(IClientesAgendaConsulta consulta, Guid empresaId,
+        Guid clienteId, Guid? veiculoId, bool utilizaVeiculos, bool exigirAtivos, CancellationToken ct)
+    {
+        if (!utilizaVeiculos)
+        {
+            var cliente = await consulta.ObterClienteAsync(empresaId, clienteId, ct)
+                ?? throw new RecursoNaoEncontradoException("Cliente não encontrado na empresa atual.");
+            if (exigirAtivos && !cliente.EhAtivo)
+                throw new ConflitoRegraNegocioException("O cliente deve estar ativo para um novo agendamento.");
+            return new(cliente, null);
+        }
+
+        var resultado = await ValidarClienteVeiculoAsync(consulta, empresaId, clienteId, veiculoId!.Value,
+            exigirAtivos, ct);
+        return new(resultado.Cliente, resultado.Veiculo);
+    }
+
     public static async Task<ClienteVeiculoAgendaInterno> ValidarClienteVeiculoAsync(IClientesAgendaConsulta consulta, Guid empresaId, Guid clienteId, Guid veiculoId, bool exigirAtivos, CancellationToken ct)
     { var resultado = await consulta.ObterClienteVeiculoAsync(empresaId, clienteId, veiculoId, ct) ?? throw new RecursoNaoEncontradoException("Cliente ou veículo não encontrado na empresa atual."); if (resultado.Veiculo.ClienteId != clienteId) throw new ConflitoRegraNegocioException("O veículo não pertence ao cliente selecionado."); if (exigirAtivos && (!resultado.Cliente.EhAtivo || !resultado.Veiculo.EhAtivo)) throw new ConflitoRegraNegocioException("Cliente e veículo devem estar ativos para um novo agendamento."); return resultado; }
 

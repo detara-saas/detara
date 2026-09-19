@@ -4,8 +4,9 @@ namespace Detara.Web.Servicos;
 
 public static class FormatacaoVeiculo
 {
-    public static string Exibir(string descricao, string? placa)
+    public static string Exibir(string? descricao, string? placa)
     {
+        if (string.IsNullOrWhiteSpace(descricao)) return string.Empty;
         if (string.IsNullOrWhiteSpace(placa) ||
             descricao.Contains(placa, StringComparison.OrdinalIgnoreCase))
         {

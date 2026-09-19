@@ -29,7 +29,7 @@ public sealed record CriarOrcamentoAdicionalRequest(DateOnly ValidoAte, string? 
     IReadOnlyCollection<OrcamentoItemRequest> Itens);
 
 public sealed record OrdemServicoListaResponse(Guid Id, string Codigo, string ClienteNome,
-    string VeiculoDescricao, string? VeiculoPlaca, StatusOrdemServicoContrato Status,
+    string? VeiculoDescricao, string? VeiculoPlaca, StatusOrdemServicoContrato Status,
     decimal TotalAutorizado, DateTime CriadoEmUtc);
 public sealed record OrdemServicoAgendamentoResponse(Guid Id, string Codigo,
     StatusOrdemServicoContrato Status);
@@ -61,7 +61,7 @@ public sealed record OrcamentoAdicionalOrdemServicoResponse(Guid Id, string? Cod
     IReadOnlyCollection<string> Itens);
 public sealed record OrdemServicoDetalheResponse(Guid Id, string Codigo, OrigemOrdemServicoContrato Origem,
     Guid? OrcamentoOrigemId, Guid? AgendamentoOrigemId, Guid ClienteId, string ClienteNome,
-    string? ClienteDocumento, string? ClienteTelefone, Guid VeiculoId, string VeiculoDescricao,
+    string? ClienteDocumento, string? ClienteTelefone, Guid? VeiculoId, string? VeiculoDescricao,
     string? VeiculoPlaca, int? DuracaoPlanejadaMinutos, StatusOrdemServicoContrato Status,
     decimal SubtotalAutorizado, decimal DescontoAutorizado, decimal AcrescimoAutorizado,
     decimal TotalAutorizado, DateTime? AutorizacaoDiretaEmUtc, Guid? AutorizacaoDiretaPorUsuarioId,

@@ -8,6 +8,7 @@ using Detara.Infrastructure.Catalogo;
 using Detara.Infrastructure.Clientes;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
+using Detara.IntegrationTests.Suporte;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -114,7 +115,7 @@ public sealed class AgendaPersistenciaTests : IAsyncLifetime
     {
         await using var c = Contexto(_empresaA); var criado = await CriarHandler(c).Handle(Comando(_clienteA, _veiculoA, TipoItemAgendamento.Servico, _servicoA), default);
         var servico = await c.Servicos.SingleAsync(x => x.Id == _servicoA); servico.Desativar(); await c.SaveChangesAsync();
-        var handler = new AtualizarAgendamentoHandler(new UsuarioContextoTeste(_empresaA), new CatalogoAgendaConsulta(c), new FusoHorarioEmpresaConsulta(c), new ConversorFusoHorario(), new AgendaRepositorio(c));
+        var handler = new AtualizarAgendamentoHandler(new UsuarioContextoTeste(_empresaA), new CatalogoAgendaConsulta(c), new FusoHorarioEmpresaConsulta(c), new ConversorFusoHorario(), new AgendaRepositorio(c), new EmpresaCapacidadesTeste());
         var atualizado = await handler.Handle(new(criado.Agendamento.Id, _clienteA, _veiculoA, new DateTime(2026, 8, 20, 10, 0, 0), 120, "Mantida", null, [new(TipoItemAgendamento.Servico, _servicoA)]), default);
 
         var item = Assert.Single(atualizado.Itens);
@@ -144,7 +145,7 @@ public sealed class AgendaPersistenciaTests : IAsyncLifetime
         Assert.DoesNotContain(itens, item => item.Id == _servicoB);
     }
 
-    private CriarAgendamentoHandler CriarHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA), new ClientesAgendaConsulta(c), new CatalogoAgendaConsulta(c), new FusoHorarioEmpresaConsulta(c), new ConversorFusoHorario(), new AgendaRepositorio(c));
+    private CriarAgendamentoHandler CriarHandler(DetaraDbContext c, bool veiculos = true) => new(new UsuarioContextoTeste(_empresaA), new ClientesAgendaConsulta(c), new CatalogoAgendaConsulta(c), new FusoHorarioEmpresaConsulta(c), new ConversorFusoHorario(), new AgendaRepositorio(c), new EmpresaCapacidadesTeste(veiculos));
     private static CriarAgendamentoCommand Comando(Guid cliente, Guid veiculo, TipoItemAgendamento tipo, Guid item, DateTime? inicio = null, int duracao = 90) => new(cliente, veiculo, inicio ?? new DateTime(2026, 8, 20, 9, 0, 0), duracao, null, null, [new(tipo, item)]);
     private DetaraDbContext Contexto(Guid empresaId) => new(_options, new UsuarioContextoTeste(empresaId));
     private sealed class UsuarioContextoTeste(Guid empresaId, bool autenticado = true) : IUsuarioContexto { public static UsuarioContextoTeste Anonimo { get; } = new(Guid.Empty, false); public Guid UsuarioId { get; } = autenticado ? Guid.NewGuid() : Guid.Empty; public Guid EmpresaId { get; } = empresaId; public bool EstaAutenticado { get; } = autenticado; }

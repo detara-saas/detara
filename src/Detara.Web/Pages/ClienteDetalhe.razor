@@ -3,6 +3,7 @@
 @inject ClientesServico ClientesApi
 @inject IMensagemServico Mensagens
 @inject IDialogService Dialogos
+@inject EmpresaCapacidadesState Capacidades
 
 <PageTitle>@(_relacionamento?.Cliente.Nome ?? "Cliente") | Detara</PageTitle>
 
@@ -58,12 +59,14 @@ else
             <AuthorizeView Policy="@Permissoes.AgendaCriar"><Authorized><MudButton Href="@LinkAgenda(cliente)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.EventAvailable">Novo agendamento</MudButton></Authorized></AuthorizeView>
             <AuthorizeView Policy="@Permissoes.OrcamentosCriar"><Authorized><MudButton Href="@LinkOrcamento(cliente)" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.RequestQuote">Novo orçamento</MudButton></Authorized></AuthorizeView>
             <AuthorizeView Policy="@Permissoes.OrdemServicoCriar"><Authorized><MudButton Href="@LinkOrdemServico(cliente)" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.BuildCircle">Nova ordem de serviço</MudButton></Authorized></AuthorizeView>
-            <AuthorizeView Policy="@Permissoes.VeiculosCriar"><Authorized><MudButton Href="@($"/veiculos/novo?clienteId={Id}")" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.AddRoad">Adicionar veículo</MudButton></Authorized></AuthorizeView>
+            @if (UsaVeiculos) { <AuthorizeView Policy="@Permissoes.VeiculosCriar"><Authorized><MudButton Href="@($"/veiculos/novo?clienteId={Id}")" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.AddRoad">Adicionar veículo</MudButton></Authorized></AuthorizeView> }
         </div>
     </DetaraCard>
 
     <div class="customer-360-workspace">
         <main class="customer-360-main">
+            @if (UsaVeiculos)
+            {
             <DetaraCard Sobretitulo="GARAGEM" Titulo="Veículos" Descricao="Histórico consolidado por veículo">
                 @if (_relacionamento.Veiculos.Count == 0)
                 {
@@ -93,6 +96,7 @@ else
                     </div>
                 }
             </DetaraCard>
+            }
 
             @if (_relacionamento.PodeVisualizarAtendimentos)
             {
@@ -110,7 +114,7 @@ else
                             <a href="@($"/ordens-servico/{atendimento.Id}")" class="customer-360-timeline-item">
                                 <span class="customer-360-timeline-marker"></span>
                                 <div class="customer-360-timeline-date"><strong>@atendimento.DataEmUtc.ToLocalTime().ToString("dd")</strong><span>@atendimento.DataEmUtc.ToLocalTime().ToString("MMM yyyy")</span></div>
-                                <div class="customer-360-timeline-copy"><strong>@atendimento.Codigo · @atendimento.VeiculoDescricao</strong><span>@ResumoItens(atendimento.Servicos)</span></div>
+                                <div class="customer-360-timeline-copy"><strong>@IdentificacaoAtendimento(atendimento.Codigo, atendimento.VeiculoDescricao)</strong><span>@ResumoItens(atendimento.Servicos)</span></div>
                                 <DetaraStatusBadge Texto="@NomeStatus(atendimento.Status)" Tone="@TomStatus(atendimento.Status)" />
                                 <strong class="currency-value">@atendimento.TotalAutorizado.ToString("C")</strong>
                             </a>
@@ -134,7 +138,7 @@ else
                         @foreach (var orcamento in _relacionamento.Orcamentos)
                         {
                             <a href="@($"/orcamentos/{orcamento.Id}")" class="customer-360-quote">
-                                <div><strong>@(orcamento.Codigo ?? "Rascunho")</strong><span>@orcamento.DataEmUtc.ToLocalTime().ToString("dd/MM/yyyy") · @orcamento.VeiculoDescricao</span></div>
+                                <div><strong>@(orcamento.Codigo ?? "Rascunho")</strong><span>@IdentificacaoOrcamento(orcamento.DataEmUtc, orcamento.VeiculoDescricao)</span></div>
                                 <DetaraStatusBadge Texto="@NomeStatus(orcamento.Status)" Tone="@TomStatus(orcamento.Status)" />
                                 <strong class="currency-value">@orcamento.Total.ToString("C")</strong>
                                 <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
@@ -153,7 +157,7 @@ else
                     <dl class="customer-360-summary-list">
                         <div><dt>Serviço mais realizado</dt><dd>@Valor(relacionamento.ServicoMaisRealizado, "Histórico insuficiente")</dd></div>
                         <div><dt>Frequência de retorno</dt><dd>@Frequencia(relacionamento.FrequenciaRetornoDias)</dd></div>
-                        <div><dt>Veículos cadastrados</dt><dd>@_relacionamento.Veiculos.Count</dd></div>
+                        @if (UsaVeiculos) { <div><dt>Veículos cadastrados</dt><dd>@_relacionamento.Veiculos.Count</dd></div> }
                     </dl>
                 </DetaraCard>
             }
@@ -192,10 +196,12 @@ else
     [Parameter] public Guid Id { get; set; }
     private ClienteRelacionamentoResponse? _relacionamento;
     private bool _carregando = true;
+    private bool UsaVeiculos => Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
 
     protected override async Task OnParametersSetAsync()
     {
         _carregando = true;
+        await Capacidades.CarregarAsync();
         var resultado = await ClientesApi.ObterRelacionamentoAsync(Id);
         _relacionamento = resultado.Resultado;
         if (!resultado.Sucesso) Mensagens.Mostrar(resultado.Mensagem, true);
@@ -222,6 +228,12 @@ else
     private static string TempoRelativo(DateTime? data) => data is null ? "Sem visitas concluídas" : $"Há {Math.Max(0, (DateTime.Now.Date - data.Value.ToLocalTime().Date).Days)} dia(s)";
     private static string Frequencia(int? dias) => dias switch { null => "Histórico insuficiente", 0 => "Retorno no mesmo dia", 1 => "A cada dia", _ => $"A cada {dias} dias" };
     private static string ResumoItens(IReadOnlyCollection<string> itens) => itens.Count == 0 ? "Sem itens" : string.Join(" · ", itens.Take(3));
+    private static string IdentificacaoAtendimento(string codigo, string? veiculo) =>
+        string.IsNullOrWhiteSpace(veiculo) ? codigo : $"{codigo} · {veiculo}";
+    private static string IdentificacaoOrcamento(DateTime data, string? veiculo) =>
+        string.IsNullOrWhiteSpace(veiculo)
+            ? data.ToLocalTime().ToString("dd/MM/yyyy")
+            : $"{data.ToLocalTime():dd/MM/yyyy} · {veiculo}";
     private static string Identificacao(VeiculoResumoClienteResponse veiculo) => !string.IsNullOrWhiteSpace(veiculo.Placa) ? veiculo.Placa : Valor(veiculo.IdentificacaoAlternativa, FormatacaoVeiculo.NomeTipo(veiculo.Tipo));
     private static IReadOnlyList<DetaraBreadcrumbItem> BreadcrumbsCliente(ClienteDetalheResponse cliente) =>
         [new("Clientes", "/clientes"), new(cliente.Nome)];

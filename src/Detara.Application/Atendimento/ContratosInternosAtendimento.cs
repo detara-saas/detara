@@ -10,6 +10,7 @@ public sealed record ClienteVeiculoAtendimentoInterno(ClienteAtendimentoInterno 
 
 public interface IClientesAtendimentoConsulta
 {
+    Task<ClienteAtendimentoInterno?> ObterClienteAsync(Guid empresaId, Guid clienteId, CancellationToken cancellationToken);
     Task<ClienteVeiculoAtendimentoInterno?> ObterClienteVeiculoAsync(Guid empresaId, Guid clienteId, Guid veiculoId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<ClienteAtendimentoInterno>> BuscarClientesAsync(Guid empresaId, string pesquisa, int limite, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<VeiculoAtendimentoInterno>> ListarVeiculosAsync(Guid empresaId, Guid clienteId, CancellationToken cancellationToken);
@@ -26,11 +27,11 @@ public interface ICatalogoAtendimentoConsulta
 
 public sealed record ItemAgendamentoAtendimentoInterno(TipoItemOrcamento TipoItem, Guid ItemCatalogoId, string Nome, string? Descricao,
     TipoPrecificacao TipoPrecificacao, decimal? PrecoReferencia, int? DuracaoReferenciaMinutos = null);
-public sealed record AgendamentoAtendimentoInterno(Guid Id, Guid ClienteId, string ClienteNome, Guid VeiculoId, string VeiculoDescricao,
+public sealed record AgendamentoAtendimentoInterno(Guid Id, Guid ClienteId, string ClienteNome, Guid? VeiculoId, string? VeiculoDescricao,
     string? VeiculoPlaca, StatusAgendamento Status, IReadOnlyCollection<ItemAgendamentoAtendimentoInterno> Itens,
     int? DuracaoPlanejadaMinutos = null);
 public sealed record CriarAgendamentoOrcamentoInterno(Guid OrcamentoId, Guid ClienteId, string ClienteNome,
-    Guid VeiculoId, string VeiculoDescricao, string? VeiculoPlaca, DateTime InicioUtc,
+    Guid? VeiculoId, string? VeiculoDescricao, string? VeiculoPlaca, DateTime InicioUtc,
     int DuracaoPlanejadaMinutos, string? ObservacaoSolicitante, string? ObservacaoInterna,
     IReadOnlyCollection<ItemAgendamentoAtendimentoInterno> Itens);
 

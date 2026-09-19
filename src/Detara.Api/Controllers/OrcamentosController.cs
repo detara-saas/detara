@@ -1,5 +1,6 @@
 using Detara.Application.Atendimento;
 using Detara.Application.FluxoOperacional;
+using Detara.Api.Capacidades;
 using Detara.Contracts.Atendimento;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Catalogo;
@@ -86,6 +87,7 @@ public sealed class OrcamentosController(ISender sender) : ControllerBase
     public async Task<ActionResult<RespostaApi<IReadOnlyCollection<ClienteOrcamentoResponse>>>> BuscarClientes([FromQuery] string pesquisa, CancellationToken ct) =>
         Ok(RespostaApi<IReadOnlyCollection<ClienteOrcamentoResponse>>.Ok((await sender.Send(new BuscarClientesOrcamentoQuery(pesquisa), ct)).Select(x => new ClienteOrcamentoResponse(x.Id, x.Nome, x.Documento, x.Telefone)).ToArray()));
     [HttpGet("clientes/{clienteId:guid}/veiculos"), Authorize(Policy = Permissoes.OrcamentosCriar)]
+    [Authorize(Policy = PoliticasCapacidade.Veiculos)]
     public async Task<ActionResult<RespostaApi<IReadOnlyCollection<VeiculoOrcamentoResponse>>>> Veiculos(Guid clienteId, CancellationToken ct) =>
         Ok(RespostaApi<IReadOnlyCollection<VeiculoOrcamentoResponse>>.Ok((await sender.Send(new ListarVeiculosOrcamentoQuery(clienteId), ct)).Select(x => new VeiculoOrcamentoResponse(x.Id, x.Descricao, x.Placa)).ToArray()));
     [HttpGet("catalogo"), Authorize(Policy = Permissoes.OrcamentosCriar)]

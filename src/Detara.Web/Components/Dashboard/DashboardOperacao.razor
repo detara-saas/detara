@@ -52,7 +52,7 @@
                             {
                                 <a href="@($"/agenda/{item.Id}")">
                                     <time>@item.InicioLocal.ToString("HH:mm")</time>
-                                    <div><strong>@item.ClienteNome</strong><span>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca) · @(item.ItemPrincipal ?? "Sem item informado")</span></div>
+                                    <div><strong>@item.ClienteNome</strong><span>@DescricaoAgenda(item)</span></div>
                                     <DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" />
                                     <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
                                 </a>
@@ -95,6 +95,13 @@
     [Parameter, EditorRequired] public DashboardExecutivoResponse Dados { get; set; } = null!;
 
     private static string Valor(int? valor) => valor?.ToString(Cultura) ?? "—";
+    private static string DescricaoAgenda(DashboardAgendamentoResponse item)
+    {
+        var itemPrincipal = item.ItemPrincipal ?? "Sem item informado";
+        return string.IsNullOrWhiteSpace(item.VeiculoDescricao)
+            ? itemPrincipal
+            : $"{FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca)} · {itemPrincipal}";
+    }
     private static string NomeStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.NomeStatus(status);
     private static DetaraStatusTone TomStatus(StatusAgendamentoContrato status) => AgendamentoApresentacao.TomStatus(status);
 }

@@ -21,8 +21,8 @@ public sealed class Agendamento : EntidadeEmpresaBase
         Guid empresaId,
         Guid clienteId,
         string clienteNomeSnapshot,
-        Guid veiculoId,
-        string veiculoDescricaoSnapshot,
+        Guid? veiculoId,
+        string? veiculoDescricaoSnapshot,
         string? veiculoPlacaSnapshot,
         DateTime inicioUtc,
         int duracaoPlanejadaMinutos,
@@ -39,8 +39,8 @@ public sealed class Agendamento : EntidadeEmpresaBase
         Guid empresaId,
         Guid clienteId,
         string clienteNomeSnapshot,
-        Guid veiculoId,
-        string veiculoDescricaoSnapshot,
+        Guid? veiculoId,
+        string? veiculoDescricaoSnapshot,
         string? veiculoPlacaSnapshot,
         DateTime inicioUtc,
         int duracaoPlanejadaMinutos,
@@ -52,8 +52,9 @@ public sealed class Agendamento : EntidadeEmpresaBase
     {
         ClienteId = ExigirId(clienteId, nameof(clienteId));
         ClienteNomeSnapshot = NormalizarObrigatorio(clienteNomeSnapshot, 160, nameof(clienteNomeSnapshot));
-        VeiculoId = ExigirId(veiculoId, nameof(veiculoId));
-        VeiculoDescricaoSnapshot = NormalizarObrigatorio(veiculoDescricaoSnapshot, 200, nameof(veiculoDescricaoSnapshot));
+        ValidarVeiculoOpcional(veiculoId, veiculoDescricaoSnapshot);
+        VeiculoId = veiculoId;
+        VeiculoDescricaoSnapshot = NormalizarOpcional(veiculoDescricaoSnapshot, 200);
         VeiculoPlacaSnapshot = NormalizarOpcional(veiculoPlacaSnapshot, 10);
         Status = StatusAgendamento.Agendado;
         AtualizarPlanejamentoInterno(inicioUtc, duracaoPlanejadaMinutos, observacaoSolicitante,
@@ -64,8 +65,8 @@ public sealed class Agendamento : EntidadeEmpresaBase
         Guid empresaId,
         Guid clienteId,
         string clienteNomeSnapshot,
-        Guid veiculoId,
-        string veiculoDescricaoSnapshot,
+        Guid? veiculoId,
+        string? veiculoDescricaoSnapshot,
         string? veiculoPlacaSnapshot,
         DateTime inicioUtc,
         int duracaoPlanejadaMinutos,
@@ -82,8 +83,8 @@ public sealed class Agendamento : EntidadeEmpresaBase
 
     public Guid ClienteId { get; private set; }
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;
-    public Guid VeiculoId { get; private set; }
-    public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
+    public Guid? VeiculoId { get; private set; }
+    public string? VeiculoDescricaoSnapshot { get; private set; }
     public string? VeiculoPlacaSnapshot { get; private set; }
     public DateTime InicioUtc { get; private set; }
     public int DuracaoPlanejadaMinutos { get; private set; }
@@ -180,6 +181,11 @@ public sealed class Agendamento : EntidadeEmpresaBase
     }
 
     private static Guid ExigirId(Guid id, string parametro) => id != Guid.Empty ? id : throw new ArgumentException("O identificador deve ser informado.", parametro);
+    private static void ValidarVeiculoOpcional(Guid? id, string? descricao)
+    {
+        if (id == Guid.Empty || id.HasValue != !string.IsNullOrWhiteSpace(descricao))
+            throw new ArgumentException("O vínculo com veículo está incompleto.", nameof(id));
+    }
     private static string NormalizarObrigatorio(string valor, int limite, string parametro)
     {
         var normalizado = string.IsNullOrWhiteSpace(valor) ? throw new ArgumentException("O valor deve ser informado.", parametro) : valor.Trim();

@@ -31,6 +31,7 @@ internal sealed class FinanceiroDashboardConsulta(
                 item.Valor,
                 item.Taxa,
                 item.RecebidoEmUtc,
+                item.ContaReceber.ClienteNomeSnapshot,
                 item.ContaReceber.VeiculoDescricaoSnapshot
             })
             .ToArrayAsync(cancellationToken);
@@ -79,7 +80,7 @@ internal sealed class FinanceiroDashboardConsulta(
                 TipoAtividadeDashboard.PagamentoRecebido,
                 item.ContaReceberId,
                 item.RecebidoEmUtc,
-                item.VeiculoDescricaoSnapshot))
+                item.VeiculoDescricaoSnapshot ?? item.ClienteNomeSnapshot))
             .ToArray();
 
         return new(

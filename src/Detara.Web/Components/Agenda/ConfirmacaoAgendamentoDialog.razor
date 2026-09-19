@@ -1,7 +1,7 @@
 @inject AgendaServico AgendaApi
 
 <DetaraDialog Titulo="@Titulo" Descricao="@Descricao" Erro="@_erro" TextoPrimario="@TextoConfirmacao" TextoSecundario="Voltar" CorPrimaria="@CorConfirmacao" Carregando="@_enviando" OnPrimary="ConfirmarAsync" OnSecondary="Cancelar">
-    <div class="reschedule-context"><strong>@ClienteNome</strong><span>@VeiculoDescricao</span></div>
+    <div class="reschedule-context"><strong>@ClienteNome</strong>@if (!string.IsNullOrWhiteSpace(VeiculoDescricao)) { <span>@VeiculoDescricao</span> }</div>
     @if (Destino == StatusAgendamentoContrato.Cancelado)
     {
         <MudTextField T="string" @bind-Value="_motivoCancelamento" Label="Motivo do cancelamento (opcional)" Variant="Variant.Outlined" Lines="3" MaxLength="1000" Counter="1000" Disabled="_enviando" />
@@ -13,7 +13,7 @@
     [Parameter] public Guid AgendamentoId { get; set; }
     [Parameter] public StatusAgendamentoContrato Destino { get; set; }
     [Parameter] public string ClienteNome { get; set; } = string.Empty;
-    [Parameter] public string VeiculoDescricao { get; set; } = string.Empty;
+    [Parameter] public string? VeiculoDescricao { get; set; }
 
     private string? _motivoCancelamento;
     private string? _erro;

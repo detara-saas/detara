@@ -19,7 +19,7 @@ else
         {
             <div class="catalog-execution-history">
             @foreach (var execucao in _servico.Execucoes)
-            { <a href="@($"/ordens-servico/{execucao.OrdemServicoId}")"><span class="catalog-execution-icon"><MudIcon Icon="@Icons.Material.Outlined.Handyman" /></span><div><strong>@execucao.ClienteNome · @FormatacaoVeiculo.Exibir(execucao.VeiculoDescricao, execucao.VeiculoPlaca)</strong><span>@execucao.OrdemServicoCodigo · @execucao.ExecutadaEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div><DetaraStatusBadge Texto="@NomeStatus(execucao.Status)" Tone="DetaraStatusTone.Positive" /><strong class="currency-value">@((execucao.ValorUnitario * execucao.Quantidade).ToString("C2"))</strong><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }
+            { <a href="@($"/ordens-servico/{execucao.OrdemServicoId}")"><span class="catalog-execution-icon"><MudIcon Icon="@Icons.Material.Outlined.Handyman" /></span><div><strong>@DescricaoAtendimento(execucao.ClienteNome, execucao.VeiculoDescricao, execucao.VeiculoPlaca)</strong><span>@execucao.OrdemServicoCodigo · @execucao.ExecutadaEmUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div><DetaraStatusBadge Texto="@NomeStatus(execucao.Status)" Tone="DetaraStatusTone.Positive" /><strong class="currency-value">@((execucao.ValorUnitario * execucao.Quantidade).ToString("C2"))</strong><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }
             </div>
         }
     </section>
@@ -37,5 +37,7 @@ else
     private void CancelarStatus() => _confirmando = false;
     private async Task ConfirmarStatusAsync() { if (_servico is null) return; var resultado = await Catalogo.AlterarStatusServicoAsync(Id, !_servico.EhAtivo); Mensagens.Mostrar(resultado.Mensagem, !resultado.Sucesso); _confirmando = false; if (resultado.Sucesso) await OnParametersSetAsync(); }
     private static string FormatarDuracao(int? minutos) => minutos.HasValue ? $"{minutos.Value} min" : "Não informada";
+    private static string DescricaoAtendimento(string cliente, string? veiculo, string? placa) =>
+        string.IsNullOrWhiteSpace(veiculo) ? cliente : $"{cliente} · {FormatacaoVeiculo.Exibir(veiculo, placa)}";
     private static string NomeStatus(StatusOrdemServicoContrato status) => status == StatusOrdemServicoContrato.Concluida ? "Concluída" : "Execução finalizada";
 }

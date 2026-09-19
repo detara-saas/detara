@@ -7,8 +7,8 @@ public sealed record PartesOrcamentoSnapshot(
     string ClienteNome,
     string? ClienteDocumento,
     string? ClienteTelefone,
-    Guid VeiculoId,
-    string VeiculoDescricao,
+    Guid? VeiculoId,
+    string? VeiculoDescricao,
     string? VeiculoPlaca);
 
 public sealed class Orcamento : EntidadeEmpresaBase
@@ -38,8 +38,8 @@ public sealed class Orcamento : EntidadeEmpresaBase
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;
     public string? ClienteDocumentoSnapshot { get; private set; }
     public string? ClienteTelefoneSnapshot { get; private set; }
-    public Guid VeiculoId { get; private set; }
-    public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
+    public Guid? VeiculoId { get; private set; }
+    public string? VeiculoDescricaoSnapshot { get; private set; }
     public string? VeiculoPlacaSnapshot { get; private set; }
     public Guid? AgendamentoOrigemId { get; private set; }
     public Guid? AgendamentoId { get; private set; }
@@ -84,8 +84,9 @@ public sealed class Orcamento : EntidadeEmpresaBase
         ClienteNomeSnapshot = NormalizarObrigatorio(partes.ClienteNome, 160);
         ClienteDocumentoSnapshot = NormalizarOpcional(partes.ClienteDocumento, 20);
         ClienteTelefoneSnapshot = NormalizarOpcional(partes.ClienteTelefone, 20);
-        VeiculoId = ExigirId(partes.VeiculoId);
-        VeiculoDescricaoSnapshot = NormalizarObrigatorio(partes.VeiculoDescricao, 200);
+        ValidarVeiculoOpcional(partes.VeiculoId, partes.VeiculoDescricao);
+        VeiculoId = partes.VeiculoId;
+        VeiculoDescricaoSnapshot = NormalizarOpcional(partes.VeiculoDescricao, 200);
         VeiculoPlacaSnapshot = NormalizarOpcional(partes.VeiculoPlaca, 10);
         ValidoAte = validoAte;
         ObservacaoCliente = NormalizarOpcional(observacaoCliente, 2000);
@@ -167,6 +168,11 @@ public sealed class Orcamento : EntidadeEmpresaBase
     private void ExigirRascunho() { if (Status != StatusOrcamento.Rascunho) throw new InvalidOperationException("Este orçamento já foi emitido e não pode ser alterado. Para mudar valores ou serviços, crie uma nova proposta."); }
     private static Guid ExigirId(Guid id) => id != Guid.Empty ? id : throw new ArgumentException("O identificador deve ser informado.");
     private static Guid? ValidarIdOpcional(Guid? id) => id is null || id != Guid.Empty ? id : throw new ArgumentException("O identificador opcional é inválido.");
+    private static void ValidarVeiculoOpcional(Guid? id, string? descricao)
+    {
+        if (id == Guid.Empty || id.HasValue != !string.IsNullOrWhiteSpace(descricao))
+            throw new ArgumentException("O vínculo com veículo está incompleto.");
+    }
     private static decimal ValidarDinheiro(decimal valor, string parametro) => valor >= 0 ? decimal.Round(valor, 2) : throw new ArgumentException("O valor não pode ser negativo.", parametro);
     private static string NormalizarObrigatorio(string valor, int limite) { var texto = string.IsNullOrWhiteSpace(valor) ? throw new ArgumentException("O valor deve ser informado.") : valor.Trim(); return texto.Length <= limite ? texto : throw new ArgumentException($"O valor deve possuir no máximo {limite} caracteres."); }
     private static string? NormalizarOpcional(string? valor, int limite) { if (string.IsNullOrWhiteSpace(valor)) return null; var texto = valor.Trim(); return texto.Length <= limite ? texto : throw new ArgumentException($"O valor deve possuir no máximo {limite} caracteres."); }
