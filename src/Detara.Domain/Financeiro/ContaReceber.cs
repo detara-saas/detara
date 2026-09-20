@@ -35,13 +35,15 @@ public sealed class ContaReceber : EntidadeEmpresaBase
     }
 
     public ContaReceber(Guid empresaId, Guid ordemServicoId, string ordemServicoCodigo,
-        Guid clienteId, string clienteNome, Guid veiculoId, string veiculoDescricao,
+        Guid clienteId, string clienteNome, Guid? veiculoId, string? veiculoDescricao,
         string? veiculoPlaca, decimal subtotalAutorizado, decimal descontoAutorizado,
         decimal acrescimoAutorizado, decimal valorOriginal, DateOnly dataCompetencia)
         : base(Guid.NewGuid(), empresaId)
     {
         if (ordemServicoId == Guid.Empty || clienteId == Guid.Empty || veiculoId == Guid.Empty)
-            throw new ArgumentException("Ordem de serviço, cliente e veículo devem ser informados.");
+            throw new ArgumentException("Ordem de serviço e cliente devem ser informados.");
+        if (veiculoId.HasValue != !string.IsNullOrWhiteSpace(veiculoDescricao))
+            throw new ArgumentException("O vínculo com veículo está incompleto.");
         if (subtotalAutorizado < 0 || descontoAutorizado < 0 || acrescimoAutorizado < 0 || valorOriginal <= 0)
             throw new ArgumentException("Os valores da conta a receber são inválidos.");
         if (subtotalAutorizado - descontoAutorizado + acrescimoAutorizado != valorOriginal)
@@ -52,7 +54,7 @@ public sealed class ContaReceber : EntidadeEmpresaBase
         ClienteId = clienteId;
         ClienteNomeSnapshot = Exigir(clienteNome, 160, nameof(clienteNome));
         VeiculoId = veiculoId;
-        VeiculoDescricaoSnapshot = Exigir(veiculoDescricao, 200, nameof(veiculoDescricao));
+        VeiculoDescricaoSnapshot = NormalizarOpcional(veiculoDescricao, 200);
         VeiculoPlacaSnapshot = NormalizarOpcional(veiculoPlaca, 10);
         SubtotalAutorizado = subtotalAutorizado;
         DescontoAutorizado = descontoAutorizado;
@@ -68,8 +70,8 @@ public sealed class ContaReceber : EntidadeEmpresaBase
     public string OrdemServicoCodigoSnapshot { get; private set; } = string.Empty;
     public Guid ClienteId { get; private set; }
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;
-    public Guid VeiculoId { get; private set; }
-    public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
+    public Guid? VeiculoId { get; private set; }
+    public string? VeiculoDescricaoSnapshot { get; private set; }
     public string? VeiculoPlacaSnapshot { get; private set; }
     public decimal SubtotalAutorizado { get; private set; }
     public decimal DescontoAutorizado { get; private set; }

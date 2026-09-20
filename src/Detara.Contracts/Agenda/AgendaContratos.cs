@@ -23,7 +23,7 @@ public sealed record AgendamentoItemRequest(TipoItemAgendamentoContrato TipoItem
 
 public sealed record SalvarAgendamentoRequest(
     Guid ClienteId,
-    Guid VeiculoId,
+    Guid? VeiculoId,
     DateTime InicioLocal,
     int DuracaoPlanejadaMinutos,
     string? ObservacaoSolicitante,
@@ -57,7 +57,7 @@ public sealed record AgendamentoPeriodoResponse(
     DateTime InicioLocal,
     int DuracaoPlanejadaMinutos,
     string ClienteNome,
-    string VeiculoDescricao,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     StatusAgendamentoContrato Status,
     IReadOnlyCollection<string> PrincipaisItens,
@@ -69,7 +69,7 @@ public sealed record AgendamentoListaResponse(
     DateTime InicioLocal,
     int DuracaoPlanejadaMinutos,
     string ClienteNome,
-    string VeiculoDescricao,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     StatusAgendamentoContrato Status,
     IReadOnlyCollection<string> Itens);
@@ -78,8 +78,8 @@ public sealed record AgendamentoDetalheResponse(
     Guid Id,
     Guid ClienteId,
     string ClienteNome,
-    Guid VeiculoId,
-    string VeiculoDescricao,
+    Guid? VeiculoId,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     DateTime InicioUtc,
     DateTime InicioLocal,

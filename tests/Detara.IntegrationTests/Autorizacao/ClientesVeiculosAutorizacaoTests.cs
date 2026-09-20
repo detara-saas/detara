@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using Detara.Application.Abstracoes;
+using Detara.Contracts.Agenda;
 using Detara.Contracts.Atendimento;
 using Detara.Contracts.Autenticacao;
 using Detara.Contracts.Autorizacao;
@@ -843,6 +844,119 @@ public sealed partial class ClientesVeiculosAutorizacaoTests : IAsyncLifetime
         Assert.Contains("ClienteId", conteudo!.Erro!.Detalhes!.Keys);
         Assert.Contains("Itens[0].ValorUnitario", conteudo.Erro.Detalhes.Keys);
         Assert.Contains("Itens[0].Quantidade", conteudo.Erro.Detalhes.Keys);
+    }
+
+    [Fact]
+    public async Task VeiculosOff_BackboneAgendaOrcamentoEOs_PreservaNullERejeitaVeiculoForjado()
+    {
+        await _factory.DefinirCapacidadeAsync(CodigosCapacidadeEmpresa.CheckIn, false);
+        await _factory.DefinirCapacidadeAsync(CodigosCapacidadeEmpresa.Veiculos, false);
+        UsarPermissoes(
+            Permissoes.AgendaCriar,
+            Permissoes.AgendaVisualizar,
+            Permissoes.AgendaEditar,
+            Permissoes.OrcamentosCriar,
+            Permissoes.OrcamentosVisualizar,
+            Permissoes.OrcamentosEditar,
+            Permissoes.OrdemServicoCriar,
+            Permissoes.OrdemServicoVisualizar,
+            Permissoes.OrdemServicoFinalizar);
+
+        var inicio = DateTime.Today.AddDays(2).AddHours(10);
+        var agendaRequest = new SalvarAgendamentoRequest(
+            _factory.ClienteId,
+            null,
+            inicio,
+            90,
+            "Atendimento sem veículo",
+            null,
+            [new(TipoItemAgendamentoContrato.Servico, _factory.ServicoId)]);
+        var agendaResponse = await _client.PostAsJsonAsync("/api/agendamentos", agendaRequest);
+        var agenda = await agendaResponse.Content.ReadFromJsonAsync<RespostaApi<AgendamentoDetalheResponse>>();
+        Assert.Equal(HttpStatusCode.Created, agendaResponse.StatusCode);
+        Assert.Null(agenda?.Resultado?.VeiculoId);
+        Assert.Null(agenda?.Resultado?.VeiculoDescricao);
+        var agendamentoId = agenda!.Resultado!.Id;
+
+        var atualizacaoAgenda = agendaRequest with { DuracaoPlanejadaMinutos = 120 };
+        var updateResponse = await _client.PutAsJsonAsync($"/api/agendamentos/{agendamentoId}", atualizacaoAgenda);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var detalheAgenda = await _client.GetFromJsonAsync<RespostaApi<AgendamentoDetalheResponse>>(
+            $"/api/agendamentos/{agendamentoId}");
+        Assert.Null(detalheAgenda?.Resultado?.VeiculoId);
+        var listaAgenda = await _client.GetFromJsonAsync<RespostaApi<PaginaResponse<AgendamentoListaResponse>>>(
+            "/api/agendamentos?pagina=1&tamanhoPagina=25");
+        Assert.Contains(listaAgenda!.Resultado!.Itens, item => item.Id == agendamentoId && item.VeiculoDescricao is null);
+
+        var orcamentoRequest = new SalvarOrcamentoRequest(
+            _factory.ClienteId,
+            null,
+            agendamentoId,
+            DateOnly.FromDateTime(DateTime.Today.AddDays(7)),
+            null,
+            null,
+            "À vista",
+            0,
+            0,
+            [new(TipoItemOrcamentoContrato.Servico, _factory.ServicoId, null, null, 160m, 1, null)]);
+        var orcamentoResponse = await _client.PostAsJsonAsync("/api/orcamentos", orcamentoRequest);
+        var orcamento = await orcamentoResponse.Content.ReadFromJsonAsync<RespostaApi<OrcamentoDetalheResponse>>();
+        Assert.Equal(HttpStatusCode.Created, orcamentoResponse.StatusCode);
+        Assert.Null(orcamento?.Resultado?.VeiculoId);
+        var orcamentoId = orcamento!.Resultado!.Id;
+
+        Assert.Equal(HttpStatusCode.OK, (await _client.PutAsJsonAsync(
+            $"/api/orcamentos/{orcamentoId}", orcamentoRequest with { ObservacaoCliente = "Atualizado" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsJsonAsync(
+            $"/api/orcamentos/{orcamentoId}/emitir", new RegistrarTransicaoOrcamentoRequest(null))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsJsonAsync(
+            $"/api/orcamentos/{orcamentoId}/aprovar", new RegistrarTransicaoOrcamentoRequest(null))).StatusCode);
+
+        var ordemResponse = await _client.PostAsJsonAsync("/api/ordens-servico",
+            new CriarOrdemServicoRequest(orcamentoId, agendamentoId, null, null, null, 0, 0, null, []));
+        var ordem = await ordemResponse.Content.ReadFromJsonAsync<RespostaApi<OrdemServicoDetalheResponse>>();
+        Assert.Equal(HttpStatusCode.Created, ordemResponse.StatusCode);
+        Assert.Null(ordem?.Resultado?.VeiculoId);
+        Assert.Null(ordem?.Resultado?.VeiculoDescricao);
+        var ordemId = ordem!.Resultado!.Id;
+
+        var listaOrdens = await _client.GetFromJsonAsync<RespostaApi<PaginaResponse<OrdemServicoListaResponse>>>(
+            "/api/ordens-servico?pagina=1&tamanhoPagina=25");
+        Assert.Contains(listaOrdens!.Resultado!.Itens, item => item.Id == ordemId && item.VeiculoDescricao is null);
+        var inicioExecucao = await _client.PostAsJsonAsync(
+            $"/api/ordens-servico/{ordemId}/iniciar-execucao", new TransicaoOrdemServicoRequest(null));
+        Assert.Equal(HttpStatusCode.Conflict, inicioExecucao.StatusCode);
+
+        var forjado = await _client.PostAsJsonAsync("/api/agendamentos",
+            agendaRequest with { VeiculoId = _factory.VeiculoId });
+        Assert.Equal(HttpStatusCode.BadRequest, forjado.StatusCode);
+        var erro = await forjado.Content.ReadFromJsonAsync<RespostaApi<object>>();
+        Assert.Equal("validacao", erro?.Erro?.Codigo);
+        Assert.Contains("VeiculoId", erro!.Erro!.Detalhes!.Keys);
+
+        var endpointVeiculos = await _client.GetAsync(
+            $"/api/agenda/clientes/{_factory.ClienteId}/veiculos");
+        Assert.Equal(HttpStatusCode.Forbidden, endpointVeiculos.StatusCode);
+    }
+
+    [Fact]
+    public async Task VeiculosOn_AgendaEOrcamentoSemVeiculo_RetornamValidacaoPadrao()
+    {
+        UsarPermissoes(Permissoes.AgendaCriar, Permissoes.OrcamentosCriar);
+        var agenda = await _client.PostAsJsonAsync("/api/agendamentos", new SalvarAgendamentoRequest(
+            _factory.ClienteId, null, DateTime.Today.AddDays(2).AddHours(10), 90, null, null,
+            [new(TipoItemAgendamentoContrato.Servico, _factory.ServicoId)]));
+        Assert.Equal(HttpStatusCode.BadRequest, agenda.StatusCode);
+        var erroAgenda = await agenda.Content.ReadFromJsonAsync<RespostaApi<object>>();
+        Assert.Contains("VeiculoId", erroAgenda!.Erro!.Detalhes!.Keys);
+
+        var orcamento = await _client.PostAsJsonAsync("/api/orcamentos", new SalvarOrcamentoRequest(
+            _factory.ClienteId, null, null, DateOnly.FromDateTime(DateTime.Today.AddDays(7)),
+            null, null, null, 0, 0,
+            [new(TipoItemOrcamentoContrato.Servico, _factory.ServicoId, null, null, 160m, 1, null)]));
+        Assert.Equal(HttpStatusCode.BadRequest, orcamento.StatusCode);
+        var erroOrcamento = await orcamento.Content.ReadFromJsonAsync<RespostaApi<object>>();
+        Assert.Contains("VeiculoId", erroOrcamento!.Erro!.Detalhes!.Keys);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using Detara.Application.Abstracoes;
+using Detara.Application.Capacidades;
 using Detara.Domain.Atendimento;
 using FluentValidation;
 using MediatR;
@@ -7,10 +8,10 @@ namespace Detara.Application.Atendimento;
 
 public sealed record ItemOrcamentoEntrada(TipoItemOrcamento TipoItem, Guid? ItemCatalogoId, string? Nome, string? Descricao,
     decimal ValorUnitario, int Quantidade, string? Observacao);
-public sealed record CriarOrcamentoCommand(Guid ClienteId, Guid VeiculoId, Guid? AgendamentoOrigemId, DateOnly ValidoAte,
+public sealed record CriarOrcamentoCommand(Guid ClienteId, Guid? VeiculoId, Guid? AgendamentoOrigemId, DateOnly ValidoAte,
     string? ObservacaoCliente, string? ObservacaoInterna, string? Condicoes, decimal Desconto, decimal Acrescimo,
     IReadOnlyCollection<ItemOrcamentoEntrada> Itens) : IRequest<OrcamentoDetalheVisualizacao>;
-public sealed record AtualizarOrcamentoCommand(Guid Id, Guid ClienteId, Guid VeiculoId, Guid? AgendamentoOrigemId, DateOnly ValidoAte,
+public sealed record AtualizarOrcamentoCommand(Guid Id, Guid ClienteId, Guid? VeiculoId, Guid? AgendamentoOrigemId, DateOnly ValidoAte,
     string? ObservacaoCliente, string? ObservacaoInterna, string? Condicoes, decimal Desconto, decimal Acrescimo,
     IReadOnlyCollection<ItemOrcamentoEntrada> Itens) : IRequest<OrcamentoDetalheVisualizacao>;
 public sealed record EmitirOrcamentoCommand(Guid Id, string? Observacao) : IRequest<OrcamentoDetalheVisualizacao>;
@@ -57,7 +58,6 @@ internal sealed class CriarOrcamentoValidator : AbstractValidator<CriarOrcamento
     public CriarOrcamentoValidator()
     {
         RuleFor(command => command.ClienteId).NotEmpty();
-        RuleFor(command => command.VeiculoId).NotEmpty();
         RuleFor(command => command.ValidoAte).NotEmpty();
         RuleFor(command => command.Desconto).GreaterThanOrEqualTo(0);
         RuleFor(command => command.Acrescimo).GreaterThanOrEqualTo(0);
@@ -75,7 +75,6 @@ internal sealed class AtualizarOrcamentoValidator : AbstractValidator<AtualizarO
     {
         RuleFor(command => command.Id).NotEmpty();
         RuleFor(command => command.ClienteId).NotEmpty();
-        RuleFor(command => command.VeiculoId).NotEmpty();
         RuleFor(command => command.ValidoAte).NotEmpty();
         RuleFor(command => command.Desconto).GreaterThanOrEqualTo(0);
         RuleFor(command => command.Acrescimo).GreaterThanOrEqualTo(0);
@@ -90,12 +89,13 @@ internal sealed class ListarOrcamentosValidator : AbstractValidator<ListarOrcame
 { public ListarOrcamentosValidator() { RuleFor(x => x.Pagina).GreaterThanOrEqualTo(1); RuleFor(x => x.TamanhoPagina).Must(x => x is 10 or 25 or 50); RuleFor(x => x.Pesquisa).MaximumLength(160); RuleFor(x => x.Status).IsInEnum().When(x => x.Status.HasValue); } }
 
 internal sealed class CriarOrcamentoHandler(IUsuarioContexto usuario, IClientesAtendimentoConsulta clientes, ICatalogoAtendimentoConsulta catalogo,
-    IAgendaAtendimentoIntegracao agenda, IOrcamentosRepositorio repositorio) : IRequestHandler<CriarOrcamentoCommand, OrcamentoDetalheVisualizacao>
+    IAgendaAtendimentoIntegracao agenda, IOrcamentosRepositorio repositorio, IEmpresaCapacidadesServico capacidades) : IRequestHandler<CriarOrcamentoCommand, OrcamentoDetalheVisualizacao>
 {
     public async Task<OrcamentoDetalheVisualizacao> Handle(CriarOrcamentoCommand request, CancellationToken ct)
     {
+        var utilizaVeiculos = await VeiculoTransacionalRegra.ValidarAsync(capacidades, request.VeiculoId, ct);
         var origem = await OrcamentoFluxo.ObterOrigemAsync(agenda, usuario.EmpresaId, request.AgendamentoOrigemId, ct);
-        var partes = await OrcamentoFluxo.PrepararPartesAsync(clientes, usuario.EmpresaId, request.ClienteId, request.VeiculoId, origem, ct);
+        var partes = await OrcamentoFluxo.PrepararPartesAsync(clientes, usuario.EmpresaId, request.ClienteId, request.VeiculoId, utilizaVeiculos, origem, ct);
         var itens = await OrcamentoFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId, request.Itens, origem?.Itens, [], ct);
         var entidade = new Orcamento(usuario.EmpresaId, partes, request.AgendamentoOrigemId, null, request.ValidoAte,
             request.ObservacaoCliente, request.ObservacaoInterna, request.Condicoes, request.Desconto, request.Acrescimo, itens, usuario.UsuarioId);
@@ -106,14 +106,15 @@ internal sealed class CriarOrcamentoHandler(IUsuarioContexto usuario, IClientesA
 }
 
 internal sealed class AtualizarOrcamentoHandler(IUsuarioContexto usuario, IClientesAtendimentoConsulta clientes, ICatalogoAtendimentoConsulta catalogo,
-    IAgendaAtendimentoIntegracao agenda, IOrcamentosRepositorio repositorio) : IRequestHandler<AtualizarOrcamentoCommand, OrcamentoDetalheVisualizacao>
+    IAgendaAtendimentoIntegracao agenda, IOrcamentosRepositorio repositorio, IEmpresaCapacidadesServico capacidades) : IRequestHandler<AtualizarOrcamentoCommand, OrcamentoDetalheVisualizacao>
 {
     public async Task<OrcamentoDetalheVisualizacao> Handle(AtualizarOrcamentoCommand request, CancellationToken ct)
     {
+        var utilizaVeiculos = await VeiculoTransacionalRegra.ValidarAsync(capacidades, request.VeiculoId, ct);
         var entidade = await repositorio.ObterParaAlteracaoAsync(request.Id, ct) ?? throw new RecursoNaoEncontradoException("Orçamento não encontrado.");
         var origem = await OrcamentoFluxo.ObterOrigemAsync(agenda, usuario.EmpresaId, request.AgendamentoOrigemId, ct);
         if (entidade.AgendamentoOrigemId != request.AgendamentoOrigemId) throw new ConflitoRegraNegocioException("A origem por agendamento não pode ser trocada. Crie outro orçamento.");
-        var partes = await OrcamentoFluxo.PrepararPartesAsync(clientes, usuario.EmpresaId, request.ClienteId, request.VeiculoId, origem, ct);
+        var partes = await OrcamentoFluxo.PrepararPartesAsync(clientes, usuario.EmpresaId, request.ClienteId, request.VeiculoId, utilizaVeiculos, origem, ct);
         var antigos = entidade.CopiarItens();
         var itens = await OrcamentoFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId, request.Itens, origem?.Itens, antigos, ct);
         repositorio.RemoverItensAtuais(entidade);
@@ -275,9 +276,20 @@ internal sealed class GerarPdfOrcamentoHandler(IUsuarioContexto usuario, IOrcame
 internal static class OrcamentoFluxo
 {
     public static async Task<PartesOrcamentoSnapshot> PrepararPartesAsync(IClientesAtendimentoConsulta clientes, Guid empresaId, Guid clienteId,
-        Guid veiculoId, AgendamentoAtendimentoInterno? origem, CancellationToken ct)
+        Guid? veiculoId, bool utilizaVeiculos, AgendamentoAtendimentoInterno? origem, CancellationToken ct)
     {
-        var atual = await clientes.ObterClienteVeiculoAsync(empresaId, clienteId, veiculoId, ct)
+        if (!utilizaVeiculos)
+        {
+            var cliente = await clientes.ObterClienteAsync(empresaId, clienteId, ct)
+                ?? throw new RecursoNaoEncontradoException("Cliente não encontrado.");
+            if (!cliente.EhAtivo) throw new ConflitoRegraNegocioException("O cliente precisa estar ativo.");
+            if (origem is not null && (origem.ClienteId != clienteId || origem.VeiculoId.HasValue))
+                throw new ConflitoRegraNegocioException("O agendamento de origem não corresponde ao cliente informado.");
+            return new(clienteId, origem?.ClienteNome ?? cliente.Nome, cliente.Documento, cliente.Telefone,
+                null, null, null);
+        }
+
+        var atual = await clientes.ObterClienteVeiculoAsync(empresaId, clienteId, veiculoId!.Value, ct)
             ?? throw new RecursoNaoEncontradoException("Cliente ou veículo não encontrado.");
         if (atual.Veiculo.ClienteId != clienteId) throw new ConflitoRegraNegocioException("O veículo não pertence ao cliente informado.");
         if (!atual.Cliente.EhAtivo || !atual.Veiculo.EhAtivo) throw new ConflitoRegraNegocioException("Cliente e veículo precisam estar ativos.");

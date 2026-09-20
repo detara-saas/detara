@@ -156,7 +156,7 @@ internal sealed class AtendimentoDashboardConsulta(DetaraDbContext db)
                     TipoAtividadeDashboard.OrcamentoAprovado,
                     orcamento.Id,
                     orcamento.AprovadoEmUtc!.Value,
-                    orcamento.VeiculoDescricaoSnapshot))
+                    orcamento.VeiculoDescricaoSnapshot ?? orcamento.ClienteNomeSnapshot))
                 .ToArrayAsync(cancellationToken));
         }
 
@@ -195,7 +195,7 @@ internal sealed class AtendimentoDashboardConsulta(DetaraDbContext db)
             {
                 ordem.Id,
                 DataUtc = ordem.CheckInEmUtc!.Value,
-                Descricao = ordem.VeiculoDescricaoSnapshot
+                Descricao = ordem.VeiculoDescricaoSnapshot ?? ordem.ClienteNomeSnapshot
             })
             .ToArrayAsync(cancellationToken);
         var iniciadas = await ordens
@@ -208,7 +208,7 @@ internal sealed class AtendimentoDashboardConsulta(DetaraDbContext db)
             {
                 ordem.Id,
                 DataUtc = ordem.IniciadaEmUtc!.Value,
-                Descricao = ordem.VeiculoDescricaoSnapshot
+                Descricao = ordem.VeiculoDescricaoSnapshot ?? ordem.ClienteNomeSnapshot
             })
             .ToArrayAsync(cancellationToken);
         var entregues = await ordens
@@ -221,7 +221,7 @@ internal sealed class AtendimentoDashboardConsulta(DetaraDbContext db)
             {
                 ordem.Id,
                 DataUtc = ordem.ConcluidaEmUtc!.Value,
-                Descricao = ordem.VeiculoDescricaoSnapshot
+                Descricao = ordem.VeiculoDescricaoSnapshot ?? ordem.ClienteNomeSnapshot
             })
             .ToArrayAsync(cancellationToken);
 

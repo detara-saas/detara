@@ -2,6 +2,7 @@
 @inject OrdensServicoServico OrdensServicoApi
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navegacao
+@inject EmpresaCapacidadesState Capacidades
 
 @if (_carregando)
 {
@@ -18,12 +19,15 @@ else
             }
 
             <section class="module-panel section-card">
-                <CabecalhoSecao Sobretitulo="DESTINATÁRIO" Titulo="Cliente e veículo" Descricao="Identifique para quem a proposta será apresentada." Etapa="01" />
+                <CabecalhoSecao Sobretitulo="DESTINATÁRIO" Titulo="@(UsaVeiculos ? "Cliente e veículo" : "Cliente")" Descricao="Identifique para quem a proposta será apresentada." Etapa="01" />
                 <div class="form-grid">
                     <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@OrigemFixa" SelecionadoChanged="ClienteSelecionadoAsync" />
+                    @if (UsaVeiculos)
+                    {
                     <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || OrigemFixa)" Required="true">
                         @foreach (var veiculo in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)veiculo.Id)">@FormatacaoVeiculo.Exibir(veiculo.Descricao, veiculo.Placa)</MudSelectItem> }
                     </MudSelect>
+                    }
                 </div>
             </section>
 
@@ -117,10 +121,12 @@ else
     private decimal Subtotal => _itens.Sum(x => x.Quantidade * x.ValorUnitario);
     private decimal Total => Subtotal - _modelo.Desconto + _modelo.Acrescimo;
     private bool OrigemFixa => _agendamentoOrigemId.HasValue || _ordemServicoOrigemId.HasValue;
+    private bool UsaVeiculos => Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
     private string CancelarHref => _ordemServicoOrigemId.HasValue ? $"/ordens-servico/{_ordemServicoOrigemId}" : OrcamentoId.HasValue ? $"/orcamentos/{OrcamentoId}" : "/orcamentos";
 
     protected override async Task OnInitializedAsync()
     {
+        await Capacidades.CarregarAsync();
         if (OrcamentoId.HasValue) await CarregarEdicaoAsync(OrcamentoId.Value);
         else
         {
@@ -135,7 +141,7 @@ else
                 {
                     _clienteId = ClienteInicialId;
                     _clienteNome = ClienteInicialNome;
-                    _veiculos = (await OrcamentosApi.ListarVeiculosAsync(ClienteInicialId.Value)).Resultado ?? [];
+                    _veiculos = UsaVeiculos ? (await OrcamentosApi.ListarVeiculosAsync(ClienteInicialId.Value)).Resultado ?? [] : [];
                     if (VeiculoInicialId.HasValue && _veiculos.Any(item => item.Id == VeiculoInicialId.Value)) _veiculoId = VeiculoInicialId;
                     else if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id;
                 }
@@ -150,7 +156,9 @@ else
         if (o is null) { Mensagens.Mostrar(resultado.Mensagem, true); Navegacao.NavigateTo("/orcamentos"); return; }
         if (o.Status != StatusOrcamentoContrato.Rascunho) { Mensagens.Mostrar("Este orçamento já foi emitido. Para mudar valores, crie uma nova proposta.", true); Navegacao.NavigateTo($"/orcamentos/{id}"); return; }
         _clienteId = o.ClienteId; _clienteNome = o.ClienteNome; _veiculoId = o.VeiculoId; _agendamentoOrigemId = o.AgendamentoOrigemId;
-        _veiculos = [new(o.VeiculoId, o.VeiculoDescricao, o.VeiculoPlaca)]; _validoAte = o.ValidoAte.ToDateTime(TimeOnly.MinValue);
+        _veiculos = UsaVeiculos && o.VeiculoId.HasValue && o.VeiculoDescricao is not null
+            ? [new(o.VeiculoId.Value, o.VeiculoDescricao, o.VeiculoPlaca)] : [];
+        _validoAte = o.ValidoAte.ToDateTime(TimeOnly.MinValue);
         _modelo.ObservacaoCliente = o.ObservacaoCliente; _modelo.ObservacaoInterna = o.ObservacaoInterna; _modelo.Condicoes = o.Condicoes; _modelo.Desconto = o.Desconto; _modelo.Acrescimo = o.Acrescimo;
         _itens.AddRange(o.Itens.OrderBy(x => x.Ordem).Select(x => new ItemEdicao(x.TipoItem, x.ItemCatalogoId, x.Nome, x.Descricao, x.TipoPrecificacaoReferencia, x.PrecoReferencia, x.ValorUnitario, x.Quantidade, x.Observacao)));
     }
@@ -160,7 +168,8 @@ else
         var resultado = await OrcamentosApi.ObterOrigemAsync(id); var origem = resultado.Resultado;
         if (origem is null) { Mensagens.Mostrar(resultado.Mensagem, true); return; }
         _agendamentoOrigemId = id; _clienteId = origem.ClienteId; _clienteNome = origem.ClienteNome; _veiculoId = origem.VeiculoId;
-        _veiculos = [new(origem.VeiculoId, origem.VeiculoDescricao, origem.VeiculoPlaca)];
+        _veiculos = UsaVeiculos && origem.VeiculoId.HasValue && origem.VeiculoDescricao is not null
+            ? [new(origem.VeiculoId.Value, origem.VeiculoDescricao, origem.VeiculoPlaca)] : [];
         _itens.AddRange(origem.Itens.Select(x => new ItemEdicao(x.TipoItem, x.Id, x.Nome, x.Descricao, x.TipoPrecificacao, x.PrecoReferencia, x.PrecoReferencia ?? 0, 1, null)));
     }
 
@@ -169,13 +178,14 @@ else
         var resultado = await OrdensServicoApi.ObterAsync(id); var ordem = resultado.Resultado;
         if (ordem is null || ordem.Status != StatusOrdemServicoContrato.EmExecucao) { Mensagens.Mostrar("A OS precisa estar em execução para criar um adicional.", true); Navegacao.NavigateTo($"/ordens-servico/{id}"); return; }
         _clienteId = ordem.ClienteId; _clienteNome = ordem.ClienteNome; _veiculoId = ordem.VeiculoId;
-        _veiculos = [new(ordem.VeiculoId, ordem.VeiculoDescricao, ordem.VeiculoPlaca)];
+        _veiculos = UsaVeiculos && ordem.VeiculoId.HasValue && ordem.VeiculoDescricao is not null
+            ? [new(ordem.VeiculoId.Value, ordem.VeiculoDescricao, ordem.VeiculoPlaca)] : [];
     }
 
     private async Task ClienteSelecionadoAsync(ClienteOrcamentoResponse? cliente)
     {
         _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = [];
-        if (cliente is not null) _veiculos = (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? [];
+        if (cliente is not null && UsaVeiculos) _veiculos = (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? [];
     }
     private async Task BuscarCatalogoAsync() { _catalogo = (await OrcamentosApi.BuscarCatalogoAsync(_pesquisaCatalogo)).Resultado ?? []; }
     private void AdicionarCatalogo(ItemCatalogoOrcamentoResponse item)
@@ -188,10 +198,10 @@ else
 
     private async Task SalvarAsync()
     {
-        if (!_clienteId.HasValue || !_veiculoId.HasValue || !_validoAte.HasValue || _itens.Count == 0) { Mensagens.Mostrar("Informe cliente, veículo, validade e ao menos um item.", true); return; }
+        if (!_clienteId.HasValue || (UsaVeiculos && !_veiculoId.HasValue) || !_validoAte.HasValue || _itens.Count == 0) { Mensagens.Mostrar(UsaVeiculos ? "Informe cliente, veículo, validade e ao menos um item." : "Informe cliente, validade e ao menos um item.", true); return; }
         if (Total < 0) { Mensagens.Mostrar("O total não pode ser negativo.", true); return; }
         _salvando = true;
-        var request = new SalvarOrcamentoRequest(_clienteId.Value, _veiculoId.Value, _agendamentoOrigemId, DateOnly.FromDateTime(_validoAte.Value),
+        var request = new SalvarOrcamentoRequest(_clienteId.Value, _veiculoId, _agendamentoOrigemId, DateOnly.FromDateTime(_validoAte.Value),
             _modelo.ObservacaoCliente, _modelo.ObservacaoInterna, _modelo.Condicoes, _modelo.Desconto, _modelo.Acrescimo,
             _itens.Select(x => new OrcamentoItemRequest(x.TipoItem, x.ItemCatalogoId, x.TipoItem == TipoItemOrcamentoContrato.Personalizado ? x.Nome : null,
                 x.TipoItem == TipoItemOrcamentoContrato.Personalizado ? x.Descricao : null, x.ValorUnitario, x.Quantidade, x.Observacao)).ToArray());

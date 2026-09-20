@@ -86,7 +86,7 @@ public sealed record DashboardAgendamentoResponse(
     Guid Id,
     DateTime InicioLocal,
     string ClienteNome,
-    string VeiculoDescricao,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     string? ItemPrincipal,
     StatusAgendamentoContrato Status);

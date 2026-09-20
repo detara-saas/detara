@@ -12,6 +12,7 @@ using Detara.Infrastructure.Catalogo;
 using Detara.Infrastructure.Clientes;
 using Detara.Infrastructure.Persistencia;
 using Detara.Infrastructure.Plataforma;
+using Detara.IntegrationTests.Suporte;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SkiaSharp;
@@ -533,8 +534,8 @@ public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
         }
     }
 
-    private CriarOrcamentoHandler CriarHandler(DetaraDbContext c, Guid? empresa = null, Guid? usuario = null) => new(new UsuarioContextoTeste(empresa ?? _empresaA, usuario ?? _usuarioA), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c), new AgendaAtendimentoIntegracao(c), new OrcamentosRepositorio(c));
-    private AtualizarOrcamentoHandler AtualizarHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c), new AgendaAtendimentoIntegracao(c), new OrcamentosRepositorio(c));
+    private CriarOrcamentoHandler CriarHandler(DetaraDbContext c, Guid? empresa = null, Guid? usuario = null, bool veiculos = true) => new(new UsuarioContextoTeste(empresa ?? _empresaA, usuario ?? _usuarioA), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c), new AgendaAtendimentoIntegracao(c), new OrcamentosRepositorio(c), new EmpresaCapacidadesTeste(veiculos));
+    private AtualizarOrcamentoHandler AtualizarHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c), new AgendaAtendimentoIntegracao(c), new OrcamentosRepositorio(c), new EmpresaCapacidadesTeste());
     private EmitirOrcamentoHandler EmitirHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c));
     private CriarNovaPropostaHandler NovaHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA), new OrcamentosRepositorio(c), new PlataformaAtendimentoConsulta(c));
     private AgendarOrcamentoHandler AgendarHandler(DetaraDbContext c) => new(new UsuarioContextoTeste(_empresaA, _usuarioA),
@@ -544,7 +545,7 @@ public sealed partial class OrcamentosPersistenciaTests : IAsyncLifetime
         new(new UsuarioContextoTeste(empresa ?? _empresaA, usuario ?? _usuarioA), new OrdensServicoRepositorio(c),
             new OrcamentosRepositorio(c), new ClientesAtendimentoConsulta(c), new CatalogoAtendimentoConsulta(c),
             new AgendaAtendimentoIntegracao(c), new PlataformaAtendimentoConsulta(c),
-            new ConfiguracoesOperacionaisRepositorio(c));
+            new ConfiguracoesOperacionaisRepositorio(c), new EmpresaCapacidadesTeste());
     private CriarOrcamentoCommand Comando(Guid cliente, Guid veiculo, Guid servico, decimal valor, Guid? agenda = null) => new(cliente, veiculo, agenda,
         DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30), "Cliente", "Interna confidencial", "À vista", 0, 0,
         [new(TipoItemOrcamento.Servico, servico, null, null, valor, 1, null)]);

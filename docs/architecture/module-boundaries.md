@@ -276,10 +276,12 @@ Testes arquiteturais poderão ser adicionados quando namespaces e fronteiras est
 
 Agenda é dona de `Agendamento`, `AgendamentoItem`, reagendamento, status e consultas por período. Não é dona de Cliente, Veículo, Serviço, Pacote ou Empresa.
 
-Na implementação inicial:
+Na implementação atual:
 
 - armazenar os IDs necessários;
-- validar e copiar Cliente/Veículo por `IClientesAgendaConsulta`;
+- validar e copiar Cliente/Veículo por `IClientesAgendaConsulta` quando a capability
+  `veiculos` estiver habilitada; sem ela, consultar somente Cliente e persistir o vínculo
+  automotivo como `null`;
 - validar e copiar Serviço/Pacote por `ICatalogoAgendaConsulta`;
 - obter o fuso IANA da empresa por `IFusoHorarioEmpresaConsulta`;
 - consultar apenas projeções mínimas, com snapshots para leituras históricas;
@@ -291,6 +293,12 @@ As tabelas da Agenda não possuem FKs cross-module para Clientes ou Catálogo. A
 Preço no Agendamento é somente snapshot da referência do Catálogo. Agenda não possui preço acordado, total a cobrar ou valor final; esses conceitos pertencerão ao futuro Orçamento.
 
 Atendimento é dono de Orçamento, Ordem de Serviço e Checklist. Ele referencia Clientes e Catálogo sem assumir o cadastro deles.
+
+Desde a ARCH-04, Atendimento aceita snapshots sem veículo somente quando a capability
+`veiculos` está desabilitada. O vínculo opcional permanece um ID/snapshot e não introduz
+navegação EF ou entidade genérica. A mesma ausência é preservada nas conversões
+Agenda -> Orçamento -> OS. A regra atual de check-in para iniciar a execução permanece
+inalterada e será tratada pela ARCH-05.
 
 ## Atendimento implementado — Orçamentos
 
@@ -378,7 +386,13 @@ Financeiro é dono de `ContaReceber` e `Pagamento`. A conta nasce exatamente qua
 
 A infraestrutura atual não possui um Unit of Work separado. A integração usa a menor orquestração Application-level: `FinalizarExecucaoHandler` entrega um fato imutável a `IIntegracaoFinanceiroOrdensServico`; os repositórios de Atendimento e Financeiro compartilham o mesmo `DetaraDbContext` scoped, e um único `SaveChanges` confirma a transição da OS, seu histórico e a nova conta atomicamente. A chave única `(EmpresaId, OrdemServicoId)` e a verificação no repositório tornam o consumo idempotente. Não há broker, outbox ou dependência de `Detara.Domain.Atendimento` em Financeiro.
 
-`ContaReceber` referencia OS, Cliente e Veículo somente por IDs e snapshots, sem FKs cross-module. A relação conta → pagamentos é interna ao Financeiro e possui FK composta tenant-safe com delete restritivo. Pagamentos são imutáveis; correções usam estorno auditado. A conta mantém o saldo e uma versão de concorrência incrementada em cada mutação, impedindo overpayment por requests simultâneos.
+`ContaReceber` referencia OS e Cliente por IDs e snapshots e preserva o vínculo opcional
+com Veículo quando ele existe, sempre sem FKs cross-module. Uma OS sem veículo produz
+uma conta com snapshots automotivos nulos, sem alterar descrição, valores, vencimento ou
+origem financeira. A relação conta → pagamentos é interna ao Financeiro e possui FK
+composta tenant-safe com delete restritivo. Pagamentos são imutáveis; correções usam
+estorno auditado. A conta mantém o saldo e uma versão de concorrência incrementada em
+cada mutação, impedindo overpayment por requests simultâneos.
 
 ### Comunicação transacional implementada
 

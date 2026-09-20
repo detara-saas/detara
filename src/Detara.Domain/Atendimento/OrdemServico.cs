@@ -7,8 +7,8 @@ public sealed record PartesOrdemServicoSnapshot(
     string ClienteNome,
     string? ClienteDocumento,
     string? ClienteTelefone,
-    Guid VeiculoId,
-    string VeiculoDescricao,
+    Guid? VeiculoId,
+    string? VeiculoDescricao,
     string? VeiculoPlaca);
 
 public sealed record ConfiguracaoCheckInSnapshot(
@@ -48,8 +48,9 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         ClienteNomeSnapshot = NormalizarObrigatorio(partes.ClienteNome, 160);
         ClienteDocumentoSnapshot = NormalizarOpcional(partes.ClienteDocumento, 20);
         ClienteTelefoneSnapshot = NormalizarOpcional(partes.ClienteTelefone, 20);
-        VeiculoId = ExigirId(partes.VeiculoId);
-        VeiculoDescricaoSnapshot = NormalizarObrigatorio(partes.VeiculoDescricao, 200);
+        ValidarVeiculoOpcional(partes.VeiculoId, partes.VeiculoDescricao);
+        VeiculoId = partes.VeiculoId;
+        VeiculoDescricaoSnapshot = NormalizarOpcional(partes.VeiculoDescricao, 200);
         VeiculoPlacaSnapshot = NormalizarOpcional(partes.VeiculoPlaca, 10);
         DuracaoPlanejadaMinutos = duracaoPlanejadaMinutos is null or > 0 and <= 43200
             ? duracaoPlanejadaMinutos : throw new ArgumentException("A duração planejada é inválida.", nameof(duracaoPlanejadaMinutos));
@@ -80,8 +81,8 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     public string ClienteNomeSnapshot { get; private set; } = string.Empty;
     public string? ClienteDocumentoSnapshot { get; private set; }
     public string? ClienteTelefoneSnapshot { get; private set; }
-    public Guid VeiculoId { get; private set; }
-    public string VeiculoDescricaoSnapshot { get; private set; } = string.Empty;
+    public Guid? VeiculoId { get; private set; }
+    public string? VeiculoDescricaoSnapshot { get; private set; }
     public string? VeiculoPlacaSnapshot { get; private set; }
     public int? DuracaoPlanejadaMinutos { get; private set; }
     public StatusOrdemServico Status { get; private set; }
@@ -309,6 +310,11 @@ public sealed class OrdemServico : EntidadeEmpresaBase
         ? nivel : throw new ArgumentException("O nível de exigência é inválido.");
     private static Guid ExigirId(Guid id) => id != Guid.Empty ? id : throw new ArgumentException("O identificador deve ser informado.");
     private static Guid? ValidarIdOpcional(Guid? id) => id is null || id != Guid.Empty ? id : throw new ArgumentException("O identificador opcional é inválido.");
+    private static void ValidarVeiculoOpcional(Guid? id, string? descricao)
+    {
+        if (id == Guid.Empty || id.HasValue != !string.IsNullOrWhiteSpace(descricao))
+            throw new ArgumentException("O vínculo com veículo está incompleto.");
+    }
     private static decimal ValidarDinheiro(decimal valor, string parametro) => valor >= 0 ? decimal.Round(valor, 2) : throw new ArgumentException("O valor não pode ser negativo.", parametro);
     private static string NormalizarObrigatorio(string valor, int limite)
     {

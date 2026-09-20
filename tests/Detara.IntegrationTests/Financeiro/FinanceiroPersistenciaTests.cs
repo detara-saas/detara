@@ -265,6 +265,26 @@ public sealed class FinanceiroPersistenciaTests : IAsyncLifetime
         Assert.Equal(240, item.ValorOriginal);
     }
 
+    [Fact]
+    public async Task ContaReceberSemVeiculo_PersisteEPermaneceConsultavel()
+    {
+        await using var contexto = Contexto(_empresaA);
+        var conta = new ContaReceber(_empresaA, Guid.NewGuid(), "OS-2026-SEM-VEICULO",
+            Guid.NewGuid(), "Cliente sem veículo", null, null, null,
+            240, 0, 0, 240, new DateOnly(2026, 8, 18));
+        contexto.ContasReceber.Add(conta);
+        await contexto.SaveChangesAsync();
+        contexto.ChangeTracker.Clear();
+
+        var persistida = await contexto.ContasReceber.SingleAsync(item => item.Id == conta.Id);
+        var listagem = await new FinanceiroRepositorio(contexto).ListarAsync(new(1, 25, null, null,
+            null, null, "Cliente sem veículo", new DateOnly(2026, 8, 18)), default);
+
+        Assert.Null(persistida.VeiculoId);
+        Assert.Null(persistida.VeiculoDescricaoSnapshot);
+        Assert.Contains(listagem.Itens, item => item.Id == conta.Id && item.VeiculoDescricao is null);
+    }
+
     private async Task<ContaReceber> CriarContaAsync(Guid empresaId, decimal valor = 240,
         DateOnly? competencia = null)
     {

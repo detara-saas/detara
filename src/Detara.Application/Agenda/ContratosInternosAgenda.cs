@@ -9,6 +9,7 @@ public sealed record ClienteVeiculoAgendaInterno(ClienteAgendaInterno Cliente, V
 
 public interface IClientesAgendaConsulta
 {
+    Task<ClienteAgendaInterno?> ObterClienteAsync(Guid empresaId, Guid clienteId, CancellationToken cancellationToken);
     Task<ClienteVeiculoAgendaInterno?> ObterClienteVeiculoAsync(Guid empresaId, Guid clienteId, Guid veiculoId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<ClienteAgendaInterno>> BuscarClientesAsync(Guid empresaId, string pesquisa, int limite, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<VeiculoAgendaInterno>> ListarVeiculosAsync(Guid empresaId, Guid clienteId, bool incluirInativos, CancellationToken cancellationToken);

@@ -4,6 +4,7 @@
 @inject OrcamentosServico OrcamentosApi
 @inject IMensagemServico Mensagens
 @inject NavigationManager Navegacao
+@inject EmpresaCapacidadesState Capacidades
 
 <PageTitle>Nova Ordem de Serviço | Detara</PageTitle>
 <div class="page-container page-container-wide service-order-create-page">
@@ -54,10 +55,13 @@
             <div class="form-page-grid">
                 <main class="page-main-column">
                     <section class="module-panel section-card">
-                        <CabecalhoSecao Sobretitulo="CLIENTE E VEÍCULO" Titulo="Dados do atendimento" Descricao="Identifique quem será atendido e o veículo recebido." Etapa="01" />
+                        <CabecalhoSecao Sobretitulo="@(UsaVeiculos ? "CLIENTE E VEÍCULO" : "CLIENTE")" Titulo="Dados do atendimento" Descricao="@(UsaVeiculos ? "Identifique quem será atendido e o veículo recebido." : "Identifique quem será atendido.")" Etapa="01" />
                         <div class="form-grid service-order-intake-grid">
                             <ClienteOrcamentoAutocomplete ClienteId="_clienteId" ClienteNome="@_clienteNome" Fixo="@_agendamentoId.HasValue" SelecionadoChanged="ClienteSelecionadoAsync" />
-                            <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@FormatacaoVeiculo.Exibir(v.Descricao, v.Placa)</MudSelectItem> }</MudSelect>
+                            @if (UsaVeiculos)
+                            {
+                                <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo *" Variant="Variant.Outlined" Disabled="@(!_clienteId.HasValue || _agendamentoId.HasValue)" Required="true">@foreach (var v in _veiculos) { <MudSelectItem T="Guid?" Value="@((Guid?)v.Id)">@FormatacaoVeiculo.Exibir(v.Descricao, v.Placa)</MudSelectItem> }</MudSelect>
+                            }
                             <CampoDuracao @bind-ValorMinutos="_duracao" Label="Duração planejada (opcional)" />
                         </div>
                     </section>
@@ -96,12 +100,14 @@
     private bool _carregando = true, _salvando; private Guid? _orcamentoId, _agendamentoId, _clienteId, _veiculoId; private string? _clienteNome, _pesquisaCatalogo; private int? _duracao;
     private OrcamentoDetalheResponse? _orcamento; private IReadOnlyCollection<VeiculoOrcamentoResponse> _veiculos = []; private IReadOnlyCollection<ItemCatalogoOrcamentoResponse> _catalogo = []; private readonly List<ItemEdicao> _itens = [];
     private decimal Subtotal => _itens.Sum(item => item.Valor * item.Quantidade);
+    private bool UsaVeiculos => Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
     private string NomeOrigem => _orcamento is not null ? $"Orçamento {_orcamento.Codigo}" : _agendamentoId.HasValue ? "Agendamento" : "Atendimento direto";
     private string RotuloOrigem => _orcamento is not null ? "Orçamento aprovado" : _agendamentoId.HasValue ? "Agenda" : "Acordo direto";
     private string IconeOrigem => _orcamento is not null ? Icons.Material.Outlined.Verified : _agendamentoId.HasValue ? Icons.Material.Outlined.EventAvailable : Icons.Material.Outlined.Handshake;
     private string DescricaoOrigem => _orcamento is not null ? "Itens e valores herdados do orçamento aprovado; o vínculo com o agendamento será preservado." : _agendamentoId.HasValue ? "A Agenda sugere o escopo; confirme cada valor autorizado." : "Registre os valores confirmados diretamente pelo cliente.";
     protected override async Task OnInitializedAsync()
     {
+        await Capacidades.CarregarAsync();
         _orcamentoId = LerId("orcamentoId"); _agendamentoId = LerId("agendamentoId");
         if (!_orcamentoId.HasValue && _agendamentoId.HasValue)
         {
@@ -126,7 +132,7 @@
         else if (_agendamentoId.HasValue)
         {
             var r = await OrcamentosApi.ObterOrigemAsync(_agendamentoId.Value); var origem = r.Resultado;
-            if (origem is not null) { _clienteId = origem.ClienteId; _clienteNome = origem.ClienteNome; _veiculoId = origem.VeiculoId; _veiculos = [new(origem.VeiculoId, origem.VeiculoDescricao, origem.VeiculoPlaca)]; _itens.AddRange(origem.Itens.Select(item => new ItemEdicao(item.TipoItem, item.Id, item.Nome, item.PrecoReferencia ?? 0, 1, Referencia(item)))); }
+            if (origem is not null) { _clienteId = origem.ClienteId; _clienteNome = origem.ClienteNome; _veiculoId = origem.VeiculoId; _veiculos = UsaVeiculos && origem.VeiculoId.HasValue && origem.VeiculoDescricao is not null ? [new(origem.VeiculoId.Value, origem.VeiculoDescricao, origem.VeiculoPlaca)] : []; _itens.AddRange(origem.Itens.Select(item => new ItemEdicao(item.TipoItem, item.Id, item.Nome, item.PrecoReferencia ?? 0, 1, Referencia(item)))); }
         }
         else
         {
@@ -141,13 +147,13 @@
         }
         _carregando = false;
     }
-    private async Task ClienteSelecionadoAsync(ClienteOrcamentoResponse? cliente) { _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = cliente is null ? [] : (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? []; }
+    private async Task ClienteSelecionadoAsync(ClienteOrcamentoResponse? cliente) { _clienteId = cliente?.Id; _clienteNome = cliente?.Nome; _veiculoId = null; _veiculos = cliente is null || !UsaVeiculos ? [] : (await OrcamentosApi.ListarVeiculosAsync(cliente.Id)).Resultado ?? []; }
     private async Task BuscarCatalogoAsync() => _catalogo = (await OrcamentosApi.BuscarCatalogoAsync(_pesquisaCatalogo)).Resultado ?? [];
     private void Adicionar(ItemCatalogoOrcamentoResponse item) { if (_itens.Any(i => i.Tipo == item.TipoItem && i.Id == item.Id)) { Mensagens.Mostrar("Este item já foi incluído; ajuste a quantidade.", true); return; } _itens.Add(new(item.TipoItem, item.Id, item.Nome, item.PrecoReferencia ?? 0, 1, Referencia(item))); }
     private void AdicionarPersonalizado() => _itens.Add(new(TipoItemOrcamentoContrato.Personalizado, null, string.Empty, 0, 1, "Sem referência de catálogo"));
     private async Task CriarAsync()
     {
-        if (_orcamento is null && (!_clienteId.HasValue || !_veiculoId.HasValue || _itens.Count == 0)) { Mensagens.Mostrar("Informe cliente, veículo e ao menos um item autorizado.", true); return; }
+        if (_orcamento is null && (!_clienteId.HasValue || (UsaVeiculos && !_veiculoId.HasValue) || _itens.Count == 0)) { Mensagens.Mostrar(UsaVeiculos ? "Informe cliente, veículo e ao menos um item autorizado." : "Informe cliente e ao menos um item autorizado.", true); return; }
         _salvando = true;
         var request = new CriarOrdemServicoRequest(_orcamento?.Id, _agendamentoId, _clienteId, _veiculoId, _duracao, 0, 0,
             null, _orcamento is not null ? [] : _itens.Select(item => new ItemOrdemServicoRequest(item.Tipo, item.Id,

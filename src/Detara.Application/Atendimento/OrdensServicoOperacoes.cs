@@ -1,4 +1,5 @@
 using Detara.Application.Abstracoes;
+using Detara.Application.Capacidades;
 using Detara.Domain.Agenda;
 using Detara.Domain.Atendimento;
 using Detara.Application.Financeiro;
@@ -122,7 +123,7 @@ internal sealed class RealizarCheckInValidator : AbstractValidator<RealizarCheck
 internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdensServicoRepositorio ordens,
     IOrcamentosRepositorio orcamentos, IClientesAtendimentoConsulta clientes, ICatalogoAtendimentoConsulta catalogo,
     IAgendaAtendimentoIntegracao agenda, IPlataformaAtendimentoConsulta plataforma,
-    IConfiguracoesOperacionaisRepositorio configuracoes)
+    IConfiguracoesOperacionaisRepositorio configuracoes, IEmpresaCapacidadesServico capacidades)
     : IRequestHandler<CriarOrdemServicoCommand, OrdemServicoDetalheVisualizacao>
 {
     public async Task<OrdemServicoDetalheVisualizacao> Handle(CriarOrdemServicoCommand request, CancellationToken ct)
@@ -133,6 +134,12 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
             ?? throw new ConflitoRegraNegocioException("Toda nova ordem de serviço deve estar vinculada a um agendamento.");
         var agendamento = await agenda.ObterAsync(usuario.EmpresaId, agendamentoId, ct)
             ?? throw new RecursoNaoEncontradoException("Agendamento não encontrado.");
+        var utilizaVeiculos = await VeiculoTransacionalRegra.ValidarAsync(capacidades, agendamento.VeiculoId, ct);
+        if (request.VeiculoId.HasValue && request.VeiculoId != agendamento.VeiculoId)
+            throw new ValidationException([new FluentValidation.Results.ValidationFailure(
+                nameof(request.VeiculoId), utilizaVeiculos
+                    ? "O veículo informado deve corresponder ao agendamento."
+                    : "Não informe veículo quando o módulo de veículos estiver desabilitado.")]);
         if (agendamento.Status is StatusAgendamento.Cancelado or StatusAgendamento.NaoCompareceu or StatusAgendamento.Concluido)
             throw new ConflitoRegraNegocioException("O status deste agendamento não permite criar uma ordem de serviço.");
         if (await ordens.ExistePorAgendamentoAsync(agendamentoId, ct))
@@ -163,7 +170,7 @@ internal sealed class CriarOrdemServicoHandler(IUsuarioContexto usuario, IOrdens
                 throw new ValidationException([new FluentValidation.Results.ValidationFailure(
                     nameof(request.Itens), "Informe ao menos um item autorizado para criar a ordem de serviço.")]);
             var partesOrcamento = await OrcamentoFluxo.PrepararPartesAsync(clientes, usuario.EmpresaId,
-                agendamento.ClienteId, agendamento.VeiculoId, agendamento, ct);
+                agendamento.ClienteId, agendamento.VeiculoId, utilizaVeiculos, agendamento, ct);
             var itensOrcamento = await OrcamentoFluxo.PrepararItensAsync(catalogo, usuario.EmpresaId,
                 request.Itens.Select(item => new ItemOrcamentoEntrada(item.TipoItem, item.ItemCatalogoId, item.Nome,
                     item.Descricao, item.ValorUnitarioAutorizado, item.Quantidade, item.ObservacaoAutorizacao)).ToArray(),

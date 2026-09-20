@@ -29,15 +29,18 @@ else
         <DetaraBreadcrumbs Itens="@BreadcrumbsOrdemServico" Class="detara-breadcrumbs-grid" />
         <section class="module-panel service-order-hero" aria-labelledby="service-order-vehicle-title">
             <div class="service-order-hero-main">
-                <span class="service-order-hero-icon" aria-hidden="true">
-                    <MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" />
-                </span>
+                @if (UsaVeiculos)
+                {
+                    <span class="service-order-hero-icon" aria-hidden="true">
+                        <MudIcon Icon="@Icons.Material.Outlined.DirectionsCar" />
+                    </span>
+                }
                 <div class="service-order-hero-copy">
                     <span class="section-eyebrow">CENTRO OPERACIONAL · @_ordem.Codigo</span>
-                    <h1 id="service-order-vehicle-title">@NomeVeiculo(_ordem)</h1>
+                    <h1 id="service-order-vehicle-title">@(UsaVeiculos ? NomeVeiculo(_ordem) : _ordem.ClienteNome)</h1>
                     <div class="service-order-identity">
-                        <span><MudIcon Icon="@Icons.Material.Outlined.Person" /> @_ordem.ClienteNome</span>
-                        <span><MudIcon Icon="@Icons.Material.Outlined.Pin" /> @FormatacaoVeiculoPlaca(_ordem.VeiculoPlaca)</span>
+                        @if (UsaVeiculos) { <span><MudIcon Icon="@Icons.Material.Outlined.Person" /> @_ordem.ClienteNome</span> }
+                        @if (UsaVeiculos) { <span><MudIcon Icon="@Icons.Material.Outlined.Pin" /> @FormatacaoVeiculoPlaca(_ordem.VeiculoPlaca)</span> }
                     </div>
                 </div>
             </div>
@@ -660,6 +663,7 @@ else
     private readonly Dictionary<Guid, string> _urlsFotos = [];
     private bool _checkInDisponivel;
 
+    private bool UsaVeiculos => Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
     private bool EhTerminal => _ordem?.Status is StatusOrdemServicoContrato.Concluida or StatusOrdemServicoContrato.Cancelada;
     private bool CheckInPendente => _ordem?.Status == StatusOrdemServicoContrato.Aberta &&
         !_ordem.CheckInEmUtc.HasValue;
@@ -902,23 +906,31 @@ else
     private static string IconeStatus(StatusOrdemServicoContrato status) => status switch { StatusOrdemServicoContrato.Aberta => Icons.Material.Outlined.Schedule, StatusOrdemServicoContrato.EmExecucao => Icons.Material.Outlined.Handyman, StatusOrdemServicoContrato.AguardandoRetirada => Icons.Material.Outlined.DirectionsCar, StatusOrdemServicoContrato.Concluida => Icons.Material.Outlined.CheckCircle, _ => Icons.Material.Outlined.Cancel };
     private static string NomeVeiculo(OrdemServicoDetalheResponse ordem)
     {
-        if (string.IsNullOrWhiteSpace(ordem.VeiculoPlaca)) return ordem.VeiculoDescricao;
+        var descricao = ordem.VeiculoDescricao ?? ordem.ClienteNome;
+        if (string.IsNullOrWhiteSpace(ordem.VeiculoPlaca)) return descricao;
         var sufixoPlaca = $" · {ordem.VeiculoPlaca}";
-        return ordem.VeiculoDescricao.EndsWith(sufixoPlaca, StringComparison.OrdinalIgnoreCase)
-            ? ordem.VeiculoDescricao[..^sufixoPlaca.Length]
-            : ordem.VeiculoDescricao;
+        return descricao.EndsWith(sufixoPlaca, StringComparison.OrdinalIgnoreCase)
+            ? descricao[..^sufixoPlaca.Length]
+            : descricao;
     }
     private static string FormatacaoVeiculoPlaca(string? placa) => string.IsNullOrWhiteSpace(placa) ? "Sem placa" : placa;
     private static string FormatarDuracao(int? minutos) => minutos switch { null => "Não informada", < 60 => $"{minutos} min", _ when minutos % 60 == 0 => $"{minutos / 60} h", _ => $"{minutos / 60} h {minutos % 60} min" };
-    private IReadOnlyList<DetaraBreadcrumbItem> BreadcrumbsOrdemServico => _ordem is null
-        ? []
-        :
-        [
-            new("Clientes", "/clientes"),
-            new(_ordem.ClienteNome, $"/clientes/{_ordem.ClienteId}"),
-            new(NomeVeiculo(_ordem), $"/veiculos/{_ordem.VeiculoId}"),
-            new(_ordem.Codigo)
-        ];
+    private IReadOnlyList<DetaraBreadcrumbItem> BreadcrumbsOrdemServico
+    {
+        get
+        {
+            if (_ordem is null) return [];
+            var itens = new List<DetaraBreadcrumbItem>
+            {
+                new("Clientes", "/clientes"),
+                new(_ordem.ClienteNome, $"/clientes/{_ordem.ClienteId}")
+            };
+            if (UsaVeiculos && _ordem.VeiculoId.HasValue)
+                itens.Add(new(NomeVeiculo(_ordem), $"/veiculos/{_ordem.VeiculoId.Value}"));
+            itens.Add(new(_ordem.Codigo));
+            return itens;
+        }
+    }
     private static string NomeCategoria(CategoriaFotoOrdemServicoContrato categoria) => categoria switch { CategoriaFotoOrdemServicoContrato.Entrada => "Antes", CategoriaFotoOrdemServicoContrato.Durante => "Durante", _ => "Depois" };
     private static string DescricaoCategoria(CategoriaFotoOrdemServicoContrato categoria) => categoria switch { CategoriaFotoOrdemServicoContrato.Entrada => "Condição de recebimento", CategoriaFotoOrdemServicoContrato.Durante => "Acompanhamento do trabalho", _ => "Resultado da entrega" };
     private static string IconeCategoria(CategoriaFotoOrdemServicoContrato categoria) => categoria switch { CategoriaFotoOrdemServicoContrato.Entrada => Icons.Material.Outlined.PhotoCameraFront, CategoriaFotoOrdemServicoContrato.Durante => Icons.Material.Outlined.Construction, _ => Icons.Material.Outlined.AutoAwesome };

@@ -32,7 +32,7 @@ public sealed record OrcamentoItemRequest(
 
 public sealed record SalvarOrcamentoRequest(
     Guid ClienteId,
-    Guid VeiculoId,
+    Guid? VeiculoId,
     Guid? AgendamentoOrigemId,
     DateOnly ValidoAte,
     string? ObservacaoCliente,
@@ -52,7 +52,7 @@ public sealed record OrcamentoListaResponse(
     Guid Id,
     string? Codigo,
     string ClienteNome,
-    string VeiculoDescricao,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     DateTime? EmitidoEmUtc,
     DateOnly ValidoAte,
@@ -90,8 +90,8 @@ public sealed record OrcamentoDetalheResponse(
     string ClienteNome,
     string? ClienteDocumento,
     string? ClienteTelefone,
-    Guid VeiculoId,
-    string VeiculoDescricao,
+    Guid? VeiculoId,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     Guid? AgendamentoOrigemId,
     Guid? AgendamentoId,
@@ -133,8 +133,8 @@ public sealed record OrigemAgendamentoOrcamentoResponse(
     Guid AgendamentoId,
     Guid ClienteId,
     string ClienteNome,
-    Guid VeiculoId,
-    string VeiculoDescricao,
+    Guid? VeiculoId,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     IReadOnlyCollection<ItemCatalogoOrcamentoResponse> Itens);
 

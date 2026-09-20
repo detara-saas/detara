@@ -1,5 +1,6 @@
 using Detara.Application.Agenda;
 using Detara.Application.FluxoOperacional;
+using Detara.Api.Capacidades;
 using Detara.Contracts.Agenda;
 using Detara.Contracts.Autorizacao;
 using Detara.Contracts.Catalogo;
@@ -63,6 +64,7 @@ public sealed class AgendaController(ISender sender) : ControllerBase
     public async Task<ActionResult<RespostaApi<IReadOnlyCollection<ClienteAgendaResponse>>>> BuscarClientes([FromQuery] string pesquisa, CancellationToken ct) => Ok(RespostaApi<IReadOnlyCollection<ClienteAgendaResponse>>.Ok((await sender.Send(new BuscarClientesAgendaQuery(pesquisa), ct)).Select(x => new ClienteAgendaResponse(x.Id, x.Nome, x.Telefone)).ToArray()));
 
     [HttpGet("agenda/clientes/{clienteId:guid}/veiculos"), Authorize(Policy = Permissoes.AgendaCriar)]
+    [Authorize(Policy = PoliticasCapacidade.Veiculos)]
     public async Task<ActionResult<RespostaApi<IReadOnlyCollection<VeiculoAgendaResponse>>>> ListarVeiculos(Guid clienteId, [FromQuery] bool incluirInativos = false, CancellationToken ct = default) => Ok(RespostaApi<IReadOnlyCollection<VeiculoAgendaResponse>>.Ok((await sender.Send(new ListarVeiculosAgendaQuery(clienteId, incluirInativos), ct)).Select(x => new VeiculoAgendaResponse(x.Id, x.Descricao, x.Placa)).ToArray()));
 
     [HttpGet("agenda/catalogo"), Authorize(Policy = Permissoes.AgendaCriar)]

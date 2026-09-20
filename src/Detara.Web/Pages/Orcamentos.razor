@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = Permissoes.OrcamentosVisualizar)]
 @inject OrcamentosServico OrcamentosApi
 @inject IMensagemServico Mensagens
+@inject EmpresaCapacidadesState Capacidades
 
 <PageTitle>Orçamentos | Detara</PageTitle>
 <div class="page-container page-container-fluid list-page">
@@ -10,7 +11,7 @@
 </CabecalhoPagina>
 
 <section class="module-toolbar quotation-list-filters">
-    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="Código, cliente, documento, placa ou veículo" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" />
+    <MudTextField T="string" @bind-Value="_pesquisa" Placeholder="@(UsaVeiculos ? "Código, cliente, documento, placa ou veículo" : "Código, cliente ou documento")" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Class="module-search" />
     <MudSelect T="StatusOrcamentoContrato?" @bind-Value="_status" Label="Status" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
         @foreach (var status in Enum.GetValues<StatusOrcamentoContrato>()) { <MudSelectItem T="StatusOrcamentoContrato?" Value="status">@NomeStatus(status)</MudSelectItem> }
     </MudSelect>
@@ -24,13 +25,13 @@ else if (_pagina is null || _pagina.Itens.Count == 0)
 }
 else
 {
-    <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Código</th><th>Cliente</th><th>Veículo</th><th>Emissão / validade</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
+    <section class="module-panel desktop-list"><table class="module-table"><thead><tr><th>Código</th><th>Cliente</th>@if (UsaVeiculos) { <th>Veículo</th> }<th>Emissão / validade</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
         @foreach (var item in _pagina.Itens)
         {
-            <tr><td><a class="primary-link" href="@($"/orcamentos/{item.Id}")">@Identificacao(item)</a></td><td>@item.ClienteNome</td><td>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca)</td><td>@(item.EmitidoEmUtc?.ToString("dd/MM/yyyy") ?? "Não emitido")<span class="cell-caption">Válido até @item.ValidoAte.ToString("dd/MM/yyyy")</span></td><td><strong>@item.Total.ToString("C2")</strong></td><td><DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" /></td><td><MudIconButton Href="@($"/orcamentos/{item.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" aria-label="Abrir orçamento" /></td></tr>
+            <tr><td><a class="primary-link" href="@($"/orcamentos/{item.Id}")">@Identificacao(item)</a></td><td>@item.ClienteNome</td>@if (UsaVeiculos) { <td>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca)</td> }<td>@(item.EmitidoEmUtc?.ToString("dd/MM/yyyy") ?? "Não emitido")<span class="cell-caption">Válido até @item.ValidoAte.ToString("dd/MM/yyyy")</span></td><td><strong>@item.Total.ToString("C2")</strong></td><td><DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" /></td><td><MudIconButton Href="@($"/orcamentos/{item.Id}")" Icon="@Icons.Material.Outlined.ChevronRight" aria-label="Abrir orçamento" /></td></tr>
         }
     </tbody></table></section>
-    <section class="mobile-list">@foreach (var item in _pagina.Itens) { <a class="mobile-record quotation-mobile-record" href="@($"/orcamentos/{item.Id}")"><div class="mobile-record-main"><strong>@Identificacao(item)</strong><span>@item.ClienteNome</span><span>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca)</span><strong>@item.Total.ToString("C2")</strong><span>Válido até @item.ValidoAte.ToString("dd/MM")</span></div><DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" /><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }</section>
+    <section class="mobile-list">@foreach (var item in _pagina.Itens) { <a class="mobile-record quotation-mobile-record" href="@($"/orcamentos/{item.Id}")"><div class="mobile-record-main"><strong>@Identificacao(item)</strong><span>@item.ClienteNome</span>@if (UsaVeiculos) { <span>@FormatacaoVeiculo.Exibir(item.VeiculoDescricao, item.VeiculoPlaca)</span> }<strong>@item.Total.ToString("C2")</strong><span>Válido até @item.ValidoAte.ToString("dd/MM")</span></div><DetaraStatusBadge Texto="@NomeStatus(item.Status)" Tone="@TomStatus(item.Status)" /><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a> }</section>
     <div class="module-pagination"><span>@_pagina.TotalItens registro(s) · Página @_pagina.Pagina de @Math.Max(1, _pagina.TotalPaginas)</span><div><MudIconButton Icon="@Icons.Material.Outlined.ChevronLeft" Disabled="@(_pagina.Pagina <= 1)" OnClick="@(() => MoverPaginaAsync(-1))" aria-label="Página anterior" /><MudIconButton Icon="@Icons.Material.Outlined.ChevronRight" Disabled="@(_pagina.Pagina >= _pagina.TotalPaginas)" OnClick="@(() => MoverPaginaAsync(1))" aria-label="Próxima página" /></div></div>
 }
 </div>
@@ -38,7 +39,8 @@ else
 @code {
     private PaginaResponse<OrcamentoListaResponse>? _pagina; private bool _carregando = true; private int _paginaAtual = 1; private string? _pesquisa; private StatusOrcamentoContrato? _status;
     private bool TemFiltrosAtivos => !string.IsNullOrWhiteSpace(_pesquisa) || _status.HasValue;
-    protected override Task OnInitializedAsync() => CarregarAsync();
+    private bool UsaVeiculos => Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
+    protected override async Task OnInitializedAsync() { await Capacidades.CarregarAsync(); await CarregarAsync(); }
     private async Task CarregarAsync() { _carregando = true; var r = await OrcamentosApi.ListarAsync(_paginaAtual, 25, _pesquisa, _status); _pagina = r.Resultado; if (!r.Sucesso) Mensagens.Mostrar(r.Mensagem, true); _carregando = false; }
     private async Task PesquisarAsync() { _paginaAtual = 1; await CarregarAsync(); }
     private async Task MoverPaginaAsync(int delta) { _paginaAtual += delta; await CarregarAsync(); }

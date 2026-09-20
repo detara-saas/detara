@@ -58,7 +58,7 @@ public sealed record DashboardAgendamentoDto(
     Guid Id,
     DateTime InicioUtc,
     string ClienteNome,
-    string VeiculoDescricao,
+    string? VeiculoDescricao,
     string? VeiculoPlaca,
     string? ItemPrincipal,
     StatusAgendamento Status);

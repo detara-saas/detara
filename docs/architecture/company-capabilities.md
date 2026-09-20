@@ -53,7 +53,17 @@ O menu de Veículos exige capacidade e permissão. Favoritos respeitam a mesma c
 
 `AddCompanyCapabilities` adiciona o segmento, cria `EmpresasCapacidades`, a FK e o índice único, e faz backfill determinístico de todas as empresas existentes com as dez capacidades habilitadas. Novas empresas provisionadas pela plataforma, seed de desenvolvimento e bootstrap demo recebem o mesmo preset.
 
-A ARCH-03 não altera nullability de `VeiculoId`, a máquina de estados da OS, PDFs, comunicação, dashboards ou documentos. Agenda, Orçamento, OS e Financeiro continuam automotivos nesta fase.
+A ARCH-04 torna `VeiculoId` e o snapshot descritivo nullable no backbone formado por
+Agenda, Orçamento, OS e Conta a Receber. A obrigatoriedade não foi removida globalmente:
+ela passou a ser condicionada à capability `veiculos` no backend. Quando habilitada,
+o vínculo válido e tenant-safe continua obrigatório; quando desabilitada, sua ausência é
+obrigatória e propagada pelas conversões. A UI tenant usa o mesmo snapshot central de
+capabilities para retirar seletores, colunas e filtros automotivos sem emitir consultas
+desnecessárias ao módulo de Veículos.
+
+Dados históricos automotivos permanecem intactos. Não há backfill para `null`, entidade
+genérica substituta nem placeholder persistido. PDFs, comunicação e dashboard receberam
+somente tolerância mínima a `null`; a composição textual ampla pertence à ARCH-06.
 
 ## Convenção do Core
 
@@ -61,8 +71,8 @@ Novas funcionalidades do Detara Core não devem introduzir dependência obrigat�
 
 ## Limitações e roadmap
 
-- Veículos e Check-in permanecem bloqueados para alteração produtiva.
+- Veículos e Check-in permanecem bloqueados para alteração produtiva, inclusive após a ARCH-04.
 - Não existe preset nem suporte declarado para outros nichos.
-- ARCH-04 tornará veículo opcional no backbone transacional.
+- ARCH-04 tornou veículo opcional no backbone transacional sob enforcement da capability.
 - ARCH-05 tornará o check-in automotivo opcional na máquina de estados.
 - ARCH-06 fará a composição ampla de UI, documentos e comunicação.

@@ -24,11 +24,12 @@ internal sealed class AtendimentoClienteRelacionamentoConsulta(DetaraDbContext d
             var concluidas = db.OrdensServico.AsNoTracking()
                 .Where(item => item.ClienteId == clienteId &&
                     item.Status == StatusOrdemServico.Concluida);
-            var agrupadas = await concluidas
+            var concluidasComVeiculo = concluidas.Where(item => item.VeiculoId.HasValue);
+            var agrupadas = await concluidasComVeiculo
                 .GroupBy(item => item.VeiculoId)
                 .Select(grupo => new
                 {
-                    VeiculoId = grupo.Key,
+                    VeiculoId = grupo.Key!.Value,
                     QuantidadeAtendimentos = grupo.Count(),
                     QuantidadeServicos = grupo.Sum(ordem => ordem.Itens.Sum(item => item.Quantidade)),
                     TotalInvestido = grupo.Sum(ordem =>
@@ -38,7 +39,7 @@ internal sealed class AtendimentoClienteRelacionamentoConsulta(DetaraDbContext d
                     UltimaVisitaEmUtc = grupo.Max(ordem => ordem.ConcluidaEmUtc)
                 })
                 .ToArrayAsync(cancellationToken);
-            var ultimosServicos = await concluidas
+            var ultimosServicos = await concluidasComVeiculo
                 .Where(ordem => ordem.ConcluidaEmUtc == db.OrdensServico
                     .Where(item => item.ClienteId == clienteId &&
                         item.VeiculoId == ordem.VeiculoId &&
@@ -46,7 +47,7 @@ internal sealed class AtendimentoClienteRelacionamentoConsulta(DetaraDbContext d
                     .Max(item => item.ConcluidaEmUtc))
                 .Select(ordem => new
                 {
-                    ordem.VeiculoId,
+                    VeiculoId = ordem.VeiculoId!.Value,
                     ordem.ConcluidaEmUtc,
                     Servico = ordem.Itens.OrderBy(item => item.Ordem)
                         .Select(item => item.NomeSnapshot)
@@ -67,14 +68,19 @@ internal sealed class AtendimentoClienteRelacionamentoConsulta(DetaraDbContext d
                 ultimoServicoPorVeiculo.GetValueOrDefault(item.VeiculoId),
                 item.UltimaVisitaEmUtc)).ToArray();
 
-            var quantidadeAtendimentos = agrupadas.Sum(item => item.QuantidadeAtendimentos);
-            var totalInvestido = agrupadas.Sum(item => item.TotalInvestido);
-            var primeiraVisita = agrupadas.Length > 0
-                ? agrupadas.Min(item => item.PrimeiraVisitaEmUtc)
-                : null;
-            var ultimaVisita = agrupadas.Length > 0
-                ? agrupadas.Max(item => item.UltimaVisitaEmUtc)
-                : null;
+            var totais = await concluidas.GroupBy(_ => 1).Select(grupo => new
+            {
+                QuantidadeAtendimentos = grupo.Count(),
+                TotalInvestido = grupo.Sum(ordem =>
+                    ordem.Itens.Sum(item => item.ValorUnitarioAutorizado * item.Quantidade) -
+                    ordem.DescontoAutorizado + ordem.AcrescimoAutorizado),
+                PrimeiraVisitaEmUtc = grupo.Min(ordem => ordem.ConcluidaEmUtc),
+                UltimaVisitaEmUtc = grupo.Max(ordem => ordem.ConcluidaEmUtc)
+            }).SingleOrDefaultAsync(cancellationToken);
+            var quantidadeAtendimentos = totais?.QuantidadeAtendimentos ?? 0;
+            var totalInvestido = totais?.TotalInvestido ?? 0;
+            var primeiraVisita = totais?.PrimeiraVisitaEmUtc;
+            var ultimaVisita = totais?.UltimaVisitaEmUtc;
             var servicoMaisRealizado = await db.OrdensServicoItens.AsNoTracking()
                 .Where(item => item.OrdemServico.ClienteId == clienteId &&
                     item.OrdemServico.Status == StatusOrdemServico.Concluida)

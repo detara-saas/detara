@@ -1531,6 +1531,8 @@ h1:focus { outline: none; }
 .platform-definition-list code { font-size: .68rem; }
 .platform-definition-list.inline { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .platform-contact-panel { margin-top: 0; }
+.platform-subscription-slot { grid-column: 1 / -1; min-width: 0; }
+.platform-capabilities-panel { margin-top: var(--detara-section-gap); }
 .platform-audit-note { margin-bottom: 18px; }
 .platform-audit-list { display: grid; gap: 8px; }
 .platform-audit-item { min-height: 86px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 15px 18px; background: var(--detara-surface); border: 1px solid var(--detara-border-soft); border-radius: var(--detara-radius-md); }
