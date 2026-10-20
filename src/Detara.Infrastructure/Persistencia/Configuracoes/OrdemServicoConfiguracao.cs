@@ -12,6 +12,9 @@ internal sealed class OrdemServicoConfiguracao : IEntityTypeConfiguration<OrdemS
         builder.HasKey(item => item.Id);
         builder.HasAlternateKey(item => new { item.EmpresaId, item.Id });
         builder.Property(item => item.Codigo).HasMaxLength(32).IsRequired();
+        builder.Property(item => item.AtendimentoRapidoHash).HasMaxLength(64);
+        builder.HasIndex(item => new { item.EmpresaId, item.SolicitacaoAtendimentoRapidoId })
+            .IsUnique().HasFilter("[SolicitacaoAtendimentoRapidoId] IS NOT NULL");
         builder.Property(item => item.Origem).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(item => item.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(item => item.ClienteNomeSnapshot).HasMaxLength(160).IsRequired();

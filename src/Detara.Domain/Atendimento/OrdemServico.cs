@@ -74,6 +74,8 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     }
 
     public string Codigo { get; private set; } = string.Empty;
+    public Guid? SolicitacaoAtendimentoRapidoId { get; private set; }
+    public string? AtendimentoRapidoHash { get; private set; }
     public OrigemOrdemServico Origem { get; private set; }
     public Guid? OrcamentoOrigemId { get; private set; }
     public Guid? AgendamentoOrigemId { get; private set; }
@@ -114,6 +116,38 @@ public sealed class OrdemServico : EntidadeEmpresaBase
     public IReadOnlyCollection<HistoricoStatusOrdemServico> Historico => _historico;
     public decimal SubtotalAutorizado => _itens.Sum(item => item.Subtotal);
     public decimal TotalAutorizado => SubtotalAutorizado - DescontoAutorizado + AcrescimoAutorizado;
+
+    public static OrdemServico RegistrarAtendimentoRealizado(Guid empresaId, int anoLocal,
+        PartesOrdemServicoSnapshot partes, IReadOnlyCollection<ItemOrdemServicoSnapshot> itens,
+        Guid usuarioId, DateTime realizadoEmUtc, Guid solicitacaoId, string hash)
+    {
+        if (realizadoEmUtc.Kind != DateTimeKind.Utc || realizadoEmUtc > DateTime.UtcNow)
+            throw new ArgumentException("Informe uma data válida para o atendimento realizado.");
+        ExigirId(solicitacaoId);
+        if (string.IsNullOrWhiteSpace(hash) || hash.Length != 64 || !hash.All(Uri.IsHexDigit))
+            throw new ArgumentException("A identificação do lançamento é inválida.");
+
+        var ordem = new OrdemServico(empresaId, anoLocal, partes, OrigemOrdemServico.AtendimentoRapido,
+            null, null, null, 0, 0, itens, usuarioId, DateTime.UtcNow,
+            "Atendimento já realizado, registrado pelo lançamento rápido.");
+        if (ordem.TotalAutorizado <= 0)
+            throw new ArgumentException("O atendimento rápido deve possuir valor maior que zero.");
+        ordem.SolicitacaoAtendimentoRapidoId = solicitacaoId;
+        ordem.AtendimentoRapidoHash = hash;
+        ordem.Status = StatusOrdemServico.Concluida;
+        ordem.ExecucaoFinalizadaEmUtc = realizadoEmUtc;
+        ordem.ExecucaoFinalizadaPorUsuarioId = usuarioId;
+        ordem.ConcluidaEmUtc = realizadoEmUtc;
+        ordem.ConcluidaPorUsuarioId = usuarioId;
+        ordem.ChecklistEntradaSnapshot = NivelExigenciaOperacional.Desabilitado;
+        ordem.FotosEntradaSnapshot = NivelExigenciaOperacional.Desabilitado;
+        ordem.FotosDuranteSnapshot = NivelExigenciaOperacional.Desabilitado;
+        ordem.FotosSaidaSnapshot = NivelExigenciaOperacional.Desabilitado;
+        ordem._historico.Clear();
+        ordem.RegistrarHistorico(StatusOrdemServico.Concluida, usuarioId,
+            "Atendimento realizado registrado pelo lançamento rápido. Sem registro de check-in ou início de execução.");
+        return ordem;
+    }
 
     public void DefinirConfiguracaoOperacional(
         NivelExigenciaOperacional checklistEntrada,

@@ -1,0 +1,256 @@
+@page "/atendimentos/rapido"
+@attribute [Authorize(Policy = PoliticasAtendimento.RegistrarAtendimentoRapido)]
+@inject OrdensServicoServico OrdensApi
+@inject EmpresaCapacidadesState Capacidades
+@inject IMensagemServico Mensagens
+
+<PageTitle>Atendimento rápido | Detara</PageTitle>
+<div class="page-container page-container-focused">
+    <CabecalhoPagina Titulo="Atendimento rápido" Sobretitulo="ATENDIMENTO"
+                     Descricao="Registre um serviço já realizado e integralmente pago em um só lugar." />
+
+    @if (_carregando)
+    {
+        <DetaraSkeleton Variant="DetaraSkeletonVariant.Detail" Rotulo="Carregando atendimento rápido" />
+    }
+    else if (_resultado is not null)
+    {
+        <section class="section-card module-panel detail-stack" role="status">
+            <CabecalhoSecao Titulo="Atendimento registrado" Sobretitulo="PAGAMENTO INTEGRAL"
+                             Descricao="O serviço e o recebimento foram salvos. O histórico já está disponível no sistema." />
+            <MudText Typo="Typo.h6">@_resultado.Codigo · @_valor.ToString("C2")</MudText>
+            <div class="catalog-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NovoAsync" StartIcon="@Icons.Material.Outlined.Add">Registrar outro atendimento</MudButton>
+                <AuthorizeView Policy="@Permissoes.OrdemServicoVisualizar"><Authorized>
+                    <MudButton Href="@($"/ordens-servico/{_resultado.OrdemServicoId}")" Variant="Variant.Outlined">Ver atendimento</MudButton>
+                </Authorized></AuthorizeView>
+                <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar"><Authorized>
+                    <MudButton Href="@($"/financeiro/contas-receber/{_resultado.ContaReceberId}")" Variant="Variant.Text">Ver pagamento</MudButton>
+                </Authorized></AuthorizeView>
+            </div>
+        </section>
+    }
+    else if (_erroCarga is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="page-alert">@_erroCarga</MudAlert>
+        <MudButton OnClick="CarregarAsync" Variant="Variant.Outlined">Tentar novamente</MudButton>
+    }
+    else
+    {
+        <MudForm @ref="_form">
+            <fieldset disabled="@(_salvando || _requisicaoPendente is not null)" class="quick-intake-fields">
+                <section class="section-card module-panel detail-stack">
+                    <CabecalhoSecao Titulo="@(_usaVeiculos ? "Cliente e veículo" : "Cliente")" />
+                    <div class="form-grid">
+                        <MudAutocomplete T="ClienteOrcamentoResponse" Value="_cliente" ValueChanged="SelecionarClienteAsync"
+                                         SearchFunc="BuscarClientesAsync" ToStringFunc="@(cliente => cliente?.Nome ?? string.Empty)"
+                                         Label="Cliente" Placeholder="Digite nome, documento ou telefone" Required="true"
+                                         RequiredError="Selecione o cliente." Variant="Variant.Outlined" Clearable="true"
+                                         MinCharacters="2" DebounceInterval="300" MaxItems="15" />
+                        @if (_usaVeiculos)
+                        {
+                            <MudSelect T="Guid?" @bind-Value="_veiculoId" Label="Veículo" Variant="Variant.Outlined"
+                                       Disabled="@(_cliente is null || _carregandoVeiculos)" Required="true" RequiredError="Selecione o veículo.">
+                                @foreach (var veiculo in _veiculos)
+                                {
+                                    <MudSelectItem T="Guid?" Value="@((Guid?)veiculo.Id)">@FormatacaoVeiculo.Exibir(veiculo.Descricao, veiculo.Placa)</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                    </div>
+                    <CabecalhoSecao Titulo="Serviço e pagamento" />
+                    <MudAutocomplete T="ItemCatalogoOrcamentoResponse" Value="_servico" ValueChanged="SelecionarServico"
+                                     SearchFunc="BuscarServicosAsync" ToStringFunc="@(item => item?.Nome ?? string.Empty)"
+                                     Label="Serviço ou pacote realizado" Placeholder="Busque no catálogo" Required="true"
+                                     RequiredError="Selecione o serviço realizado." Variant="Variant.Outlined" Clearable="true"
+                                     MinCharacters="0" DebounceInterval="300" MaxItems="15" />
+                    <div class="form-grid">
+                        <MudNumericField T="decimal" @bind-Value="_valor" Label="Valor total pago" Variant="Variant.Outlined"
+                                         Format="N2" Adornment="Adornment.Start" AdornmentText="R$" Min="0.01m" Max="999999999.99m" Required="true" />
+                        <MudSelect T="FormaPagamentoContrato?" Value="_forma" ValueChanged="SelecionarForma" Label="Forma de pagamento"
+                                   Variant="Variant.Outlined" Required="true" RequiredError="Selecione a forma de pagamento.">
+                            @foreach (var forma in Enum.GetValues<FormaPagamentoContrato>())
+                            {
+                                <MudSelectItem T="FormaPagamentoContrato?" Value="@((FormaPagamentoContrato?)forma)">@NomeForma(forma)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                    @if (_forma == FormaPagamentoContrato.CartaoCredito)
+                    {
+                        <MudNumericField T="int" @bind-Value="_parcelas" Label="Parcelas no cartão" Min="1" Max="120" Variant="Variant.Outlined" />
+                    }
+                    @if (_forma == FormaPagamentoContrato.Outro)
+                    {
+                        <MudTextField T="string" @bind-Value="_observacao" Label="Descreva a forma de pagamento" Required="true" MaxLength="1000" Variant="Variant.Outlined" />
+                    }
+                    <MudExpansionPanels Elevation="0">
+                        <MudExpansionPanel Text="Data e detalhes do recebimento">
+                            <div class="form-grid">
+                                <MudDatePicker @bind-Date="_data" Label="Data do atendimento" DateFormat="dd/MM/yyyy" MaxDate="_hoje" Required="true" Variant="Variant.Outlined" Editable="true" />
+                                <MudTimePicker @bind-Time="_hora" Label="Horário" Required="true" Variant="Variant.Outlined" Editable="true" />
+                                <MudNumericField T="decimal" @bind-Value="_taxa" Label="Taxa do recebimento (opcional)" Min="0" Max="_valor" Format="N2" Variant="Variant.Outlined" />
+                                @if (_forma != FormaPagamentoContrato.Outro)
+                                {
+                                    <MudTextField T="string" @bind-Value="_observacao" Label="Observação do pagamento (opcional)" MaxLength="1000" Variant="Variant.Outlined" />
+                                }
+                            </div>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </section>
+            </fieldset>
+            @if (_requisicaoPendente is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Class="page-alert">A confirmação não foi recebida. Tente confirmar o mesmo lançamento novamente; isso não criará outro atendimento.</MudAlert>
+            }
+            @if (_erro is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="page-alert" role="alert">@_erro</MudAlert>
+            }
+            <section class="section-card module-panel quick-intake-confirmation">
+                <div><span class="section-eyebrow">TOTAL RECEBIDO</span><MudText Typo="Typo.h5" Class="currency-value">@_valor.ToString("C2")</MudText><MudText Typo="Typo.body2">Atendimento concluído e pagamento integral.</MudText></div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RegistrarAsync" Disabled="_salvando" StartIcon="@Icons.Material.Outlined.CheckCircle">
+                    @(_salvando ? "Registrando..." : _requisicaoPendente is not null ? "Confirmar lançamento novamente" : "Registrar atendimento e pagamento")
+                </MudButton>
+            </section>
+        </MudForm>
+    }
+</div>
+
+@code {
+    private MudForm? _form;
+    private bool _carregando = true, _salvando, _carregandoVeiculos, _usaVeiculos;
+    private string? _erroCarga, _erro, _observacao;
+    private Guid? _veiculoId;
+    private ClienteOrcamentoResponse? _cliente;
+    private ItemCatalogoOrcamentoResponse? _servico;
+    private IReadOnlyCollection<VeiculoOrcamentoResponse> _veiculos = [];
+    private FormaPagamentoContrato? _forma;
+    private decimal _valor, _taxa;
+    private int _parcelas = 1;
+    private DateTime? _data, _hoje;
+    private TimeSpan? _hora;
+    private AtendimentoRapidoResponse? _resultado;
+    private RegistrarAtendimentoRapidoRequest? _requisicaoPendente;
+
+    protected override Task OnInitializedAsync() => CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        _erroCarga = null;
+        await Capacidades.CarregarAsync();
+        var contexto = await OrdensApi.ContextoRapidoAsync();
+        if (!contexto.Sucesso || contexto.Resultado is null)
+            _erroCarga = contexto.Mensagem;
+        else
+        {
+            _usaVeiculos = Capacidades.Possui(CodigosCapacidadeContrato.Veiculos);
+            _data = _hoje = contexto.Resultado.AgoraLocal.Date;
+            _hora = new TimeSpan(contexto.Resultado.AgoraLocal.Hour, contexto.Resultado.AgoraLocal.Minute, 0);
+        }
+        _carregando = false;
+    }
+
+    private async Task<IEnumerable<ClienteOrcamentoResponse>> BuscarClientesAsync(string? texto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Trim().Length < 2) return [];
+        var resposta = await OrdensApi.BuscarClientesRapidoAsync(texto.Trim(), ct);
+        if (!resposta.Sucesso) Mensagens.Mostrar(resposta.Mensagem, true);
+        return resposta.Resultado ?? [];
+    }
+
+    private async Task SelecionarClienteAsync(ClienteOrcamentoResponse? cliente)
+    {
+        _cliente = cliente;
+        _veiculoId = null;
+        _veiculos = [];
+        if (cliente is null || !_usaVeiculos) return;
+        _carregandoVeiculos = true;
+        try
+        {
+            var resposta = await OrdensApi.VeiculosRapidoAsync(cliente.Id);
+            if (_cliente?.Id != cliente.Id) return;
+            if (!resposta.Sucesso) Mensagens.Mostrar(resposta.Mensagem, true);
+            _veiculos = resposta.Resultado ?? [];
+            if (_veiculos.Count == 1) _veiculoId = _veiculos.Single().Id;
+        }
+        finally { if (_cliente?.Id == cliente.Id) _carregandoVeiculos = false; }
+    }
+
+    private async Task<IEnumerable<ItemCatalogoOrcamentoResponse>> BuscarServicosAsync(string? texto, CancellationToken ct)
+    {
+        var resposta = await OrdensApi.CatalogoRapidoAsync(texto, ct);
+        if (!resposta.Sucesso) Mensagens.Mostrar(resposta.Mensagem, true);
+        return resposta.Resultado ?? [];
+    }
+
+    private void SelecionarServico(ItemCatalogoOrcamentoResponse? item)
+    {
+        _servico = item;
+        _valor = item?.PrecoReferencia ?? 0;
+    }
+
+    private void SelecionarForma(FormaPagamentoContrato? forma)
+    {
+        _forma = forma;
+        _parcelas = 1;
+    }
+
+    private async Task RegistrarAsync()
+    {
+        if (_salvando) return;
+        _erro = null;
+        if (_requisicaoPendente is null)
+        {
+            await _form!.ValidateAsync();
+            if (!_form.IsValid || _cliente is null || _servico is null || !_forma.HasValue ||
+                (_usaVeiculos && !_veiculoId.HasValue) || !_data.HasValue || !_hora.HasValue || _valor <= 0 || _taxa > _valor)
+            {
+                _erro = "Preencha cliente, serviço, valor e forma de pagamento e confira os campos destacados.";
+                return;
+            }
+            _requisicaoPendente = new(Guid.NewGuid(), _cliente.Id, _usaVeiculos ? _veiculoId : null,
+                _servico.TipoItem, _servico.Id, _valor, _forma.Value,
+                DateTime.SpecifyKind(_data.Value.Date.Add(_hora.Value), DateTimeKind.Unspecified), _taxa,
+                _forma == FormaPagamentoContrato.CartaoCredito ? _parcelas : null, _observacao);
+        }
+        _salvando = true;
+        try
+        {
+            var resposta = await OrdensApi.RegistrarRapidoAsync(_requisicaoPendente);
+            if (resposta.Sucesso && resposta.Resultado is not null)
+            {
+                _resultado = resposta.Resultado;
+                _requisicaoPendente = null;
+            }
+            else
+            {
+                _erro = resposta.Mensagem;
+                if (!resposta.ConfirmacaoIncerta) _requisicaoPendente = null;
+            }
+        }
+        finally { _salvando = false; }
+    }
+
+    private async Task NovoAsync()
+    {
+        _resultado = null;
+        _cliente = null;
+        _veiculoId = null;
+        _veiculos = [];
+        _servico = null;
+        _valor = _taxa = 0;
+        _forma = null;
+        _observacao = _erro = null;
+        _parcelas = 1;
+        await CarregarAsync();
+    }
+
+    private static string NomeForma(FormaPagamentoContrato forma) => forma switch
+    {
+        FormaPagamentoContrato.CartaoDebito => "Cartão de débito",
+        FormaPagamentoContrato.CartaoCredito => "Cartão de crédito",
+        FormaPagamentoContrato.Transferencia => "Transferência",
+        _ => forma.ToString()
+    };
+}

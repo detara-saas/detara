@@ -32,7 +32,10 @@
 
     private OrdemServicoDetalheResponse _ordem => Ordem;
 
-    private IReadOnlyList<EtapaProgresso> Etapas =>
+    private IReadOnlyList<EtapaProgresso> Etapas => _ordem.Origem == OrigemOrdemServicoContrato.AtendimentoRapido
+        ? [new("Serviço realizado", Momento(_ordem.ConcluidaEmUtc), Icons.Material.Outlined.CheckCircle, "is-complete"),
+           new("Lançamento registrado", Momento(_ordem.CriadoEmUtc), Icons.Material.Outlined.ReceiptLong, "is-complete")]
+        :
     [
         new(
             "Ordem aberta",

@@ -1,0 +1,3 @@
+.quick-intake-fields { border: 0; padding: 0; margin: 0 0 var(--detara-section-gap); min-width: 0; }
+.quick-intake-confirmation { display: flex; align-items: center; justify-content: space-between; gap: var(--detara-form-gap); flex-wrap: wrap; }
+@media (max-width: 767px) { .quick-intake-confirmation { align-items: stretch; flex-direction: column; } }

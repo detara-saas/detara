@@ -13,7 +13,8 @@ public enum OrigemOrdemServico
 {
     Orcamento = 1,
     Agendamento = 2,
-    AtendimentoDireto = 3
+    AtendimentoDireto = 3,
+    AtendimentoRapido = 4
 }
 
 public enum OrigemComercialOrdemServico

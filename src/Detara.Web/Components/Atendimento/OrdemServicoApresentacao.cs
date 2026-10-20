@@ -26,10 +26,10 @@ public static class OrdemServicoApresentacao
     public static bool ChecklistHabilitado(
         OrdemServicoDetalheResponse ordem,
         ConfiguracaoOperacionalResponse? configuracao) =>
-        ordem.Checklist is not null || NivelVisivel(
+        ordem.Origem != OrigemOrdemServicoContrato.AtendimentoRapido && (ordem.Checklist is not null || NivelVisivel(
             ordem.ChecklistEntradaSnapshot,
             configuracao?.ChecklistEntrada ?? ordem.ConfiguracaoOperacionalAtual?.ChecklistEntrada) !=
-            NivelExigenciaOperacionalContrato.Desabilitado;
+            NivelExigenciaOperacionalContrato.Desabilitado);
 
     public static IReadOnlyList<CategoriaFotoOrdemServicoContrato> CategoriasFotoHabilitadas(
         OrdemServicoDetalheResponse ordem,
@@ -42,7 +42,9 @@ public static class OrdemServicoApresentacao
     public static NivelExigenciaOperacionalContrato NivelFoto(
         OrdemServicoDetalheResponse ordem,
         ConfiguracaoOperacionalResponse? configuracao,
-        CategoriaFotoOrdemServicoContrato categoria) => categoria switch
+        CategoriaFotoOrdemServicoContrato categoria) => ordem.Origem == OrigemOrdemServicoContrato.AtendimentoRapido
+        ? NivelExigenciaOperacionalContrato.Desabilitado
+        : categoria switch
         {
             CategoriaFotoOrdemServicoContrato.Entrada =>
                 NivelVisivel(ordem.FotosEntradaSnapshot,

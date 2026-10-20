@@ -13,6 +13,7 @@ public interface IOrdensServicoRepositorio
 {
     Task<PaginacaoResultado<OrdemServicoListaResultado>> ListarAsync(FiltroOrdensServico filtro, CancellationToken cancellationToken);
     Task<OrdemServico?> ObterAsync(Guid id, bool paraAlteracao, CancellationToken cancellationToken);
+    Task<OrdemServico?> ObterPorSolicitacaoRapidaAsync(Guid solicitacaoId, CancellationToken cancellationToken);
     Task<bool> ExistePorOrcamentoAsync(Guid orcamentoId, CancellationToken cancellationToken);
     Task<bool> ExistePorAgendamentoAsync(Guid agendamentoId, CancellationToken cancellationToken);
     Task<OrdemServicoAgendamentoResultado?> ObterPorAgendamentoAsync(Guid agendamentoId, CancellationToken cancellationToken);

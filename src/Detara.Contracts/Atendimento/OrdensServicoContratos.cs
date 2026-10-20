@@ -3,7 +3,7 @@ using Detara.Contracts.Catalogo;
 namespace Detara.Contracts.Atendimento;
 
 public enum StatusOrdemServicoContrato { Aberta = 1, EmExecucao = 2, AguardandoRetirada = 3, Concluida = 4, Cancelada = 5 }
-public enum OrigemOrdemServicoContrato { Orcamento = 1, Agendamento = 2, AtendimentoDireto = 3 }
+public enum OrigemOrdemServicoContrato { Orcamento = 1, Agendamento = 2, AtendimentoDireto = 3, AtendimentoRapido = 4 }
 public enum OrigemComercialOrdemServicoContrato { Orcamento = 1, AcordoDireto = 2, Cortesia = 3 }
 public enum RespostaChecklistOrdemServicoContrato { Conforme = 1, NaoConforme = 2, NaoAplicavel = 3 }
 public enum CategoriaFotoOrdemServicoContrato { Entrada = 1, Durante = 2, Saida = 3 }

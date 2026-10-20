@@ -89,12 +89,12 @@ else
         </section>
 
         <section class="detail-metrics detail-metrics-four service-order-key-metrics" aria-label="Resumo do atendimento">
-            <DetaraMetricCard Titulo="Entrada do veículo"
-                              Valor="@(_ordem.CheckInEmUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Pendente")"
+            <DetaraMetricCard Titulo="@(_ordem.Origem == OrigemOrdemServicoContrato.AtendimentoRapido ? "Atendimento realizado" : "Entrada do veículo")"
+                              Valor="@((_ordem.Origem == OrigemOrdemServicoContrato.AtendimentoRapido ? _ordem.ConcluidaEmUtc : _ordem.CheckInEmUtc)?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Pendente")"
                               Descricao="@($"OS criada em {_ordem.CriadoEmUtc.ToLocalTime():dd/MM/yyyy HH:mm}")"
                               Contexto="ATENDIMENTO"
                               Icone="@Icons.Material.Outlined.Login"
-                              Tone="@(_ordem.CheckInEmUtc.HasValue ? DetaraMetricTone.Positive : DetaraMetricTone.Warning)" />
+                              Tone="@(_ordem.CheckInEmUtc.HasValue || _ordem.Origem == OrigemOrdemServicoContrato.AtendimentoRapido ? DetaraMetricTone.Positive : DetaraMetricTone.Warning)" />
             <DetaraMetricCard Titulo="Origem"
                               Valor="@NomeOrigem(_ordem)"
                               Descricao="@DescricaoOrigem(_ordem)"
@@ -595,10 +595,13 @@ else
                         </ChildContent>
                     </DetaraCard>
 
-                    <OrdemServicoComunicacao OrdemStatus="_ordem.Status"
+                    @if (_ordem.Origem != OrigemOrdemServicoContrato.AtendimentoRapido)
+                    {
+                        <OrdemServicoComunicacao OrdemStatus="_ordem.Status"
                                                Notificacao="_notificacao"
                                                Executando="_executandoNotificacao"
                                                OnComunicar="ComunicarClienteAsync" />
+                    }
 
                     <AuthorizeView Policy="@Permissoes.FinanceiroVisualizar">
                         <Authorized>
@@ -772,7 +775,8 @@ else
                     if (conta.Sucesso) _contaReceber = conta.Resultado;
                 }
             }
-            if (_ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida)
+            if (_ordem.Origem != OrigemOrdemServicoContrato.AtendimentoRapido &&
+                _ordem.Status is StatusOrdemServicoContrato.AguardandoRetirada or StatusOrdemServicoContrato.Concluida)
             {
                 var comunicacaoTask = NotificacoesApi.ObterPorOrdemServicoAsync(Id);
                 var whatsappTask = NotificacoesApi.ObterDisponibilidadeWhatsAppAsync();
@@ -897,8 +901,8 @@ else
             ? _ordem.Status == StatusOrdemServicoContrato.Aberta
             : _ordem.Status == StatusOrdemServicoContrato.EmExecucao);
     private bool PodeExcluir(OrdemServicoFotoResponse foto) => PodeEnviar(foto.Categoria);
-    private static string NomeOrigem(OrdemServicoDetalheResponse ordem) => ordem.Origem switch { OrigemOrdemServicoContrato.Orcamento => "Orçamento aprovado", OrigemOrdemServicoContrato.Agendamento => "Agendamento", _ => "Atendimento direto" };
-    private static string DescricaoOrigem(OrdemServicoDetalheResponse ordem) => ordem.OrcamentoOrigemId.HasValue ? "Snapshot comercial preservado" : ordem.AgendamentoOrigemId.HasValue ? "Valores confirmados na OS" : "Acordo direto auditado";
+    private static string NomeOrigem(OrdemServicoDetalheResponse ordem) => ordem.Origem switch { OrigemOrdemServicoContrato.Orcamento => "Orçamento aprovado", OrigemOrdemServicoContrato.Agendamento => "Agendamento", OrigemOrdemServicoContrato.AtendimentoRapido => "Atendimento rápido", _ => "Atendimento direto" };
+    private static string DescricaoOrigem(OrdemServicoDetalheResponse ordem) => ordem.Origem == OrigemOrdemServicoContrato.AtendimentoRapido ? "Serviço já realizado, registrado em lançamento único" : ordem.OrcamentoOrigemId.HasValue ? "Snapshot comercial preservado" : ordem.AgendamentoOrigemId.HasValue ? "Valores confirmados na OS" : "Acordo direto auditado";
     private static string OrigemItem(OrdemServicoItemResponse item) => item.OrigemComercial switch { OrigemComercialOrdemServicoContrato.Orcamento => "Orçamento", OrigemComercialOrdemServicoContrato.Cortesia => "Cortesia", _ => "Acordo direto" };
     private static string NomeStatus(StatusOrdemServicoContrato status) => status switch { StatusOrdemServicoContrato.EmExecucao => "Em execução", StatusOrdemServicoContrato.AguardandoRetirada => "Aguardando retirada", StatusOrdemServicoContrato.Concluida => "Concluída", _ => status.ToString() };
     private static string ClasseStatus(StatusOrdemServicoContrato status) => status switch { StatusOrdemServicoContrato.Aberta => "status-scheduled", StatusOrdemServicoContrato.EmExecucao => "status-running", StatusOrdemServicoContrato.AguardandoRetirada => "status-waiting", StatusOrdemServicoContrato.Concluida => "status-confirmed", _ => "status-cancelled" };

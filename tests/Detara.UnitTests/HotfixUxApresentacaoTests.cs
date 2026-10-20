@@ -224,6 +224,23 @@ public sealed class HotfixUxApresentacaoTests
         Assert.Contains("gap: 12px", estilos);
     }
 
+    [Fact]
+    public void AtendimentoRapido_ConcluidoNaoApresentaExigenciasDeCheckInDaConfiguracaoAtual()
+    {
+        var ordem = Ordem(checklist: NivelExigenciaOperacionalContrato.Obrigatorio,
+            entrada: NivelExigenciaOperacionalContrato.Obrigatorio,
+            durante: NivelExigenciaOperacionalContrato.Obrigatorio,
+            saida: NivelExigenciaOperacionalContrato.Obrigatorio) with
+        {
+            Origem = OrigemOrdemServicoContrato.AtendimentoRapido,
+            Status = StatusOrdemServicoContrato.Concluida
+        };
+
+        Assert.False(OrdemServicoApresentacao.ChecklistHabilitado(ordem, null));
+        Assert.Empty(OrdemServicoApresentacao.CategoriasFotoHabilitadas(ordem, null));
+        Assert.Equal(AcaoPrincipalOrdemServico.Nenhuma, OrdemServicoApresentacao.ProximaAcao(ordem));
+    }
+
     private static OrdemServicoDetalheResponse Ordem(
         NivelExigenciaOperacionalContrato checklist = NivelExigenciaOperacionalContrato.Desabilitado,
         NivelExigenciaOperacionalContrato entrada = NivelExigenciaOperacionalContrato.Desabilitado,

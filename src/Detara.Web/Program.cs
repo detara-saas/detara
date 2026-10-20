@@ -22,6 +22,11 @@ var apiBaseAddress = new Uri(
         : apiBaseUrl);
 builder.Services.AddAuthorizationCore(options =>
 {
+    options.AddPolicy(PoliticasAtendimento.RegistrarAtendimentoRapido, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim("permissao", Permissoes.OrdemServicoCriar)
+        .RequireClaim("permissao", Permissoes.OrdemServicoFinalizar)
+        .RequireClaim("permissao", Permissoes.FinanceiroRegistrarPagamento));
     foreach (var permissao in Permissoes.Todas)
     {
         options.AddPolicy(permissao, policy => policy.RequireClaim("permissao", permissao));

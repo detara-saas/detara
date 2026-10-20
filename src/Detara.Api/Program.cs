@@ -328,6 +328,11 @@ builder.Services.AddAuthorization(options =>
             .RequireAuthenticatedUser()
             .RequireClaim("permissao", permissao));
     }
+    options.AddPolicy(PoliticasAtendimento.RegistrarAtendimentoRapido, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim("permissao", Permissoes.OrdemServicoCriar)
+        .RequireClaim("permissao", Permissoes.OrdemServicoFinalizar)
+        .RequireClaim("permissao", Permissoes.FinanceiroRegistrarPagamento));
     options.AddPolicy(PoliticasCapacidade.Veiculos, policy => policy
         .RequireAuthenticatedUser()
         .AddRequirements(new EmpresaCapacidadeRequirement(CodigosCapacidadeEmpresa.Veiculos)));

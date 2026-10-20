@@ -834,6 +834,10 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.Property<Guid?>("AgendamentoOrigemId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AtendimentoRapidoHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<DateTime?>("AtualizadoEmUtc")
                         .HasColumnType("datetime2");
 
@@ -950,6 +954,9 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.Property<int?>("QuilometragemEntrada")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("SolicitacaoAtendimentoRapidoId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(24)
@@ -982,6 +989,10 @@ namespace Detara.Infrastructure.Persistencia.Migrations
                     b.HasIndex("EmpresaId", "OrcamentoOrigemId")
                         .IsUnique()
                         .HasFilter("[OrcamentoOrigemId] IS NOT NULL");
+
+                    b.HasIndex("EmpresaId", "SolicitacaoAtendimentoRapidoId")
+                        .IsUnique()
+                        .HasFilter("[SolicitacaoAtendimentoRapidoId] IS NOT NULL");
 
                     b.HasIndex("EmpresaId", "Status");
 

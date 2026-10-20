@@ -32,6 +32,7 @@
     </Authorized></AuthorizeView>
 
     <MudText Typo="Typo.overline" Class="nav-section">ATENDIMENTO</MudText>
+    <AuthorizeView Policy="@PoliticasAtendimento.RegistrarAtendimentoRapido"><Authorized><MudNavLink Href="/atendimentos/rapido" Icon="@Icons.Material.Outlined.Bolt"><span class="nav-label">Atendimento rápido</span></MudNavLink></Authorized></AuthorizeView>
     <AuthorizeView Policy="@Permissoes.OrcamentosVisualizar"><Authorized><MudNavLink Href="/orcamentos" Icon="@Icons.Material.Outlined.RequestQuote"><span class="nav-label">Orçamentos</span></MudNavLink></Authorized></AuthorizeView>
     <AuthorizeView Policy="@Permissoes.OrdemServicoVisualizar"><Authorized><MudNavLink Href="/ordens-servico" Icon="@Icons.Material.Outlined.FactCheck"><span class="nav-label">Ordens de Serviço</span></MudNavLink></Authorized></AuthorizeView>
 
