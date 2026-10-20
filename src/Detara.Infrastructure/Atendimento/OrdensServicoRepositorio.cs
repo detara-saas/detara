@@ -48,6 +48,10 @@ internal sealed class OrdensServicoRepositorio(DetaraDbContext db) : IOrdensServ
         return (paraAlteracao ? query : query.AsNoTracking()).SingleOrDefaultAsync(ct);
     }
 
+    public Task<OrdemServico?> ObterPorSolicitacaoRapidaAsync(Guid solicitacaoId, CancellationToken ct) =>
+        db.OrdensServico.AsNoTracking().SingleOrDefaultAsync(
+            item => item.SolicitacaoAtendimentoRapidoId == solicitacaoId, ct);
+
     public Task<bool> ExistePorOrcamentoAsync(Guid orcamentoId, CancellationToken ct) =>
         db.OrdensServico.AnyAsync(item => item.OrcamentoOrigemId == orcamentoId, ct);
     public Task<bool> ExistePorAgendamentoAsync(Guid agendamentoId, CancellationToken ct) =>

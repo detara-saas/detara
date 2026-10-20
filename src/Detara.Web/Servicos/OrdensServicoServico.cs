@@ -9,6 +9,47 @@ namespace Detara.Web.Servicos;
 public sealed class OrdensServicoServico(HttpClient http)
 {
     public sealed record ConteudoFoto(byte[] Bytes, string ContentType);
+    public async Task<ResultadoServico<AtendimentoRapidoResponse>> RegistrarRapidoAsync(
+        RegistrarAtendimentoRapidoRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await http.PostAsJsonAsync("api/atendimentos-rapidos", request, ct);
+            var envelope = await response.Content.ReadFromJsonAsync<RespostaApi<AtendimentoRapidoResponse>>(ct);
+            if (response.IsSuccessStatusCode && envelope is { Sucesso: true, Resultado: not null })
+                return ResultadoServico<AtendimentoRapidoResponse>.Ok(envelope.Resultado, envelope.Info);
+            var detalhes = envelope?.Erro?.Detalhes?.Values.SelectMany(mensagens => mensagens);
+            var mensagem = detalhes?.Any() == true ? string.Join(" ", detalhes) : envelope?.Info ?? "Não foi possível confirmar o lançamento.";
+            return ResultadoServico<AtendimentoRapidoResponse>.Falha(mensagem) with
+            {
+                ConfirmacaoIncerta = (int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.Conflict
+            };
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return ResultadoServico<AtendimentoRapidoResponse>.Falha(
+                "Não foi possível receber a confirmação. Tente confirmar o mesmo lançamento novamente.") with
+            { ConfirmacaoIncerta = true };
+        }
+    }
+
+    public Task<ResultadoServico<ContextoAtendimentoRapidoResponse>> ContextoRapidoAsync(CancellationToken ct = default) =>
+        ObterAsync<ContextoAtendimentoRapidoResponse>("api/atendimentos-rapidos/contexto", ct);
+
+    public Task<ResultadoServico<IReadOnlyCollection<ClienteOrcamentoResponse>>> BuscarClientesRapidoAsync(
+        string pesquisa, CancellationToken ct = default) =>
+        ObterAsync<IReadOnlyCollection<ClienteOrcamentoResponse>>(
+            $"api/atendimentos-rapidos/clientes?pesquisa={Uri.EscapeDataString(pesquisa)}", ct);
+
+    public Task<ResultadoServico<IReadOnlyCollection<VeiculoOrcamentoResponse>>> VeiculosRapidoAsync(
+        Guid clienteId, CancellationToken ct = default) =>
+        ObterAsync<IReadOnlyCollection<VeiculoOrcamentoResponse>>(
+            $"api/atendimentos-rapidos/clientes/{clienteId}/veiculos", ct);
+
+    public Task<ResultadoServico<IReadOnlyCollection<ItemCatalogoOrcamentoResponse>>> CatalogoRapidoAsync(
+        string? pesquisa, CancellationToken ct = default) =>
+        ObterAsync<IReadOnlyCollection<ItemCatalogoOrcamentoResponse>>(
+            $"api/atendimentos-rapidos/catalogo?pesquisa={Uri.EscapeDataString(pesquisa ?? string.Empty)}", ct);
     public Task<ResultadoServico<PaginaResponse<OrdemServicoListaResponse>>> ListarAsync(int pagina, int tamanhoPagina,
         string? pesquisa, StatusOrdemServicoContrato? status, DateOnly? inicio = null, DateOnly? fim = null,
         CancellationToken ct = default)

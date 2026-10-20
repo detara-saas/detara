@@ -48,4 +48,7 @@ public sealed record OrdemServicoFinalizadaFinanceiro(Guid EmpresaId, Guid Ordem
 public interface IIntegracaoFinanceiroOrdensServico
 {
     Task PrepararContaReceberAsync(OrdemServicoFinalizadaFinanceiro evento, CancellationToken cancellationToken);
+    Task<Guid> PrepararRecebimentoIntegralAsync(OrdemServicoFinalizadaFinanceiro evento,
+        FormaPagamento forma, decimal taxa, int? parcelas, string? observacao,
+        Guid usuarioId, CancellationToken cancellationToken);
 }

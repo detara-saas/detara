@@ -79,6 +79,19 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AtendimentoRapido_ExigeAutenticacao()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await _client.PostAsJsonAsync("/api/atendimentos-rapidos", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await _client.GetAsync("/api/atendimentos-rapidos/contexto")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await _client.GetAsync("/api/atendimentos-rapidos/clientes?pesquisa=cliente")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await _client.GetAsync("/api/atendimentos-rapidos/catalogo")).StatusCode);
+    }
+
+    [Fact]
     public async Task LogoEmpresa_SemPermissaoDeEdicaoRetorna403()
     {
         UsarToken(CriarToken(SecurityAlgorithms.HmacSha256));
@@ -415,7 +428,16 @@ public sealed class JwtEEndpointsSecurityTests : IAsyncLifetime
         Assert.Contains("api/ordens-servico/agendamentos/{agendamentoId:guid}/origem-comercial", rotas);
         Assert.Contains("api/plataforma/empresas/{id:guid}/assinatura/confirmacao-comercial", rotas);
         Assert.Contains("api/configuracoes/capacidades", rotas);
-        Assert.Equal(189, rotas.Length); // ARCH-03 adiciona somente o snapshot tenant de capacidades.
+        Assert.Equal(new[]
+        {
+            "api/atendimentos-rapidos",
+            "api/atendimentos-rapidos/catalogo",
+            "api/atendimentos-rapidos/clientes",
+            "api/atendimentos-rapidos/clientes/{clienteId:guid}/veiculos",
+            "api/atendimentos-rapidos/contexto"
+        }, rotas.Where(rota => rota.StartsWith("api/atendimentos-rapidos", StringComparison.Ordinal))
+            .OrderBy(rota => rota, StringComparer.Ordinal));
+        Assert.Equal(194, rotas.Length);
     }
 
     [Fact]

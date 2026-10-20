@@ -193,6 +193,22 @@ internal sealed class AlterarVencimentoContaReceberHandler(IUsuarioContexto usua
 public sealed class IntegracaoFinanceiroOrdensServico(IFinanceiroRepositorio repositorio,
     IPlataformaFinanceiroConsulta plataforma, IConversorFusoHorario conversor) : IIntegracaoFinanceiroOrdensServico
 {
+    public async Task<Guid> PrepararRecebimentoIntegralAsync(OrdemServicoFinalizadaFinanceiro evento,
+        FormaPagamento forma, decimal taxa, int? parcelas, string? observacao,
+        Guid usuarioId, CancellationToken ct)
+    {
+        var fuso = await FinanceiroFluxo.ObterFusoAsync(plataforma, evento.EmpresaId, ct);
+        var competencia = DateOnly.FromDateTime(conversor.ParaLocal(evento.FinalizadaEmUtc, fuso));
+        var conta = new ContaReceber(evento.EmpresaId, evento.OrdemServicoId, evento.OrdemServicoCodigo,
+            evento.ClienteId, evento.ClienteNome, evento.VeiculoId, evento.VeiculoDescricao,
+            evento.VeiculoPlaca, evento.SubtotalAutorizado, evento.DescontoAutorizado,
+            evento.AcrescimoAutorizado, evento.TotalAutorizado, competencia);
+        FinanceiroFluxo.ExecutarRegra(() => conta.RegistrarPagamento(forma, conta.ValorOriginal, taxa,
+            parcelas, observacao, evento.FinalizadaEmUtc, usuarioId));
+        repositorio.Adicionar(conta);
+        return conta.Id;
+    }
+
     public async Task PrepararContaReceberAsync(OrdemServicoFinalizadaFinanceiro evento, CancellationToken ct)
     {
         if (evento.TotalAutorizado <= 0 || await repositorio.ExistePorOrdemServicoAsync(evento.OrdemServicoId, ct)) return;
